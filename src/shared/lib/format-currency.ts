@@ -1,7 +1,8 @@
 const numberFormatter = new Intl.NumberFormat("ar-PS-u-nu-latn", {
-  maximumFractionDigits: 0,
+  minimumFractionDigits: 0,
+  maximumFractionDigits: 2,
 });
 
-export function formatIls(value: number): string {
-  return `${numberFormatter.format(value)} ₪`;
+export function formatIls(agorot: number): string {
+  return `${numberFormatter.format(agorot / 100)} ₪`;
 }

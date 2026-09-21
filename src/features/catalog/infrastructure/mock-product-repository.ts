@@ -1,93 +1,128 @@
-import { productSchema, type Product } from "../domain/product";
+import {
+  productIdSchema,
+  productSchema,
+  productSlugSchema,
+  type Product,
+} from "../domain/product";
 import type { ProductRepository } from "../domain/product-repository";
 
-const catalog = [
+const catalog = productSchema.array().parse([
   {
     id: "general-cleaner",
-    name: "منظف عام Secret",
-    priceIls: 7,
+    slug: "general-cleaner-secret",
+    nameAr: "منظف عام",
+    latinName: "Secret",
+    priceAgorot: 700,
     categoryId: "home",
     image: { kind: "placeholder", variant: "general-cleaner" },
-    detailsStatus: "unknown",
-    purchasable: true,
+    availability: "available",
+    detailsStatus: "placeholder",
   },
   {
     id: "dolphin-bleach",
-    name: "مبيض Dolphin",
-    priceIls: 8,
+    slug: "dolphin-bleach",
+    nameAr: "مبيض",
+    latinName: "Dolphin",
+    priceAgorot: 800,
     categoryId: "laundry",
     image: { kind: "placeholder", variant: "bleach" },
-    detailsStatus: "unknown",
-    purchasable: true,
+    availability: "available",
+    detailsStatus: "placeholder",
   },
   {
     id: "carpet-brush",
-    name: "فرشاة سجاد",
-    priceIls: 5,
+    slug: "carpet-brush",
+    nameAr: "فرشاة سجاد",
+    priceAgorot: 500,
     categoryId: "tools",
     image: { kind: "placeholder", variant: "brush" },
-    detailsStatus: "unknown",
-    purchasable: true,
+    availability: "available",
+    detailsStatus: "placeholder",
   },
   {
     id: "arar-dish-liquid",
-    name: "سائل جلي Arar",
-    priceIls: 12,
+    slug: "arar-dish-liquid",
+    nameAr: "سائل جلي",
+    latinName: "Arar",
+    priceAgorot: 1200,
     categoryId: "kitchen",
     image: { kind: "placeholder", variant: "dish-liquid" },
-    detailsStatus: "unknown",
-    purchasable: true,
+    availability: "available",
+    detailsStatus: "placeholder",
   },
   {
     id: "smart-floor-cleaner",
-    name: "منظف أرضيات Smart",
-    priceIls: 10,
+    slug: "smart-floor-cleaner",
+    nameAr: "منظف أرضيات",
+    latinName: "Smart",
+    priceAgorot: 1000,
     categoryId: "home",
     image: { kind: "placeholder", variant: "floor-cleaner" },
-    detailsStatus: "unknown",
-    purchasable: true,
+    availability: "available",
+    detailsStatus: "placeholder",
   },
   {
     id: "musk-floor-cleaner",
-    name: "منظف أرضيات Musk",
-    priceIls: 10,
+    slug: "musk-floor-cleaner",
+    nameAr: "منظف أرضيات",
+    latinName: "Musk",
+    priceAgorot: 1000,
     categoryId: "home",
     image: { kind: "placeholder", variant: "floor-cleaner" },
-    detailsStatus: "unknown",
-    purchasable: true,
+    availability: "available",
+    detailsStatus: "placeholder",
   },
   {
     id: "lilac-floor-cleaner",
-    name: "منظف أرضيات Lilac",
-    priceIls: 10,
+    slug: "lilac-floor-cleaner",
+    nameAr: "منظف أرضيات",
+    latinName: "Lilac",
+    priceAgorot: 1000,
     categoryId: "home",
     image: { kind: "placeholder", variant: "floor-cleaner" },
-    detailsStatus: "unknown",
-    purchasable: true,
+    availability: "available",
+    detailsStatus: "placeholder",
   },
   {
     id: "degreaser-8",
-    name: "مزيل دهون",
-    priceIls: 8,
+    slug: "degreaser-8",
+    nameAr: "مزيل دهون",
+    priceAgorot: 800,
     categoryId: "kitchen",
     image: { kind: "placeholder", variant: "degreaser" },
-    detailsStatus: "unknown",
-    purchasable: true,
+    availability: "available",
+    detailsStatus: "placeholder",
   },
   {
     id: "degreaser-10",
-    name: "مزيل دهون",
-    priceIls: 10,
+    slug: "degreaser-10",
+    nameAr: "مزيل دهون",
+    priceAgorot: 1000,
     categoryId: "kitchen",
     image: { kind: "placeholder", variant: "degreaser" },
-    detailsStatus: "unknown",
-    purchasable: true,
+    availability: "available",
+    detailsStatus: "placeholder",
   },
-] satisfies Product[];
+]);
+
+const productsById = new Map(catalog.map((product) => [product.id, product]));
 
 export class MockProductRepository implements ProductRepository {
   async list(): Promise<readonly Product[]> {
-    return productSchema.array().parse(catalog);
+    return catalog;
+  }
+
+  async getBySlug(slug: string): Promise<Product | null> {
+    if (!productSlugSchema.safeParse(slug).success) return null;
+    return catalog.find((product) => product.slug === slug) ?? null;
+  }
+
+  async getByIds(ids: readonly string[]): Promise<readonly Product[]> {
+    return ids.flatMap((id) => {
+      if (!productIdSchema.safeParse(id).success) return [];
+      const product = productsById.get(id);
+      return product ? [product] : [];
+    });
   }
 }
 

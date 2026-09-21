@@ -32,9 +32,9 @@ test("homepage search, filtering, and cart work in RTL", async ({ page }) => {
 
   const product = page.locator("article").filter({ hasText: "سائل جلي Arar" });
   await product.getByRole("button", { name: /^أضف$/ }).click();
-  await expect(
-    page.getByRole("button", { name: "السلة، منتج واحد" }),
-  ).toBeVisible();
+  await expect(page.locator(".cart-button")).toHaveAccessibleName(
+    "السلة، منتج واحد",
+  );
 
   await search.clear();
   await page.getByRole("button", { name: "منظفات المطبخ" }).click();
@@ -68,7 +68,7 @@ test("mobile header, hero, RTL categories, and bottom spacing remain usable", as
 
   const brand = page.locator(".brand");
   const cart = page.locator(".cart-button");
-  const location = page.locator(".location-button");
+  const location = page.locator(".location-control");
   const [brandBox, cartBox, locationBox] = await Promise.all([
     brand.boundingBox(),
     cart.boundingBox(),
@@ -80,7 +80,9 @@ test("mobile header, hero, RTL categories, and bottom spacing remain usable", as
   expect(locationBox).not.toBeNull();
   expect(Math.abs(brandBox!.y - cartBox!.y)).toBeLessThan(10);
   expect(locationBox!.y).toBeGreaterThan(brandBox!.y + brandBox!.height);
-  await expect(location).toContainText("حدد منطقة التوصيل");
+  await expect(
+    page.getByRole("combobox", { name: "منطقة التوصيل" }),
+  ).toHaveValue("");
   expect(
     await location.evaluate(
       (element) => element.scrollWidth <= element.clientWidth,
