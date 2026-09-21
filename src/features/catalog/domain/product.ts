@@ -1,13 +1,13 @@
 import { z } from "zod";
 
-export const categoryIds = [
-  "all",
+export const productCategoryIds = [
   "laundry",
   "kitchen",
   "bathroom",
   "tools",
   "home",
 ] as const;
+export const categoryIds = ["all", ...productCategoryIds] as const;
 
 export type CategoryId = (typeof categoryIds)[number];
 
@@ -28,6 +28,8 @@ export const placeholderKinds = [
 ] as const;
 
 export type PlaceholderKind = (typeof placeholderKinds)[number];
+export const productAvailabilityValues = ["available", "unavailable"] as const;
+export const productDetailsStatusValues = ["placeholder", "verified"] as const;
 
 export const productSchema = z
   .object({
@@ -50,11 +52,11 @@ export const productSchema = z
         height: z.number().int().positive(),
       }),
     ]),
-    availability: z.enum(["available", "unavailable"]),
+    availability: z.enum(productAvailabilityValues),
     description: z.string().min(1).optional(),
     usageNotes: z.string().min(1).optional(),
     unit: z.string().min(1).optional(),
-    detailsStatus: z.enum(["placeholder", "verified"]),
+    detailsStatus: z.enum(productDetailsStatusValues),
   })
   .strict();
 

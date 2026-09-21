@@ -1,0 +1,575 @@
+{
+  "id": "4214a67c-2cfc-409a-b1e7-7c0dba82cd46",
+  "prevId": "00000000-0000-0000-0000-000000000000",
+  "version": "7",
+  "dialect": "postgresql",
+  "tables": {
+    "public.order_items": {
+      "name": "order_items",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "order_id": {
+          "name": "order_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "product_domain_id": {
+          "name": "product_domain_id",
+          "type": "varchar(80)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "product_name_snapshot": {
+          "name": "product_name_snapshot",
+          "type": "varchar(280)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "unit_price_agorot": {
+          "name": "unit_price_agorot",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "quantity": {
+          "name": "quantity",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "line_subtotal_agorot": {
+          "name": "line_subtotal_agorot",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "order_items_order_id_orders_id_fk": {
+          "name": "order_items_order_id_orders_id_fk",
+          "tableFrom": "order_items",
+          "tableTo": "orders",
+          "columnsFrom": ["order_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "order_items_product_domain_id_products_domain_id_fk": {
+          "name": "order_items_product_domain_id_products_domain_id_fk",
+          "tableFrom": "order_items",
+          "tableTo": "products",
+          "columnsFrom": ["product_domain_id"],
+          "columnsTo": ["domain_id"],
+          "onDelete": "restrict",
+          "onUpdate": "cascade"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "order_items_order_product_unique": {
+          "name": "order_items_order_product_unique",
+          "nullsNotDistinct": false,
+          "columns": ["order_id", "product_domain_id"]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "order_items_quantity_bounds": {
+          "name": "order_items_quantity_bounds",
+          "value": "\"order_items\".\"quantity\" BETWEEN 1 AND 9"
+        },
+        "order_items_non_negative_price": {
+          "name": "order_items_non_negative_price",
+          "value": "\"order_items\".\"unit_price_agorot\" >= 0"
+        },
+        "order_items_valid_subtotal": {
+          "name": "order_items_valid_subtotal",
+          "value": "\"order_items\".\"line_subtotal_agorot\" = \"order_items\".\"unit_price_agorot\" * \"order_items\".\"quantity\""
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.orders": {
+      "name": "orders",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "public_reference": {
+          "name": "public_reference",
+          "type": "varchar(40)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "order_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'pending'"
+        },
+        "customer_name": {
+          "name": "customer_name",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "normalized_phone": {
+          "name": "normalized_phone",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "service_area_id": {
+          "name": "service_area_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "service_area_code_snapshot": {
+          "name": "service_area_code_snapshot",
+          "type": "varchar(80)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "service_area_name_snapshot": {
+          "name": "service_area_name_snapshot",
+          "type": "varchar(120)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "address": {
+          "name": "address",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "landmark": {
+          "name": "landmark",
+          "type": "varchar(150)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "customer_note": {
+          "name": "customer_note",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "items_subtotal_agorot": {
+          "name": "items_subtotal_agorot",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "delivery_fee_agorot": {
+          "name": "delivery_fee_agorot",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "final_total_agorot": {
+          "name": "final_total_agorot",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "payment_method": {
+          "name": "payment_method",
+          "type": "payment_method",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'cash_on_delivery'"
+        },
+        "idempotency_key": {
+          "name": "idempotency_key",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "request_fingerprint": {
+          "name": "request_fingerprint",
+          "type": "varchar(64)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "orders_service_area_id_service_areas_id_fk": {
+          "name": "orders_service_area_id_service_areas_id_fk",
+          "tableFrom": "orders",
+          "tableTo": "service_areas",
+          "columnsFrom": ["service_area_id"],
+          "columnsTo": ["id"],
+          "onDelete": "restrict",
+          "onUpdate": "cascade"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "orders_public_reference_unique": {
+          "name": "orders_public_reference_unique",
+          "nullsNotDistinct": false,
+          "columns": ["public_reference"]
+        },
+        "orders_idempotency_key_unique": {
+          "name": "orders_idempotency_key_unique",
+          "nullsNotDistinct": false,
+          "columns": ["idempotency_key"]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "orders_non_negative_items_subtotal": {
+          "name": "orders_non_negative_items_subtotal",
+          "value": "\"orders\".\"items_subtotal_agorot\" >= 0"
+        },
+        "orders_non_negative_delivery_fee": {
+          "name": "orders_non_negative_delivery_fee",
+          "value": "\"orders\".\"delivery_fee_agorot\" IS NULL OR \"orders\".\"delivery_fee_agorot\" >= 0"
+        },
+        "orders_valid_final_total": {
+          "name": "orders_valid_final_total",
+          "value": "(\n        (\"orders\".\"delivery_fee_agorot\" IS NULL AND \"orders\".\"final_total_agorot\" IS NULL)\n        OR\n        (\"orders\".\"delivery_fee_agorot\" IS NOT NULL\n          AND \"orders\".\"final_total_agorot\" = \"orders\".\"items_subtotal_agorot\" + \"orders\".\"delivery_fee_agorot\")\n      )"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.products": {
+      "name": "products",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "domain_id": {
+          "name": "domain_id",
+          "type": "varchar(80)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "slug": {
+          "name": "slug",
+          "type": "varchar(120)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name_ar": {
+          "name": "name_ar",
+          "type": "varchar(160)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "latin_name": {
+          "name": "latin_name",
+          "type": "varchar(120)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "price_agorot": {
+          "name": "price_agorot",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "sort_order": {
+          "name": "sort_order",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "category_id": {
+          "name": "category_id",
+          "type": "product_category",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "availability": {
+          "name": "availability",
+          "type": "product_availability",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "image_kind": {
+          "name": "image_kind",
+          "type": "product_image_kind",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "image_src": {
+          "name": "image_src",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "image_alt": {
+          "name": "image_alt",
+          "type": "varchar(250)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "image_width": {
+          "name": "image_width",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "image_height": {
+          "name": "image_height",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "placeholder_variant": {
+          "name": "placeholder_variant",
+          "type": "placeholder_variant",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "description": {
+          "name": "description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "usage_notes": {
+          "name": "usage_notes",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "unit": {
+          "name": "unit",
+          "type": "varchar(80)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "details_status": {
+          "name": "details_status",
+          "type": "product_details_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "products_domain_id_unique": {
+          "name": "products_domain_id_unique",
+          "nullsNotDistinct": false,
+          "columns": ["domain_id"]
+        },
+        "products_slug_unique": {
+          "name": "products_slug_unique",
+          "nullsNotDistinct": false,
+          "columns": ["slug"]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "products_positive_price": {
+          "name": "products_positive_price",
+          "value": "\"products\".\"price_agorot\" > 0"
+        },
+        "products_non_negative_sort": {
+          "name": "products_non_negative_sort",
+          "value": "\"products\".\"sort_order\" >= 0"
+        },
+        "products_valid_image": {
+          "name": "products_valid_image",
+          "value": "(\n        (\"products\".\"image_kind\" = 'placeholder'\n          AND \"products\".\"placeholder_variant\" IS NOT NULL\n          AND \"products\".\"image_src\" IS NULL\n          AND \"products\".\"image_alt\" IS NULL\n          AND \"products\".\"image_width\" IS NULL\n          AND \"products\".\"image_height\" IS NULL)\n        OR\n        (\"products\".\"image_kind\" = 'image'\n          AND \"products\".\"placeholder_variant\" IS NULL\n          AND \"products\".\"image_src\" IS NOT NULL\n          AND \"products\".\"image_alt\" IS NOT NULL\n          AND \"products\".\"image_width\" > 0\n          AND \"products\".\"image_height\" > 0)\n      )"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.service_areas": {
+      "name": "service_areas",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "code": {
+          "name": "code",
+          "type": "varchar(80)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name_ar": {
+          "name": "name_ar",
+          "type": "varchar(120)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "enabled": {
+          "name": "enabled",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "sort_order": {
+          "name": "sort_order",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "delivery_fee_agorot": {
+          "name": "delivery_fee_agorot",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "service_areas_code_unique": {
+          "name": "service_areas_code_unique",
+          "nullsNotDistinct": false,
+          "columns": ["code"]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "service_areas_non_negative_sort": {
+          "name": "service_areas_non_negative_sort",
+          "value": "\"service_areas\".\"sort_order\" >= 0"
+        },
+        "service_areas_non_negative_fee": {
+          "name": "service_areas_non_negative_fee",
+          "value": "\"service_areas\".\"delivery_fee_agorot\" IS NULL OR \"service_areas\".\"delivery_fee_agorot\" >= 0"
+        }
+      },
+      "isRLSEnabled": false
+    }
+  },
+  "enums": {
+    "public.order_status": {
+      "name": "order_status",
+      "schema": "public",
+      "values": ["pending"]
+    },
+    "public.payment_method": {
+      "name": "payment_method",
+      "schema": "public",
+      "values": ["cash_on_delivery"]
+    },
+    "public.placeholder_variant": {
+      "name": "placeholder_variant",
+      "schema": "public",
+      "values": [
+        "general-cleaner",
+        "bleach",
+        "brush",
+        "dish-liquid",
+        "floor-cleaner",
+        "degreaser"
+      ]
+    },
+    "public.product_availability": {
+      "name": "product_availability",
+      "schema": "public",
+      "values": ["available", "unavailable"]
+    },
+    "public.product_category": {
+      "name": "product_category",
+      "schema": "public",
+      "values": ["laundry", "kitchen", "bathroom", "tools", "home"]
+    },
+    "public.product_details_status": {
+      "name": "product_details_status",
+      "schema": "public",
+      "values": ["placeholder", "verified"]
+    },
+    "public.product_image_kind": {
+      "name": "product_image_kind",
+      "schema": "public",
+      "values": ["placeholder", "image"]
+    }
+  },
+  "schemas": {},
+  "sequences": {},
+  "roles": {},
+  "policies": {},
+  "views": {},
+  "_meta": {
+    "columns": {},
+    "schemas": {},
+    "tables": {}
+  }
+}

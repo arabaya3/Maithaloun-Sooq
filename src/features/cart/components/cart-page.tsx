@@ -177,11 +177,13 @@ export function CartPage({ products }: { products: readonly Product[] }) {
             <bdi dir="ltr">{formatIls(subtotal)}</bdi>
           </strong>
         </div>
-        <p>سيتم تأكيد الأسعار والتوفر عند إتاحة الطلب.</p>
-        <button type="button" disabled>
-          الطلب سيُتاح في المرحلة القادمة
-        </button>
-        <Link href="/#catalog">متابعة التسوق</Link>
+        <p>تُراجع الأسعار والتوفر مرة أخرى عند تأكيد الطلب.</p>
+        <Link className="checkout-action" href="/checkout">
+          متابعة إلى بيانات الطلب
+        </Link>
+        <Link className="continue-shopping-link" href="/#catalog">
+          متابعة التسوق
+        </Link>
       </aside>
     </div>
   );

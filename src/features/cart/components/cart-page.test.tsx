@@ -5,10 +5,12 @@ import { describe, expect, it } from "vitest";
 import { CartPage } from "@/features/cart/components/cart-page";
 import { CART_STORAGE_KEY } from "@/features/cart/cart-store";
 import type { Product } from "@/features/catalog/domain/product";
-import { productRepository } from "@/features/catalog/infrastructure/mock-product-repository";
 import { renderWithProviders } from "@/test/render-with-providers";
+import { MockProductRepository } from "@/test/mock-product-repository";
 
 describe("cart page", () => {
+  const productRepository = new MockProductRepository();
+
   it("renders an empty-cart state", async () => {
     const products = await productRepository.list();
     renderWithProviders(<CartPage products={products} />, {
@@ -39,6 +41,9 @@ describe("cart page", () => {
       within(line).getByLabelText("مجموع منظف عام Secret 14 ₪"),
     ).toBeInTheDocument();
     expect(screen.getByLabelText("المجموع الفرعي 14 ₪")).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: "متابعة إلى بيانات الطلب" }),
+    ).toBeInTheDocument();
 
     await user.click(
       within(line).getByRole("button", {

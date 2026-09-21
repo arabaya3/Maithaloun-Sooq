@@ -1399,20 +1399,313 @@ select:focus-visible {
   line-height: 1.7;
 }
 
-.cart-summary > button {
+.cart-summary .checkout-action {
+  display: inline-flex;
   width: 100%;
   min-height: 3rem;
+  align-items: center;
+  justify-content: center;
   padding-inline: 0.75rem;
-  color: var(--muted);
+  color: var(--white);
   border: 0;
   border-radius: 0.5rem;
-  background: #e5e7e4;
+  background: var(--green-900);
   font-weight: 800;
 }
 
 .cart-summary > a {
   width: 100%;
   margin-top: 0.65rem;
+}
+
+.cart-summary .continue-shopping-link {
+  color: var(--green-900);
+  border: 1px solid var(--green-800);
+  background: transparent;
+}
+
+.checkout-page {
+  padding-block: 1rem calc(var(--mobile-nav-height) + 2rem);
+}
+
+.checkout-loading {
+  display: grid;
+  min-height: 24rem;
+  place-items: center;
+}
+
+.checkout-layout {
+  display: grid;
+  gap: 1rem;
+}
+
+.checkout-fields,
+.checkout-summary {
+  padding: 1rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--white);
+}
+
+.checkout-fields h1 {
+  margin: 0.2rem 0 1.2rem;
+  color: var(--green-950);
+  font-size: clamp(1.75rem, 8vw, 2.4rem);
+}
+
+.checkout-field {
+  display: grid;
+  margin-top: 0.9rem;
+  color: var(--charcoal);
+  font-size: 0.88rem;
+  font-weight: 800;
+  gap: 0.35rem;
+}
+
+.checkout-field > span small {
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.checkout-field input,
+.checkout-field textarea {
+  width: 100%;
+  min-height: 2.75rem;
+  padding: 0.65rem 0.75rem;
+  color: var(--charcoal);
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  background: var(--warm-50);
+  font: inherit;
+  font-weight: 500;
+  resize: vertical;
+}
+
+.checkout-field [aria-invalid="true"] {
+  border-color: #b8463f;
+  box-shadow: 0 0 0 2px rgb(184 70 63 / 12%);
+}
+
+.checkout-field > small {
+  color: #8b302b;
+  font-weight: 700;
+}
+
+.checkout-error-summary,
+.checkout-blocker {
+  color: #762d29;
+  border: 1px solid #dda8a4;
+  border-radius: 0.5rem;
+  background: #fff5f4;
+}
+
+.checkout-error-summary {
+  padding: 0.85rem;
+}
+
+.checkout-error-summary h2,
+.checkout-error-summary p {
+  margin: 0;
+}
+
+.checkout-error-summary h2 {
+  font-size: 1rem;
+}
+
+.checkout-error-summary p {
+  margin-top: 0.3rem;
+  font-size: 0.84rem;
+}
+
+.checkout-honeypot {
+  position: absolute;
+  right: -10000px;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}
+
+.payment-method {
+  margin-top: 1rem;
+  padding: 0.9rem;
+  border: 1px solid #b8d9d0;
+  border-radius: 0.5rem;
+  background: var(--mint-50);
+}
+
+.payment-method h2,
+.payment-method p {
+  margin: 0;
+}
+
+.payment-method h2 {
+  font-size: 0.95rem;
+}
+
+.payment-method p {
+  margin-top: 0.25rem;
+  color: var(--green-900);
+  font-weight: 800;
+}
+
+.checkout-summary {
+  height: fit-content;
+}
+
+.checkout-summary h2 {
+  margin: 0 0 0.8rem;
+  color: var(--green-950);
+  font-size: 1.3rem;
+}
+
+.checkout-blocker {
+  margin: 0.45rem 0;
+  padding: 0.65rem;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.checkout-items {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.checkout-items > div,
+.checkout-total,
+.checkout-delivery {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.checkout-items > div {
+  color: #46534f;
+  font-size: 0.83rem;
+}
+
+.checkout-total {
+  margin-top: 1rem;
+  padding-block: 0.8rem;
+  color: var(--green-950);
+  border-block: 1px solid var(--border);
+}
+
+.checkout-total strong {
+  font-size: 1.2rem;
+}
+
+.checkout-delivery {
+  margin-top: 0.8rem;
+  font-size: 0.85rem;
+}
+
+.delivery-pending,
+.checkout-privacy {
+  color: var(--muted);
+  font-size: 0.8rem;
+  line-height: 1.7;
+}
+
+.checkout-summary > button {
+  width: 100%;
+  min-height: 3.1rem;
+  color: var(--white);
+  border: 0;
+  border-radius: 0.5rem;
+  background: var(--green-900);
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.checkout-summary > button:disabled {
+  color: var(--muted);
+  background: #e1e4e1;
+  cursor: not-allowed;
+}
+
+.checkout-privacy {
+  margin-bottom: 0;
+  text-align: center;
+}
+
+.order-confirmation-page {
+  display: grid;
+  min-height: 100dvh;
+  padding-block: 2rem;
+  place-items: center;
+}
+
+.order-confirmation-page > section {
+  width: min(100%, 38rem);
+  padding: clamp(1.25rem, 5vw, 2.5rem);
+  text-align: center;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--white);
+}
+
+.order-confirmation-page > section > svg {
+  width: 3.5rem;
+  height: 3.5rem;
+  margin-inline: auto;
+  color: var(--green-800);
+}
+
+.order-confirmation-page h1 {
+  margin: 0.4rem 0;
+  color: var(--green-950);
+  font-size: clamp(1.65rem, 7vw, 2.35rem);
+}
+
+.order-reference {
+  display: grid;
+  margin-block: 1rem;
+  padding: 0.85rem;
+  border-radius: 0.5rem;
+  background: var(--mint-50);
+  gap: 0.25rem;
+}
+
+.order-reference strong {
+  color: var(--green-950);
+  font-size: 1.05rem;
+  overflow-wrap: anywhere;
+}
+
+.order-confirmation-page dl {
+  margin: 1rem 0;
+}
+
+.order-confirmation-page dl > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-block: 0.65rem;
+  border-bottom: 1px solid var(--border);
+  gap: 1rem;
+}
+
+.order-confirmation-page dt {
+  color: var(--muted);
+}
+
+.order-confirmation-page dd {
+  margin: 0;
+  font-weight: 800;
+}
+
+.order-confirmation-page a {
+  display: inline-flex;
+  min-height: 2.75rem;
+  align-items: center;
+  justify-content: center;
+  padding-inline: 1rem;
+  color: var(--white);
+  border-radius: 0.5rem;
+  background: var(--green-900);
+  font-weight: 800;
 }
 
 .placeholder-page {
@@ -1711,6 +2004,15 @@ select:focus-visible {
     grid-row: 1;
     min-width: 5rem;
   }
+
+  .checkout-page {
+    padding-block: 1.5rem 3rem;
+  }
+
+  .checkout-fields,
+  .checkout-summary {
+    padding: 1.5rem;
+  }
 }
 
 @media (min-width: 64rem) {
@@ -1793,6 +2095,17 @@ select:focus-visible {
   }
 
   .cart-summary {
+    position: sticky;
+    top: 6.5rem;
+  }
+
+  .checkout-layout {
+    grid-template-columns: minmax(0, 1fr) 24rem;
+    align-items: start;
+    gap: 1.5rem;
+  }
+
+  .checkout-summary {
     position: sticky;
     top: 6.5rem;
   }

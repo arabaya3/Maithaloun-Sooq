@@ -9,9 +9,16 @@ export function renderWithProviders(
   ui: ReactElement,
   { productIds, ...options }: RenderOptions & { productIds: readonly string[] },
 ) {
+  const locations = [
+    { code: "ramallah", nameAr: "رام الله" },
+    { code: "al-bireh", nameAr: "البيرة" },
+    { code: "maythalun", nameAr: "ميثلون" },
+    { code: "other", nameAr: "منطقة أخرى" },
+  ];
+
   function Wrapper({ children }: { children: ReactNode }) {
     return (
-      <DeliveryProvider>
+      <DeliveryProvider locations={locations}>
         <FavoritesProvider productIds={productIds}>
           <CartProvider productIds={productIds}>{children}</CartProvider>
         </FavoritesProvider>

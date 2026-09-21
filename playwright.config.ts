@@ -1,4 +1,15 @@
+import { config as loadEnvironment } from "dotenv";
 import { defineConfig, devices } from "@playwright/test";
+
+import { parseTestEnv } from "./src/server/env/env-schema";
+
+loadEnvironment({ path: ".env.local", quiet: true });
+const testEnvironment = parseTestEnv({
+  DATABASE_URL: process.env.DATABASE_URL,
+  TEST_DATABASE_URL: process.env.TEST_DATABASE_URL,
+  ORDER_RATE_LIMIT_PEPPER: process.env.ORDER_RATE_LIMIT_PEPPER,
+  APP_ORIGIN: process.env.APP_ORIGIN,
+});
 
 export default defineConfig({
   testDir: "./tests/e2e",
@@ -23,5 +34,10 @@ export default defineConfig({
     url: "http://localhost:3000",
     reuseExistingServer: false,
     timeout: 120_000,
+    env: {
+      DATABASE_URL: testEnvironment.TEST_DATABASE_URL,
+      ORDER_RATE_LIMIT_PEPPER: testEnvironment.ORDER_RATE_LIMIT_PEPPER,
+      APP_ORIGIN: testEnvironment.APP_ORIGIN,
+    },
   },
 });

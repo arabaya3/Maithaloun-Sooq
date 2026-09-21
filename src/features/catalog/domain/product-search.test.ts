@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 
+import { MockProductRepository } from "@/test/mock-product-repository";
+
 import { filterProducts, normalizeSearchText } from "./product-search";
-import { MockProductRepository } from "../infrastructure/mock-product-repository";
 
 describe("product search", () => {
   it("normalizes whitespace, Arabic variants, and Latin case", () => {

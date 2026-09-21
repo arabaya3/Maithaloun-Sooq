@@ -9,7 +9,10 @@ import {
   type ReactNode,
 } from "react";
 
-import type { DeliveryLocationId } from "./delivery-location";
+import type {
+  DeliveryLocationId,
+  DeliveryLocationOption,
+} from "./delivery-location";
 import {
   DELIVERY_STORAGE_KEY,
   parsePersistedDeliveryLocation,
@@ -18,25 +21,37 @@ import {
 
 interface DeliveryContextValue {
   locationId: DeliveryLocationId | null;
+  locations: readonly DeliveryLocationOption[];
   ready: boolean;
   selectLocation: (locationId: DeliveryLocationId | null) => void;
 }
 
 const DeliveryContext = createContext<DeliveryContextValue | null>(null);
 
-export function DeliveryProvider({ children }: { children: ReactNode }) {
+export function DeliveryProvider({
+  children,
+  locations,
+}: {
+  children: ReactNode;
+  locations: readonly DeliveryLocationOption[];
+}) {
   const [locationId, setLocationId] = useState<DeliveryLocationId | null>(null);
   const [restored, setRestored] = useState(false);
+  const allowedLocationIds = useMemo(
+    () => new Set(locations.map((location) => location.code)),
+    [locations],
+  );
 
   useEffect(() => {
     const saved = parsePersistedDeliveryLocation(
       window.localStorage.getItem(DELIVERY_STORAGE_KEY),
+      allowedLocationIds,
     );
     queueMicrotask(() => {
       setLocationId(saved);
       setRestored(true);
     });
-  }, []);
+  }, [allowedLocationIds]);
 
   useEffect(() => {
     if (!restored) return;
@@ -53,10 +68,19 @@ export function DeliveryProvider({ children }: { children: ReactNode }) {
   const value = useMemo<DeliveryContextValue>(
     () => ({
       locationId,
+      locations,
       ready: restored,
-      selectLocation: setLocationId,
+      selectLocation: (nextLocationId) => {
+        if (
+          nextLocationId !== null &&
+          !allowedLocationIds.has(nextLocationId)
+        ) {
+          return;
+        }
+        setLocationId(nextLocationId);
+      },
     }),
-    [locationId, restored],
+    [allowedLocationIds, locationId, locations, restored],
   );
 
   return (

@@ -5,10 +5,7 @@ import Link from "next/link";
 import type { RefObject } from "react";
 
 import { useCart } from "@/features/cart/cart-provider";
-import {
-  deliveryLocationIdSchema,
-  deliveryLocations,
-} from "@/features/delivery/delivery-location";
+import { deliveryLocationIdSchema } from "@/features/delivery/delivery-location";
 import { useDelivery } from "@/features/delivery/delivery-provider";
 import { formatProductCount } from "@/shared/lib/format-product-count";
 
@@ -29,7 +26,7 @@ export function SiteHeader({
   searchInputRef?: RefObject<HTMLInputElement | null>;
 }) {
   const { count } = useCart();
-  const { locationId, selectLocation } = useDelivery();
+  const { locationId, locations, selectLocation } = useDelivery();
   const hasSearch = searchQuery !== undefined && onSearchChange !== undefined;
 
   return (
@@ -98,9 +95,9 @@ export function SiteHeader({
               }}
             >
               <option value="">غير محدد</option>
-              {deliveryLocations.map((location) => (
-                <option key={location.id} value={location.id}>
-                  {location.label}
+              {locations.map((location) => (
+                <option key={location.code} value={location.code}>
+                  {location.nameAr}
                 </option>
               ))}
             </select>

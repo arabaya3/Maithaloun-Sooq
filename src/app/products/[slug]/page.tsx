@@ -2,6 +2,7 @@ import { ArrowRight } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { connection } from "next/server";
 
 import { ProductCard } from "@/features/catalog/components/product-card";
 import { ProductDetailActions } from "@/features/catalog/components/product-detail-actions";
@@ -11,7 +12,7 @@ import {
   getProductDisplayName,
   isProductAvailable,
 } from "@/features/catalog/domain/product";
-import { productRepository } from "@/features/catalog/infrastructure/mock-product-repository";
+import { productRepository } from "@/features/catalog/infrastructure/product-repository";
 import { MobileNavigation } from "@/features/storefront/components/mobile-navigation";
 import { SiteHeader } from "@/features/storefront/components/site-header";
 import { formatIls } from "@/shared/lib/format-currency";
@@ -20,18 +21,12 @@ interface ProductPageProps {
   params: Promise<{ slug: string }>;
 }
 
-export const dynamicParams = false;
-
-export async function generateStaticParams() {
-  const products = await productRepository.list();
-  return products.map((product) => ({ slug: product.slug }));
-}
-
 export async function generateMetadata({
   params,
 }: ProductPageProps): Promise<Metadata> {
+  await connection();
   const product = await productRepository.getBySlug((await params).slug);
-  if (!product) return { title: "المنتج غير موجود" };
+  if (!product) notFound();
 
   return {
     title: getProductDisplayName(product),
@@ -42,6 +37,7 @@ export async function generateMetadata({
 }
 
 export default async function ProductPage({ params }: ProductPageProps) {
+  await connection();
   const product = await productRepository.getBySlug((await params).slug);
   if (!product) notFound();
 
