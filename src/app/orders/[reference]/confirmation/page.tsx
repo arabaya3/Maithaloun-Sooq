@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import { connection } from "next/server";
 
 import { orderService } from "@/features/orders/application/order-service-instance";
+import { orderStatusLabels } from "@/features/orders/domain/order-status";
 import { formatIls } from "@/shared/lib/format-currency";
 
 export const metadata: Metadata = {
@@ -30,7 +31,7 @@ export default async function OrderConfirmationPage({
         <span className="eyebrow">تم استلام الطلب</span>
         <h1 id="confirmation-title">شكراً، طلبك قيد المراجعة</h1>
         <p>
-          حالة الطلب: <strong>قيد الانتظار</strong>
+          حالة الطلب: <strong>{orderStatusLabels[confirmation.status]}</strong>
         </p>
         <div className="order-reference">
           <span>رقم الطلب</span>

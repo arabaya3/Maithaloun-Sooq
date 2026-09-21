@@ -2,23 +2,29 @@ import { sql } from "drizzle-orm";
 import {
   boolean,
   check,
+  index,
   integer,
+  jsonb,
   pgEnum,
   pgTable,
+  primaryKey,
   text,
   timestamp,
   unique,
+  uniqueIndex,
   uuid,
   varchar,
 } from "drizzle-orm/pg-core";
 
+import { adminRoles } from "@/features/admin/domain/admin-actor";
+import { MAX_CART_QUANTITY } from "@/features/cart/cart-store";
 import {
   placeholderKinds,
   productAvailabilityValues,
   productCategoryIds,
   productDetailsStatusValues,
 } from "@/features/catalog/domain/product";
-import { MAX_CART_QUANTITY } from "@/features/cart/cart-store";
+import { orderStatuses } from "@/features/orders/domain/order-status";
 
 export const productCategoryEnum = pgEnum(
   "product_category",
@@ -40,8 +46,9 @@ export const placeholderVariantEnum = pgEnum(
   "placeholder_variant",
   placeholderKinds,
 );
-export const orderStatusEnum = pgEnum("order_status", ["pending"]);
+export const orderStatusEnum = pgEnum("order_status", orderStatuses);
 export const paymentMethodEnum = pgEnum("payment_method", ["cash_on_delivery"]);
+export const adminRoleEnum = pgEnum("admin_role", adminRoles);
 
 const timestamps = {
   createdAt: timestamp("created_at", {
@@ -157,6 +164,7 @@ export const orders = pgTable(
     paymentMethod: paymentMethodEnum("payment_method")
       .default("cash_on_delivery")
       .notNull(),
+    version: integer("version").default(1).notNull(),
     idempotencyKey: uuid("idempotency_key").notNull().unique(),
     requestFingerprint: varchar("request_fingerprint", {
       length: 64,
@@ -164,6 +172,10 @@ export const orders = pgTable(
     ...timestamps,
   },
   (table) => [
+    index("orders_status_created_at_idx").on(table.status, table.createdAt),
+    index("orders_created_at_idx").on(table.createdAt),
+    index("orders_normalized_phone_idx").on(table.normalizedPhone),
+    check("orders_positive_version", sql`${table.version} > 0`),
     check(
       "orders_non_negative_items_subtotal",
       sql`${table.itemsSubtotalAgorot} >= 0`,
@@ -218,5 +230,159 @@ export const orderItems = pgTable(
       "order_items_valid_subtotal",
       sql`${table.lineSubtotalAgorot} = ${table.unitPriceAgorot} * ${table.quantity}`,
     ),
+  ],
+);
+
+export const adminUsers = pgTable(
+  "admin_users",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    username: varchar("username", { length: 32 }).notNull().unique(),
+    displayName: varchar("display_name", { length: 80 }).notNull(),
+    passwordHash: varchar("password_hash", { length: 255 }).notNull(),
+    role: adminRoleEnum("role").notNull(),
+    active: boolean("active").default(true).notNull(),
+    passwordChangedAt: timestamp("password_changed_at", {
+      withTimezone: true,
+      mode: "date",
+    })
+      .defaultNow()
+      .notNull(),
+    ...timestamps,
+  },
+  (table) => [
+    uniqueIndex("admin_users_single_owner_idx")
+      .on(table.role)
+      .where(sql`${table.role} = 'owner'`),
+  ],
+);
+
+export const adminSessions = pgTable(
+  "admin_sessions",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    adminUserId: uuid("admin_user_id")
+      .notNull()
+      .references(() => adminUsers.id, {
+        onDelete: "restrict",
+        onUpdate: "cascade",
+      }),
+    tokenHash: varchar("token_hash", { length: 64 }).notNull().unique(),
+    createdAt: timestamp("created_at", {
+      withTimezone: true,
+      mode: "date",
+    })
+      .defaultNow()
+      .notNull(),
+    expiresAt: timestamp("expires_at", {
+      withTimezone: true,
+      mode: "date",
+    }).notNull(),
+    lastUsedAt: timestamp("last_used_at", {
+      withTimezone: true,
+      mode: "date",
+    })
+      .defaultNow()
+      .notNull(),
+    revokedAt: timestamp("revoked_at", {
+      withTimezone: true,
+      mode: "date",
+    }),
+  },
+  (table) => [index("admin_sessions_admin_user_id_idx").on(table.adminUserId)],
+);
+
+export const rateLimitBuckets = pgTable(
+  "rate_limit_buckets",
+  {
+    scope: varchar("scope", { length: 40 }).notNull(),
+    keyHash: varchar("key_hash", { length: 64 }).notNull(),
+    count: integer("count").notNull(),
+    windowStartedAt: timestamp("window_started_at", {
+      withTimezone: true,
+      mode: "date",
+    }).notNull(),
+    blockedUntil: timestamp("blocked_until", {
+      withTimezone: true,
+      mode: "date",
+    }),
+    updatedAt: timestamp("updated_at", {
+      withTimezone: true,
+      mode: "date",
+    })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.scope, table.keyHash] }),
+    check("rate_limit_buckets_non_negative_count", sql`${table.count} >= 0`),
+  ],
+);
+
+export const orderStatusHistory = pgTable(
+  "order_status_history",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    orderId: uuid("order_id")
+      .notNull()
+      .references(() => orders.id, {
+        onDelete: "restrict",
+        onUpdate: "cascade",
+      }),
+    previousStatus: orderStatusEnum("previous_status").notNull(),
+    newStatus: orderStatusEnum("new_status").notNull(),
+    adminUserId: uuid("admin_user_id")
+      .notNull()
+      .references(() => adminUsers.id, {
+        onDelete: "restrict",
+        onUpdate: "cascade",
+      }),
+    reason: varchar("reason", { length: 180 }),
+    createdAt: timestamp("created_at", {
+      withTimezone: true,
+      mode: "date",
+    })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    index("order_status_history_order_created_idx").on(
+      table.orderId,
+      table.createdAt,
+    ),
+  ],
+);
+
+export const adminAuditEvents = pgTable(
+  "admin_audit_events",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    adminUserId: uuid("admin_user_id")
+      .notNull()
+      .references(() => adminUsers.id, {
+        onDelete: "restrict",
+        onUpdate: "cascade",
+      }),
+    actionType: varchar("action_type", { length: 40 }).notNull(),
+    entityType: varchar("entity_type", { length: 40 }).notNull(),
+    entityId: varchar("entity_id", { length: 80 }).notNull(),
+    beforeState: jsonb("before_state").$type<Record<
+      string,
+      string | number | boolean | null
+    > | null>(),
+    afterState: jsonb("after_state").$type<Record<
+      string,
+      string | number | boolean | null
+    > | null>(),
+    createdAt: timestamp("created_at", {
+      withTimezone: true,
+      mode: "date",
+    })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    index("admin_audit_events_created_at_idx").on(table.createdAt),
+    index("admin_audit_events_entity_idx").on(table.entityType, table.entityId),
   ],
 );

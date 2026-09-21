@@ -1,18 +1,18 @@
 import { NextResponse } from "next/server";
 
-import {
-  InMemoryOrderSubmissionGuard,
-  MAX_ORDER_REQUEST_BYTES,
-} from "@/features/orders/application/order-submission-guard";
+import { MAX_ORDER_REQUEST_BYTES } from "@/features/orders/application/order-submission-guard";
 import { OrderCreationError } from "@/features/orders/application/order-service";
 import { orderService } from "@/features/orders/application/order-service-instance";
 import { mapOrderCreationError } from "@/features/orders/application/order-error";
 import { checkoutRequestSchema } from "@/features/orders/domain/checkout-request";
+import { createPostgresOrderSubmissionGuard } from "@/features/orders/infrastructure/postgres-order-submission-guard";
+import { db } from "@/server/db/db";
 import { getServerEnv } from "@/server/env/env";
 
 export const dynamic = "force-dynamic";
 
-const submissionGuard = new InMemoryOrderSubmissionGuard(
+const submissionGuard = createPostgresOrderSubmissionGuard(
+  db,
   getServerEnv().ORDER_RATE_LIMIT_PEPPER,
 );
 const noStoreHeaders = { "Cache-Control": "no-store, max-age=0" };

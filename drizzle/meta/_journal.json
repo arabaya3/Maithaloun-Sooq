@@ -8,6 +8,13 @@
       "when": 1789988740689,
       "tag": "0000_backend_orders_foundation",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1789997984620,
+      "tag": "0001_admin_order_operations",
+      "breakpoints": true
     }
   ]
 }

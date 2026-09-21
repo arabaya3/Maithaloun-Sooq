@@ -12,6 +12,7 @@
 /playwright-report/
 /test-results/
 /tmp-screenshots/
+/artifacts/
 
 # local
 .DS_Store

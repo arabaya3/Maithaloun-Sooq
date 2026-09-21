@@ -28,6 +28,7 @@
     "db:check": "drizzle-kit check",
     "db:seed": "tsx tools/seed-database.ts",
     "db:test:prepare": "tsx tools/prepare-test-database.ts",
+    "admin:owner": "tsx tools/create-owner.ts",
     "verify": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm test:db && pnpm test:e2e && pnpm build"
   },
   "dependencies": {

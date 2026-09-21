@@ -12,9 +12,10 @@ const validEnvironment = {
 
 describe("server environment validation", () => {
   it("accepts valid server and isolated test configuration", () => {
-    expect(parseServerEnv(validEnvironment).APP_ORIGIN).toBe(
-      "http://localhost:3000",
-    );
+    expect(parseServerEnv(validEnvironment).trustProxy).toBe(false);
+    expect(
+      parseServerEnv({ ...validEnvironment, TRUST_PROXY: "true" }).trustProxy,
+    ).toBe(true);
     expect(parseTestEnv(validEnvironment).TEST_DATABASE_URL).toContain(
       "maithalun_test",
     );
