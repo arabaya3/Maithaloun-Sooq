@@ -15,6 +15,20 @@
       "when": 1789997984620,
       "tag": "0001_admin_order_operations",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1790002343562,
+      "tag": "0002_supabase_production_hardening",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1790002421883,
+      "tag": "0003_foreign_key_indexes",
+      "breakpoints": true
     }
   ]
 }
