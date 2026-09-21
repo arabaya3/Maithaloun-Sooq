@@ -157,10 +157,15 @@ test("admin authentication, operations, and privacy controls", async ({
     .getByRole("combobox", { name: "منطقة التوصيل" })
     .selectOption("maythalun");
   const product = page.locator('[data-product-id="dolphin-bleach"]');
+  await expect(product).toBeVisible();
   await product.getByRole("button", { name: /^أضف$/ }).click();
+  await expect(page.locator(".cart-button")).toHaveAccessibleName(
+    /السلة، منتج/,
+  );
   await page.locator(".cart-button").click();
   await page.getByRole("link", { name: "متابعة إلى بيانات الطلب" }).click();
   await expect(page.getByText("تكلفة التوصيل: 3 ₪")).toBeVisible();
+  await expect(page.getByText("مبيض Dolphin")).toBeVisible();
   await page.getByRole("textbox", { name: "الاسم الكامل" }).fill("عميل تجريبي");
   await page
     .getByRole("textbox", { name: "رقم الهاتف الفلسطيني" })
@@ -171,7 +176,7 @@ test("admin authentication, operations, and privacy controls", async ({
   await page.getByRole("button", { name: "تأكيد الطلب" }).click();
   await expect(
     page.getByRole("heading", { name: /طلبك قيد المراجعة/ }),
-  ).toBeVisible();
+  ).toBeVisible({ timeout: 15_000 });
   const reference = (
     await page.locator(".order-reference strong").innerText()
   ).trim();

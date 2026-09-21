@@ -25,9 +25,11 @@ import {
   adminDeliveryService,
   adminOrderService,
 } from "@/features/admin/application/admin-services";
-import { AdminCatalogError } from "@/features/admin/application/admin-catalog-service";
-import { AdminDeliveryError } from "@/features/admin/application/admin-delivery-service";
-import { AdminOrderError } from "@/features/admin/application/admin-order-service";
+import {
+  mapDeliveryAdminError,
+  mapOrderAdminError,
+  mapProductAdminError,
+} from "@/features/admin/application/admin-action-errors";
 import { isOrderStatus } from "@/features/orders/domain/order-status";
 import { parseIlsToAgorot } from "@/shared/lib/parse-ils";
 import { db } from "@/server/db/db";
@@ -104,13 +106,14 @@ export async function updateOrderStatusAction(
       expectedVersion,
       reason,
     });
-    revalidatePath("/admin");
-    revalidatePath("/admin/orders");
-    revalidatePath(`/admin/orders/${publicReference}`);
-    redirect(`/admin/orders/${publicReference}`);
   } catch (error) {
     return { ok: false, message: mapOrderAdminError(error) };
   }
+
+  revalidatePath("/admin");
+  revalidatePath("/admin/orders");
+  revalidatePath(`/admin/orders/${publicReference}`);
+  redirect(`/admin/orders/${publicReference}`);
 }
 
 export async function updateProductAction(
@@ -123,8 +126,9 @@ export async function updateProductAction(
     return { ok: false, message: "أدخل سعراً صالحاً بالشيكل." };
   }
 
+  let slug: string;
   try {
-    const { slug } = await adminCatalogService.update(actor, {
+    ({ slug } = await adminCatalogService.update(actor, {
       domainId,
       nameAr: String(formData.get("nameAr") ?? ""),
       latinName: optional(formData.get("latinName")),
@@ -139,17 +143,18 @@ export async function updateProductAction(
       placeholderVariant: String(
         formData.get("placeholderVariant") ?? "",
       ) as never,
-    });
-    revalidatePath("/");
-    revalidatePath("/cart");
-    revalidatePath("/checkout");
-    revalidatePath(`/products/${slug}`);
-    revalidatePath("/admin/products");
-    revalidatePath(`/admin/products/${domainId}`);
-    redirect(`/admin/products/${domainId}`);
+    }));
   } catch (error) {
     return { ok: false, message: mapProductAdminError(error) };
   }
+
+  revalidatePath("/");
+  revalidatePath("/cart");
+  revalidatePath("/checkout");
+  revalidatePath(`/products/${slug}`);
+  revalidatePath("/admin/products");
+  revalidatePath(`/admin/products/${domainId}`);
+  redirect(`/admin/products/${domainId}`);
 }
 
 export async function createProductAction(
@@ -180,12 +185,13 @@ export async function createProductAction(
         formData.get("placeholderVariant") ?? "",
       ) as never,
     });
-    revalidatePath("/");
-    revalidatePath("/admin/products");
-    redirect(`/admin/products/${domainId}`);
   } catch (error) {
     return { ok: false, message: mapProductAdminError(error) };
   }
+
+  revalidatePath("/");
+  revalidatePath("/admin/products");
+  redirect(`/admin/products/${domainId}`);
 }
 
 export async function updateServiceAreaAction(
@@ -212,43 +218,20 @@ export async function updateServiceAreaAction(
       sortOrder: Number(formData.get("sortOrder")),
       deliveryFeeAgorot,
     });
-    revalidatePath("/");
-    revalidatePath("/checkout");
-    revalidatePath("/admin/delivery-areas");
-    redirect("/admin/delivery-areas");
   } catch (error) {
     return {
       ok: false,
-      message:
-        error instanceof AdminDeliveryError
-          ? "تعذّر حفظ منطقة التوصيل."
-          : "تعذّر حفظ منطقة التوصيل.",
+      message: mapDeliveryAdminError(error),
     };
   }
+
+  revalidatePath("/");
+  revalidatePath("/checkout");
+  revalidatePath("/admin/delivery-areas");
+  redirect("/admin/delivery-areas");
 }
 
 function optional(value: FormDataEntryValue | null): string | undefined {
   const text = String(value ?? "").trim();
   return text ? text : undefined;
-}
-
-function mapOrderAdminError(error: unknown): string {
-  if (error instanceof AdminOrderError) {
-    if (error.code === "invalid_transition")
-      return "لا يمكن نقل الطلب إلى هذه الحالة.";
-    if (error.code === "concurrency_conflict") {
-      return "تم تعديل الطلب من جلسة أخرى. حدّث الصفحة ثم حاول مجدداً.";
-    }
-    if (error.code === "not_found") return "الطلب غير موجود.";
-  }
-  return "تعذّر تحديث حالة الطلب.";
-}
-
-function mapProductAdminError(error: unknown): string {
-  if (error instanceof AdminCatalogError) {
-    if (error.code === "duplicate")
-      return "معرّف المنتج أو الرابط مستخدم مسبقاً.";
-    if (error.code === "not_found") return "المنتج غير موجود.";
-  }
-  return "تعذّر حفظ المنتج. راجع الحقول المطلوبة.";
 }
