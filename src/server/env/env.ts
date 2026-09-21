@@ -9,6 +9,7 @@ export function getServerEnv(): ServerEnv {
     DATABASE_URL: process.env.DATABASE_URL,
     ORDER_RATE_LIMIT_PEPPER: process.env.ORDER_RATE_LIMIT_PEPPER,
     APP_ORIGIN: process.env.APP_ORIGIN,
+    TRUST_PROXY: process.env.TRUST_PROXY,
   });
   return cachedEnvironment;
 }

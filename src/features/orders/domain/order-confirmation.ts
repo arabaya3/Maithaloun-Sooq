@@ -1,9 +1,11 @@
 import { z } from "zod";
 
+import { orderStatuses } from "./order-status";
+
 export const orderConfirmationSchema = z
   .object({
     publicReference: z.string().regex(/^MS-[A-Za-z0-9_-]{24}$/),
-    status: z.literal("pending"),
+    status: z.enum(orderStatuses),
     itemsSubtotalAgorot: z.number().int().nonnegative(),
     deliveryFeeAgorot: z.number().int().nonnegative().nullable(),
     finalTotalAgorot: z.number().int().nonnegative().nullable(),

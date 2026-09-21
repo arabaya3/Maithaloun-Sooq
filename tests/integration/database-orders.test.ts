@@ -43,7 +43,7 @@ beforeAll(async () => {
 });
 
 beforeEach(async () => {
-  await db.delete(orders);
+  await client.unsafe("TRUNCATE TABLE orders CASCADE");
   await db.update(products).set({ availability: "available" });
   await db.update(serviceAreas).set({ enabled: true, deliveryFeeAgorot: null });
 });
