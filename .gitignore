@@ -1,0 +1,32 @@
+# dependencies
+/node_modules
+
+# Next.js
+/.next/
+/out/
+/public/sw.js
+/public/sw.js.map
+
+# testing
+/coverage/
+/playwright-report/
+/test-results/
+
+# local
+.DS_Store
+*.pem
+*.log
+/.vscode/*
+!/.vscode/extensions.json
+!/.vscode/settings.json
+/.cursor/*
+!/.cursor/rules/
+!/.cursor/rules/**
+
+# environment
+.env*
+!.env.example
+
+# TypeScript
+*.tsbuildinfo
+next-env.d.ts

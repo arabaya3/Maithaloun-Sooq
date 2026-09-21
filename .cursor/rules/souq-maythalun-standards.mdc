@@ -1,0 +1,82 @@
+---
+alwaysApply: true
+---
+
+# سوق ميثلون Standards
+
+## Product identity
+
+- The official Arabic product name is `سوق ميثلون`.
+- Never use the spelling `سوق مي&#1578;لون` or any alternative spelling.
+- The product is an Arabic-first RTL cleaning-products ecommerce PWA for Palestinian customers.
+- Currency is displayed using `₪`.
+- Preserve accurate Arabic language and RTL layout.
+
+## Engineering
+
+- Write production-quality, secure, scalable, testable, and maintainable code.
+- Follow the existing architecture and appropriate design patterns.
+- Maintain separation of concerns and explicit feature boundaries.
+- Prefer small focused modules and composition.
+- Avoid overengineering, speculative abstractions, duplicated logic, and unnecessary dependencies.
+- Do not modify unrelated files or behavior.
+- Do not leave dead code, debug output, unexplained suppressions, or unnecessary TO&#68;O items.
+
+## Comments and docstrings
+
+- Do not add long comments, explanatory docstrings, or large documentation blocks inside source code.
+- Prefer clear naming and clean structure.
+- Add a short comment only for a non-obvious architectural decision, security constraint, business rule, or browser workaround.
+- Do not generate verbose documentation unless explicitly requested.
+
+## Security
+
+- Treat browser input, URLs, cookies, local storage, API data, and uploads as untrusted.
+- Validate data at trust boundaries.
+- Keep authorization, pricing, discounts, stock, and business rules authoritative on the server.
+- Never expose secrets or privileged credentials to client code.
+- Never commit credentials, tokens, or real environment values.
+- Never use unsafe HTML rendering.
+- Apply least privilege.
+- Do not weaken security to make tests pass.
+- Never connect to or mutate production services without explicit authorization.
+
+## UI and accessibility
+
+- Preserve Arabic RTL behavior at every breakpoint.
+- Use mobile-first responsive design.
+- Desktop layouts must be intentionally designed.
+- Follow the approved visual reference and design tokens.
+- Use semantic HTML, accessible names, visible focus indicators, keyboard support, and WCAG AA contrast.
+- Use minimum 44 × 44 CSS pixel touch targets.
+- Handle loading, empty, error, unavailable, unauthorized, and offline states.
+- Avoid excessive cards, pills, shadows, gradients, animation, and AI-generated decorative styling.
+- Do not use emoji as interface icons.
+- Do not invent ratings, reviews, discounts, stock, sizes, product claims, or customer counts.
+
+## Next.js and React
+
+- Use React Server Components by default.
+- Use client components only for browser APIs, local interactions, or client state.
+- Keep business logic out of presentational components.
+- Avoid unnecessary effects and duplicated state.
+- Keep server-only modules out of client bundles.
+- Use framework-recommended routing, metadata, fonts, images, and caching.
+- Never cache dynamic prices or stock in a way that can display stale authoritative data.
+
+## Data architecture
+
+- Access product data through repository or service boundaries.
+- Do not couple pages directly to database clients or mock arrays.
+- Keep future authoritative pricing and calculations server-side.
+- Validate restored client state before using it.
+- Design future schema changes to be reversible and safe.
+
+## Verification
+
+- Add focused tests for changed behavior.
+- Test user outcomes instead of implementation details.
+- Include RTL, accessibility, responsive, error, and security-relevant cases.
+- Run formatting, linting, type checking, tests, and production build before completion.
+- Never claim a check passed if it failed or was not executed.
+- Report commands, results, changed files, and remaining risks.
