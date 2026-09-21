@@ -1,10 +1,12 @@
 import type { Metadata, Viewport } from "next";
 import { Noto_Sans_Arabic } from "next/font/google";
+import { connection } from "next/server";
 import type { ReactNode } from "react";
 
-import { DeliveryProvider } from "@/features/delivery/delivery-provider";
 import { CartProvider } from "@/features/cart/cart-provider";
-import { productRepository } from "@/features/catalog/infrastructure/mock-product-repository";
+import { productRepository } from "@/features/catalog/infrastructure/product-repository";
+import { DeliveryProvider } from "@/features/delivery/delivery-provider";
+import { serviceAreaRepository } from "@/features/delivery/service-area-repository";
 import { FavoritesProvider } from "@/features/favorites/favorites-provider";
 
 import "./globals.css";
@@ -45,8 +47,16 @@ export default async function RootLayout({
 }: {
   children: ReactNode;
 }) {
-  const products = await productRepository.list();
+  await connection();
+  const [products, serviceAreas] = await Promise.all([
+    productRepository.list(),
+    serviceAreaRepository.listEnabled(),
+  ]);
   const productIds = products.map((product) => product.id);
+  const locations = serviceAreas.map((area) => ({
+    code: area.code,
+    nameAr: area.nameAr,
+  }));
 
   return (
     <html
@@ -56,7 +66,7 @@ export default async function RootLayout({
       data-scroll-behavior="smooth"
     >
       <body>
-        <DeliveryProvider>
+        <DeliveryProvider locations={locations}>
           <FavoritesProvider productIds={productIds}>
             <CartProvider productIds={productIds}>{children}</CartProvider>
           </FavoritesProvider>

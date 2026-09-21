@@ -1,27 +1,19 @@
 import { z } from "zod";
 
-export const deliveryLocations = [
-  { id: "ramallah", label: "رام الله" },
-  { id: "al-bireh", label: "البيرة" },
-  { id: "maythalun", label: "ميثلون" },
-  { id: "other", label: "منطقة أخرى" },
-] as const;
+import { serviceAreaCodeSchema, type ServiceArea } from "./service-area";
 
-export const deliveryLocationIdSchema = z.enum([
-  "ramallah",
-  "al-bireh",
-  "maythalun",
-  "other",
-]);
+export const deliveryLocationIdSchema = serviceAreaCodeSchema;
 
 export type DeliveryLocationId = z.infer<typeof deliveryLocationIdSchema>;
+export type DeliveryLocationOption = Pick<ServiceArea, "code" | "nameAr">;
 
 export function getDeliveryLocationLabel(
   locationId: DeliveryLocationId | null,
+  locations: readonly DeliveryLocationOption[],
 ): string {
   if (!locationId) return "غير محدد";
   return (
-    deliveryLocations.find((location) => location.id === locationId)?.label ??
+    locations.find((location) => location.code === locationId)?.nameAr ??
     "غير محدد"
   );
 }

@@ -3,8 +3,8 @@ import {
   productSchema,
   productSlugSchema,
   type Product,
-} from "../domain/product";
-import type { ProductRepository } from "../domain/product-repository";
+} from "@/features/catalog/domain/product";
+import type { ProductRepository } from "@/features/catalog/domain/product-repository";
 
 const catalog = productSchema.array().parse([
   {
@@ -110,6 +110,11 @@ const productsById = new Map(catalog.map((product) => [product.id, product]));
 export class MockProductRepository implements ProductRepository {
   async list(): Promise<readonly Product[]> {
     return catalog;
+  }
+
+  async getById(id: string): Promise<Product | null> {
+    if (!productIdSchema.safeParse(id).success) return null;
+    return productsById.get(id) ?? null;
   }
 
   async getBySlug(slug: string): Promise<Product | null> {

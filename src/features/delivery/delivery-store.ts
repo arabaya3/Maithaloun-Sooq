@@ -16,12 +16,15 @@ const persistedDeliverySchema = z
 
 export function parsePersistedDeliveryLocation(
   raw: string | null,
+  allowedLocationIds: ReadonlySet<string>,
 ): DeliveryLocationId | null {
   if (!raw) return null;
 
   try {
     const parsed = persistedDeliverySchema.safeParse(JSON.parse(raw));
-    return parsed.success ? parsed.data.locationId : null;
+    return parsed.success && allowedLocationIds.has(parsed.data.locationId)
+      ? parsed.data.locationId
+      : null;
   } catch {
     return null;
   }

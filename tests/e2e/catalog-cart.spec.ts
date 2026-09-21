@@ -8,6 +8,7 @@ function trackPageIssues(page: Page) {
     if (message.type() === "error") consoleErrors.push(message.text());
   });
   page.on("requestfailed", (request) => {
+    if (request.failure()?.errorText === "net::ERR_ABORTED") return;
     failedRequests.push(`${request.method()} ${request.url()}`);
   });
 

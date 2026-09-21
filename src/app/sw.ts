@@ -20,6 +20,7 @@ const sensitivePrefixes = [
   "/api/",
   "/auth/",
   "/checkout",
+  "/orders/",
   "/account",
   "/admin",
 ];
