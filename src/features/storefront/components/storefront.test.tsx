@@ -1,48 +1,51 @@
-import { render, screen, within } from "@testing-library/react";
+import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 
-import { CartProvider } from "@/features/cart/cart-provider";
 import type { Product } from "@/features/catalog/domain/product";
+import { renderWithProviders } from "@/test/render-with-providers";
 
 import { Storefront } from "./storefront";
 
 const products: Product[] = [
   {
     id: "general-cleaner",
-    name: "منظف عام Secret",
-    priceIls: 7,
+    slug: "general-cleaner-secret",
+    nameAr: "منظف عام",
+    latinName: "Secret",
+    priceAgorot: 700,
     categoryId: "home",
     image: { kind: "placeholder", variant: "general-cleaner" },
-    detailsStatus: "unknown",
-    purchasable: true,
+    availability: "available",
+    detailsStatus: "placeholder",
   },
   {
     id: "arar-dish-liquid",
-    name: "سائل جلي Arar",
-    priceIls: 12,
+    slug: "arar-dish-liquid",
+    nameAr: "سائل جلي",
+    latinName: "Arar",
+    priceAgorot: 1200,
     categoryId: "kitchen",
     image: { kind: "placeholder", variant: "dish-liquid" },
-    detailsStatus: "unknown",
-    purchasable: true,
+    availability: "available",
+    detailsStatus: "placeholder",
   },
   {
     id: "unavailable-cleaner",
-    name: "منظف غير متاح",
-    priceIls: 8,
+    slug: "unavailable-cleaner",
+    nameAr: "منظف غير متاح",
+    priceAgorot: 800,
     categoryId: "bathroom",
     image: { kind: "placeholder", variant: "general-cleaner" },
-    detailsStatus: "unknown",
-    purchasable: false,
+    availability: "unavailable",
+    detailsStatus: "placeholder",
   },
 ];
 
 function renderStorefront() {
-  return render(
-    <CartProvider>
-      <Storefront products={products} />
-    </CartProvider>,
-  );
+  return renderWithProviders(<Storefront products={products} />, {
+    productIds: products.map((product) => product.id),
+  });
 }
 
 describe("storefront", () => {
@@ -65,11 +68,9 @@ describe("storefront", () => {
   it("provides a concise delivery row and mobile-first hero reading order", () => {
     const { container } = renderStorefront();
 
-    expect(
-      screen.getByRole("button", {
-        name: "اختيار منطقة التوصيل، الموقع غير محدد",
-      }),
-    ).toHaveTextContent("حدد منطقة التوصيل");
+    expect(screen.getByRole("combobox", { name: "منطقة التوصيل" })).toHaveValue(
+      "",
+    );
 
     const copy = container.querySelector(".promo-copy");
     const art = container.querySelector(".promo-art");
@@ -143,9 +144,7 @@ describe("storefront", () => {
       screen.getByRole("searchbox", { name: "ابحث في منتجات التنظيف" }),
       "غير موجود",
     );
-    expect(screen.getByRole("status")).toHaveTextContent(
-      "لا توجد نتائج مطابقة",
-    );
+    expect(screen.getByText("لا توجد نتائج مطابقة")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "عرض كل المنتجات" }));
     expect(screen.getByText("منظف عام Secret")).toBeInTheDocument();
   });
@@ -163,9 +162,9 @@ describe("storefront", () => {
     );
     await user.click(within(firstCard!).getByRole("button", { name: /^أضف$/ }));
 
-    expect(
-      screen.getByRole("button", { name: "السلة، منتجان" }),
-    ).toBeInTheDocument();
+    expect(screen.getAllByRole("link", { name: "السلة، منتجان" })).toHaveLength(
+      2,
+    );
   });
 
   it("prevents quantity changes and cart additions for unavailable products", () => {

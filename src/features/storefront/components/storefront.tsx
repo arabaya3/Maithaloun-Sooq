@@ -4,29 +4,23 @@ import {
   Bath,
   Grid2X2,
   Home,
-  Leaf,
-  MapPin,
   PackageSearch,
   Paintbrush,
-  Search,
-  ShoppingBasket,
   Sparkles,
   SprayCan,
-  Tag,
-  UserRound,
   WashingMachine,
-  X,
 } from "lucide-react";
-import Link from "next/link";
-import { useMemo, useState, type ComponentType } from "react";
+import { useMemo, useRef, useState, type ComponentType } from "react";
 
-import { useCart } from "@/features/cart/cart-provider";
 import { ProductCard } from "@/features/catalog/components/product-card";
 import {
   categories,
   type CategoryId,
   type Product,
 } from "@/features/catalog/domain/product";
+import { filterProducts } from "@/features/catalog/domain/product-search";
+import { MobileNavigation } from "@/features/storefront/components/mobile-navigation";
+import { SiteHeader } from "@/features/storefront/components/site-header";
 import { formatProductCount } from "@/shared/lib/format-product-count";
 
 const categoryIcons: Record<
@@ -40,93 +34,6 @@ const categoryIcons: Record<
   tools: Paintbrush,
   home: Home,
 };
-
-const navigation = [
-  { href: "/", label: "الرئيسية", icon: Home },
-  { href: "/categories", label: "الفئات", icon: Grid2X2 },
-  { href: "/offers", label: "العروض", icon: Tag },
-  { href: "/account", label: "حسابي", icon: UserRound },
-];
-
-function SiteHeader({
-  query,
-  onQueryChange,
-}: {
-  query: string;
-  onQueryChange: (value: string) => void;
-}) {
-  const { count } = useCart();
-
-  return (
-    <header className="site-header">
-      <div className="header-layout page-shell">
-        <Link className="brand" href="/" aria-label="سوق ميثلون، الرئيسية">
-          <span className="brand-mark" aria-hidden="true">
-            <Leaf />
-          </span>
-          <span>
-            <strong>سوق ميثلون</strong>
-            <small>احتياجات البيت في مكان واحد</small>
-          </span>
-        </Link>
-
-        <nav className="desktop-navigation" aria-label="التنقل الرئيسي">
-          {navigation.map((item) => (
-            <Link key={item.href} href={item.href}>
-              {item.label}
-            </Link>
-          ))}
-        </nav>
-
-        <div className="search-wrap">
-          <label htmlFor="product-search">ابحث في منتجات التنظيف</label>
-          <Search aria-hidden="true" />
-          <input
-            id="product-search"
-            type="search"
-            value={query}
-            onChange={(event) => onQueryChange(event.target.value)}
-            placeholder="ابحث عن منتج..."
-            autoComplete="off"
-          />
-          {query ? (
-            <button
-              type="button"
-              className="clear-search"
-              aria-label="مسح البحث"
-              onClick={() => onQueryChange("")}
-            >
-              <X aria-hidden="true" />
-            </button>
-          ) : null}
-        </div>
-
-        <div className="header-actions">
-          <button
-            type="button"
-            className="location-button"
-            aria-label="اختيار منطقة التوصيل، الموقع غير محدد"
-          >
-            <MapPin aria-hidden="true" />
-            <span>
-              <strong>حدد منطقة التوصيل</strong>
-            </span>
-          </button>
-          <button
-            type="button"
-            className="cart-button"
-            aria-label={`السلة، ${formatProductCount(count)}`}
-          >
-            <ShoppingBasket aria-hidden="true" />
-            <span className="cart-count" aria-live="polite">
-              {count}
-            </span>
-          </button>
-        </div>
-      </div>
-    </header>
-  );
-}
 
 function PromoBanner() {
   return (
@@ -193,48 +100,48 @@ function CategoryPicker({
   );
 }
 
-function MobileNavigation() {
-  return (
-    <nav className="mobile-navigation" aria-label="التنقل الرئيسي للهاتف">
-      {navigation.map((item, index) => {
-        const Icon = item.icon;
-        return (
-          <Link
-            key={item.href}
-            href={item.href}
-            aria-current={index === 0 ? "page" : undefined}
-          >
-            <Icon aria-hidden="true" />
-            <span>{item.label}</span>
-          </Link>
-        );
-      })}
-    </nav>
-  );
-}
-
 export function Storefront({ products }: { products: readonly Product[] }) {
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState<CategoryId>("all");
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
-  const filteredProducts = useMemo(() => {
-    const normalizedQuery = query.trim().toLocaleLowerCase("ar");
-    return products.filter((product) => {
-      const categoryMatches =
-        category === "all" || product.categoryId === category;
-      const searchMatches =
-        !normalizedQuery ||
-        product.name.toLocaleLowerCase("ar").includes(normalizedQuery);
-      return categoryMatches && searchMatches;
-    });
-  }, [category, products, query]);
+  const filteredProducts = useMemo(
+    () => filterProducts(products, { query, categoryId: category }),
+    [category, products, query],
+  );
+  const selectedCategory = categories.find((item) => item.id === category);
+  const hasActiveFilter = Boolean(query.trim()) || category !== "all";
+
+  const resetFilters = () => {
+    setQuery("");
+    setCategory("all");
+    queueMicrotask(() => searchInputRef.current?.focus());
+  };
 
   return (
     <>
-      <SiteHeader query={query} onQueryChange={setQuery} />
+      <SiteHeader
+        searchQuery={query}
+        onSearchChange={setQuery}
+        searchInputRef={searchInputRef}
+      />
       <main className="page-shell storefront-main">
         <PromoBanner />
         <CategoryPicker selected={category} onSelect={setCategory} />
+        {hasActiveFilter ? (
+          <div className="active-filter-summary" role="status">
+            <span>
+              {query.trim() ? `البحث: ${query.trim()}` : null}
+              {query.trim() && category !== "all" ? "، " : null}
+              {category !== "all"
+                ? `الفئة: ${selectedCategory?.label ?? ""}`
+                : null}
+            </span>
+            <button type="button" onClick={resetFilters}>
+              مسح عوامل التصفية
+            </button>
+          </div>
+        ) : null}
         <section
           id="catalog"
           className="catalog-section"
@@ -261,13 +168,7 @@ export function Storefront({ products }: { products: readonly Product[] }) {
               <PackageSearch aria-hidden="true" />
               <h3>لا توجد نتائج مطابقة</h3>
               <p>جرّب عبارة بحث أخرى أو اختر فئة مختلفة.</p>
-              <button
-                type="button"
-                onClick={() => {
-                  setQuery("");
-                  setCategory("all");
-                }}
-              >
+              <button type="button" onClick={resetFilters}>
                 عرض كل المنتجات
               </button>
             </div>

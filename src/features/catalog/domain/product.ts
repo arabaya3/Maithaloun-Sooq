@@ -12,6 +12,11 @@ export const categoryIds = [
 export type CategoryId = (typeof categoryIds)[number];
 
 export const categorySchema = z.enum(categoryIds);
+export const productCategorySchema = categorySchema.exclude(["all"]);
+export type ProductCategoryId = z.infer<typeof productCategorySchema>;
+
+export const productIdSchema = z.string().regex(/^[a-z0-9-]{1,80}$/);
+export const productSlugSchema = z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/);
 
 export const placeholderKinds = [
   "general-cleaner",
@@ -24,25 +29,34 @@ export const placeholderKinds = [
 
 export type PlaceholderKind = (typeof placeholderKinds)[number];
 
-export const productSchema = z.object({
-  id: z.string().min(1),
-  name: z.string().min(1),
-  priceIls: z.number().positive(),
-  categoryId: categorySchema.exclude(["all"]),
-  image: z.discriminatedUnion("kind", [
-    z.object({
-      kind: z.literal("placeholder"),
-      variant: z.enum(placeholderKinds),
-    }),
-    z.object({
-      kind: z.literal("image"),
-      src: z.string().min(1),
-      alt: z.string().min(1),
-    }),
-  ]),
-  detailsStatus: z.enum(["unknown", "complete"]),
-  purchasable: z.boolean(),
-});
+export const productSchema = z
+  .object({
+    id: productIdSchema,
+    slug: productSlugSchema,
+    nameAr: z.string().min(1),
+    latinName: z.string().min(1).optional(),
+    priceAgorot: z.number().int().positive(),
+    categoryId: productCategorySchema,
+    image: z.discriminatedUnion("kind", [
+      z.object({
+        kind: z.literal("placeholder"),
+        variant: z.enum(placeholderKinds),
+      }),
+      z.object({
+        kind: z.literal("image"),
+        src: z.string().min(1),
+        alt: z.string().min(1),
+        width: z.number().int().positive(),
+        height: z.number().int().positive(),
+      }),
+    ]),
+    availability: z.enum(["available", "unavailable"]),
+    description: z.string().min(1).optional(),
+    usageNotes: z.string().min(1).optional(),
+    unit: z.string().min(1).optional(),
+    detailsStatus: z.enum(["placeholder", "verified"]),
+  })
+  .strict();
 
 export type Product = z.infer<typeof productSchema>;
 
@@ -57,3 +71,20 @@ export const categories: ReadonlyArray<{
   { id: "tools", label: "أدوات التنظيف" },
   { id: "home", label: "مستلزمات منزلية" },
 ];
+
+export function getProductDisplayName(product: Product): string {
+  return product.latinName
+    ? `${product.nameAr} ${product.latinName}`
+    : product.nameAr;
+}
+
+export function getCategoryLabel(categoryId: ProductCategoryId): string {
+  return (
+    categories.find((category) => category.id === categoryId)?.label ??
+    categoryId
+  );
+}
+
+export function isProductAvailable(product: Product): boolean {
+  return product.availability === "available";
+}

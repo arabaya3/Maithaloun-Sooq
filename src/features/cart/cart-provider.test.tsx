@@ -17,6 +17,8 @@ function CartProbe() {
 }
 
 describe("CartProvider", () => {
+  const productIds = ["general-cleaner", "dolphin-bleach"];
+
   it("restores valid persisted cart data and persists updates", async () => {
     window.localStorage.setItem(
       CART_STORAGE_KEY,
@@ -28,7 +30,7 @@ describe("CartProvider", () => {
 
     const user = userEvent.setup();
     render(
-      <CartProvider>
+      <CartProvider productIds={productIds}>
         <CartProbe />
       </CartProvider>,
     );
@@ -58,7 +60,7 @@ describe("CartProvider", () => {
     );
 
     render(
-      <CartProvider>
+      <CartProvider productIds={productIds}>
         <CartProbe />
       </CartProvider>,
     );

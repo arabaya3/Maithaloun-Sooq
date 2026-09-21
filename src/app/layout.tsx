@@ -2,7 +2,10 @@ import type { Metadata, Viewport } from "next";
 import { Noto_Sans_Arabic } from "next/font/google";
 import type { ReactNode } from "react";
 
+import { DeliveryProvider } from "@/features/delivery/delivery-provider";
 import { CartProvider } from "@/features/cart/cart-provider";
+import { productRepository } from "@/features/catalog/infrastructure/mock-product-repository";
+import { FavoritesProvider } from "@/features/favorites/favorites-provider";
 
 import "./globals.css";
 
@@ -37,11 +40,27 @@ export const viewport: Viewport = {
   viewportFit: "cover",
 };
 
-export default function RootLayout({ children }: { children: ReactNode }) {
+export default async function RootLayout({
+  children,
+}: {
+  children: ReactNode;
+}) {
+  const products = await productRepository.list();
+  const productIds = products.map((product) => product.id);
+
   return (
-    <html lang="ar" dir="rtl" className={arabicFont.variable}>
+    <html
+      lang="ar"
+      dir="rtl"
+      className={arabicFont.variable}
+      data-scroll-behavior="smooth"
+    >
       <body>
-        <CartProvider>{children}</CartProvider>
+        <DeliveryProvider>
+          <FavoritesProvider productIds={productIds}>
+            <CartProvider productIds={productIds}>{children}</CartProvider>
+          </FavoritesProvider>
+        </DeliveryProvider>
       </body>
     </html>
   );

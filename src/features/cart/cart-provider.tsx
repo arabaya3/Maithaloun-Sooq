@@ -16,26 +16,40 @@ import {
   initialCartState,
   parsePersistedCart,
   serializeCart,
+  type CartLine,
 } from "./cart-store";
 
 interface CartContextValue {
+  lines: readonly CartLine[];
   count: number;
+  ready: boolean;
   addItem: (productId: string, quantity?: number) => void;
+  setQuantity: (productId: string, quantity: number) => void;
+  removeItem: (productId: string) => void;
+  clearCart: () => void;
 }
 
 const CartContext = createContext<CartContextValue | null>(null);
 
-export function CartProvider({ children }: { children: ReactNode }) {
+export function CartProvider({
+  children,
+  productIds,
+}: {
+  children: ReactNode;
+  productIds: readonly string[];
+}) {
   const [state, dispatch] = useReducer(cartReducer, initialCartState);
   const [restored, setRestored] = useState(false);
+  const allowedProductIds = useMemo(() => new Set(productIds), [productIds]);
 
   useEffect(() => {
     const saved = parsePersistedCart(
       window.localStorage.getItem(CART_STORAGE_KEY),
+      allowedProductIds,
     );
     dispatch({ type: "restore", lines: saved.lines });
     queueMicrotask(() => setRestored(true));
-  }, []);
+  }, [allowedProductIds]);
 
   useEffect(() => {
     if (restored) {
@@ -45,11 +59,24 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo<CartContextValue>(
     () => ({
+      lines: state.lines,
       count: state.lines.reduce((total, line) => total + line.quantity, 0),
-      addItem: (productId, quantity = 1) =>
-        dispatch({ type: "add", productId, quantity }),
+      ready: restored,
+      addItem: (productId, quantity = 1) => {
+        if (!allowedProductIds.has(productId)) return;
+        dispatch({ type: "add", productId, quantity });
+      },
+      setQuantity: (productId, quantity) => {
+        if (!allowedProductIds.has(productId)) return;
+        dispatch({ type: "setQuantity", productId, quantity });
+      },
+      removeItem: (productId) => {
+        if (!allowedProductIds.has(productId)) return;
+        dispatch({ type: "remove", productId });
+      },
+      clearCart: () => dispatch({ type: "clear" }),
     }),
-    [state.lines],
+    [allowedProductIds, restored, state.lines],
   );
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
