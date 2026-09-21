@@ -13,7 +13,7 @@ const products: Product[] = [
     name: "منظف عام Secret",
     priceIls: 7,
     categoryId: "home",
-    image: { kind: "placeholder" },
+    image: { kind: "placeholder", variant: "general-cleaner" },
     detailsStatus: "unknown",
     purchasable: true,
   },
@@ -22,7 +22,7 @@ const products: Product[] = [
     name: "سائل جلي Arar",
     priceIls: 12,
     categoryId: "kitchen",
-    image: { kind: "placeholder" },
+    image: { kind: "placeholder", variant: "dish-liquid" },
     detailsStatus: "unknown",
     purchasable: true,
   },
@@ -31,7 +31,7 @@ const products: Product[] = [
     name: "منظف غير متاح",
     priceIls: 8,
     categoryId: "bathroom",
-    image: { kind: "placeholder" },
+    image: { kind: "placeholder", variant: "general-cleaner" },
     detailsStatus: "unknown",
     purchasable: false,
   },
@@ -52,12 +52,66 @@ describe("storefront", () => {
     expect(
       screen.getByRole("link", { name: "سوق ميثلون، الرئيسية" }),
     ).toBeInTheDocument();
-    expect(screen.getByText("منظف عام Secret")).toBeInTheDocument();
-    expect(screen.getByText(/٧ ₪/)).toBeInTheDocument();
+    expect(screen.getByText("منظف عام Secret")).toHaveAttribute("dir", "auto");
+    expect(screen.getByText("7 ₪")).toHaveAttribute("dir", "ltr");
+    expect(screen.getByLabelText("السعر 7 ₪")).toBeInTheDocument();
     expect(
       screen.getByRole("button", {
         name: "إضافة منظف عام Secret إلى المفضلة",
       }),
+    ).toBeInTheDocument();
+  });
+
+  it("provides a concise delivery row and mobile-first hero reading order", () => {
+    const { container } = renderStorefront();
+
+    expect(
+      screen.getByRole("button", {
+        name: "اختيار منطقة التوصيل، الموقع غير محدد",
+      }),
+    ).toHaveTextContent("حدد منطقة التوصيل");
+
+    const copy = container.querySelector(".promo-copy");
+    const art = container.querySelector(".promo-art");
+    expect(copy).not.toBeNull();
+    expect(art).not.toBeNull();
+    expect(
+      copy!.compareDocumentPosition(art!) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(
+      screen.getByRole("link", { name: "تسوّق المنتجات" }),
+    ).toBeInTheDocument();
+  });
+
+  it("orders RTL categories from all to home and exposes selection semantics", async () => {
+    const user = userEvent.setup();
+    const { container } = renderStorefront();
+    const categoryButtons = Array.from(
+      container.querySelectorAll<HTMLButtonElement>(".category-item"),
+    );
+
+    expect(categoryButtons[0]).toHaveTextContent("الكل");
+    expect(categoryButtons.at(-1)).toHaveTextContent("مستلزمات منزلية");
+    expect(categoryButtons[0]).toHaveAttribute("aria-pressed", "true");
+
+    await user.click(screen.getByRole("button", { name: "مستلزمات منزلية" }));
+    expect(
+      screen.getByRole("button", { name: "مستلزمات منزلية" }),
+    ).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "الكل" })).toHaveAttribute(
+      "aria-pressed",
+      "false",
+    );
+  });
+
+  it("selects distinct local placeholder variants from product data", () => {
+    const { container } = renderStorefront();
+
+    expect(
+      container.querySelector('[data-placeholder-kind="general-cleaner"]'),
+    ).toBeInTheDocument();
+    expect(
+      container.querySelector('[data-placeholder-kind="dish-liquid"]'),
     ).toBeInTheDocument();
   });
 

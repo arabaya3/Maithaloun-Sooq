@@ -13,13 +13,27 @@ export type CategoryId = (typeof categoryIds)[number];
 
 export const categorySchema = z.enum(categoryIds);
 
+export const placeholderKinds = [
+  "general-cleaner",
+  "bleach",
+  "brush",
+  "dish-liquid",
+  "floor-cleaner",
+  "degreaser",
+] as const;
+
+export type PlaceholderKind = (typeof placeholderKinds)[number];
+
 export const productSchema = z.object({
   id: z.string().min(1),
   name: z.string().min(1),
   priceIls: z.number().positive(),
   categoryId: categorySchema.exclude(["all"]),
   image: z.discriminatedUnion("kind", [
-    z.object({ kind: z.literal("placeholder") }),
+    z.object({
+      kind: z.literal("placeholder"),
+      variant: z.enum(placeholderKinds),
+    }),
     z.object({
       kind: z.literal("image"),
       src: z.string().min(1),

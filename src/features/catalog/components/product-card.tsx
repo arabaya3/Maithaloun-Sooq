@@ -1,10 +1,11 @@
 "use client";
 
-import { Droplets, Heart, Minus, Plus, ShoppingBasket } from "lucide-react";
+import { Heart, Minus, Plus, ShoppingBasket } from "lucide-react";
 import Image from "next/image";
 import { useState } from "react";
 
 import { useCart } from "@/features/cart/cart-provider";
+import { ProductPlaceholder } from "@/features/catalog/components/product-placeholder";
 import type { Product } from "@/features/catalog/domain/product";
 import { formatIls } from "@/shared/lib/format-currency";
 
@@ -14,7 +15,7 @@ export function ProductCard({ product }: { product: Product }) {
   const { addItem } = useCart();
 
   return (
-    <article className="product-card">
+    <article className="product-card" data-product-id={product.id}>
       <button
         type="button"
         className="icon-button favorite-button"
@@ -39,21 +40,21 @@ export function ProductCard({ product }: { product: Product }) {
           />
         </div>
       ) : (
-        <div
-          className="product-art"
-          role="img"
-          aria-label={`صورة توضيحية مؤقتة للمنتج ${product.name}`}
-        >
-          <span className="bottle-cap" />
-          <span className="bottle-body">
-            <Droplets aria-hidden="true" />
-          </span>
+        <div className="product-art">
+          <ProductPlaceholder kind={product.image.variant} />
         </div>
       )}
 
       <div className="product-details">
-        <h3 dir="auto">{product.name}</h3>
-        <p className="product-price">{formatIls(product.priceIls)}</p>
+        <h3>
+          <bdi dir="auto">{product.name}</bdi>
+        </h3>
+        <p
+          className="product-price"
+          aria-label={`السعر ${formatIls(product.priceIls)}`}
+        >
+          <bdi dir="ltr">{formatIls(product.priceIls)}</bdi>
+        </p>
       </div>
 
       <div className="product-actions">

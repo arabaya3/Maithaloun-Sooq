@@ -1,4 +1,4 @@
-const numberFormatter = new Intl.NumberFormat("ar-PS", {
+const numberFormatter = new Intl.NumberFormat("ar-PS-u-nu-latn", {
   maximumFractionDigits: 0,
 });
 

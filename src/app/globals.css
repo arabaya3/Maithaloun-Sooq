@@ -29,6 +29,9 @@
   --space-8: 2rem;
   --shadow-soft: 0 10px 30px rgb(18 57 50 / 8%);
   --focus-ring: 3px solid var(--amber);
+  --page-gutter: 1rem;
+  --mobile-nav-height: 4.75rem;
+  --section-space: 2rem;
 }
 
 * {
@@ -43,7 +46,9 @@ html {
 body {
   min-width: 320px;
   margin: 0;
-  padding-bottom: calc(4.75rem + env(safe-area-inset-bottom));
+  padding-bottom: calc(
+    var(--mobile-nav-height) + env(safe-area-inset-bottom) + var(--space-6)
+  );
   overflow-x: hidden;
   color: var(--charcoal);
   background: var(--warm-50);
@@ -78,7 +83,7 @@ input:focus-visible {
 }
 
 .page-shell {
-  width: min(calc(100% - 2rem), 75rem);
+  width: min(calc(100% - (2 * var(--page-gutter))), 80rem);
   margin-inline: auto;
 }
 
@@ -90,15 +95,19 @@ input:focus-visible {
   background: rgb(251 250 246 / 96%);
 }
 
-.header-main {
-  display: flex;
+.header-layout {
+  display: grid;
+  grid-template-areas:
+    "brand cart"
+    "location location"
+    "search search";
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  justify-content: space-between;
-  min-height: 3.25rem;
-  gap: 0.55rem;
+  gap: 0.55rem 0.75rem;
 }
 
 .brand {
+  grid-area: brand;
   display: inline-flex;
   align-items: center;
   min-width: 0;
@@ -128,8 +137,8 @@ input:focus-visible {
 
 .brand strong {
   color: var(--green-950);
-  font-size: clamp(1rem, 4.5vw, 1.4rem);
-  font-weight: 900;
+  font-size: clamp(1.08rem, 4.5vw, 1.35rem);
+  font-weight: 850;
   line-height: 1.3;
 }
 
@@ -144,9 +153,7 @@ input:focus-visible {
 }
 
 .header-actions {
-  display: flex;
-  align-items: center;
-  gap: 0.35rem;
+  display: contents;
 }
 
 .location-button,
@@ -163,10 +170,15 @@ input:focus-visible {
 }
 
 .location-button {
-  max-width: 8rem;
-  padding-inline: 0.35rem;
-  gap: 0.35rem;
+  grid-area: location;
+  width: 100%;
+  padding-inline: 0.7rem;
+  justify-content: flex-start;
+  gap: 0.5rem;
   text-align: right;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--warm-100);
 }
 
 .location-button > svg {
@@ -179,25 +191,18 @@ input:focus-visible {
   min-width: 0;
 }
 
-.location-button strong,
-.location-button small {
+.location-button strong {
   display: block;
-  overflow: hidden;
-  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .location-button strong {
-  font-size: 0.65rem;
+  font-size: 0.78rem;
   font-weight: 800;
 }
 
-.location-button small {
-  color: var(--muted);
-  font-size: 0.58rem;
-}
-
 .cart-button {
+  grid-area: cart;
   position: relative;
   flex: 0 0 auto;
   color: var(--green-950);
@@ -228,11 +233,11 @@ input:focus-visible {
 }
 
 .search-wrap {
+  grid-area: search;
   position: relative;
   display: flex;
   align-items: center;
   height: 3.25rem;
-  margin-top: 0.75rem;
   color: var(--muted);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
@@ -292,14 +297,14 @@ input:focus-visible {
 }
 
 .storefront-main {
-  padding-block: 0.9rem 2rem;
+  padding-block: 1rem var(--space-8);
 }
 
 .promo-banner {
   position: relative;
   isolation: isolate;
   display: grid;
-  min-height: 19.5rem;
+  grid-template-rows: auto 8.75rem;
   overflow: hidden;
   border: 1px solid #e3dfd4;
   border-radius: var(--radius-lg);
@@ -309,38 +314,38 @@ input:focus-visible {
 .promo-copy {
   position: relative;
   z-index: 2;
-  width: 72%;
-  padding: 1.5rem 1.3rem;
+  padding: 1.35rem 1.2rem 1.1rem;
 }
 
 .eyebrow {
   display: block;
   color: var(--green-800);
-  font-size: 0.73rem;
+  font-size: 0.78rem;
   font-weight: 800;
   letter-spacing: 0.01em;
 }
 
 .promo-copy h1 {
-  max-width: 18ch;
+  max-width: 17ch;
   margin: 0.38rem 0 0;
   color: var(--green-950);
-  font-size: clamp(1.55rem, 7vw, 2.55rem);
-  font-weight: 950;
-  line-height: 1.35;
+  font-size: clamp(1.75rem, 8vw, 2.15rem);
+  font-weight: 900;
+  line-height: 1.32;
 }
 
 .promo-copy p {
-  max-width: 31ch;
-  margin: 0.75rem 0 1.15rem;
+  max-width: 38ch;
+  margin: 0.7rem 0 1rem;
   color: #3c4a46;
-  font-size: 0.84rem;
-  line-height: 1.85;
+  font-size: 0.88rem;
+  line-height: 1.75;
 }
 
 .promo-cta {
   display: inline-flex;
-  min-height: 2.8rem;
+  width: 100%;
+  min-height: 2.9rem;
   align-items: center;
   justify-content: center;
   padding-inline: 1.15rem;
@@ -356,23 +361,21 @@ input:focus-visible {
 }
 
 .promo-art {
-  position: absolute;
+  position: relative;
   z-index: 1;
-  bottom: 0;
-  left: 0;
-  width: 45%;
-  height: 92%;
+  width: 100%;
+  height: 8.75rem;
   overflow: hidden;
-  border-radius: 0 0 var(--radius-lg) 0;
+  border-top: 1px solid rgb(22 97 89 / 8%);
   background: var(--mint-100);
 }
 
 .promo-art::after {
   position: absolute;
-  right: -25%;
-  bottom: -22%;
-  width: 150%;
-  height: 45%;
+  right: -10%;
+  bottom: -55%;
+  width: 120%;
+  height: 90%;
   content: "";
   border-radius: 50%;
   background: #d5c9b2;
@@ -381,7 +384,7 @@ input:focus-visible {
 .promo-bottle {
   position: absolute;
   z-index: 2;
-  bottom: 15%;
+  bottom: 12%;
   display: block;
   border: 5px solid rgb(255 255 255 / 75%);
   border-radius: 1.5rem 1.5rem 0.7rem 0.7rem;
@@ -412,54 +415,36 @@ input:focus-visible {
 }
 
 .bottle-tall {
-  left: 12%;
-  width: 4.5rem;
-  height: 10rem;
+  left: 23%;
+  width: 3.4rem;
+  height: 6.7rem;
   transform: rotate(4deg);
 }
 
 .bottle-short {
-  right: 6%;
-  bottom: 10%;
-  width: 3.5rem;
-  height: 7.2rem;
+  right: 24%;
+  bottom: 8%;
+  width: 2.8rem;
+  height: 5.2rem;
   background: var(--amber);
   transform: rotate(-5deg);
-}
-
-.promo-brush {
-  position: absolute;
-  z-index: 3;
-  right: 20%;
-  bottom: 9%;
-  display: grid;
-  width: 3.7rem;
-  height: 3.7rem;
-  place-items: center;
-  color: var(--white);
-  border-radius: 50%;
-  background: var(--green-950);
-}
-
-.promo-brush svg {
-  width: 1.8rem;
 }
 
 .sparkle {
   position: absolute;
   z-index: 3;
-  top: 12%;
-  right: 16%;
+  top: 16%;
+  right: 36%;
   color: var(--green-800);
 }
 
 .sparkle svg {
-  width: 1.7rem;
+  width: 1.35rem;
 }
 
 .categories-section,
 .catalog-section {
-  margin-top: 1.7rem;
+  margin-top: var(--section-space);
 }
 
 .section-heading {
@@ -473,21 +458,23 @@ input:focus-visible {
 .section-heading h2 {
   margin: 0.15rem 0 0;
   color: var(--green-950);
-  font-size: clamp(1.25rem, 5vw, 1.7rem);
-  font-weight: 900;
+  font-size: clamp(1.35rem, 5vw, 1.85rem);
+  font-weight: 850;
   line-height: 1.4;
 }
 
 .category-list {
   display: grid;
-  grid-auto-columns: 5.4rem;
+  grid-auto-columns: calc((100% - 1.2rem) / 4);
   grid-auto-flow: column;
-  gap: 0.6rem;
-  padding: 0.15rem 0.1rem 0.45rem;
+  gap: 0.55rem;
+  padding: 0.15rem var(--page-gutter) 0.55rem;
   overflow-x: auto;
   overscroll-behavior-inline: contain;
   scrollbar-width: none;
-  scroll-snap-type: inline proximity;
+  scroll-padding-inline: var(--page-gutter);
+  scroll-snap-type: inline mandatory;
+  touch-action: pan-x;
 }
 
 .category-list::-webkit-scrollbar {
@@ -496,25 +483,28 @@ input:focus-visible {
 
 .category-item {
   display: grid;
-  min-height: 6.45rem;
-  padding: 0.35rem 0.15rem;
+  min-width: 0;
+  min-height: 6.75rem;
+  padding: 0.35rem 0;
   place-items: center;
   align-content: start;
   gap: 0.42rem;
   border: 0;
   border-radius: var(--radius-md);
   background: transparent;
-  font-size: 0.7rem;
+  font-size: 0.75rem;
   font-weight: 700;
   line-height: 1.45;
   cursor: pointer;
   scroll-snap-align: start;
+  scroll-snap-stop: always;
 }
 
 .category-icon {
   display: grid;
-  width: 4.35rem;
-  height: 4.35rem;
+  width: min(4rem, 100%);
+  aspect-ratio: 1;
+  min-height: 2.75rem;
   place-items: center;
   color: var(--green-950);
   border: 1px solid transparent;
@@ -543,23 +533,23 @@ input:focus-visible {
 
 .results-count {
   color: var(--muted);
-  font-size: 0.76rem;
+  font-size: 0.82rem;
   white-space: nowrap;
 }
 
 .product-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.75rem;
+  gap: 0.65rem;
 }
 
 .product-card {
   position: relative;
   display: flex;
   min-width: 0;
-  min-height: 20.5rem;
+  min-height: 22rem;
   flex-direction: column;
-  padding: 0.7rem;
+  padding: 0.65rem;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   background: var(--white);
@@ -583,9 +573,9 @@ input:focus-visible {
 .product-art {
   position: relative;
   display: grid;
-  height: 9.4rem;
+  aspect-ratio: 1 / 1;
   flex: 0 0 auto;
-  place-items: end center;
+  place-items: center;
   overflow: hidden;
   border-radius: 0.45rem;
   background: var(--mint-50);
@@ -616,43 +606,176 @@ input:focus-visible {
   padding: 0.75rem;
 }
 
-.bottle-cap {
-  position: absolute;
-  z-index: 2;
-  top: 1.15rem;
-  width: 2.15rem;
-  height: 1.25rem;
-  border-radius: 0.3rem 0.3rem 0 0;
-  background: var(--green-950);
-}
-
-.bottle-body {
+.product-placeholder {
   position: relative;
   z-index: 1;
   display: grid;
-  width: 4.5rem;
-  height: 6.45rem;
-  margin-bottom: 0.55rem;
+  width: 100%;
+  height: 100%;
   place-items: center;
-  color: var(--green-900);
+}
+
+.placeholder-object {
+  position: relative;
+  display: block;
+  width: 5rem;
+  height: 7rem;
+}
+
+.placeholder-cap,
+.placeholder-trigger,
+.placeholder-handle,
+.placeholder-body,
+.placeholder-label,
+.placeholder-bristles {
+  position: absolute;
+  display: block;
+}
+
+.placeholder-cap {
+  z-index: 2;
+  top: 0;
+  left: 50%;
+  width: 2rem;
+  height: 1rem;
+  border-radius: 0.3rem 0.3rem 0.1rem 0.1rem;
+  background: var(--green-950);
+  transform: translateX(-50%);
+}
+
+.placeholder-body {
+  right: 50%;
+  bottom: 0;
+  width: 4.2rem;
+  height: 6.25rem;
   border: 3px solid var(--white);
   border-radius: 1.15rem 1.15rem 0.7rem 0.7rem;
   background: var(--mint-200);
   box-shadow: 0 8px 16px rgb(8 58 53 / 10%);
+  transform: translateX(50%);
 }
 
-.bottle-body::before {
-  position: absolute;
-  top: 0.7rem;
-  width: 72%;
-  height: 0.22rem;
-  content: "";
+.placeholder-label {
+  top: 42%;
+  right: 14%;
+  left: 14%;
+  height: 1.65rem;
+  border-radius: 0.45rem;
+  background: var(--warm-50);
+}
+
+.placeholder-trigger,
+.placeholder-handle,
+.placeholder-bristles {
+  display: none;
+}
+
+.product-placeholder[data-placeholder-kind="general-cleaner"]
+  .placeholder-body {
+  background: var(--mint-200);
+}
+
+.product-placeholder[data-placeholder-kind="bleach"] .placeholder-object {
+  width: 5.8rem;
+}
+
+.product-placeholder[data-placeholder-kind="bleach"] .placeholder-body {
+  width: 5.15rem;
+  height: 5.7rem;
+  border-radius: 1.4rem 1.1rem 0.8rem 0.8rem;
+  background: #d8ebe8;
+}
+
+.product-placeholder[data-placeholder-kind="bleach"] .placeholder-handle {
+  top: 1.65rem;
+  right: 0.85rem;
+  z-index: 2;
+  display: block;
+  width: 1.45rem;
+  height: 2.5rem;
+  border: 0.38rem solid var(--white);
   border-radius: 999px;
-  background: var(--white);
 }
 
-.bottle-body svg {
-  width: 1.8rem;
+.product-placeholder[data-placeholder-kind="dish-liquid"] .placeholder-body {
+  width: 3.4rem;
+  height: 6.4rem;
+  border-radius: 1.45rem 1.45rem 0.75rem 0.75rem;
+  background: #f0bd53;
+}
+
+.product-placeholder[data-placeholder-kind="floor-cleaner"] .placeholder-body {
+  width: 3.75rem;
+  height: 6.55rem;
+  border-radius: 1rem 1rem 0.55rem 0.55rem;
+  background: #9bd7c8;
+}
+
+.product-placeholder[data-placeholder-kind="floor-cleaner"] .placeholder-label {
+  height: 2rem;
+  border-radius: 0.2rem;
+}
+
+.product-placeholder[data-placeholder-kind="degreaser"] .placeholder-cap {
+  display: none;
+}
+
+.product-placeholder[data-placeholder-kind="degreaser"] .placeholder-body {
+  width: 3.8rem;
+  height: 5.6rem;
+  border-radius: 1rem 1rem 0.7rem 0.7rem;
+  background: #b9ddd4;
+}
+
+.product-placeholder[data-placeholder-kind="degreaser"] .placeholder-trigger {
+  top: 0.65rem;
+  left: 1.5rem;
+  z-index: 3;
+  display: block;
+  width: 3.4rem;
+  height: 1.1rem;
+  border-radius: 0.25rem 0.6rem 0.2rem 0.2rem;
+  background: var(--green-950);
+  transform: rotate(-6deg);
+}
+
+.product-placeholder[data-placeholder-kind="brush"] .placeholder-cap,
+.product-placeholder[data-placeholder-kind="brush"] .placeholder-label {
+  display: none;
+}
+
+.product-placeholder[data-placeholder-kind="brush"] .placeholder-object {
+  width: 7rem;
+  height: 6.2rem;
+}
+
+.product-placeholder[data-placeholder-kind="brush"] .placeholder-body {
+  right: auto;
+  bottom: 1rem;
+  left: 1.1rem;
+  width: 1.05rem;
+  height: 5.6rem;
+  border: 0;
+  border-radius: 999px;
+  background: var(--green-800);
+  box-shadow: none;
+  transform: rotate(-38deg);
+  transform-origin: bottom;
+}
+
+.product-placeholder[data-placeholder-kind="brush"] .placeholder-bristles {
+  right: 0.65rem;
+  bottom: 0.45rem;
+  display: block;
+  width: 4.7rem;
+  height: 1.65rem;
+  border-top: 0.65rem solid var(--amber);
+  border-radius: 0.8rem 0.8rem 0.2rem 0.2rem;
+  background: repeating-linear-gradient(
+    90deg,
+    var(--green-950) 0 0.16rem,
+    transparent 0.16rem 0.3rem
+  );
 }
 
 .product-details {
@@ -662,17 +785,18 @@ input:focus-visible {
 .product-details h3 {
   min-height: 3rem;
   margin: 0;
-  overflow-wrap: anywhere;
-  font-size: 0.83rem;
+  overflow: hidden;
+  font-size: 0.86rem;
   font-weight: 800;
-  line-height: 1.75;
+  line-height: 1.65;
+  text-wrap: balance;
 }
 
 .product-price {
-  margin: 0.18rem 0 0;
+  margin: 0.25rem 0 0;
   color: var(--green-950);
-  font-size: 1rem;
-  font-weight: 950;
+  font-size: 1.08rem;
+  font-weight: 900;
 }
 
 .product-actions {
@@ -796,9 +920,9 @@ input:focus-visible {
   bottom: 0;
   left: 0;
   display: grid;
-  height: calc(4.7rem + env(safe-area-inset-bottom));
+  height: calc(var(--mobile-nav-height) + env(safe-area-inset-bottom));
   grid-template-columns: repeat(4, 1fr);
-  padding: 0.3rem 0.5rem env(safe-area-inset-bottom);
+  padding: 0.35rem 0.5rem env(safe-area-inset-bottom);
   border-top: 1px solid var(--border);
   background: var(--white);
   box-shadow: 0 -8px 20px rgb(8 58 53 / 5%);
@@ -921,6 +1045,11 @@ input:focus-visible {
 }
 
 @media (min-width: 48rem) {
+  :root {
+    --page-gutter: 1.5rem;
+    --section-space: 2.5rem;
+  }
+
   body {
     padding-bottom: 0;
   }
@@ -931,60 +1060,114 @@ input:focus-visible {
     box-shadow: 0 4px 18px rgb(8 58 53 / 4%);
   }
 
+  .header-layout {
+    grid-template-areas:
+      "brand nav actions"
+      "search search search";
+    grid-template-columns: auto 1fr auto;
+    gap: 0.65rem 1.25rem;
+  }
+
+  .desktop-navigation {
+    grid-area: nav;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.9rem;
+  }
+
+  .desktop-navigation a {
+    display: inline-flex;
+    min-height: 2.75rem;
+    align-items: center;
+    color: #3d4b47;
+    font-size: 0.8rem;
+    font-weight: 700;
+  }
+
+  .header-actions {
+    grid-area: actions;
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+  }
+
+  .search-wrap {
+    width: min(100%, 40rem);
+    justify-self: center;
+  }
+
   .brand small {
-    font-size: 0.68rem;
+    font-size: 0.72rem;
   }
 
   .location-button {
-    max-width: none;
+    width: auto;
+    padding-inline: 0.4rem;
+    border-color: transparent;
+    background: transparent;
   }
 
   .location-button strong {
-    font-size: 0.75rem;
-  }
-
-  .location-button small {
-    font-size: 0.65rem;
+    font-size: 0.78rem;
   }
 
   .promo-banner {
-    min-height: 24rem;
+    display: block;
+    min-height: 22rem;
   }
 
   .promo-copy {
     display: flex;
-    width: 62%;
+    width: 60%;
+    min-height: 22rem;
     flex-direction: column;
     justify-content: center;
-    padding: 2.5rem 3rem;
+    padding: 2.5rem 2.75rem;
   }
 
   .promo-copy p {
-    font-size: 0.95rem;
+    font-size: 0.98rem;
+  }
+
+  .promo-cta {
+    width: fit-content;
   }
 
   .promo-art {
+    position: absolute;
+    bottom: 0;
+    left: 0;
     width: 42%;
+    height: 100%;
+    border-top: 0;
+    border-radius: 0 0 var(--radius-lg) 0;
   }
 
   .bottle-tall {
-    width: 6.8rem;
-    height: 15rem;
+    left: 17%;
+    width: 5.8rem;
+    height: 13rem;
   }
 
   .bottle-short {
-    width: 5rem;
-    height: 10.5rem;
+    right: 12%;
+    width: 4.3rem;
+    height: 9.2rem;
   }
 
   .category-list {
     grid-template-columns: repeat(6, minmax(0, 1fr));
     grid-auto-flow: initial;
+    gap: 0.75rem;
+    padding-inline: 0;
     overflow: visible;
+    scroll-padding-inline: 0;
   }
 
   .category-item {
     min-height: 7rem;
+    font-size: 0.8rem;
   }
 
   .product-grid {
@@ -993,12 +1176,12 @@ input:focus-visible {
   }
 
   .product-card {
-    min-height: 22rem;
+    min-height: 23rem;
     padding: 0.85rem;
   }
 
   .product-art {
-    height: 10.5rem;
+    aspect-ratio: 4 / 3;
   }
 
   .product-actions {
@@ -1020,27 +1203,21 @@ input:focus-visible {
 
 @media (min-width: 64rem) {
   .site-header {
-    padding-block: 0.85rem;
+    padding-block: 0.8rem;
   }
 
-  .header-main {
-    min-height: 3.8rem;
+  .header-layout {
+    grid-template-areas: "brand nav search actions";
+    grid-template-columns: auto minmax(16rem, 1fr) minmax(20rem, 28rem) auto;
+    gap: 1.4rem;
   }
 
   .desktop-navigation {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 1.7rem;
+    gap: 1.4rem;
   }
 
   .desktop-navigation a {
-    display: inline-flex;
-    min-height: 2.75rem;
-    align-items: center;
-    color: #3d4b47;
-    font-size: 0.88rem;
-    font-weight: 700;
+    font-size: 0.92rem;
   }
 
   .desktop-navigation a:hover {
@@ -1048,52 +1225,58 @@ input:focus-visible {
   }
 
   .search-wrap {
-    position: absolute;
-    top: 0.65rem;
-    right: 50%;
-    width: min(27rem, 35vw);
-    margin-top: 0;
-    transform: translateX(50%);
-  }
-
-  .desktop-navigation {
-    margin-inline: auto;
-    transform: translateY(2.65rem);
-  }
-
-  .site-header {
-    padding-bottom: 2.3rem;
+    width: 100%;
   }
 
   .storefront-main {
-    padding-top: 1.3rem;
+    padding-top: 1.5rem;
   }
 
   .promo-banner {
-    min-height: 25rem;
+    min-height: 23rem;
   }
 
   .promo-copy {
-    width: 58%;
-    padding-inline: 4rem;
+    width: 56%;
+    min-height: 23rem;
+    padding-inline: 4.25rem;
   }
 
   .promo-copy h1 {
-    font-size: 2.75rem;
+    max-width: 16ch;
+    font-size: 3rem;
   }
 
   .promo-art {
-    width: 44%;
+    width: 45%;
   }
 
   .product-grid {
     grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 1.15rem;
+  }
+
+  .product-card {
+    min-height: 25rem;
+    padding: 1rem;
+  }
+
+  .product-details h3 {
+    font-size: 0.98rem;
+  }
+
+  .product-price {
+    font-size: 1.18rem;
   }
 }
 
 @media (max-width: 23rem) {
+  :root {
+    --page-gutter: 0.75rem;
+  }
+
   .page-shell {
-    width: min(calc(100% - 1.25rem), 75rem);
+    width: min(calc(100% - (2 * var(--page-gutter))), 80rem);
   }
 
   .brand-mark {
@@ -1105,25 +1288,12 @@ input:focus-visible {
     display: none;
   }
 
-  .location-button {
-    max-width: 6.5rem;
-  }
-
   .location-button strong {
-    font-size: 0.58rem;
-  }
-
-  .location-button small {
-    font-size: 0.52rem;
-  }
-
-  .promo-copy {
-    width: 78%;
-    padding-inline: 1rem;
+    font-size: 0.75rem;
   }
 
   .product-card {
-    padding: 0.55rem;
+    padding: 0.6rem;
   }
 }
 

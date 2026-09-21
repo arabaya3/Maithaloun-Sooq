@@ -59,7 +59,7 @@ function SiteHeader({
 
   return (
     <header className="site-header">
-      <div className="header-main page-shell">
+      <div className="header-layout page-shell">
         <Link className="brand" href="/" aria-label="سوق ميثلون، الرئيسية">
           <span className="brand-mark" aria-hidden="true">
             <Leaf />
@@ -78,6 +78,29 @@ function SiteHeader({
           ))}
         </nav>
 
+        <div className="search-wrap">
+          <label htmlFor="product-search">ابحث في منتجات التنظيف</label>
+          <Search aria-hidden="true" />
+          <input
+            id="product-search"
+            type="search"
+            value={query}
+            onChange={(event) => onQueryChange(event.target.value)}
+            placeholder="ابحث عن منتج..."
+            autoComplete="off"
+          />
+          {query ? (
+            <button
+              type="button"
+              className="clear-search"
+              aria-label="مسح البحث"
+              onClick={() => onQueryChange("")}
+            >
+              <X aria-hidden="true" />
+            </button>
+          ) : null}
+        </div>
+
         <div className="header-actions">
           <button
             type="button"
@@ -86,8 +109,7 @@ function SiteHeader({
           >
             <MapPin aria-hidden="true" />
             <span>
-              <strong>اختر منطقة التوصيل</strong>
-              <small>الموقع غير محدد</small>
+              <strong>حدد منطقة التوصيل</strong>
             </span>
           </button>
           <button
@@ -101,29 +123,6 @@ function SiteHeader({
             </span>
           </button>
         </div>
-      </div>
-
-      <div className="search-wrap page-shell">
-        <label htmlFor="product-search">ابحث في منتجات التنظيف</label>
-        <Search aria-hidden="true" />
-        <input
-          id="product-search"
-          type="search"
-          value={query}
-          onChange={(event) => onQueryChange(event.target.value)}
-          placeholder="ابحث عن منتج..."
-          autoComplete="off"
-        />
-        {query ? (
-          <button
-            type="button"
-            className="clear-search"
-            aria-label="مسح البحث"
-            onClick={() => onQueryChange("")}
-          >
-            <X aria-hidden="true" />
-          </button>
-        ) : null}
       </div>
     </header>
   );
@@ -148,9 +147,6 @@ function PromoBanner() {
         </span>
         <span className="promo-bottle bottle-tall" />
         <span className="promo-bottle bottle-short" />
-        <span className="promo-brush">
-          <Paintbrush />
-        </span>
       </div>
     </section>
   );
@@ -180,6 +176,7 @@ function CategoryPicker({
               key={category.id}
               type="button"
               className="category-item"
+              data-category-id={category.id}
               data-active={active}
               aria-pressed={active}
               onClick={() => onSelect(category.id)}
