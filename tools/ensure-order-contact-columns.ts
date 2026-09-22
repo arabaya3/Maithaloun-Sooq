@@ -39,6 +39,30 @@ const sql = postgres(sessionUrl, { max: 1, prepare: false });
 try {
   await sql.unsafe("set statement_timeout = 0");
 
+  // Clear stuck transaction/DDL backends that can block catalog reads after a timed-out migrate.
+  await sql.unsafe(`
+    SELECT pg_terminate_backend(pid)
+    FROM pg_stat_activity
+    WHERE datname = current_database()
+      AND pid <> pg_backend_pid()
+      AND usename = current_user
+      AND (
+        (
+          state = 'idle in transaction'
+          AND xact_start < now() - interval '15 seconds'
+        )
+        OR (
+          state = 'active'
+          AND query_start < now() - interval '30 seconds'
+          AND (
+            query ILIKE 'ALTER %'
+            OR query ILIKE 'CREATE %'
+            OR query ILIKE '%migrate%'
+          )
+        )
+      );
+  `);
+
   const existing = await sql<{ column_name: string }[]>`
     select column_name
     from information_schema.columns
@@ -52,7 +76,11 @@ try {
   `;
 
   if (existing.length === 3) {
-    console.log("Order contact columns already present.");
+    const probe = await sql`select count(*)::int as count from products`;
+    console.log(
+      "Order contact columns already present. products_count=",
+      probe[0]?.count,
+    );
     process.exit(0);
   }
 
