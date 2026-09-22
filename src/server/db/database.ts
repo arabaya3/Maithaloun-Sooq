@@ -29,7 +29,7 @@ export function createDatabaseConnection(
     connect_timeout: 10,
     idle_timeout: 20,
     connection: {
-      statement_timeout: "15000",
+      statement_timeout: 15000,
     },
   });
   return {
