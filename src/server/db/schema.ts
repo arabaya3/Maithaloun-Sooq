@@ -142,7 +142,9 @@ export const orders = pgTable(
       .unique(),
     status: orderStatusEnum("status").default("pending").notNull(),
     customerName: varchar("customer_name", { length: 100 }).notNull(),
+    customerFullName: varchar("customer_full_name", { length: 100 }),
     normalizedPhone: varchar("normalized_phone", { length: 20 }).notNull(),
+    whatsappPhoneE164: varchar("whatsapp_phone_e164", { length: 20 }),
     serviceAreaId: uuid("service_area_id")
       .notNull()
       .references(() => serviceAreas.id, {
@@ -156,6 +158,7 @@ export const orders = pgTable(
       length: 120,
     }).notNull(),
     address: varchar("address", { length: 500 }).notNull(),
+    deliveryAddress: varchar("delivery_address", { length: 500 }),
     landmark: varchar("landmark", { length: 150 }),
     customerNote: varchar("customer_note", { length: 500 }),
     itemsSubtotalAgorot: integer("items_subtotal_agorot").notNull(),
@@ -175,7 +178,26 @@ export const orders = pgTable(
     index("orders_status_created_at_idx").on(table.status, table.createdAt),
     index("orders_created_at_idx").on(table.createdAt),
     index("orders_normalized_phone_idx").on(table.normalizedPhone),
+    index("orders_whatsapp_phone_e164_idx").on(table.whatsappPhoneE164),
     check("orders_positive_version", sql`${table.version} > 0`),
+    check(
+      "orders_customer_full_name_length",
+      sql`${table.customerFullName} IS NULL OR (
+        char_length(btrim(${table.customerFullName})) BETWEEN 2 AND 100
+      )`,
+    ),
+    check(
+      "orders_delivery_address_length",
+      sql`${table.deliveryAddress} IS NULL OR (
+        char_length(btrim(${table.deliveryAddress})) BETWEEN 8 AND 500
+      )`,
+    ),
+    check(
+      "orders_whatsapp_phone_e164_format",
+      sql`${table.whatsappPhoneE164} IS NULL OR (
+        ${table.whatsappPhoneE164} ~ '^\\+(970|972)5[0-9]{8}$'
+      )`,
+    ),
     check(
       "orders_non_negative_items_subtotal",
       sql`${table.itemsSubtotalAgorot} >= 0`,

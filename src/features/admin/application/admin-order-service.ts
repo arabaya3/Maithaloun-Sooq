@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, asc, count, desc, eq, gte, lte, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, gte, lte, or, sql } from "drizzle-orm";
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 
 import {
@@ -11,7 +11,12 @@ import {
   assertSafeAuditState,
   redactOrderStatusAuditState,
 } from "@/features/admin/domain/audit";
-import { normalizePalestinianPhone } from "@/features/orders/domain/phone";
+import {
+  buildWhatsAppContactUrl,
+  formatWhatsAppDisplay,
+  isSupportedWhatsAppE164,
+  normalizePalestinianPhone,
+} from "@/features/orders/domain/phone";
 import {
   canTransitionOrderStatus,
   isOrderStatus,
@@ -59,6 +64,8 @@ export interface AdminOrderDetail {
   address: string;
   landmark: string | null;
   customerNote: string | null;
+  whatsappPhoneE164: string | null;
+  whatsappContactUrl: string | null;
   serviceAreaCode: string;
   serviceAreaName: string;
   items: ReadonlyArray<{
@@ -169,15 +176,29 @@ export class AdminOrderService {
         ),
     ]);
 
+    const customerName = order.customerFullName ?? order.customerName;
+    const deliveryAddress = order.deliveryAddress ?? order.address;
+    const whatsappPhoneE164 =
+      order.whatsappPhoneE164 ??
+      (isSupportedWhatsAppE164(order.normalizedPhone)
+        ? order.normalizedPhone
+        : null);
+
     return {
       publicReference: order.publicReference,
       status: order.status,
       version: order.version,
-      customerName: order.customerName,
-      phone: order.normalizedPhone,
-      address: order.address,
+      customerName,
+      phone: whatsappPhoneE164
+        ? formatWhatsAppDisplay(whatsappPhoneE164)
+        : order.normalizedPhone,
+      address: deliveryAddress,
       landmark: order.landmark,
       customerNote: order.customerNote,
+      whatsappPhoneE164,
+      whatsappContactUrl: whatsappPhoneE164
+        ? buildWhatsAppContactUrl(whatsappPhoneE164, order.publicReference)
+        : null,
       serviceAreaCode: order.serviceAreaCodeSnapshot,
       serviceAreaName: order.serviceAreaNameSnapshot,
       items: items.map((item) => ({
@@ -308,7 +329,12 @@ export class AdminOrderService {
     if (query.phone) {
       const phone = normalizePalestinianPhone(query.phone);
       if (phone) {
-        conditions.push(eq(schema.orders.normalizedPhone, phone));
+        conditions.push(
+          or(
+            eq(schema.orders.normalizedPhone, phone),
+            eq(schema.orders.whatsappPhoneE164, phone),
+          ),
+        );
       } else {
         conditions.push(sql`false`);
       }

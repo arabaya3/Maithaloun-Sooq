@@ -4,11 +4,11 @@ import { checkoutRequestSchema } from "./checkout-request";
 
 const validRequest = {
   idempotencyKey: "f3208b42-f864-47ca-b5b1-4b99842ec899",
-  customerName: "عميل تجريبي",
-  phone: "0591234567",
+  customerName: "  عميل   تجريبي  ",
+  whatsappCountryCode: "970",
+  whatsappNationalNumber: "0591234567",
   serviceAreaCode: "maythalun",
-  address: "عنوان محلي مفصل للاختبار",
-  landmark: "",
+  deliveryAddress: "  شارع السوق،  ميثلون  ",
   customerNote: "",
   paymentMethod: "cash_on_delivery",
   honeypot: "",
@@ -16,14 +16,25 @@ const validRequest = {
 };
 
 describe("checkout request validation", () => {
-  it("normalizes accepted input without accepting browser totals", () => {
+  it("normalizes accepted Arabic and Latin contact input", () => {
     const parsed = checkoutRequestSchema.parse(validRequest);
+    expect(parsed.customerName).toBe("عميل تجريبي");
+    expect(parsed.deliveryAddress).toBe("شارع السوق، ميثلون");
+    expect(parsed.whatsappPhoneE164).toBe("+970591234567");
     expect(parsed.normalizedPhone).toBe("+970591234567");
-    expect(parsed.landmark).toBeUndefined();
     expect(parsed).not.toHaveProperty("itemsSubtotalAgorot");
+
+    const latin = checkoutRequestSchema.parse({
+      ...validRequest,
+      customerName: "Sara Nasser",
+      whatsappCountryCode: "972",
+      whatsappNationalNumber: "٠٥٢١٢٣٤٥٦٧",
+    });
+    expect(latin.customerName).toBe("Sara Nasser");
+    expect(latin.whatsappPhoneE164).toBe("+972521234567");
   });
 
-  it("enforces field lengths and quantity boundaries", () => {
+  it("enforces field lengths and required address", () => {
     expect(
       checkoutRequestSchema
         .safeParse({
@@ -39,9 +50,17 @@ describe("checkout request validation", () => {
       }).success,
     ).toBe(false);
     expect(
+      checkoutRequestSchema
+        .safeParse({
+          ...validRequest,
+          deliveryAddress: "قصير",
+        })
+        .error?.flatten().fieldErrors.deliveryAddress?.[0],
+    ).toBe("أدخل العنوان بالتفصيل أو أقرب نقطة دالة.");
+    expect(
       checkoutRequestSchema.safeParse({
         ...validRequest,
-        address: "x".repeat(501),
+        deliveryAddress: "x".repeat(501),
       }).success,
     ).toBe(false);
     expect(
@@ -52,7 +71,7 @@ describe("checkout request validation", () => {
     ).toBe(false);
   });
 
-  it("rejects duplicate products, bad phones, and extra monetary fields", () => {
+  it("rejects invalid phones, unsupported prefixes, and monetary fields", () => {
     expect(
       checkoutRequestSchema.safeParse({
         ...validRequest,
@@ -65,13 +84,25 @@ describe("checkout request validation", () => {
     expect(
       checkoutRequestSchema.safeParse({
         ...validRequest,
-        phone: "123",
+        whatsappNationalNumber: "123",
+      }).success,
+    ).toBe(false);
+    expect(
+      checkoutRequestSchema.safeParse({
+        ...validRequest,
+        whatsappCountryCode: "961",
       }).success,
     ).toBe(false);
     expect(
       checkoutRequestSchema.safeParse({
         ...validRequest,
         finalTotalAgorot: 1,
+      }).success,
+    ).toBe(false);
+    expect(
+      checkoutRequestSchema.safeParse({
+        ...validRequest,
+        deliveryAddress: "<script>alert(1)</script>",
       }).success,
     ).toBe(false);
   });

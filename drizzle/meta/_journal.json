@@ -29,6 +29,13 @@
       "when": 1790002421883,
       "tag": "0003_foreign_key_indexes",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1790010000000,
+      "tag": "0004_order_whatsapp_contact_snapshot",
+      "breakpoints": true
     }
   ]
 }

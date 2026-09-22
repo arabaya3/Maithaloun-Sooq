@@ -13,10 +13,9 @@ export function createOrderRequestFingerprint(
 ): string {
   const canonicalPayload = {
     customerName: request.customerName,
-    normalizedPhone: request.normalizedPhone,
+    whatsappPhoneE164: request.whatsappPhoneE164,
     serviceAreaCode: request.serviceAreaCode,
-    address: request.address,
-    landmark: request.landmark ?? null,
+    deliveryAddress: request.deliveryAddress,
     customerNote: request.customerNote ?? null,
     paymentMethod: request.paymentMethod,
     items: [...request.items].sort((left, right) =>

@@ -4,7 +4,16 @@ import { MAX_CART_QUANTITY } from "@/features/cart/cart-store";
 import { productIdSchema } from "@/features/catalog/domain/product";
 import { serviceAreaCodeSchema } from "@/features/delivery/service-area";
 
-import { normalizePalestinianPhone } from "./phone";
+import {
+  isPlainDeliveryAddress,
+  isValidCustomerFullName,
+  normalizeContactWhitespace,
+} from "./customer-contact";
+import {
+  WHATSAPP_COUNTRY_CODES,
+  normalizeWhatsAppPhone,
+  type WhatsAppCountryCode,
+} from "./phone";
 
 const optionalTrimmedString = (maximumLength: number, tooLong: string) =>
   z.preprocess(
@@ -29,21 +38,33 @@ export const checkoutRequestSchema = z
     idempotencyKey: z.uuid({ error: "تعذّر التحقق من محاولة الطلب." }),
     customerName: z
       .string()
-      .trim()
-      .min(2, "أدخل الاسم الكامل.")
-      .max(100, "الاسم أطول من المسموح."),
-    phone: z
+      .max(120, "الاسم أطول من المسموح.")
+      .transform(normalizeContactWhitespace)
+      .pipe(
+        z
+          .string()
+          .min(2, "أدخل الاسم الكامل.")
+          .max(100, "الاسم أطول من المسموح."),
+      ),
+    whatsappCountryCode: z.enum(WHATSAPP_COUNTRY_CODES, {
+      error: "اختر مفتاح الدولة.",
+    }),
+    whatsappNationalNumber: z
       .string()
       .trim()
-      .min(7, "أدخل رقم هاتف فلسطيني صالح.")
-      .max(32, "رقم الهاتف أطول من المسموح."),
+      .min(7, "أدخل رقم واتساب صالح.")
+      .max(24, "رقم الواتساب أطول من المسموح."),
     serviceAreaCode: serviceAreaCodeSchema,
-    address: z
+    deliveryAddress: z
       .string()
-      .trim()
-      .min(5, "أدخل عنواناً تفصيلياً.")
-      .max(500, "العنوان أطول من المسموح."),
-    landmark: optionalTrimmedString(150, "أقرب معلم أطول من المسموح."),
+      .max(600, "العنوان أطول من المسموح.")
+      .transform(normalizeContactWhitespace)
+      .pipe(
+        z
+          .string()
+          .min(8, "أدخل العنوان بالتفصيل أو أقرب نقطة دالة.")
+          .max(500, "العنوان أطول من المسموح."),
+      ),
     customerNote: optionalTrimmedString(500, "ملاحظة الطلب أطول من المسموح."),
     paymentMethod: z.literal("cash_on_delivery"),
     honeypot: z.string().max(200).default(""),
@@ -64,18 +85,52 @@ export const checkoutRequestSchema = z
         message: "تحتوي السلة على منتجات مكررة.",
       });
     }
-  })
-  .transform((value, context) => {
-    const normalizedPhone = normalizePalestinianPhone(value.phone);
-    if (!normalizedPhone) {
+    if (!isValidCustomerFullName(value.customerName)) {
       context.addIssue({
         code: "custom",
-        path: ["phone"],
-        message: "رقم الهاتف غير صالح.",
+        path: ["customerName"],
+        message: "أدخل اسماً صالحاً.",
+      });
+    }
+    if (!isPlainDeliveryAddress(value.deliveryAddress)) {
+      context.addIssue({
+        code: "custom",
+        path: ["deliveryAddress"],
+        message: "أدخل العنوان كنص عادي فقط.",
+      });
+    }
+  })
+  .transform((value, context) => {
+    const whatsappPhoneE164 = normalizeWhatsAppPhone(
+      value.whatsappCountryCode as WhatsAppCountryCode,
+      value.whatsappNationalNumber,
+    );
+    if (!whatsappPhoneE164) {
+      context.addIssue({
+        code: "custom",
+        path: ["whatsappNationalNumber"],
+        message: "رقم الواتساب غير صالح.",
       });
       return z.NEVER;
     }
-    return { ...value, normalizedPhone };
+
+    return {
+      idempotencyKey: value.idempotencyKey,
+      customerName: value.customerName,
+      whatsappCountryCode: value.whatsappCountryCode,
+      whatsappNationalNumber: value.whatsappNationalNumber,
+      whatsappPhoneE164,
+      serviceAreaCode: value.serviceAreaCode,
+      deliveryAddress: value.deliveryAddress,
+      customerNote: value.customerNote,
+      paymentMethod: value.paymentMethod,
+      honeypot: value.honeypot,
+      items: value.items,
+      // Dual-write aliases for legacy columns and fingerprinting.
+      normalizedPhone: whatsappPhoneE164,
+      address: value.deliveryAddress,
+      landmark: undefined as string | undefined,
+    };
   });
 
 export type CheckoutRequest = z.output<typeof checkoutRequestSchema>;

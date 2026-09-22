@@ -16,7 +16,16 @@ import {
 import { useDelivery } from "@/features/delivery/delivery-provider";
 import type { ServiceArea } from "@/features/delivery/service-area";
 import { orderApiResponseSchema } from "@/features/orders/domain/order-confirmation";
+import { WHATSAPP_COUNTRY_CODES } from "@/features/orders/domain/phone";
 import { formatIls } from "@/shared/lib/format-currency";
+
+const WHATSAPP_PREFIX_LABELS: Record<
+  (typeof WHATSAPP_COUNTRY_CODES)[number],
+  string
+> = {
+  "970": "فلسطين +970",
+  "972": "فلسطين/الداخل +972",
+};
 
 export function CheckoutForm({
   products,
@@ -88,10 +97,10 @@ export function CheckoutForm({
     const requestBody = {
       idempotencyKey,
       customerName: form.get("customerName"),
-      phone: form.get("phone"),
+      whatsappCountryCode: form.get("whatsappCountryCode"),
+      whatsappNationalNumber: form.get("whatsappNationalNumber"),
       serviceAreaCode: locationId,
-      address: form.get("address"),
-      landmark: form.get("landmark"),
+      deliveryAddress: form.get("deliveryAddress"),
       customerNote: form.get("customerNote"),
       paymentMethod: "cash_on_delivery",
       honeypot: form.get("companyWebsite"),
@@ -138,6 +147,15 @@ export function CheckoutForm({
     );
   }
 
+  const whatsappDescribedBy = [
+    "whatsapp-help",
+    fieldErrors.whatsappCountryCode || fieldErrors.whatsappNationalNumber
+      ? "whatsapp-error"
+      : null,
+  ]
+    .filter(Boolean)
+    .join(" ");
+
   return (
     <form className="checkout-layout" onSubmit={submitOrder} noValidate>
       <div className="checkout-fields">
@@ -177,43 +195,76 @@ export function CheckoutForm({
           ) : null}
         </label>
 
-        <label className="checkout-field">
-          <span>رقم الهاتف الفلسطيني</span>
-          <input
-            name="phone"
-            type="tel"
-            autoComplete="tel"
-            inputMode="tel"
-            maxLength={32}
-            aria-invalid={Boolean(fieldErrors.phone)}
-            aria-describedby={fieldErrors.phone ? "phone-error" : undefined}
-          />
-          {fieldErrors.phone ? (
-            <small id="phone-error">{fieldErrors.phone[0]}</small>
+        <fieldset className="checkout-field checkout-whatsapp-field">
+          <legend>رقم الواتساب</legend>
+          <div className="checkout-whatsapp-row">
+            <label className="checkout-whatsapp-prefix">
+              <span className="sr-only">مفتاح الدولة</span>
+              <select
+                name="whatsappCountryCode"
+                defaultValue="970"
+                aria-invalid={Boolean(fieldErrors.whatsappCountryCode)}
+                aria-describedby={whatsappDescribedBy}
+              >
+                {WHATSAPP_COUNTRY_CODES.map((code) => (
+                  <option key={code} value={code}>
+                    {WHATSAPP_PREFIX_LABELS[code]}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="checkout-whatsapp-national">
+              <span className="sr-only">الرقم المحلي</span>
+              <input
+                name="whatsappNationalNumber"
+                type="tel"
+                autoComplete="tel"
+                inputMode="tel"
+                maxLength={24}
+                placeholder="05XXXXXXXX"
+                aria-invalid={Boolean(fieldErrors.whatsappNationalNumber)}
+                aria-describedby={whatsappDescribedBy}
+              />
+            </label>
+          </div>
+          <small id="whatsapp-help" className="checkout-field-help">
+            يُستخدم رقم الواتساب فقط لتأكيد الطلب وتنفيذ التوصيل.
+          </small>
+          {fieldErrors.whatsappCountryCode ||
+          fieldErrors.whatsappNationalNumber ? (
+            <small id="whatsapp-error">
+              {fieldErrors.whatsappNationalNumber?.[0] ??
+                fieldErrors.whatsappCountryCode?.[0]}
+            </small>
           ) : null}
-        </label>
+        </fieldset>
 
-        <label className="checkout-field">
-          <span>العنوان التفصيلي</span>
+        <div className="checkout-field">
+          <label htmlFor="delivery-address-input">
+            العنوان بالتفصيل أو أقرب نقطة دالة
+          </label>
           <textarea
-            name="address"
+            id="delivery-address-input"
+            name="deliveryAddress"
             autoComplete="street-address"
             maxLength={500}
-            rows={3}
-            aria-invalid={Boolean(fieldErrors.address)}
-            aria-describedby={fieldErrors.address ? "address-error" : undefined}
+            rows={4}
+            aria-invalid={Boolean(fieldErrors.deliveryAddress)}
+            aria-describedby={
+              fieldErrors.deliveryAddress
+                ? "delivery-address-help delivery-address-error"
+                : "delivery-address-help"
+            }
           />
-          {fieldErrors.address ? (
-            <small id="address-error">{fieldErrors.address[0]}</small>
+          <small id="delivery-address-help" className="checkout-field-help">
+            يمكنك كتابة الشارع أو الحي أو المبنى أو أقرب نقطة دالة معروفة.
+          </small>
+          {fieldErrors.deliveryAddress ? (
+            <small id="delivery-address-error">
+              {fieldErrors.deliveryAddress[0]}
+            </small>
           ) : null}
-        </label>
-
-        <label className="checkout-field">
-          <span>
-            أقرب معلم <small>اختياري</small>
-          </span>
-          <input name="landmark" type="text" maxLength={150} />
-        </label>
+        </div>
 
         <label className="checkout-field">
           <span>

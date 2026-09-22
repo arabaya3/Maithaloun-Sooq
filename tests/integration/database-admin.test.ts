@@ -52,17 +52,24 @@ let actor: AdminActor;
 function createRequest(
   overrides: Partial<{
     idempotencyKey: string;
+    deliveryAddress: string;
     address: string;
     serviceAreaCode: string;
+    whatsappCountryCode: "970" | "972";
+    whatsappNationalNumber: string;
     items: { productId: string; quantity: number }[];
   }> = {},
 ) {
   return checkoutRequestSchema.parse({
     idempotencyKey: overrides.idempotencyKey ?? crypto.randomUUID(),
     customerName: "عميل تجريبي",
-    phone: "0591234567",
+    whatsappCountryCode: overrides.whatsappCountryCode ?? "970",
+    whatsappNationalNumber: overrides.whatsappNationalNumber ?? "0591234567",
     serviceAreaCode: overrides.serviceAreaCode ?? "maythalun",
-    address: overrides.address ?? "عنوان محلي مفصل للاختبار",
+    deliveryAddress:
+      overrides.deliveryAddress ??
+      overrides.address ??
+      "عنوان محلي مفصل للاختبار",
     paymentMethod: "cash_on_delivery",
     honeypot: "",
     items: overrides.items ?? [{ productId: "general-cleaner", quantity: 2 }],
@@ -284,6 +291,48 @@ describe("admin database operations", () => {
     expect(original.deliveryFeeAgorot).toBeNull();
     expect(original.finalTotalAgorot).toBeNull();
     expect(original.address).toBe("عنوان محلي مفصل للاختبار");
+    expect(original.deliveryAddress).toBe("عنوان محلي مفصل للاختبار");
+    expect(original.whatsappPhoneE164).toBe("+970591234567");
+  });
+
+  it("exposes a WhatsApp contact URL on owner order details only", async () => {
+    const created = await orderService.create(createRequest());
+    const detail = await adminOrderService.getByPublicReference(
+      actor,
+      created.publicReference,
+    );
+    expect(detail?.whatsappPhoneE164).toBe("+970591234567");
+    expect(detail?.whatsappContactUrl).toContain("https://wa.me/970591234567");
+    expect(detail?.whatsappContactUrl).toContain(created.publicReference);
+    expect(detail?.whatsappContactUrl).not.toContain("عنوان");
+
+    await expect(
+      adminOrderService.getByPublicReference(
+        { ...actor, active: false },
+        created.publicReference,
+      ),
+    ).rejects.toBeInstanceOf(AuthorizationError);
+  });
+
+  it("handles historical orders with null WhatsApp snapshot columns", async () => {
+    const created = await orderService.create(createRequest());
+    await db
+      .update(orders)
+      .set({
+        customerFullName: null,
+        deliveryAddress: null,
+        whatsappPhoneE164: null,
+      })
+      .where(eq(orders.publicReference, created.publicReference));
+
+    const detail = await adminOrderService.getByPublicReference(
+      actor,
+      created.publicReference,
+    );
+    expect(detail?.customerName).toBe("عميل تجريبي");
+    expect(detail?.address).toBe("عنوان محلي مفصل للاختبار");
+    expect(detail?.whatsappPhoneE164).toBe("+970591234567");
+    expect(detail?.whatsappContactUrl).toContain("wa.me/970591234567");
   });
 
   it("changes status with history in the same transaction and rolls back invalid transitions", async () => {

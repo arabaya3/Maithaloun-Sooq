@@ -12,9 +12,10 @@ import {
 const request = checkoutRequestSchema.parse({
   idempotencyKey: "f3208b42-f864-47ca-b5b1-4b99842ec899",
   customerName: "عميل تجريبي",
-  phone: "0591234567",
+  whatsappCountryCode: "970",
+  whatsappNationalNumber: "0591234567",
   serviceAreaCode: "maythalun",
-  address: "عنوان محلي مفصل للاختبار",
+  deliveryAddress: "عنوان محلي مفصل للاختبار",
   paymentMethod: "cash_on_delivery",
   honeypot: "",
   items: [
@@ -43,7 +44,7 @@ describe("order identifiers", () => {
     expect(
       createOrderRequestFingerprint({
         ...request,
-        address: "عنوان مختلف تماماً للاختبار",
+        deliveryAddress: "عنوان مختلف تماماً للاختبار",
       }),
     ).not.toBe(createOrderRequestFingerprint(request));
   });

@@ -1462,10 +1462,62 @@ select:focus-visible {
   gap: 0.35rem;
 }
 
+.checkout-field > label {
+  color: inherit;
+  font: inherit;
+}
+
 .checkout-field > span small {
   color: var(--muted);
   font-size: 0.75rem;
   font-weight: 500;
+}
+
+.checkout-field-help {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 500;
+}
+
+.checkout-whatsapp-field {
+  border: 0;
+  padding: 0;
+  min-inline-size: 0;
+}
+
+.checkout-whatsapp-field legend {
+  padding: 0;
+  margin-bottom: 0.35rem;
+}
+
+.checkout-whatsapp-row {
+  display: grid;
+  grid-template-columns: minmax(9.5rem, 0.9fr) minmax(0, 1.4fr);
+  gap: 0.5rem;
+  align-items: stretch;
+}
+
+@media (max-width: 24.9rem) {
+  .checkout-whatsapp-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+.checkout-whatsapp-prefix select,
+.checkout-whatsapp-national input {
+  width: 100%;
+  min-height: 2.75rem;
+  padding: 0.65rem 0.75rem;
+  color: var(--charcoal);
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  background: var(--warm-50);
+  font: inherit;
+  font-weight: 500;
+}
+
+.checkout-whatsapp-prefix select {
+  cursor: pointer;
 }
 
 .checkout-field input,
@@ -1487,7 +1539,7 @@ select:focus-visible {
   box-shadow: 0 0 0 2px rgb(184 70 63 / 12%);
 }
 
-.checkout-field > small {
+.checkout-field > small:not(.checkout-field-help) {
   color: #8b302b;
   font-weight: 700;
 }
@@ -2275,6 +2327,28 @@ body:has(.admin-login-page) {
 .admin-page h2 {
   margin: var(--space-6) 0 var(--space-3);
   font-size: 1.1rem;
+}
+
+.admin-whatsapp-action {
+  margin: var(--space-4) 0;
+}
+
+.admin-whatsapp-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.75rem;
+  padding: 0.65rem 1rem;
+  border-radius: 0.5rem;
+  background: #128c7e;
+  color: #fff;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.admin-whatsapp-button:hover,
+.admin-whatsapp-button:focus-visible {
+  background: #0f7368;
 }
 
 .admin-page-header {

@@ -30,10 +30,10 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: "npx --yes pnpm@12.5.1 dev",
+    command: "node ./node_modules/next/dist/bin/next dev --webpack -p 3000",
     url: "http://localhost:3000",
     reuseExistingServer: false,
-    timeout: 120_000,
+    timeout: 180_000,
     env: {
       DATABASE_URL: testEnvironment.TEST_DATABASE_URL,
       ORDER_RATE_LIMIT_PEPPER: testEnvironment.ORDER_RATE_LIMIT_PEPPER,

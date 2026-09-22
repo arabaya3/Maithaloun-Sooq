@@ -46,11 +46,13 @@ async function renderCheckout() {
     "عميل تجريبي",
   );
   await user.type(
-    screen.getByRole("textbox", { name: "رقم الهاتف الفلسطيني" }),
+    screen.getByRole("textbox", { name: "الرقم المحلي" }),
     "0591234567",
   );
   await user.type(
-    screen.getByRole("textbox", { name: "العنوان التفصيلي" }),
+    screen.getByRole("textbox", {
+      name: "العنوان بالتفصيل أو أقرب نقطة دالة",
+    }),
     "عنوان محلي مفصل للاختبار",
   );
   return user;
@@ -74,6 +76,7 @@ describe("checkout form", () => {
       "تعذّر حفظ الطلب الآن.",
     );
     expect(screen.getByText("منظف عام Secret")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("عميل تجريبي")).toBeInTheDocument();
   });
 
   it("clears the cart only after a confirmed success", async () => {
