@@ -49,11 +49,12 @@ try {
   });
 
   await page.getByRole("textbox", { name: "الاسم الكامل" }).fill("عميل تجريبي");
+  await page.getByLabel("مفتاح الدولة").selectOption("970");
+  await page.getByRole("textbox", { name: "الرقم المحلي" }).fill("0591234567");
   await page
-    .getByRole("textbox", { name: "رقم الهاتف الفلسطيني" })
-    .fill("0591234567");
-  await page
-    .getByRole("textbox", { name: "العنوان التفصيلي" })
+    .getByRole("textbox", {
+      name: "العنوان بالتفصيل أو أقرب نقطة دالة",
+    })
     .fill("عنوان محلي مفصل للاختبار");
   await page.getByRole("button", { name: "تأكيد الطلب" }).click();
   await page.waitForURL(/\/orders\/MS-[A-Za-z0-9_-]{24}\/confirmation$/);
@@ -70,11 +71,12 @@ try {
   });
 
   await page.getByRole("textbox", { name: "الاسم الكامل" }).fill("عميل تجريبي");
+  await page.getByLabel("مفتاح الدولة").selectOption("970");
+  await page.getByRole("textbox", { name: "الرقم المحلي" }).fill("0591234567");
   await page
-    .getByRole("textbox", { name: "رقم الهاتف الفلسطيني" })
-    .fill("0591234567");
-  await page
-    .getByRole("textbox", { name: "العنوان التفصيلي" })
+    .getByRole("textbox", {
+      name: "العنوان بالتفصيل أو أقرب نقطة دالة",
+    })
     .fill("عنوان محلي مفصل للاختبار");
   await page.getByRole("button", { name: "تأكيد الطلب" }).click();
   await page.waitForURL(/\/orders\/MS-[A-Za-z0-9_-]{24}\/confirmation$/);

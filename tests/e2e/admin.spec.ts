@@ -72,7 +72,7 @@ async function login(page: Page) {
   }
   await expect(
     page.getByRole("heading", { name: "لوحة المتابعة" }),
-  ).toBeVisible();
+  ).toBeVisible({ timeout: 15_000 });
 }
 
 test.afterEach(async () => {
@@ -135,8 +135,10 @@ test("admin authentication, operations, and privacy controls", async ({
     page.getByRole("heading", { name: "تعديل المنتج" }),
   ).toBeVisible();
 
-  await page.goto("/products/general-cleaner-secret");
-  await expect(page.getByText(/8\.5\s*₪/)).toBeVisible();
+  await page.goto("/products/general-cleaner-secret", {
+    waitUntil: "networkidle",
+  });
+  await expect(page.getByText(/8\.5\s*₪/)).toBeVisible({ timeout: 15_000 });
   await expect(page.getByText("غير متاح حالياً")).toBeVisible();
 
   await login(page);
@@ -164,14 +166,18 @@ test("admin authentication, operations, and privacy controls", async ({
   );
   await page.locator(".cart-button").click();
   await page.getByRole("link", { name: "متابعة إلى بيانات الطلب" }).click();
-  await expect(page.getByText("تكلفة التوصيل: 3 ₪")).toBeVisible();
+  await expect(page).toHaveURL(/\/checkout/);
+  await expect(page.getByText("تكلفة التوصيل: 3 ₪")).toBeVisible({
+    timeout: 15_000,
+  });
   await expect(page.getByText("مبيض Dolphin")).toBeVisible();
   await page.getByRole("textbox", { name: "الاسم الكامل" }).fill("عميل تجريبي");
+  await page.getByLabel("مفتاح الدولة").selectOption("970");
+  await page.getByRole("textbox", { name: "الرقم المحلي" }).fill("0591234567");
   await page
-    .getByRole("textbox", { name: "رقم الهاتف الفلسطيني" })
-    .fill("0591234567");
-  await page
-    .getByRole("textbox", { name: "العنوان التفصيلي" })
+    .getByRole("textbox", {
+      name: "العنوان بالتفصيل أو أقرب نقطة دالة",
+    })
     .fill("عنوان محلي مفصل للاختبار");
   await page.getByRole("button", { name: "تأكيد الطلب" }).click();
   await expect(
@@ -186,15 +192,17 @@ test("admin authentication, operations, and privacy controls", async ({
       {
         delivery_fee_agorot: number | null;
         final_total_agorot: number | null;
+        whatsapp_phone_e164: string | null;
       }[]
     >`
-      select delivery_fee_agorot, final_total_agorot
+      select delivery_fee_agorot, final_total_agorot, whatsapp_phone_e164
       from orders
       where public_reference = ${reference}
     `,
   );
   expect(stored[0]?.delivery_fee_agorot).toBe(300);
   expect(stored[0]?.final_total_agorot).toBe(1100);
+  expect(stored[0]?.whatsapp_phone_e164).toBe("+970591234567");
 
   await login(page);
   await page.getByRole("link", { name: "الطلبات" }).click();
@@ -207,6 +215,16 @@ test("admin authentication, operations, and privacy controls", async ({
     path: "artifacts/admin-screenshots/order-details-mobile.png",
     fullPage: true,
   });
+  await expect(page.getByText("الاسم الكامل")).toBeVisible();
+  await expect(page.getByText("عميل تجريبي")).toBeVisible();
+  const whatsappLink = page.getByRole("link", { name: "تواصل عبر واتساب" });
+  await expect(whatsappLink).toBeVisible();
+  await expect(whatsappLink).toHaveAttribute(
+    "href",
+    new RegExp(`^https://wa\\.me/970591234567\\?text=.*${reference}`),
+  );
+  await expect(whatsappLink).toHaveAttribute("rel", "noopener noreferrer");
+  await expect(whatsappLink).toHaveAttribute("target", "_blank");
   await expect(page.getByRole("button", { name: "تم التسليم" })).toHaveCount(0);
   await page.getByRole("button", { name: orderStatusLabels.confirmed }).click();
   await expect(

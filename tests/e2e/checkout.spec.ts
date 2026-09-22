@@ -43,17 +43,34 @@ async function openCheckout(page: Page) {
   ).toBeVisible();
 }
 
-async function fillCheckout(page: Page) {
-  await page.getByRole("textbox", { name: "الاسم الكامل" }).fill("عميل تجريبي");
+async function fillCheckout(
+  page: Page,
+  options: {
+    countryCode?: "970" | "972";
+    nationalNumber?: string;
+    name?: string;
+    address?: string;
+  } = {},
+) {
   await page
-    .getByRole("textbox", { name: "رقم الهاتف الفلسطيني" })
-    .fill("0591234567");
+    .getByRole("textbox", { name: "الاسم الكامل" })
+    .fill(options.name ?? "عميل تجريبي");
   await page
-    .getByRole("textbox", { name: "العنوان التفصيلي" })
-    .fill("عنوان محلي مفصل للاختبار");
+    .getByLabel("مفتاح الدولة")
+    .selectOption(options.countryCode ?? "970");
+  await page
+    .getByRole("textbox", { name: "الرقم المحلي" })
+    .fill(options.nationalNumber ?? "0591234567");
+  await page
+    .getByRole("textbox", {
+      name: "العنوان بالتفصيل أو أقرب نقطة دالة",
+    })
+    .fill(options.address ?? "عنوان محلي مفصل للاختبار");
 }
 
-test("validates and creates a cash-on-delivery order", async ({ page }) => {
+test("validates and creates a cash-on-delivery order with +970", async ({
+  page,
+}) => {
   const consoleErrors: string[] = [];
   const failedRequests: string[] = [];
   page.on("console", (message) => {
@@ -71,15 +88,23 @@ test("validates and creates a cash-on-delivery order", async ({ page }) => {
   await expect(
     page.getByText("سيتم تأكيد تكلفة التوصيل لاحقاً."),
   ).toBeVisible();
+  await expect(
+    page.getByText("يُستخدم رقم الواتساب فقط لتأكيد الطلب وتنفيذ التوصيل."),
+  ).toBeVisible();
 
   await page.getByRole("button", { name: "تأكيد الطلب" }).click();
   await expect(page.locator(".checkout-error-summary")).toContainText(
     "يرجى مراجعة الحقول المطلوبة.",
   );
   await expect(page.getByText("أدخل الاسم الكامل.")).toBeVisible();
-  await expect(page.getByText("أدخل عنواناً تفصيلياً.")).toBeVisible();
+  await expect(
+    page.getByText("أدخل العنوان بالتفصيل أو أقرب نقطة دالة."),
+  ).toBeVisible();
 
-  await fillCheckout(page);
+  await fillCheckout(page, {
+    countryCode: "970",
+    nationalNumber: "0591234567",
+  });
   await page.getByRole("button", { name: "تأكيد الطلب" }).click();
   await expect(page).toHaveURL(/\/orders\/MS-[A-Za-z0-9_-]{24}\/confirmation$/);
   expect(page.url()).not.toMatch(/059|970|عميل|عنوان/);
@@ -98,6 +123,17 @@ test("validates and creates a cash-on-delivery order", async ({ page }) => {
   );
   expect(consoleErrors).toEqual([]);
   expect(failedRequests).toEqual([]);
+});
+
+test("creates a cash-on-delivery order with +972", async ({ page }) => {
+  await openCheckout(page);
+  await fillCheckout(page, {
+    countryCode: "972",
+    nationalNumber: "0521234567",
+  });
+  await page.getByRole("button", { name: "تأكيد الطلب" }).click();
+  await expect(page).toHaveURL(/\/orders\/MS-[A-Za-z0-9_-]{24}\/confirmation$/);
+  expect(page.url()).not.toMatch(/052|972|عميل|عنوان/);
 });
 
 test("failed submission preserves the cart", async ({ page }) => {
@@ -120,6 +156,9 @@ test("failed submission preserves the cart", async ({ page }) => {
   );
   await expect(page.locator(".cart-button")).toHaveAccessibleName(
     "السلة، منتج واحد",
+  );
+  await expect(page.getByRole("textbox", { name: "الاسم الكامل" })).toHaveValue(
+    "عميل تجريبي",
   );
 });
 
@@ -149,6 +188,7 @@ for (const viewport of [
   }) => {
     await page.setViewportSize(viewport);
     await openCheckout(page);
+    await fillCheckout(page);
     const overflow = await page.evaluate(
       () => document.documentElement.scrollWidth - window.innerWidth,
     );

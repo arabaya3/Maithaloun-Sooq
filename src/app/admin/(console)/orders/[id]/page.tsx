@@ -41,23 +41,29 @@ export default async function AdminOrderDetailPage({
           <dd>{orderStatusLabels[order.status]}</dd>
         </div>
         <div>
-          <dt>اسم الزبون</dt>
+          <dt>الاسم الكامل</dt>
           <dd>{order.customerName}</dd>
         </div>
         <div>
-          <dt>الهاتف</dt>
+          <dt>رقم الواتساب</dt>
           <dd>
-            <bdi dir="ltr">{order.phone}</bdi>
+            {order.whatsappPhoneE164 ? (
+              <bdi dir="ltr">{order.phone}</bdi>
+            ) : (
+              <span>غير متوفر لهذا الطلب</span>
+            )}
           </dd>
         </div>
         <div>
-          <dt>العنوان</dt>
+          <dt>العنوان بالتفصيل أو أقرب نقطة دالة</dt>
           <dd>{order.address}</dd>
         </div>
-        <div>
-          <dt>أقرب معلم</dt>
-          <dd>{order.landmark ?? "غير محدد"}</dd>
-        </div>
+        {order.landmark ? (
+          <div>
+            <dt>أقرب معلم (قديم)</dt>
+            <dd>{order.landmark}</dd>
+          </div>
+        ) : null}
         <div>
           <dt>ملاحظة الزبون</dt>
           <dd>{order.customerNote ?? "لا توجد ملاحظة"}</dd>
@@ -77,6 +83,20 @@ export default async function AdminOrderDetailPage({
           <dd>{formatAdminDateTime(order.createdAt)}</dd>
         </div>
       </dl>
+      {order.whatsappContactUrl ? (
+        <p className="admin-whatsapp-action">
+          <a
+            className="admin-whatsapp-button"
+            href={order.whatsappContactUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            تواصل عبر واتساب
+          </a>
+        </p>
+      ) : (
+        <p className="admin-muted">لا يتوفر رابط واتساب لهذا الطلب.</p>
+      )}
       <section aria-labelledby="order-items-title">
         <h2 id="order-items-title">المنتجات</h2>
         <div className="admin-table-wrap">

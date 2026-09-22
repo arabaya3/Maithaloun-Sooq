@@ -21,17 +21,24 @@ const orderService = new OrderService(db);
 function createRequest(
   overrides: Partial<{
     idempotencyKey: string;
+    deliveryAddress: string;
     address: string;
     serviceAreaCode: string;
+    whatsappCountryCode: "970" | "972";
+    whatsappNationalNumber: string;
     items: { productId: string; quantity: number }[];
   }> = {},
 ) {
   return checkoutRequestSchema.parse({
     idempotencyKey: overrides.idempotencyKey ?? crypto.randomUUID(),
     customerName: "عميل تجريبي",
-    phone: "0591234567",
+    whatsappCountryCode: overrides.whatsappCountryCode ?? "970",
+    whatsappNationalNumber: overrides.whatsappNationalNumber ?? "0591234567",
     serviceAreaCode: overrides.serviceAreaCode ?? "maythalun",
-    address: overrides.address ?? "عنوان محلي مفصل للاختبار",
+    deliveryAddress:
+      overrides.deliveryAddress ??
+      overrides.address ??
+      "عنوان محلي مفصل للاختبار",
     paymentMethod: "cash_on_delivery",
     honeypot: "",
     items: overrides.items ?? [{ productId: "general-cleaner", quantity: 2 }],
@@ -116,6 +123,19 @@ describe("transactional order creation", () => {
     expect(confirmation.finalTotalAgorot).toBeNull();
     expect(confirmation.publicReference).toMatch(/^MS-[A-Za-z0-9_-]{24}$/);
 
+    const [order] = await db
+      .select()
+      .from(orders)
+      .where(eq(orders.publicReference, confirmation.publicReference));
+    expect(order).toMatchObject({
+      customerFullName: "عميل تجريبي",
+      deliveryAddress: "عنوان محلي مفصل للاختبار",
+      whatsappPhoneE164: "+970591234567",
+      customerName: "عميل تجريبي",
+      address: "عنوان محلي مفصل للاختبار",
+      normalizedPhone: "+970591234567",
+    });
+
     const [item] = await db.select().from(orderItems);
     expect(item).toMatchObject({
       productDomainId: "general-cleaner",
@@ -124,6 +144,20 @@ describe("transactional order creation", () => {
       quantity: 2,
       lineSubtotalAgorot: 1400,
     });
+  });
+
+  it("persists a normalized +972 WhatsApp snapshot", async () => {
+    const confirmation = await orderService.create(
+      createRequest({
+        whatsappCountryCode: "972",
+        whatsappNationalNumber: "0521234567",
+      }),
+    );
+    const [order] = await db
+      .select()
+      .from(orders)
+      .where(eq(orders.publicReference, confirmation.publicReference));
+    expect(order.whatsappPhoneE164).toBe("+972521234567");
   });
 
   it("returns the same order for an idempotent retry", async () => {

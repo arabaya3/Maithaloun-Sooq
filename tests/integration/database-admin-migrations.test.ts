@@ -76,7 +76,14 @@ describe("admin migrations", () => {
     }
 
     const [order] = await db
-      .select()
+      .select({
+        status: orders.status,
+        customerName: orders.customerName,
+        address: orders.address,
+        deliveryFeeAgorot: orders.deliveryFeeAgorot,
+        finalTotalAgorot: orders.finalTotalAgorot,
+        version: orders.version,
+      })
       .from(orders)
       .where(eq(orders.publicReference, "MS-phase3snapshot00000000001"));
     expect(order).toMatchObject({
@@ -91,7 +98,42 @@ describe("admin migrations", () => {
     await client.unsafe("DROP SCHEMA IF EXISTS public CASCADE");
     await client.unsafe("DROP SCHEMA IF EXISTS drizzle CASCADE");
     await client.unsafe("CREATE SCHEMA public");
+    await client.unsafe(`
+      DO $$
+      BEGIN
+        IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'anon') THEN
+          CREATE ROLE anon NOLOGIN;
+        END IF;
+        IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'authenticated') THEN
+          CREATE ROLE authenticated NOLOGIN;
+        END IF;
+        IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'postgres') THEN
+          CREATE ROLE postgres NOLOGIN;
+        END IF;
+      END
+      $$;
+    `);
     await migrate(db, { migrationsFolder: "drizzle" });
     await insertVerifiedReferenceData(db);
+
+    const columns = await client<
+      { column_name: string; is_nullable: string }[]
+    >`
+      select column_name, is_nullable
+      from information_schema.columns
+      where table_schema = 'public'
+        and table_name = 'orders'
+        and column_name in (
+          'customer_full_name',
+          'delivery_address',
+          'whatsapp_phone_e164'
+        )
+      order by column_name
+    `;
+    expect(columns).toEqual([
+      { column_name: "customer_full_name", is_nullable: "YES" },
+      { column_name: "delivery_address", is_nullable: "YES" },
+      { column_name: "whatsapp_phone_e164", is_nullable: "YES" },
+    ]);
   });
 });
