@@ -1,3 +1,6 @@
+import { createHash } from "node:crypto";
+import { readFileSync } from "node:fs";
+
 import { migrate } from "drizzle-orm/postgres-js/migrator";
 
 import { createDatabaseConnection } from "../src/server/db/database";
@@ -42,8 +45,43 @@ console.log(
 const connection = createDatabaseConnection(migrationUrl, 1);
 try {
   await connection.client.unsafe("set statement_timeout = 0");
+
+  const journal = await connection.client.unsafe(`
+    select to_regclass('drizzle.__drizzle_migrations') as migrations_table
+  `);
+  const hasJournal = Boolean(journal[0]?.migrations_table);
+
+  if (!hasJournal) {
+    console.log(
+      "No drizzle migration journal found on remote DB; ensuring contact columns only.",
+    );
+    process.exit(0);
+  }
+
+  const rows = await connection.client<
+    { hash: string }[]
+  >`select hash from drizzle.__drizzle_migrations`;
+  console.log(`Found ${rows.length} recorded drizzle migrations.`);
+
+  // If the schema already exists but journal is empty, full migrate would recreate enums.
+  if (rows.length === 0) {
+    console.log(
+      "Drizzle journal is empty while schema exists; skipping full migrate.",
+    );
+    process.exit(0);
+  }
+
   await migrate(connection.db, { migrationsFolder: "drizzle" });
   console.log("Database migrations applied.");
+
+  const contactMigration = readFileSync(
+    "drizzle/0004_order_whatsapp_contact_snapshot.sql",
+    "utf8",
+  );
+  console.log(
+    "0004 hash",
+    createHash("sha256").update(contactMigration).digest("hex").slice(0, 12),
+  );
 } finally {
   await connection.client.end();
 }

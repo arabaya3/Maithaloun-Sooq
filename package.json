@@ -10,7 +10,7 @@
   "scripts": {
     "generate:icons": "node tools/generate-icons.mjs",
     "dev": "next dev --webpack",
-    "build": "tsx tools/migrate-database.ts && next build --webpack",
+    "build": "tsx tools/ensure-order-contact-columns.ts && next build --webpack",
     "start": "next start",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
