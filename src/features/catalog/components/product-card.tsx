@@ -15,7 +15,13 @@ import {
 import { useFavorites } from "@/features/favorites/favorites-provider";
 import { formatIls } from "@/shared/lib/format-currency";
 
-export function ProductCard({ product }: { product: Product }) {
+export function ProductCard({
+  product,
+  priority = false,
+}: {
+  product: Product;
+  priority?: boolean;
+}) {
   const [quantity, setQuantity] = useState(1);
   const { addItem } = useCart();
   const { isFavorite, toggleFavorite } = useFavorites();
@@ -42,7 +48,11 @@ export function ProductCard({ product }: { product: Product }) {
         className="product-card-link"
         aria-label={`عرض تفاصيل ${name}`}
       >
-        <ProductMedia product={product} />
+        <ProductMedia
+          product={product}
+          priority={priority}
+          sizes="(min-width: 1024px) 20vw, (min-width: 768px) 30vw, 45vw"
+        />
         <div className="product-details">
           <h3>
             <bdi dir="auto">{name}</bdi>
