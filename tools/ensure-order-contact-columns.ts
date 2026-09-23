@@ -24,7 +24,9 @@ if (!databaseUrl) {
 }
 
 if (!shouldRun(databaseUrl)) {
-  console.log("Skipping order-contact ensure outside Vercel/remote apply mode.");
+  console.log(
+    "Skipping order-contact ensure outside Vercel/remote apply mode.",
+  );
   process.exit(0);
 }
 
@@ -77,9 +79,16 @@ try {
 
   if (existing.length === 3) {
     const probe = await sql`select count(*)::int as count from products`;
+    const owners = await sql`
+      select count(*)::int as count
+      from admin_users
+      where role = 'owner' and active = true
+    `;
     console.log(
       "Order contact columns already present. products_count=",
       probe[0]?.count,
+      "active_owners=",
+      owners[0]?.count,
     );
     process.exit(0);
   }

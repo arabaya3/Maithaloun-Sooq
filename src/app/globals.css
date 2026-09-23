@@ -656,8 +656,7 @@ select:focus-visible {
 
 .product-art--photo {
   aspect-ratio: 3 / 4;
-  background:
-    linear-gradient(160deg, #f4faf8 0%, #e8f4ef 45%, #dff0ea 100%);
+  background: linear-gradient(160deg, #f4faf8 0%, #e8f4ef 45%, #dff0ea 100%);
 }
 
 .product-art--photo::before,
@@ -1109,8 +1108,7 @@ select:focus-visible {
 
 .product-detail-media.product-art--photo,
 .cart-line-media.product-art--photo {
-  background:
-    linear-gradient(160deg, #f4faf8 0%, #e8f4ef 45%, #dff0ea 100%);
+  background: linear-gradient(160deg, #f4faf8 0%, #e8f4ef 45%, #dff0ea 100%);
 }
 
 .product-detail-media > img,
