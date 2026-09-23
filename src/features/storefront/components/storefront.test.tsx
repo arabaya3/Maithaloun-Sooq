@@ -65,20 +65,21 @@ describe("storefront", () => {
     ).toBeInTheDocument();
   });
 
-  it("provides a concise delivery row and mobile-first hero reading order", () => {
+  it("provides a concise commercial hero without decorative art", () => {
     const { container } = renderStorefront();
 
     expect(screen.getByRole("combobox", { name: "منطقة التوصيل" })).toHaveValue(
       "",
     );
 
-    const copy = container.querySelector(".promo-copy");
-    const art = container.querySelector(".promo-art");
-    expect(copy).not.toBeNull();
-    expect(art).not.toBeNull();
+    expect(container.querySelector(".promo-copy")).not.toBeNull();
+    expect(container.querySelector(".promo-art")).toBeNull();
     expect(
-      copy!.compareDocumentPosition(art!) & Node.DOCUMENT_POSITION_FOLLOWING,
-    ).toBeTruthy();
+      screen.getByRole("heading", {
+        level: 1,
+        name: "منتجات تنظيف للبيت، بأسعار واضحة",
+      }),
+    ).toBeInTheDocument();
     expect(
       screen.getByRole("link", { name: "تسوّق المنتجات" }),
     ).toBeInTheDocument();
