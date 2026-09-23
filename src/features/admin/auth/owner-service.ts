@@ -32,6 +32,21 @@ export class OwnerService {
     return this.upsertOwner(input, { allowSecondOwner: false });
   }
 
+  async createFirstProductionOwner(input: {
+    username: string;
+    displayName: string;
+    password: string;
+    databaseName: string;
+  }): Promise<{ created: boolean }> {
+    if (input.databaseName !== "production") {
+      throw new OwnerBootstrapError("PRODUCTION_DB_REQUIRED");
+    }
+    return this.upsertOwner(input, {
+      allowSecondOwner: false,
+      createOnly: true,
+    });
+  }
+
   async createTestOwner(input: {
     username: string;
     displayName: string;
@@ -79,7 +94,7 @@ export class OwnerService {
       displayName: string;
       password: string;
     },
-    options: { allowSecondOwner: boolean },
+    options: { allowSecondOwner: boolean; createOnly?: boolean },
   ): Promise<{ created: boolean }> {
     const username = this.validateInput(input);
     const passwordHash = await hashPassword(input.password);
@@ -114,6 +129,10 @@ export class OwnerService {
           afterState: { username, created: true },
         });
         return { created: true };
+      }
+
+      if (options.createOnly) {
+        throw new OwnerBootstrapError("OWNER_EXISTS");
       }
 
       if (existingOwner.username !== username) {
