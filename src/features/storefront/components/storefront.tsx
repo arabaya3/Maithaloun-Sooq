@@ -1,16 +1,7 @@
 "use client";
 
-import {
-  Bath,
-  Grid2X2,
-  Home,
-  PackageSearch,
-  Paintbrush,
-  Sparkles,
-  SprayCan,
-  WashingMachine,
-} from "lucide-react";
-import { useMemo, useRef, useState, type ComponentType } from "react";
+import { PackageSearch } from "lucide-react";
+import { useMemo, useRef, useState } from "react";
 
 import { ProductCard } from "@/features/catalog/components/product-card";
 import {
@@ -23,37 +14,16 @@ import { MobileNavigation } from "@/features/storefront/components/mobile-naviga
 import { SiteHeader } from "@/features/storefront/components/site-header";
 import { formatProductCount } from "@/shared/lib/format-product-count";
 
-const categoryIcons: Record<
-  CategoryId,
-  ComponentType<{ "aria-hidden": true }>
-> = {
-  all: Grid2X2,
-  laundry: WashingMachine,
-  kitchen: SprayCan,
-  bathroom: Bath,
-  tools: Paintbrush,
-  home: Home,
-};
-
 function PromoBanner() {
   return (
     <section className="promo-banner" aria-labelledby="promo-title">
       <div className="promo-copy">
-        <span className="eyebrow">اختيارات البيت</span>
-        <h1 id="promo-title">نظافة مرتبة، واحتياجات أقرب</h1>
-        <p>
-          تصفّح أساسيات التنظيف المنزلية بسهولة، واختر ما يلزمك من كتالوج واضح.
-        </p>
+        <span className="eyebrow">سوق ميثلون</span>
+        <h1 id="promo-title">منتجات تنظيف للبيت، بأسعار واضحة</h1>
+        <p>اختر ما تحتاجه وأتمّ الطلب خلال دقائق.</p>
         <a className="promo-cta" href="#catalog">
           تسوّق المنتجات
         </a>
-      </div>
-      <div className="promo-art" aria-hidden="true">
-        <span className="sparkle sparkle-one">
-          <Sparkles />
-        </span>
-        <span className="promo-bottle bottle-tall" />
-        <span className="promo-bottle bottle-short" />
       </div>
     </section>
   );
@@ -70,13 +40,11 @@ function CategoryPicker({
     <section className="categories-section" aria-labelledby="categories-title">
       <div className="section-heading">
         <div>
-          <span className="eyebrow">تصفّح حسب الاستخدام</span>
           <h2 id="categories-title">الفئات</h2>
         </div>
       </div>
       <div className="category-list" role="list">
         {categories.map((category) => {
-          const Icon = categoryIcons[category.id];
           const active = selected === category.id;
           return (
             <button
@@ -88,9 +56,6 @@ function CategoryPicker({
               aria-pressed={active}
               onClick={() => onSelect(category.id)}
             >
-              <span className="category-icon">
-                <Icon aria-hidden={true} />
-              </span>
               <span>{category.label}</span>
             </button>
           );
@@ -149,8 +114,7 @@ export function Storefront({ products }: { products: readonly Product[] }) {
         >
           <div className="section-heading catalog-heading">
             <div>
-              <span className="eyebrow">منتجات منزلية مختارة</span>
-              <h2 id="catalog-title">تسوّق المنتجات</h2>
+              <h2 id="catalog-title">المنتجات</h2>
             </div>
             <span className="results-count" aria-live="polite">
               {formatProductCount(filteredProducts.length)}
@@ -159,8 +123,12 @@ export function Storefront({ products }: { products: readonly Product[] }) {
 
           {filteredProducts.length ? (
             <div className="product-grid">
-              {filteredProducts.map((product) => (
-                <ProductCard key={product.id} product={product} />
+              {filteredProducts.map((product, index) => (
+                <ProductCard
+                  key={product.id}
+                  product={product}
+                  priority={index < 4}
+                />
               ))}
             </div>
           ) : (
