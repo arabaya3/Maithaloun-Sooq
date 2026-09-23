@@ -11,23 +11,9 @@ import {
 } from "@/features/catalog/domain/product";
 import { filterProducts } from "@/features/catalog/domain/product-search";
 import { MobileNavigation } from "@/features/storefront/components/mobile-navigation";
+import { PromoBanner } from "@/features/storefront/components/promo-banner";
 import { SiteHeader } from "@/features/storefront/components/site-header";
 import { formatProductCount } from "@/shared/lib/format-product-count";
-
-function PromoBanner() {
-  return (
-    <section className="promo-banner" aria-labelledby="promo-title">
-      <div className="promo-copy">
-        <span className="eyebrow">سوق ميثلون</span>
-        <h1 id="promo-title">منتجات تنظيف للبيت، بأسعار واضحة</h1>
-        <p>اختر ما تحتاجه وأتمّ الطلب خلال دقائق.</p>
-        <a className="promo-cta" href="#catalog">
-          تسوّق المنتجات
-        </a>
-      </div>
-    </section>
-  );
-}
 
 function CategoryPicker({
   selected,

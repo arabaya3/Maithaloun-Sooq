@@ -65,7 +65,7 @@ describe("storefront", () => {
     ).toBeInTheDocument();
   });
 
-  it("provides a concise commercial hero without decorative art", () => {
+  it("renders a local Maythalun hero with commercial copy", () => {
     const { container } = renderStorefront();
 
     expect(screen.getByRole("combobox", { name: "منطقة التوصيل" })).toHaveValue(
@@ -73,12 +73,15 @@ describe("storefront", () => {
     );
 
     expect(container.querySelector(".promo-copy")).not.toBeNull();
-    expect(container.querySelector(".promo-art")).toBeNull();
+    expect(container.querySelector(".promo-media")).not.toBeNull();
     expect(
       screen.getByRole("heading", {
         level: 1,
-        name: "منتجات تنظيف للبيت، بأسعار واضحة",
+        name: "من ميثلون… لبيتك",
       }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("احتياجات النظافة والمنزل بسهولة، مع توصيل محلي."),
     ).toBeInTheDocument();
     expect(
       screen.getByRole("link", { name: "تسوّق المنتجات" }),
