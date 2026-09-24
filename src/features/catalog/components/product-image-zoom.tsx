@@ -17,6 +17,10 @@ import type { ProductVariant } from "@/features/catalog/domain/product-variant";
 
 type ZoomImage = Extract<ProductVariant["image"], { kind: "image" }>;
 
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value));
+}
+
 export function ProductImageZoom({
   image,
   className = "product-detail-media",
@@ -36,7 +40,7 @@ export function ProductImageZoom({
   const [isCoarse, setIsCoarse] = useState(false);
   const [reduceMotion, setReduceMotion] = useState(false);
   const [zooming, setZooming] = useState(false);
-  const [lensStyle, setLensStyle] = useState<CSSProperties>({});
+  const [photoStyle, setPhotoStyle] = useState<CSSProperties>({});
 
   useEffect(() => {
     const coarseQuery = window.matchMedia("(pointer: coarse)");
@@ -52,6 +56,11 @@ export function ProductImageZoom({
       coarseQuery.removeEventListener("change", sync);
       motionQuery.removeEventListener("change", sync);
     };
+  }, []);
+
+  const resetZoom = useCallback(() => {
+    setZooming(false);
+    setPhotoStyle({});
   }, []);
 
   const closeDialog = useCallback(() => {
@@ -82,23 +91,27 @@ export function ProductImageZoom({
     };
   }, [closeDialog, dialogOpen]);
 
-  function updateLens(event: PointerEvent<HTMLButtonElement>) {
+  function updateZoom(event: PointerEvent<HTMLButtonElement>) {
     if (isCoarse || reduceMotion) return;
     const frame = frameRef.current;
-    if (!frame) return;
-    const rect = frame.getBoundingClientRect();
+    const photo = frame?.querySelector("img");
+    if (!frame || !photo) return;
+
+    const rect = photo.getBoundingClientRect();
     if (rect.width <= 0 || rect.height <= 0) return;
-    const x = ((event.clientX - rect.left) / rect.width) * 100;
-    const y = ((event.clientY - rect.top) / rect.height) * 100;
+
+    const x = clamp(((event.clientX - rect.left) / rect.width) * 100, 0, 100);
+    const y = clamp(((event.clientY - rect.top) / rect.height) * 100, 0, 100);
+
     setZooming(true);
-    setLensStyle({
-      backgroundImage: `url(${image.src})`,
-      backgroundSize: "200%",
-      backgroundPosition: `${x}% ${y}%`,
+    setPhotoStyle({
+      transform: "scale(2)",
+      transformOrigin: `${x}% ${y}%`,
     });
   }
 
   function openDialog() {
+    resetZoom();
     setDialogOpen(true);
   }
 
@@ -129,11 +142,8 @@ export function ProductImageZoom({
         aria-label="تكبير صورة المنتج"
         onClick={onTriggerClick}
         onKeyDown={onTriggerKeyDown}
-        onPointerMove={updateLens}
-        onPointerLeave={() => {
-          setZooming(false);
-          setLensStyle({});
-        }}
+        onPointerMove={updateZoom}
+        onPointerLeave={resetZoom}
       >
         <div ref={frameRef} className="product-image-zoom-frame">
           <Image
@@ -143,18 +153,9 @@ export function ProductImageZoom({
             sizes={sizes}
             className="product-photo"
             priority={priority}
-            onError={() => {
-              setZooming(false);
-              setLensStyle({});
-            }}
+            style={photoStyle}
+            onError={resetZoom}
           />
-          {!isCoarse && !reduceMotion ? (
-            <span
-              className="product-image-zoom-lens"
-              style={lensStyle}
-              aria-hidden="true"
-            />
-          ) : null}
         </div>
       </button>
 
