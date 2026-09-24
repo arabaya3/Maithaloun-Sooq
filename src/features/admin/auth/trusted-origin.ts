@@ -1,10 +1,23 @@
+const PRODUCTION_VERCEL_ALIASES = new Set([
+  "https://maithaloun-sooq.vercel.app",
+  "https://maitloun-sooq.vercel.app",
+]);
+
 export function isTrustedMutationOrigin(
   originHeader: string | null,
   appOrigin: string,
 ): boolean {
   if (!originHeader) return false;
   try {
-    return new URL(originHeader).origin === new URL(appOrigin).origin;
+    const requestOrigin = new URL(originHeader).origin;
+    const configuredOrigin = new URL(appOrigin).origin;
+    if (requestOrigin === configuredOrigin) return true;
+
+    // Both project aliases are public production hosts; accept either interchangeably.
+    return (
+      PRODUCTION_VERCEL_ALIASES.has(configuredOrigin) &&
+      PRODUCTION_VERCEL_ALIASES.has(requestOrigin)
+    );
   } catch {
     return false;
   }
