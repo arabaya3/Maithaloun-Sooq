@@ -41,10 +41,8 @@ export class OwnerService {
     if (input.databaseName !== "production") {
       throw new OwnerBootstrapError("PRODUCTION_DB_REQUIRED");
     }
-    return this.upsertOwner(input, {
-      allowSecondOwner: false,
-      createOnly: true,
-    });
+    // Same username creates the first owner or rotates its password when one exists.
+    return this.upsertOwner(input, { allowSecondOwner: false });
   }
 
   async createTestOwner(input: {

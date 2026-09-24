@@ -26,8 +26,9 @@ const ownerService = new OwnerService(connection.db);
 
 try {
   output.write(
-    "إنشاء مالك إنتاج لمرة واحدة فقط لـ سوق ميثلون. لن تُطبع كلمة المرور.\n",
+    "إنشاء أو إعادة تعيين مالك الإنتاج لـ سوق ميثلون. لن تُطبع كلمة المرور.\n",
   );
+  output.write("كلمة المرور يجب أن تكون بين 12 و 128 حرفاً.\n");
   const username = await promptVisible("اسم المستخدم: ");
   const displayName = await promptVisible("الاسم الظاهر: ");
   const password = await promptHidden("كلمة المرور: ");
@@ -45,11 +46,20 @@ try {
   console.log(
     result.created
       ? "Production owner account created."
-      : "Production owner unchanged.",
+      : "Production owner password rotated.",
   );
 } catch (error) {
   if (error instanceof OwnerBootstrapError) {
-    console.error("Production owner bootstrap refused.");
+    console.error(`Production owner bootstrap refused: ${error.message}`);
+    if (error.message === "PASSWORD_POLICY") {
+      console.error("Password must be 12–128 characters.");
+    }
+    if (error.message === "PASSWORD_MISMATCH") {
+      console.error("Password confirmation did not match.");
+    }
+    if (error.message === "OWNER_EXISTS") {
+      console.error("Use the existing owner username to rotate the password.");
+    }
     process.exitCode = 1;
   } else {
     throw error;
