@@ -3,12 +3,13 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 
 import type { Product } from "@/features/catalog/domain/product";
+import { withDefaultVariant } from "@/test/mock-product-repository";
 import { renderWithProviders } from "@/test/render-with-providers";
 
 import { Storefront } from "./storefront";
 
 const products: Product[] = [
-  {
+  withDefaultVariant({
     id: "general-cleaner",
     slug: "general-cleaner-secret",
     nameAr: "منظف عام",
@@ -18,8 +19,8 @@ const products: Product[] = [
     image: { kind: "placeholder", variant: "general-cleaner" },
     availability: "available",
     detailsStatus: "placeholder",
-  },
-  {
+  }),
+  withDefaultVariant({
     id: "arar-dish-liquid",
     slug: "arar-dish-liquid",
     nameAr: "سائل جلي",
@@ -29,8 +30,8 @@ const products: Product[] = [
     image: { kind: "placeholder", variant: "dish-liquid" },
     availability: "available",
     detailsStatus: "placeholder",
-  },
-  {
+  }),
+  withDefaultVariant({
     id: "unavailable-cleaner",
     slug: "unavailable-cleaner",
     nameAr: "منظف غير متاح",
@@ -39,12 +40,12 @@ const products: Product[] = [
     image: { kind: "placeholder", variant: "general-cleaner" },
     availability: "unavailable",
     detailsStatus: "placeholder",
-  },
+  }),
 ];
 
 function renderStorefront() {
   return renderWithProviders(<Storefront products={products} />, {
-    productIds: products.map((product) => product.id),
+    products,
   });
 }
 
@@ -68,8 +69,8 @@ describe("storefront", () => {
   it("renders a local Maythalun hero with commercial copy", () => {
     const { container } = renderStorefront();
 
-    expect(screen.getByRole("combobox", { name: "منطقة التوصيل" })).toHaveValue(
-      "",
+    expect(screen.getByLabelText("منطقة التوصيل")).toHaveTextContent(
+      "التوصيل داخل ميثلون",
     );
 
     expect(container.querySelector(".promo-copy")).not.toBeNull();

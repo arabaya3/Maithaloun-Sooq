@@ -1,4 +1,4 @@
-import { count, eq, sql } from "drizzle-orm";
+﻿import { count, eq, sql } from "drizzle-orm";
 import { migrate } from "drizzle-orm/postgres-js/migrator";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
@@ -7,7 +7,13 @@ import { PostgresServiceAreaRepository } from "@/features/delivery/postgres-serv
 import { OrderService } from "@/features/orders/application/order-service";
 import { checkoutRequestSchema } from "@/features/orders/domain/checkout-request";
 import { insertVerifiedReferenceData } from "@/server/db/development-seed";
-import { orderItems, orders, products, serviceAreas } from "@/server/db/schema";
+import {
+  orderItems,
+  orders,
+  productVariants,
+  products,
+  serviceAreas,
+} from "@/server/db/schema";
 import {
   resetTestDatabase,
   testDatabaseConnection,
@@ -26,9 +32,17 @@ function createRequest(
     serviceAreaCode: string;
     whatsappCountryCode: "970" | "972";
     whatsappNationalNumber: string;
-    items: { productId: string; quantity: number }[];
+    items: { productId: string; variantId?: string; quantity: number }[];
   }> = {},
 ) {
+  const items = (
+    overrides.items ?? [{ productId: "general-cleaner", quantity: 2 }]
+  ).map((item) => ({
+    productId: item.productId,
+    variantId: item.variantId ?? `${item.productId}--default`,
+    quantity: item.quantity,
+  }));
+
   return checkoutRequestSchema.parse({
     idempotencyKey: overrides.idempotencyKey ?? crypto.randomUUID(),
     customerName: "عميل تجريبي",
@@ -41,7 +55,7 @@ function createRequest(
       "عنوان محلي مفصل للاختبار",
     paymentMethod: "cash_on_delivery",
     honeypot: "",
-    items: overrides.items ?? [{ productId: "general-cleaner", quantity: 2 }],
+    items,
   });
 }
 
@@ -52,7 +66,12 @@ beforeAll(async () => {
 beforeEach(async () => {
   await client.unsafe("TRUNCATE TABLE orders CASCADE");
   await db.update(products).set({ availability: "available" });
-  await db.update(serviceAreas).set({ enabled: true, deliveryFeeAgorot: null });
+  await db.update(productVariants).set({ availability: "available" });
+  await db.update(serviceAreas).set({ enabled: false });
+  await db
+    .update(serviceAreas)
+    .set({ enabled: true, deliveryFeeAgorot: null })
+    .where(eq(serviceAreas.code, "maythalun"));
 });
 
 afterAll(async () => {
@@ -90,28 +109,52 @@ describe("database foundation", () => {
     expect(
       areas.find((area) => area.code === "ramallah")?.deliveryFeeAgorot,
     ).toBe(350);
+    expect(areas.find((area) => area.code === "maythalun")?.enabled).toBe(true);
     expect(
       areas
-        .filter((area) => area.code !== "ramallah")
-        .every((area) => area.deliveryFeeAgorot === null),
+        .filter((area) => area.code !== "maythalun")
+        .every((area) => area.enabled === false),
     ).toBe(true);
   });
 
   it("queries products and service areas without N+1 lookups", async () => {
     await expect(productRepository.list()).resolves.toHaveLength(9);
-    await expect(
-      productRepository.getBySlug("general-cleaner-secret"),
-    ).resolves.toMatchObject({ id: "general-cleaner", priceAgorot: 700 });
+    const product = await productRepository.getBySlug("general-cleaner-secret");
+    expect(product).toMatchObject({
+      id: "general-cleaner",
+      priceAgorot: 700,
+      defaultVariantId: "general-cleaner--default",
+    });
+    expect(product?.variants).toHaveLength(1);
     await expect(
       productRepository.getByIds(["general-cleaner", "dolphin-bleach"]),
     ).resolves.toHaveLength(2);
-    await expect(serviceAreaRepository.listEnabled()).resolves.toHaveLength(4);
+    await expect(serviceAreaRepository.listEnabled()).resolves.toHaveLength(1);
     await expect(
       serviceAreaRepository.getEnabledByCode("maythalun"),
     ).resolves.toMatchObject({
       nameAr: "ميثلون",
-      deliveryFeeAgorot: null,
     });
+  });
+
+  it("applies free delivery at 50 ₪ and charges 5 ₪ below", async () => {
+    const below = await orderService.create(
+      createRequest({
+        items: [{ productId: "general-cleaner", quantity: 2 }],
+      }),
+    );
+    expect(below.itemsSubtotalAgorot).toBe(1400);
+    expect(below.deliveryFeeAgorot).toBe(500);
+    expect(below.finalTotalAgorot).toBe(1900);
+
+    const atThreshold = await orderService.create(
+      createRequest({
+        items: [{ productId: "arar-dish-liquid", quantity: 5 }],
+      }),
+    );
+    expect(atThreshold.itemsSubtotalAgorot).toBe(6000);
+    expect(atThreshold.deliveryFeeAgorot).toBe(0);
+    expect(atThreshold.finalTotalAgorot).toBe(6000);
   });
 });
 
@@ -119,8 +162,8 @@ describe("transactional order creation", () => {
   it("uses authoritative prices and stores immutable item snapshots", async () => {
     const confirmation = await orderService.create(createRequest());
     expect(confirmation.itemsSubtotalAgorot).toBe(1400);
-    expect(confirmation.deliveryFeeAgorot).toBeNull();
-    expect(confirmation.finalTotalAgorot).toBeNull();
+    expect(confirmation.deliveryFeeAgorot).toBe(500);
+    expect(confirmation.finalTotalAgorot).toBe(1900);
     expect(confirmation.publicReference).toMatch(/^MS-[A-Za-z0-9_-]{24}$/);
 
     const [order] = await db
@@ -134,12 +177,15 @@ describe("transactional order creation", () => {
       customerName: "عميل تجريبي",
       address: "عنوان محلي مفصل للاختبار",
       normalizedPhone: "+970591234567",
+      serviceAreaCodeSnapshot: "maythalun",
     });
 
     const [item] = await db.select().from(orderItems);
     expect(item).toMatchObject({
       productDomainId: "general-cleaner",
-      productNameSnapshot: "منظف عام Secret",
+      variantDomainId: "general-cleaner--default",
+      productNameSnapshot: "منظف عام Secret — الافتراضي",
+      variantLabelSnapshot: "الافتراضي",
       unitPriceAgorot: 700,
       quantity: 2,
       lineSubtotalAgorot: 1400,
@@ -225,9 +271,9 @@ describe("transactional order creation", () => {
     });
 
     await db
-      .update(products)
+      .update(productVariants)
       .set({ availability: "unavailable" })
-      .where(eq(products.domainId, "general-cleaner"));
+      .where(eq(productVariants.domainId, "general-cleaner--default"));
     await expect(orderService.create(createRequest())).rejects.toMatchObject({
       code: "unavailable_product",
     });
@@ -245,6 +291,15 @@ describe("transactional order creation", () => {
     ).rejects.toMatchObject({
       code: "invalid_service_area",
     });
+  });
+
+  it("rejects inactive service areas for new orders", async () => {
+    expect(() =>
+      createRequest({
+        serviceAreaCode: "ramallah",
+        items: [{ productId: "dolphin-bleach", quantity: 1 }],
+      }),
+    ).toThrow();
   });
 
   it("rolls back the order when an order-item insert fails", async () => {
@@ -294,7 +349,9 @@ describe("transactional order creation", () => {
       db.insert(orderItems).values({
         orderId: order.id,
         productDomainId: "dolphin-bleach",
-        productNameSnapshot: "مبيض Dolphin",
+        variantDomainId: "dolphin-bleach--default",
+        productNameSnapshot: "مبيض Dolphin — الافتراضي",
+        variantLabelSnapshot: "الافتراضي",
         unitPriceAgorot: 800,
         quantity: 10,
         lineSubtotalAgorot: 8000,

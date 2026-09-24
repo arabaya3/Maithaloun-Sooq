@@ -69,7 +69,7 @@ test("mobile header, hero, RTL categories, and bottom spacing remain usable", as
 
   const brand = page.locator(".brand");
   const cart = page.locator(".cart-button");
-  const location = page.locator(".location-control");
+  const location = page.locator(".delivery-indicator");
   const [brandBox, cartBox, locationBox] = await Promise.all([
     brand.boundingBox(),
     cart.boundingBox(),
@@ -81,9 +81,9 @@ test("mobile header, hero, RTL categories, and bottom spacing remain usable", as
   expect(locationBox).not.toBeNull();
   expect(Math.abs(brandBox!.y - cartBox!.y)).toBeLessThan(10);
   expect(locationBox!.y).toBeGreaterThan(brandBox!.y + brandBox!.height);
-  await expect(
-    page.getByRole("combobox", { name: "منطقة التوصيل" }),
-  ).toHaveValue("");
+  await expect(page.getByLabel("منطقة التوصيل")).toHaveText(
+    "التوصيل داخل ميثلون",
+  );
   expect(
     await location.evaluate(
       (element) => element.scrollWidth <= element.clientWidth,

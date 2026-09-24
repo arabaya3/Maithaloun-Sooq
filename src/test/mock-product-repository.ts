@@ -6,8 +6,34 @@ import {
 } from "@/features/catalog/domain/product";
 import type { ProductRepository } from "@/features/catalog/domain/product-repository";
 
+export function withDefaultVariant(
+  product: Omit<Product, "defaultVariantId" | "variants" | "specifications"> & {
+    specifications?: Product["specifications"];
+  },
+): Product {
+  const defaultVariantId = `${product.id}--default`;
+  return productSchema.parse({
+    ...product,
+    defaultVariantId,
+    variants: [
+      {
+        id: defaultVariantId,
+        productId: product.id,
+        labelAr: product.unit ?? "الافتراضي",
+        attributes: product.unit ? { الوحدة: product.unit } : {},
+        priceAgorot: product.priceAgorot,
+        availability: product.availability,
+        image: product.image,
+        sortOrder: 0,
+        isDefault: true,
+      },
+    ],
+    specifications: product.specifications ?? [],
+  });
+}
+
 const catalog = productSchema.array().parse([
-  {
+  withDefaultVariant({
     id: "general-cleaner",
     slug: "general-cleaner-secret",
     nameAr: "منظف عام",
@@ -17,8 +43,8 @@ const catalog = productSchema.array().parse([
     image: { kind: "placeholder", variant: "general-cleaner" },
     availability: "available",
     detailsStatus: "placeholder",
-  },
-  {
+  }),
+  withDefaultVariant({
     id: "dolphin-bleach",
     slug: "dolphin-bleach",
     nameAr: "مبيض",
@@ -28,8 +54,8 @@ const catalog = productSchema.array().parse([
     image: { kind: "placeholder", variant: "bleach" },
     availability: "available",
     detailsStatus: "placeholder",
-  },
-  {
+  }),
+  withDefaultVariant({
     id: "carpet-brush",
     slug: "carpet-brush",
     nameAr: "فرشاة سجاد",
@@ -38,8 +64,8 @@ const catalog = productSchema.array().parse([
     image: { kind: "placeholder", variant: "brush" },
     availability: "available",
     detailsStatus: "placeholder",
-  },
-  {
+  }),
+  withDefaultVariant({
     id: "arar-dish-liquid",
     slug: "arar-dish-liquid",
     nameAr: "سائل جلي",
@@ -49,8 +75,8 @@ const catalog = productSchema.array().parse([
     image: { kind: "placeholder", variant: "dish-liquid" },
     availability: "available",
     detailsStatus: "placeholder",
-  },
-  {
+  }),
+  withDefaultVariant({
     id: "smart-floor-cleaner",
     slug: "smart-floor-cleaner",
     nameAr: "منظف أرضيات",
@@ -60,8 +86,8 @@ const catalog = productSchema.array().parse([
     image: { kind: "placeholder", variant: "floor-cleaner" },
     availability: "available",
     detailsStatus: "placeholder",
-  },
-  {
+  }),
+  withDefaultVariant({
     id: "musk-floor-cleaner",
     slug: "musk-floor-cleaner",
     nameAr: "منظف أرضيات",
@@ -71,8 +97,8 @@ const catalog = productSchema.array().parse([
     image: { kind: "placeholder", variant: "floor-cleaner" },
     availability: "available",
     detailsStatus: "placeholder",
-  },
-  {
+  }),
+  withDefaultVariant({
     id: "lilac-floor-cleaner",
     slug: "lilac-floor-cleaner",
     nameAr: "منظف أرضيات",
@@ -82,8 +108,8 @@ const catalog = productSchema.array().parse([
     image: { kind: "placeholder", variant: "floor-cleaner" },
     availability: "available",
     detailsStatus: "placeholder",
-  },
-  {
+  }),
+  withDefaultVariant({
     id: "degreaser-8",
     slug: "degreaser-8",
     nameAr: "مزيل دهون",
@@ -92,8 +118,8 @@ const catalog = productSchema.array().parse([
     image: { kind: "placeholder", variant: "degreaser" },
     availability: "available",
     detailsStatus: "placeholder",
-  },
-  {
+  }),
+  withDefaultVariant({
     id: "degreaser-10",
     slug: "degreaser-10",
     nameAr: "مزيل دهون",
@@ -102,6 +128,52 @@ const catalog = productSchema.array().parse([
     image: { kind: "placeholder", variant: "degreaser" },
     availability: "available",
     detailsStatus: "placeholder",
+  }),
+  // Deterministic multi-variant fixture for unit/UI tests only.
+  {
+    id: "test-multi-weight",
+    slug: "test-multi-weight",
+    nameAr: "منظف اختبار بأوزان",
+    latinName: "Test Multi Weight",
+    priceAgorot: 1500,
+    categoryId: "home",
+    image: { kind: "placeholder", variant: "general-cleaner" },
+    availability: "available",
+    detailsStatus: "verified",
+    description: "منتج اختباري متعدد الأوزان فقط.",
+    defaultVariantId: "test-multi-weight--1kg",
+    variants: [
+      {
+        id: "test-multi-weight--1kg",
+        productId: "test-multi-weight",
+        labelAr: "1 كغ",
+        attributes: { الوزن: "1 كغ" },
+        priceAgorot: 1500,
+        availability: "available",
+        image: { kind: "placeholder", variant: "general-cleaner" },
+        sortOrder: 0,
+        isDefault: true,
+      },
+      {
+        id: "test-multi-weight--5kg",
+        productId: "test-multi-weight",
+        labelAr: "5 كغ",
+        attributes: { الوزن: "5 كغ" },
+        priceAgorot: 4500,
+        availability: "available",
+        image: { kind: "placeholder", variant: "floor-cleaner" },
+        sortOrder: 1,
+        isDefault: false,
+      },
+    ],
+    specifications: [
+      {
+        id: "11111111-1111-4111-8111-111111111101",
+        labelAr: "الاستخدام",
+        valueAr: "للاختبار فقط",
+        sortOrder: 0,
+      },
+    ],
   },
 ]);
 

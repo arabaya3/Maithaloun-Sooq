@@ -10,7 +10,6 @@ import {
   primaryKey,
   text,
   timestamp,
-  unique,
   uniqueIndex,
   uuid,
   varchar,
@@ -23,7 +22,7 @@ import {
   productAvailabilityValues,
   productCategoryIds,
   productDetailsStatusValues,
-} from "@/features/catalog/domain/product";
+} from "@/features/catalog/domain/product-constants";
 import { orderStatuses } from "@/features/orders/domain/order-status";
 
 export const productCategoryEnum = pgEnum(
@@ -109,6 +108,103 @@ export const products = pgTable(
           AND ${table.imageWidth} > 0
           AND ${table.imageHeight} > 0)
       )`,
+    ),
+  ],
+);
+
+export const productVariants = pgTable(
+  "product_variants",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    productId: uuid("product_id")
+      .notNull()
+      .references(() => products.id, {
+        onDelete: "cascade",
+        onUpdate: "cascade",
+      }),
+    domainId: varchar("domain_id", { length: 100 }).notNull().unique(),
+    labelAr: varchar("label_ar", { length: 120 }).notNull(),
+    attributes: jsonb("attributes")
+      .$type<Record<string, string>>()
+      .default({})
+      .notNull(),
+    priceAgorot: integer("price_agorot").notNull(),
+    availability: productAvailabilityEnum("availability").notNull(),
+    imageKind: productImageKindEnum("image_kind").notNull(),
+    imageSrc: varchar("image_src", { length: 500 }),
+    imageAlt: varchar("image_alt", { length: 250 }),
+    imageWidth: integer("image_width"),
+    imageHeight: integer("image_height"),
+    placeholderVariant: placeholderVariantEnum("placeholder_variant"),
+    sku: varchar("sku", { length: 64 }),
+    barcode: varchar("barcode", { length: 64 }),
+    sortOrder: integer("sort_order").notNull(),
+    isDefault: boolean("is_default").default(false).notNull(),
+    ...timestamps,
+  },
+  (table) => [
+    index("product_variants_product_id_idx").on(table.productId),
+    uniqueIndex("product_variants_product_sort_uidx").on(
+      table.productId,
+      table.sortOrder,
+    ),
+    uniqueIndex("product_variants_one_default_uidx")
+      .on(table.productId)
+      .where(sql`${table.isDefault} = true`),
+    check(
+      "product_variants_non_negative_price",
+      sql`${table.priceAgorot} >= 0`,
+    ),
+    check("product_variants_non_negative_sort", sql`${table.sortOrder} >= 0`),
+    check(
+      "product_variants_valid_image",
+      sql`(
+        (${table.imageKind} = 'placeholder'
+          AND ${table.placeholderVariant} IS NOT NULL
+          AND ${table.imageSrc} IS NULL
+          AND ${table.imageAlt} IS NULL
+          AND ${table.imageWidth} IS NULL
+          AND ${table.imageHeight} IS NULL)
+        OR
+        (${table.imageKind} = 'image'
+          AND ${table.placeholderVariant} IS NULL
+          AND ${table.imageSrc} IS NOT NULL
+          AND ${table.imageAlt} IS NOT NULL
+          AND ${table.imageWidth} > 0
+          AND ${table.imageHeight} > 0)
+      )`,
+    ),
+    check(
+      "product_variants_attributes_object",
+      sql`jsonb_typeof(${table.attributes}) = 'object'`,
+    ),
+  ],
+);
+
+export const productSpecifications = pgTable(
+  "product_specifications",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    productId: uuid("product_id")
+      .notNull()
+      .references(() => products.id, {
+        onDelete: "cascade",
+        onUpdate: "cascade",
+      }),
+    labelAr: varchar("label_ar", { length: 80 }).notNull(),
+    valueAr: varchar("value_ar", { length: 200 }).notNull(),
+    sortOrder: integer("sort_order").notNull(),
+    ...timestamps,
+  },
+  (table) => [
+    index("product_specifications_product_id_idx").on(table.productId),
+    uniqueIndex("product_specifications_product_sort_uidx").on(
+      table.productId,
+      table.sortOrder,
+    ),
+    check(
+      "product_specifications_non_negative_sort",
+      sql`${table.sortOrder} >= 0`,
     ),
   ],
 );
@@ -231,18 +327,27 @@ export const orderItems = pgTable(
         onDelete: "restrict",
         onUpdate: "cascade",
       }),
+    variantDomainId: varchar("variant_domain_id", { length: 100 }),
     productNameSnapshot: varchar("product_name_snapshot", {
       length: 280,
     }).notNull(),
+    variantLabelSnapshot: varchar("variant_label_snapshot", { length: 120 }),
+    variantAttributesSnapshot: jsonb(
+      "variant_attributes_snapshot",
+    ).$type<Record<string, string> | null>(),
+    variantSkuSnapshot: varchar("variant_sku_snapshot", { length: 64 }),
+    variantBarcodeSnapshot: varchar("variant_barcode_snapshot", {
+      length: 64,
+    }),
     unitPriceAgorot: integer("unit_price_agorot").notNull(),
     quantity: integer("quantity").notNull(),
     lineSubtotalAgorot: integer("line_subtotal_agorot").notNull(),
   },
   (table) => [
-    unique("order_items_order_product_unique").on(
-      table.orderId,
-      table.productDomainId,
-    ),
+    uniqueIndex("order_items_order_variant_uidx")
+      .on(table.orderId, table.variantDomainId)
+      .where(sql`${table.variantDomainId} IS NOT NULL`),
+    index("order_items_variant_domain_id_idx").on(table.variantDomainId),
     check(
       "order_items_quantity_bounds",
       sql`${table.quantity} BETWEEN 1 AND ${sql.raw(String(MAX_CART_QUANTITY))}`,

@@ -1,3 +1,4 @@
+import { eq, inArray, sql } from "drizzle-orm";
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 
 import * as schema from "./schema";
@@ -123,14 +124,14 @@ const serviceAreaSeed: (typeof schema.serviceAreas.$inferInsert)[] = [
   {
     code: "ramallah",
     nameAr: "رام الله",
-    enabled: true,
+    enabled: false,
     sortOrder: 1,
     deliveryFeeAgorot: null,
   },
   {
     code: "al-bireh",
     nameAr: "البيرة",
-    enabled: true,
+    enabled: false,
     sortOrder: 2,
     deliveryFeeAgorot: null,
   },
@@ -144,7 +145,7 @@ const serviceAreaSeed: (typeof schema.serviceAreas.$inferInsert)[] = [
   {
     code: "other",
     nameAr: "منطقة أخرى",
-    enabled: true,
+    enabled: false,
     sortOrder: 4,
     deliveryFeeAgorot: null,
   },
@@ -161,6 +162,53 @@ export async function insertVerifiedReferenceData(
     .insert(schema.serviceAreas)
     .values(serviceAreaSeed)
     .onConflictDoNothing({ target: schema.serviceAreas.code });
+
+  await database
+    .update(schema.serviceAreas)
+    .set({ enabled: false, updatedAt: new Date() })
+    .where(
+      inArray(schema.serviceAreas.code, ["ramallah", "al-bireh", "other"]),
+    );
+  await database
+    .update(schema.serviceAreas)
+    .set({ enabled: true, nameAr: "ميثلون", updatedAt: new Date() })
+    .where(eq(schema.serviceAreas.code, "maythalun"));
+
+  const [{ productVariantsTable }] = await database.execute<{
+    productVariantsTable: string | null;
+  }>(
+    sql`select to_regclass('public.product_variants') as "productVariantsTable"`,
+  );
+  if (!productVariantsTable) {
+    return;
+  }
+
+  const existingProducts = await database.select().from(schema.products);
+  for (const product of existingProducts) {
+    const [existingVariant] = await database
+      .select({ id: schema.productVariants.id })
+      .from(schema.productVariants)
+      .where(eq(schema.productVariants.productId, product.id))
+      .limit(1);
+    if (existingVariant) continue;
+
+    await database.insert(schema.productVariants).values({
+      productId: product.id,
+      domainId: `${product.domainId}--default`,
+      labelAr: product.unit?.trim() || "الافتراضي",
+      attributes: product.unit?.trim() ? { الوحدة: product.unit.trim() } : {},
+      priceAgorot: product.priceAgorot,
+      availability: product.availability,
+      imageKind: product.imageKind,
+      imageSrc: product.imageSrc,
+      imageAlt: product.imageAlt,
+      imageWidth: product.imageWidth,
+      imageHeight: product.imageHeight,
+      placeholderVariant: product.placeholderVariant,
+      sortOrder: 0,
+      isDefault: true,
+    });
+  }
 }
 
 export async function seedDevelopmentDatabase(

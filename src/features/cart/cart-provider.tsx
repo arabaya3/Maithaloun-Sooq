@@ -12,6 +12,7 @@ import {
 
 import {
   CART_STORAGE_KEY,
+  LEGACY_CART_STORAGE_KEY,
   cartReducer,
   initialCartState,
   parsePersistedCart,
@@ -23,9 +24,9 @@ interface CartContextValue {
   lines: readonly CartLine[];
   count: number;
   ready: boolean;
-  addItem: (productId: string, quantity?: number) => void;
-  setQuantity: (productId: string, quantity: number) => void;
-  removeItem: (productId: string) => void;
+  addItem: (productId: string, variantId: string, quantity?: number) => void;
+  setQuantity: (productId: string, variantId: string, quantity: number) => void;
+  removeItem: (productId: string, variantId: string) => void;
   clearCart: () => void;
 }
 
@@ -33,27 +34,49 @@ const CartContext = createContext<CartContextValue | null>(null);
 
 export function CartProvider({
   children,
-  productIds,
+  catalog,
 }: {
   children: ReactNode;
-  productIds: readonly string[];
+  catalog: ReadonlyArray<{
+    productId: string;
+    defaultVariantId: string;
+    variantIds: readonly string[];
+  }>;
 }) {
   const [state, dispatch] = useReducer(cartReducer, initialCartState);
   const [restored, setRestored] = useState(false);
-  const allowedProductIds = useMemo(() => new Set(productIds), [productIds]);
+
+  const allowedPairs = useMemo(() => {
+    const map = new Map<string, ReadonlySet<string>>();
+    for (const entry of catalog) {
+      map.set(entry.productId, new Set(entry.variantIds));
+    }
+    return map;
+  }, [catalog]);
+
+  const defaultVariantByProduct = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const entry of catalog) {
+      map.set(entry.productId, entry.defaultVariantId);
+    }
+    return map;
+  }, [catalog]);
 
   useEffect(() => {
     const saved = parsePersistedCart(
       window.localStorage.getItem(CART_STORAGE_KEY),
-      allowedProductIds,
+      allowedPairs,
+      defaultVariantByProduct,
+      window.localStorage.getItem(LEGACY_CART_STORAGE_KEY),
     );
     dispatch({ type: "restore", lines: saved.lines });
     queueMicrotask(() => setRestored(true));
-  }, [allowedProductIds]);
+  }, [allowedPairs, defaultVariantByProduct]);
 
   useEffect(() => {
     if (restored) {
       window.localStorage.setItem(CART_STORAGE_KEY, serializeCart(state));
+      window.localStorage.removeItem(LEGACY_CART_STORAGE_KEY);
     }
   }, [restored, state]);
 
@@ -62,21 +85,21 @@ export function CartProvider({
       lines: state.lines,
       count: state.lines.reduce((total, line) => total + line.quantity, 0),
       ready: restored,
-      addItem: (productId, quantity = 1) => {
-        if (!allowedProductIds.has(productId)) return;
-        dispatch({ type: "add", productId, quantity });
+      addItem: (productId, variantId, quantity = 1) => {
+        if (!allowedPairs.get(productId)?.has(variantId)) return;
+        dispatch({ type: "add", productId, variantId, quantity });
       },
-      setQuantity: (productId, quantity) => {
-        if (!allowedProductIds.has(productId)) return;
-        dispatch({ type: "setQuantity", productId, quantity });
+      setQuantity: (productId, variantId, quantity) => {
+        if (!allowedPairs.get(productId)?.has(variantId)) return;
+        dispatch({ type: "setQuantity", productId, variantId, quantity });
       },
-      removeItem: (productId) => {
-        if (!allowedProductIds.has(productId)) return;
-        dispatch({ type: "remove", productId });
+      removeItem: (productId, variantId) => {
+        if (!allowedPairs.get(productId)?.has(variantId)) return;
+        dispatch({ type: "remove", productId, variantId });
       },
       clearCart: () => dispatch({ type: "clear" }),
     }),
-    [allowedProductIds, restored, state.lines],
+    [allowedPairs, restored, state.lines],
   );
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;

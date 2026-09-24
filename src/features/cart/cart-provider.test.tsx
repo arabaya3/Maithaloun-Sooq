@@ -4,24 +4,38 @@ import { describe, expect, it } from "vitest";
 
 import { CartProvider, useCart } from "@/features/cart/cart-provider";
 
-import { CART_STORAGE_KEY } from "./cart-store";
+import { CART_STORAGE_KEY, LEGACY_CART_STORAGE_KEY } from "./cart-store";
 
 function CartProbe() {
   const { addItem, count } = useCart();
 
   return (
-    <button type="button" onClick={() => addItem("general-cleaner", 2)}>
+    <button
+      type="button"
+      onClick={() => addItem("general-cleaner", "general-cleaner--default", 2)}
+    >
       {count}
     </button>
   );
 }
 
-describe("CartProvider", () => {
-  const productIds = ["general-cleaner", "dolphin-bleach"];
+const catalog = [
+  {
+    productId: "general-cleaner",
+    defaultVariantId: "general-cleaner--default",
+    variantIds: ["general-cleaner--default"],
+  },
+  {
+    productId: "dolphin-bleach",
+    defaultVariantId: "dolphin-bleach--default",
+    variantIds: ["dolphin-bleach--default"],
+  },
+];
 
+describe("CartProvider", () => {
   it("restores valid persisted cart data and persists updates", async () => {
     window.localStorage.setItem(
-      CART_STORAGE_KEY,
+      LEGACY_CART_STORAGE_KEY,
       JSON.stringify({
         version: 1,
         lines: [{ productId: "dolphin-bleach", quantity: 1 }],
@@ -30,7 +44,7 @@ describe("CartProvider", () => {
 
     const user = userEvent.setup();
     render(
-      <CartProvider productIds={productIds}>
+      <CartProvider catalog={catalog}>
         <CartProbe />
       </CartProvider>,
     );
@@ -44,10 +58,18 @@ describe("CartProvider", () => {
       expect(
         JSON.parse(window.localStorage.getItem(CART_STORAGE_KEY) ?? ""),
       ).toEqual({
-        version: 1,
+        version: 2,
         lines: [
-          { productId: "dolphin-bleach", quantity: 1 },
-          { productId: "general-cleaner", quantity: 2 },
+          {
+            productId: "dolphin-bleach",
+            variantId: "dolphin-bleach--default",
+            quantity: 1,
+          },
+          {
+            productId: "general-cleaner",
+            variantId: "general-cleaner--default",
+            quantity: 2,
+          },
         ],
       });
     });
@@ -60,7 +82,7 @@ describe("CartProvider", () => {
     );
 
     render(
-      <CartProvider productIds={productIds}>
+      <CartProvider catalog={catalog}>
         <CartProbe />
       </CartProvider>,
     );

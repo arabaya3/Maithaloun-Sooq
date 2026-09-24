@@ -12,7 +12,13 @@ const validRequest = {
   customerNote: "",
   paymentMethod: "cash_on_delivery",
   honeypot: "",
-  items: [{ productId: "general-cleaner", quantity: 2 }],
+  items: [
+    {
+      productId: "general-cleaner",
+      variantId: "general-cleaner--default",
+      quantity: 2,
+    },
+  ],
 };
 
 describe("checkout request validation", () => {
@@ -22,6 +28,7 @@ describe("checkout request validation", () => {
     expect(parsed.deliveryAddress).toBe("شارع السوق، ميثلون");
     expect(parsed.whatsappPhoneE164).toBe("+970591234567");
     expect(parsed.normalizedPhone).toBe("+970591234567");
+    expect(parsed.serviceAreaCode).toBe("maythalun");
     expect(parsed).not.toHaveProperty("itemsSubtotalAgorot");
 
     const latin = checkoutRequestSchema.parse({
@@ -32,6 +39,21 @@ describe("checkout request validation", () => {
     });
     expect(latin.customerName).toBe("Sara Nasser");
     expect(latin.whatsappPhoneE164).toBe("+972521234567");
+  });
+
+  it("defaults omitted service area to maythalun and rejects others", () => {
+    const omitted = checkoutRequestSchema.parse({
+      ...validRequest,
+      serviceAreaCode: undefined,
+    });
+    expect(omitted.serviceAreaCode).toBe("maythalun");
+
+    expect(
+      checkoutRequestSchema.safeParse({
+        ...validRequest,
+        serviceAreaCode: "ramallah",
+      }).success,
+    ).toBe(false);
   });
 
   it("enforces field lengths and required address", () => {
@@ -66,7 +88,13 @@ describe("checkout request validation", () => {
     expect(
       checkoutRequestSchema.safeParse({
         ...validRequest,
-        items: [{ productId: "general-cleaner", quantity: 10 }],
+        items: [
+          {
+            productId: "general-cleaner",
+            variantId: "general-cleaner--default",
+            quantity: 10,
+          },
+        ],
       }).success,
     ).toBe(false);
   });
@@ -76,8 +104,16 @@ describe("checkout request validation", () => {
       checkoutRequestSchema.safeParse({
         ...validRequest,
         items: [
-          { productId: "general-cleaner", quantity: 1 },
-          { productId: "general-cleaner", quantity: 2 },
+          {
+            productId: "general-cleaner",
+            variantId: "general-cleaner--default",
+            quantity: 1,
+          },
+          {
+            productId: "general-cleaner",
+            variantId: "general-cleaner--default",
+            quantity: 2,
+          },
         ],
       }).success,
     ).toBe(false);

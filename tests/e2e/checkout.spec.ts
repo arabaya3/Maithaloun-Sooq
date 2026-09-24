@@ -31,9 +31,9 @@ async function countOrders(): Promise<number> {
 
 async function openCheckout(page: Page) {
   await page.goto("/");
-  await page
-    .getByRole("combobox", { name: "منطقة التوصيل" })
-    .selectOption("maythalun");
+  await expect(page.getByLabel("منطقة التوصيل")).toHaveText(
+    "التوصيل داخل ميثلون",
+  );
   const product = page.locator('[data-product-id="general-cleaner"]');
   await product.getByRole("button", { name: /^أضف$/ }).click();
   await page.locator(".cart-button").click();
@@ -85,8 +85,9 @@ test("validates and creates a cash-on-delivery order with +970", async ({
 
   await openCheckout(page);
   await expect(page.getByText("7 ₪").first()).toBeVisible();
+  await expect(page.getByText("5 ₪").first()).toBeVisible();
   await expect(
-    page.getByText("سيتم تأكيد تكلفة التوصيل لاحقاً."),
+    page.getByText("التوصيل متاح حالياً داخل ميثلون فقط"),
   ).toBeVisible();
   await expect(
     page.getByText("يُستخدم رقم الواتساب فقط لتأكيد الطلب وتنفيذ التوصيل."),
@@ -111,7 +112,7 @@ test("validates and creates a cash-on-delivery order with +970", async ({
   await expect(
     page.getByRole("heading", { name: "شكراً، طلبك قيد المراجعة" }),
   ).toBeVisible();
-  await expect(page.getByText("سيتم تأكيدها لاحقاً")).toBeVisible();
+  await expect(page.getByText("5 ₪")).toBeVisible();
   await expect(page.getByText("نقداً عند الاستلام")).toBeVisible();
   await expect(page.getByText("7 ₪")).toBeVisible();
   await expect(page.getByText("عميل تجريبي")).toHaveCount(0);

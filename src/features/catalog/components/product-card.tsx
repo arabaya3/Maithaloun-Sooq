@@ -77,7 +77,9 @@ export function ProductCard({
           type="button"
           className="add-button"
           disabled={!available}
-          onClick={() => addItem(product.id, quantity)}
+          onClick={() =>
+            addItem(product.id, product.defaultVariantId, quantity)
+          }
         >
           <ShoppingBasket aria-hidden="true" />
           {available ? "أضف" : "غير متاح"}

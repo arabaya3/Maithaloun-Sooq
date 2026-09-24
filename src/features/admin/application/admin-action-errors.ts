@@ -20,6 +20,12 @@ export function mapProductAdminError(error: unknown): string {
       return "معرّف المنتج أو الرابط مستخدم مسبقاً.";
     }
     if (error.code === "not_found") return "المنتج غير موجود.";
+    if (error.code === "in_use") {
+      return "لا يمكن حذف هذا الخيار لأنه مستخدم في طلبات سابقة. عطّله بدلاً من ذلك.";
+    }
+    if (error.code === "last_default") {
+      return "لا يمكن تعطيل الخيار الافتراضي. عيّن خياراً افتراضياً آخر أولاً.";
+    }
   }
   return "تعذّر حفظ المنتج. راجع الحقول المطلوبة.";
 }

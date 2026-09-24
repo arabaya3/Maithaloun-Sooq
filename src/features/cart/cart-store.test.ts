@@ -10,19 +10,27 @@ import {
 } from "./cart-store";
 
 describe("cart store", () => {
-  const productIds = new Set(["general-cleaner", "dolphin-bleach"]);
+  const allowedPairs = new Map<string, ReadonlySet<string>>([
+    ["general-cleaner", new Set(["general-cleaner--default"])],
+    ["dolphin-bleach", new Set(["dolphin-bleach--default"])],
+  ]);
+  const defaultVariantByProduct = new Map([
+    ["general-cleaner", "general-cleaner--default"],
+    ["dolphin-bleach", "dolphin-bleach--default"],
+  ]);
 
   it("rejects malformed and out-of-range persisted payloads", () => {
-    expect(parsePersistedCart("not-json", productIds)).toEqual(
-      initialCartState,
-    );
+    expect(
+      parsePersistedCart("not-json", allowedPairs, defaultVariantByProduct),
+    ).toEqual(initialCartState);
     expect(
       parsePersistedCart(
         JSON.stringify({
           version: 1,
           lines: [{ productId: "general-cleaner", quantity: 1000 }],
         }),
-        productIds,
+        allowedPairs,
+        defaultVariantByProduct,
       ),
     ).toEqual(initialCartState);
     expect(
@@ -31,7 +39,8 @@ describe("cart store", () => {
           version: 2,
           lines: [{ productId: "general-cleaner", quantity: 1 }],
         }),
-        productIds,
+        allowedPairs,
+        defaultVariantByProduct,
       ),
     ).toEqual(initialCartState);
     expect(
@@ -46,7 +55,8 @@ describe("cart store", () => {
             },
           ],
         }),
-        productIds,
+        allowedPairs,
+        defaultVariantByProduct,
       ),
     ).toEqual(initialCartState);
   });
@@ -58,7 +68,8 @@ describe("cart store", () => {
           version: 1,
           lines: [{ productId: "unknown-product", quantity: 1 }],
         }),
-        productIds,
+        allowedPairs,
+        defaultVariantByProduct,
       ),
     ).toEqual(initialCartState);
     expect(
@@ -70,20 +81,48 @@ describe("cart store", () => {
             { productId: "general-cleaner", quantity: 2 },
           ],
         }),
-        productIds,
+        allowedPairs,
+        defaultVariantByProduct,
       ),
     ).toEqual(initialCartState);
+  });
+
+  it("migrates legacy v1 lines to default variants", () => {
+    expect(
+      parsePersistedCart(
+        null,
+        allowedPairs,
+        defaultVariantByProduct,
+        JSON.stringify({
+          version: 1,
+          lines: [{ productId: "general-cleaner", quantity: 2 }],
+        }),
+      ),
+    ).toEqual({
+      lines: [
+        {
+          productId: "general-cleaner",
+          variantId: "general-cleaner--default",
+          quantity: 2,
+        },
+      ],
+    });
   });
 
   it("stores identifiers and quantities without persisted prices", () => {
     const state = cartReducer(initialCartState, {
       type: "add",
       productId: "general-cleaner",
+      variantId: "general-cleaner--default",
       quantity: 2,
     });
 
     expect(state.lines).toEqual([
-      { productId: "general-cleaner", quantity: 2 },
+      {
+        productId: "general-cleaner",
+        variantId: "general-cleaner--default",
+        quantity: 2,
+      },
     ]);
     expect(state.lines[0]).not.toHaveProperty("price");
   });
@@ -92,6 +131,7 @@ describe("cart store", () => {
     const added = cartReducer(initialCartState, {
       type: "add",
       productId: "general-cleaner",
+      variantId: "general-cleaner--default",
       quantity: MAX_CART_QUANTITY + 5,
     });
     expect(added.lines[0]?.quantity).toBe(MAX_CART_QUANTITY);
@@ -99,6 +139,7 @@ describe("cart store", () => {
     const lowered = cartReducer(added, {
       type: "setQuantity",
       productId: "general-cleaner",
+      variantId: "general-cleaner--default",
       quantity: 0,
     });
     expect(lowered.lines[0]?.quantity).toBe(1);
@@ -106,6 +147,7 @@ describe("cart store", () => {
     const removed = cartReducer(lowered, {
       type: "remove",
       productId: "general-cleaner",
+      variantId: "general-cleaner--default",
     });
     expect(removed).toEqual(initialCartState);
     expect(cartReducer(added, { type: "clear" })).toEqual(initialCartState);
