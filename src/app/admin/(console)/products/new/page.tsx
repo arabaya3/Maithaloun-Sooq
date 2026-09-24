@@ -21,8 +21,9 @@ export default async function AdminProductCreatePage() {
         </Link>
       </p>
       <h1>منتج جديد</h1>
-      <p className="admin-muted">
-        أضف منتجاً بسرعة، أو فعّل الأحجام المتعددة لخطوات أكثر تفصيلاً.
+      <p className="admin-lede">
+        ابدأ بمنتج بسيط بسعر واحد، أو فعّل «أكثر من حجم أو وزن» إن احتجت عدة
+        أسعار وصور.
       </p>
       <ProductForm sortOrder={100} mode="create" />
     </main>

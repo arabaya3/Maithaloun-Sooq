@@ -21,7 +21,7 @@ export function LoginForm({ nextPath }: { nextPath: string }) {
   return (
     <form className="admin-login-form" action={formAction} noValidate>
       <input type="hidden" name="next" value={nextPath} />
-      <div className="admin-honeypot" aria-hidden="true">
+      <div className="admin-honeypot" aria-hidden="true" hidden>
         <label htmlFor="admin-website">الموقع</label>
         <input
           id="admin-website"

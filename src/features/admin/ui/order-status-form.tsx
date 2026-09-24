@@ -5,6 +5,7 @@ import { useActionState, useState } from "react";
 import { updateOrderStatusAction } from "@/features/admin/application/admin-actions";
 import {
   getAllowedTransitions,
+  getPrimaryNextActionLabel,
   orderStatusLabels,
   type OrderStatus,
 } from "@/features/orders/domain/order-status";
@@ -47,9 +48,10 @@ export function OrderStatusForm({
             name="nextStatus"
             value={nextStatus}
             disabled={pending}
-            className="admin-button-primary"
+            className="admin-btn admin-btn-primary"
           >
-            نقل إلى {orderStatusLabels[nextStatus]}
+            {getPrimaryNextActionLabel(status) ??
+              `نقل إلى ${orderStatusLabels[nextStatus]}`}
           </button>
         ))}
       </div>
@@ -62,7 +64,7 @@ export function OrderStatusForm({
           {!confirmCancel ? (
             <button
               type="button"
-              className="admin-button-danger"
+              className="admin-btn admin-btn-danger"
               onClick={() => setConfirmCancel(true)}
               disabled={pending}
             >
@@ -75,14 +77,14 @@ export function OrderStatusForm({
                 type="submit"
                 name="nextStatus"
                 value="cancelled"
-                className="admin-button-danger"
+                className="admin-btn admin-btn-danger"
                 disabled={pending}
               >
                 تأكيد الإلغاء
               </button>
               <button
                 type="button"
-                className="admin-button-secondary"
+                className="admin-btn admin-btn-secondary"
                 onClick={() => setConfirmCancel(false)}
                 disabled={pending}
               >

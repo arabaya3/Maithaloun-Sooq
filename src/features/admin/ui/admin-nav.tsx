@@ -2,18 +2,44 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useId, useState } from "react";
+import {
+  LayoutDashboard,
+  LogOut,
+  Menu,
+  Package,
+  Settings,
+  ShoppingBag,
+  Store,
+  X,
+} from "lucide-react";
+import { useEffect, useId, useState, type ComponentType } from "react";
 
 import { logoutAction } from "@/features/admin/application/admin-actions";
 
 const links = [
-  { href: "/admin", label: "لوحة المتابعة", match: "exact" as const },
-  { href: "/admin/orders", label: "الطلبات", match: "prefix" as const },
-  { href: "/admin/products", label: "المنتجات", match: "prefix" as const },
+  {
+    href: "/admin",
+    label: "لوحة المتابعة",
+    match: "exact" as const,
+    Icon: LayoutDashboard,
+  },
+  {
+    href: "/admin/orders",
+    label: "الطلبات",
+    match: "prefix" as const,
+    Icon: ShoppingBag,
+  },
+  {
+    href: "/admin/products",
+    label: "المنتجات",
+    match: "prefix" as const,
+    Icon: Package,
+  },
   {
     href: "/admin/settings",
     label: "إعدادات المتجر",
     match: "prefix" as const,
+    Icon: Settings,
   },
 ];
 
@@ -22,13 +48,92 @@ function isActive(pathname: string, href: string, match: "exact" | "prefix") {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
-export function AdminNav({
-  displayName,
-  variant,
+function NavLinks({
+  pathname,
+  onNavigate,
 }: {
-  displayName: string;
-  variant: "desktop" | "mobile";
+  pathname: string;
+  onNavigate?: () => void;
 }) {
+  return (
+    <nav aria-label="تنقل الإدارة" className="admin-nav">
+      {links.map((link) => {
+        const active = isActive(pathname, link.href, link.match);
+        const Icon = link.Icon;
+        return (
+          <Link
+            key={link.href}
+            href={link.href}
+            prefetch={false}
+            className="admin-nav-link"
+            aria-current={active ? "page" : undefined}
+            onClick={onNavigate}
+          >
+            <Icon size={18} aria-hidden="true" />
+            <span>{link.label}</span>
+          </Link>
+        );
+      })}
+    </nav>
+  );
+}
+
+function NavFooter({ displayName }: { displayName: string }) {
+  return (
+    <div className="admin-nav-footer">
+      <p className="admin-nav-user">{displayName}</p>
+      <Link
+        href="/"
+        prefetch={false}
+        className="admin-nav-link admin-nav-link-secondary"
+      >
+        <Store size={18} aria-hidden="true" />
+        <span>العودة إلى المتجر</span>
+      </Link>
+      <form action={logoutAction}>
+        <button
+          type="submit"
+          className="admin-nav-link admin-nav-link-secondary"
+        >
+          <LogOut size={18} aria-hidden="true" />
+          <span>تسجيل الخروج</span>
+        </button>
+      </form>
+    </div>
+  );
+}
+
+export function AdminBrand({ compact = false }: { compact?: boolean }) {
+  return (
+    <div
+      className={
+        compact ? "admin-sidebar-brand is-compact" : "admin-sidebar-brand"
+      }
+    >
+      <span className="admin-sidebar-brand-mark" aria-hidden="true">
+        م
+      </span>
+      <div>
+        <p className="admin-sidebar-brand-title">إدارة سوق ميثلون</p>
+        {!compact ? (
+          <p className="admin-sidebar-brand-subtitle">لوحة المالك</p>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+export function AdminDesktopNav({ displayName }: { displayName: string }) {
+  const pathname = usePathname();
+  return (
+    <div className="admin-nav-desktop">
+      <NavLinks pathname={pathname} />
+      <NavFooter displayName={displayName} />
+    </div>
+  );
+}
+
+export function AdminMobileNav({ displayName }: { displayName: string }) {
   const pathname = usePathname();
   const drawerId = useId();
   const [open, setOpen] = useState(false);
@@ -52,50 +157,18 @@ export function AdminNav({
     };
   }, [open]);
 
-  const nav = (
-    <nav aria-label="تنقل الإدارة" className="admin-nav">
-      {links.map((link) => {
-        const active = isActive(pathname, link.href, link.match);
-        return (
-          <Link
-            key={link.href}
-            href={link.href}
-            prefetch={false}
-            aria-current={active ? "page" : undefined}
-          >
-            {link.label}
-          </Link>
-        );
-      })}
-    </nav>
-  );
-
-  if (variant === "desktop") {
-    return (
-      <div className="admin-nav-desktop">
-        <p className="admin-nav-user">{displayName}</p>
-        {nav}
-        <form action={logoutAction}>
-          <button type="submit">تسجيل الخروج</button>
-        </form>
-      </div>
-    );
-  }
-
   return (
     <>
-      <div className="admin-nav-mobile-bar">
-        <p className="admin-nav-user">{displayName}</p>
-        <button
-          type="button"
-          className="admin-nav-menu-button"
-          aria-expanded={open}
-          aria-controls={drawerId}
-          onClick={() => setOpen((value) => !value)}
-        >
-          القائمة
-        </button>
-      </div>
+      <button
+        type="button"
+        className="admin-nav-menu-button"
+        aria-expanded={open}
+        aria-controls={drawerId}
+        onClick={() => setOpen((value) => !value)}
+      >
+        <Menu size={20} aria-hidden="true" />
+        <span>القائمة</span>
+      </button>
 
       {open ? (
         <div
@@ -110,20 +183,27 @@ export function AdminNav({
             aria-label="قائمة الإدارة"
             onClick={(event) => event.stopPropagation()}
           >
-            {nav}
-            <form action={logoutAction}>
-              <button type="submit">تسجيل الخروج</button>
-            </form>
-            <button
-              type="button"
-              className="admin-nav-drawer-close"
-              onClick={() => setOpen(false)}
-            >
-              إغلاق
-            </button>
+            <div className="admin-nav-drawer-header">
+              <AdminBrand />
+              <button
+                type="button"
+                className="admin-btn admin-btn-ghost admin-btn-icon"
+                onClick={() => setOpen(false)}
+                aria-label="إغلاق"
+              >
+                <X size={20} aria-hidden="true" />
+              </button>
+            </div>
+            <NavLinks pathname={pathname} onNavigate={() => setOpen(false)} />
+            <NavFooter displayName={displayName} />
           </div>
         </div>
       ) : null}
     </>
   );
 }
+
+export type AdminNavIcon = ComponentType<{
+  size?: number;
+  "aria-hidden"?: boolean | "true";
+}>;

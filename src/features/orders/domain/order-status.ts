@@ -38,6 +38,17 @@ export function getPrimaryNextStatus(status: OrderStatus): OrderStatus | null {
   return next ?? null;
 }
 
+export const primaryNextActionLabels: Partial<Record<OrderStatus, string>> = {
+  pending: "تأكيد الطلب",
+  confirmed: "بدء التجهيز",
+  preparing: "خرج للتوصيل",
+  out_for_delivery: "تم التسليم",
+};
+
+export function getPrimaryNextActionLabel(status: OrderStatus): string | null {
+  return primaryNextActionLabels[status] ?? null;
+}
+
 export function isOrderStatus(value: string): value is OrderStatus {
   return (orderStatuses as readonly string[]).includes(value);
 }
