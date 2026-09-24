@@ -1,6 +1,17 @@
 import "server-only";
 
-import { and, asc, count, desc, eq, gte, lte, or, sql } from "drizzle-orm";
+import {
+  and,
+  asc,
+  count,
+  desc,
+  eq,
+  gte,
+  ilike,
+  lte,
+  or,
+  sql,
+} from "drizzle-orm";
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 
 import {
@@ -19,6 +30,7 @@ import {
 } from "@/features/orders/domain/phone";
 import {
   canTransitionOrderStatus,
+  getPrimaryNextStatus,
   isOrderStatus,
   type OrderStatus,
 } from "@/features/orders/domain/order-status";
@@ -43,6 +55,8 @@ export interface AdminOrderListQuery {
   createdTo?: Date;
   publicReference?: string;
   phone?: string;
+  customerName?: string;
+  sort?: "newest" | "oldest";
   page: number;
 }
 
@@ -50,9 +64,11 @@ export interface AdminOrderListItem {
   publicReference: string;
   status: OrderStatus;
   createdAt: string;
+  customerName: string;
   itemsSubtotalAgorot: number;
   deliveryFeeAgorot: number | null;
   finalTotalAgorot: number | null;
+  nextStatus: OrderStatus | null;
 }
 
 export interface AdminOrderDetail {
@@ -71,6 +87,7 @@ export interface AdminOrderDetail {
   items: ReadonlyArray<{
     productId: string;
     productName: string;
+    variantLabel: string | null;
     quantity: number;
     unitPriceAgorot: number;
     lineSubtotalAgorot: number;
@@ -92,6 +109,10 @@ export interface AdminOrderDetail {
 const PAGE_SIZE = 20;
 const PUBLIC_REFERENCE_PATTERN = /^MS-[A-Za-z0-9_-]{24}$/;
 
+function escapeIlike(value: string): string {
+  return value.replace(/[\\%_]/g, "\\$&");
+}
+
 export class AdminOrderService {
   constructor(private readonly database: PostgresJsDatabase<typeof schema>) {}
 
@@ -103,6 +124,7 @@ export class AdminOrderService {
     const page =
       Number.isInteger(query.page) && query.page > 0 ? query.page : 1;
     const filters = this.buildFilters(query);
+    const newestFirst = query.sort !== "oldest";
 
     const [totalRow] = await this.database
       .select({ total: count() })
@@ -113,6 +135,8 @@ export class AdminOrderService {
         publicReference: schema.orders.publicReference,
         status: schema.orders.status,
         createdAt: schema.orders.createdAt,
+        customerName: schema.orders.customerName,
+        customerFullName: schema.orders.customerFullName,
         itemsSubtotalAgorot: schema.orders.itemsSubtotalAgorot,
         deliveryFeeAgorot: schema.orders.deliveryFeeAgorot,
         finalTotalAgorot: schema.orders.finalTotalAgorot,
@@ -120,20 +144,98 @@ export class AdminOrderService {
       .from(schema.orders)
       .where(filters)
       .orderBy(
-        desc(schema.orders.createdAt),
-        desc(schema.orders.publicReference),
+        newestFirst
+          ? desc(schema.orders.createdAt)
+          : asc(schema.orders.createdAt),
+        newestFirst
+          ? desc(schema.orders.publicReference)
+          : asc(schema.orders.publicReference),
       )
       .limit(PAGE_SIZE)
       .offset((page - 1) * PAGE_SIZE);
 
     return {
       items: rows.map((row) => ({
-        ...row,
+        publicReference: row.publicReference,
+        status: row.status,
         createdAt: row.createdAt.toISOString(),
+        customerName: row.customerFullName ?? row.customerName,
+        itemsSubtotalAgorot: row.itemsSubtotalAgorot,
+        deliveryFeeAgorot: row.deliveryFeeAgorot,
+        finalTotalAgorot: row.finalTotalAgorot,
+        nextStatus: getPrimaryNextStatus(row.status),
       })),
       total: totalRow?.total ?? 0,
       page,
     };
+  }
+
+  async countByStatus(actor: AdminActor): Promise<Record<OrderStatus, number>> {
+    assertOwnerActor(actor);
+    const rows = await this.database
+      .select({
+        status: schema.orders.status,
+        total: count(),
+      })
+      .from(schema.orders)
+      .groupBy(schema.orders.status);
+
+    const result = {
+      pending: 0,
+      confirmed: 0,
+      preparing: 0,
+      out_for_delivery: 0,
+      delivered: 0,
+      cancelled: 0,
+    } satisfies Record<OrderStatus, number>;
+    for (const row of rows) {
+      result[row.status] = row.total;
+    }
+    return result;
+  }
+
+  async listActionable(
+    actor: AdminActor,
+    limit = 8,
+  ): Promise<AdminOrderListItem[]> {
+    assertOwnerActor(actor);
+    const safeLimit = Math.min(Math.max(limit, 1), 20);
+    const rows = await this.database
+      .select({
+        publicReference: schema.orders.publicReference,
+        status: schema.orders.status,
+        createdAt: schema.orders.createdAt,
+        customerName: schema.orders.customerName,
+        customerFullName: schema.orders.customerFullName,
+        itemsSubtotalAgorot: schema.orders.itemsSubtotalAgorot,
+        deliveryFeeAgorot: schema.orders.deliveryFeeAgorot,
+        finalTotalAgorot: schema.orders.finalTotalAgorot,
+      })
+      .from(schema.orders)
+      .where(
+        or(
+          eq(schema.orders.status, "pending"),
+          eq(schema.orders.status, "confirmed"),
+          eq(schema.orders.status, "preparing"),
+          eq(schema.orders.status, "out_for_delivery"),
+        ),
+      )
+      .orderBy(
+        desc(schema.orders.createdAt),
+        desc(schema.orders.publicReference),
+      )
+      .limit(safeLimit);
+
+    return rows.map((row) => ({
+      publicReference: row.publicReference,
+      status: row.status,
+      createdAt: row.createdAt.toISOString(),
+      customerName: row.customerFullName ?? row.customerName,
+      itemsSubtotalAgorot: row.itemsSubtotalAgorot,
+      deliveryFeeAgorot: row.deliveryFeeAgorot,
+      finalTotalAgorot: row.finalTotalAgorot,
+      nextStatus: getPrimaryNextStatus(row.status),
+    }));
   }
 
   async getByPublicReference(
@@ -204,6 +306,7 @@ export class AdminOrderService {
       items: items.map((item) => ({
         productId: item.productDomainId,
         productName: item.productNameSnapshot,
+        variantLabel: item.variantLabelSnapshot ?? null,
         quantity: item.quantity,
         unitPriceAgorot: item.unitPriceAgorot,
         lineSubtotalAgorot: item.lineSubtotalAgorot,
@@ -333,6 +436,20 @@ export class AdminOrderService {
           or(
             eq(schema.orders.normalizedPhone, phone),
             eq(schema.orders.whatsappPhoneE164, phone),
+          ),
+        );
+      } else {
+        conditions.push(sql`false`);
+      }
+    }
+    if (query.customerName) {
+      const name = query.customerName.trim().slice(0, 100);
+      if (name.length >= 2) {
+        const pattern = `%${escapeIlike(name)}%`;
+        conditions.push(
+          or(
+            ilike(schema.orders.customerName, pattern),
+            ilike(schema.orders.customerFullName, pattern),
           ),
         );
       } else {

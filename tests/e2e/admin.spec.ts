@@ -63,6 +63,41 @@ async function restoreCatalog() {
   });
 }
 
+async function openAdminNav(page: Page) {
+  const menu = page.getByRole("button", { name: "القائمة" });
+  if (await menu.isVisible()) {
+    await menu.click();
+    await expect(
+      page.getByRole("dialog", { name: "قائمة الإدارة" }),
+    ).toBeVisible();
+  }
+}
+
+async function goAdminSection(page: Page, name: string) {
+  const menu = page.getByRole("button", { name: "القائمة" });
+  if (await menu.isVisible()) {
+    await openAdminNav(page);
+    await page
+      .getByRole("dialog", { name: "قائمة الإدارة" })
+      .getByRole("link", { name, exact: true })
+      .click();
+  } else {
+    await page.getByRole("link", { name, exact: true }).click();
+  }
+  const headings: Record<string, string | RegExp> = {
+    "لوحة المتابعة": "لوحة المتابعة",
+    الطلبات: "الطلبات",
+    المنتجات: "المنتجات",
+    "إعدادات المتجر": "إعدادات المتجر",
+  };
+  const heading = headings[name] ?? name;
+  await expect(
+    page.getByRole("heading", { name: heading, level: 1 }),
+  ).toBeVisible({
+    timeout: 15_000,
+  });
+}
+
 async function login(page: Page) {
   await page.goto("/admin");
   if (page.url().includes("/admin/login")) {
@@ -82,7 +117,7 @@ test.afterEach(async () => {
 test("admin authentication, operations, and privacy controls", async ({
   page,
 }) => {
-  test.setTimeout(90_000);
+  test.setTimeout(120_000);
   const issues = trackPageIssues(page);
   await page.setViewportSize({ width: 390, height: 844 });
 
@@ -112,7 +147,10 @@ test("admin authentication, operations, and privacy controls", async ({
   );
 
   await login(page);
-  await expect(page.getByText("قيد الانتظار")).toBeVisible();
+  await expect(page.getByText("طلبات جديدة")).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "طلبات تحتاج إجراء" }),
+  ).toBeVisible();
   await page.screenshot({
     path: "artifacts/admin-screenshots/dashboard-mobile.png",
     fullPage: true,
@@ -122,7 +160,7 @@ test("admin authentication, operations, and privacy controls", async ({
     page.getByRole("heading", { name: "لوحة المتابعة" }),
   ).toBeVisible();
 
-  await page.getByRole("link", { name: "المنتجات" }).click();
+  await goAdminSection(page, "المنتجات");
   await page.getByRole("link", { name: /منظف عام/ }).click();
   await page.screenshot({
     path: "artifacts/admin-screenshots/product-editor-mobile.png",
@@ -142,7 +180,7 @@ test("admin authentication, operations, and privacy controls", async ({
   await expect(page.getByText("غير متاح حالياً")).toBeVisible();
 
   await login(page);
-  await page.getByRole("link", { name: "المنتجات" }).click();
+  await goAdminSection(page, "المنتجات");
   await page.getByRole("link", { name: /منظف عام/ }).click();
   await page.locator("#product-price").fill("7.00");
   await page.locator("#product-availability").selectOption("available");
@@ -151,7 +189,11 @@ test("admin authentication, operations, and privacy controls", async ({
     page.getByRole("heading", { name: "تعديل المنتج" }),
   ).toBeVisible();
 
-  await page.getByRole("link", { name: "مناطق التوصيل" }).click();
+  await goAdminSection(page, "إعدادات المتجر");
+  await page.screenshot({
+    path: "artifacts/admin-screenshots/settings-mobile.png",
+    fullPage: true,
+  });
   const maythalunForm = page.locator("form", {
     has: page.locator("#fee-maythalun"),
   });
@@ -160,8 +202,63 @@ test("admin authentication, operations, and privacy controls", async ({
   await maythalunForm.getByLabel("المبلغ بالشيكل").fill("3.00");
   await maythalunForm.getByRole("button", { name: "حفظ المنطقة" }).click();
   await expect(
-    page.getByRole("heading", { name: "مناطق التوصيل" }),
+    page.getByRole("heading", { name: "إعدادات المتجر" }),
   ).toBeVisible();
+
+  await goAdminSection(page, "المنتجات");
+  await page.getByRole("link", { name: "إضافة منتج" }).click();
+  await expect(
+    page.getByText("هذا المنتج له أكثر من حجم أو وزن"),
+  ).toBeVisible();
+  await page.screenshot({
+    path: "artifacts/admin-screenshots/product-create-quick-mobile.png",
+    fullPage: true,
+  });
+  const quickId = `e2e-quick-${Date.now().toString(36)}`;
+  await page.locator("#product-name-ar").fill("منتج إضافة سريعة");
+  await page
+    .locator("summary")
+    .filter({ hasText: "معرّف الرابط والاسم اللاتيني" })
+    .click();
+  await page.locator("#product-latin-name").fill(quickId);
+  await page.locator("#product-price").fill("4.50");
+  await page.getByRole("button", { name: "إنشاء المنتج" }).click();
+  await expect(page.getByRole("heading", { name: "تعديل المنتج" })).toBeVisible(
+    { timeout: 15_000 },
+  );
+  await expect(page.locator("#product-name-ar")).toHaveValue(
+    "منتج إضافة سريعة",
+  );
+
+  await goAdminSection(page, "المنتجات");
+  await page.getByRole("link", { name: "إضافة منتج" }).click();
+  await page.getByRole("checkbox", { name: /أكثر من حجم أو وزن/ }).check();
+  await expect(
+    page.getByRole("heading", { name: "المعلومات الأساسية" }),
+  ).toBeVisible();
+  await page.screenshot({
+    path: "artifacts/admin-screenshots/product-create-wizard-mobile.png",
+    fullPage: true,
+  });
+  const wizardId = `e2e-wiz-${Date.now().toString(36)}`;
+  await page.locator("#wiz-name-ar").fill("منتج متعدد الأحجام");
+  await page.locator("#wiz-price").fill("9.00");
+  await page.locator("#wiz-latin").fill(wizardId);
+  await page.getByRole("button", { name: "التالي" }).click();
+  await expect(
+    page.getByRole("heading", { name: "الأحجام والأوزان" }),
+  ).toBeVisible();
+  await page.locator("#wiz-unit").fill("١.٢٥ كغم");
+  await page.getByRole("button", { name: "التالي" }).click();
+  await expect(
+    page.getByRole("heading", { name: "صورة المنتج" }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "التالي" }).click();
+  await expect(page.getByRole("heading", { name: "المراجعة" })).toBeVisible();
+  await page.getByRole("button", { name: "إنشاء المنتج" }).click();
+  await expect(page.getByRole("heading", { name: "تعديل المنتج" })).toBeVisible(
+    { timeout: 15_000 },
+  );
 
   await page.goto("/");
   await expect(page.getByLabel("منطقة التوصيل")).toHaveText(
@@ -217,12 +314,17 @@ test("admin authentication, operations, and privacy controls", async ({
   expect(stored[0]?.whatsapp_phone_e164).toBe("+970591234567");
 
   await login(page);
-  await page.getByRole("link", { name: "الطلبات" }).click();
+  await goAdminSection(page, "الطلبات");
   await page.screenshot({
     path: "artifacts/admin-screenshots/orders-mobile.png",
     fullPage: true,
   });
-  await page.getByRole("link", { name: reference }).click();
+  await page
+    .locator(`.admin-order-cards a[href="/admin/orders/${reference}"]`)
+    .click();
+  await expect(
+    page.getByRole("heading", { name: new RegExp(reference) }),
+  ).toBeVisible({ timeout: 15_000 });
   await page.screenshot({
     path: "artifacts/admin-screenshots/order-details-mobile.png",
     fullPage: true,
@@ -237,20 +339,33 @@ test("admin authentication, operations, and privacy controls", async ({
   );
   await expect(whatsappLink).toHaveAttribute("rel", "noopener noreferrer");
   await expect(whatsappLink).toHaveAttribute("target", "_blank");
-  await expect(page.getByRole("button", { name: "تم التسليم" })).toHaveCount(0);
-  await page.getByRole("button", { name: orderStatusLabels.confirmed }).click();
+  await expect(
+    page.getByRole("button", {
+      name: `نقل إلى ${orderStatusLabels.delivered}`,
+    }),
+  ).toHaveCount(0);
+  await page
+    .getByRole("button", { name: `نقل إلى ${orderStatusLabels.confirmed}` })
+    .click();
   await expect(
     page.getByText(orderStatusLabels.confirmed).first(),
   ).toBeVisible();
-  await page.getByRole("button", { name: orderStatusLabels.preparing }).click();
   await page
-    .getByRole("button", { name: orderStatusLabels.out_for_delivery })
+    .getByRole("button", { name: `نقل إلى ${orderStatusLabels.preparing}` })
     .click();
-  await page.getByRole("button", { name: orderStatusLabels.delivered }).click();
+  await page
+    .getByRole("button", {
+      name: `نقل إلى ${orderStatusLabels.out_for_delivery}`,
+    })
+    .click();
+  await page
+    .getByRole("button", { name: `نقل إلى ${orderStatusLabels.delivered}` })
+    .click();
   await expect(
     page.getByText("هذه الحالة نهائية ولا يمكن تغييرها."),
   ).toBeVisible();
 
+  await openAdminNav(page);
   await page.getByRole("button", { name: "تسجيل الخروج" }).click();
   await expect(
     page.getByRole("heading", { name: "دخول إدارة سوق ميثلون" }),
@@ -278,7 +393,7 @@ test("admin desktop layout and screenshots", async ({ page }) => {
     path: "artifacts/admin-screenshots/dashboard-desktop.png",
     fullPage: true,
   });
-  await page.getByRole("link", { name: "الطلبات" }).click();
+  await page.getByRole("link", { name: "الطلبات", exact: true }).click();
   await page.screenshot({
     path: "artifacts/admin-screenshots/orders-desktop.png",
     fullPage: true,
@@ -291,15 +406,15 @@ test("admin desktop layout and screenshots", async ({ page }) => {
       fullPage: true,
     });
   }
-  await page.getByRole("link", { name: "المنتجات" }).click();
+  await page.getByRole("link", { name: "المنتجات", exact: true }).click();
   await page.getByRole("link", { name: /منظف عام/ }).click();
   await page.screenshot({
     path: "artifacts/admin-screenshots/product-editor-desktop.png",
     fullPage: true,
   });
-  await page.getByRole("link", { name: "مناطق التوصيل" }).click();
+  await page.getByRole("link", { name: "إعدادات المتجر", exact: true }).click();
   await page.screenshot({
-    path: "artifacts/admin-screenshots/delivery-area-editor-desktop.png",
+    path: "artifacts/admin-screenshots/settings-desktop.png",
     fullPage: true,
   });
   const overflow = await page.evaluate(

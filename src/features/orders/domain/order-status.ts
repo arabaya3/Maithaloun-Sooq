@@ -22,13 +22,21 @@ const allowedTransitions: Record<OrderStatus, readonly OrderStatus[]> = {
 };
 
 export const orderStatusLabels: Record<OrderStatus, string> = {
-  pending: "قيد الانتظار",
-  confirmed: "مؤكد",
+  pending: "جديد",
+  confirmed: "مؤكّد",
   preparing: "قيد التجهيز",
   out_for_delivery: "خرج للتوصيل",
   delivered: "تم التسليم",
-  cancelled: "ملغى",
+  cancelled: "ملغي",
 };
+
+/** Next primary action label for operational queues (non-cancel). */
+export function getPrimaryNextStatus(status: OrderStatus): OrderStatus | null {
+  const next = allowedTransitions[status].find(
+    (candidate) => candidate !== "cancelled",
+  );
+  return next ?? null;
+}
 
 export function isOrderStatus(value: string): value is OrderStatus {
   return (orderStatuses as readonly string[]).includes(value);

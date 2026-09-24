@@ -32,6 +32,7 @@ export default async function AdminProductEditPage({
         </Link>
       </p>
       <h1>تعديل المنتج</h1>
+      <p className="admin-muted">{product.nameAr}</p>
       <ProductForm
         product={product}
         sortOrder={product.sortOrder}
