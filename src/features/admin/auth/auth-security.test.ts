@@ -78,7 +78,7 @@ describe("redirect and csrf validation", () => {
     expect(
       isTrustedMutationOrigin(
         "https://maithaloun-sooq.vercel.app",
-        "https://maitloun-sooq.vercel.app",
+        "https://maithaloun-sooq.vercel.app",
       ),
     ).toBe(true);
     expect(
@@ -86,11 +86,11 @@ describe("redirect and csrf validation", () => {
         "https://maitloun-sooq.vercel.app",
         "https://maithaloun-sooq.vercel.app",
       ),
-    ).toBe(true);
+    ).toBe(false);
     expect(
       isTrustedMutationOrigin(
         "https://evil.vercel.app",
-        "https://maitloun-sooq.vercel.app",
+        "https://maithaloun-sooq.vercel.app",
       ),
     ).toBe(false);
     expect(isTrustedMutationSite("same-origin")).toBe(true);
