@@ -2570,21 +2570,17 @@ body:has(.admin-login-page) {
   overflow: hidden;
 }
 
-.product-image-zoom-lens {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background-repeat: no-repeat;
-  opacity: 0;
-  transition: opacity 120ms ease;
+.product-image-zoom .product-photo {
+  will-change: transform;
+  transition: transform 80ms ease-out;
 }
 
-.product-image-zoom[data-zooming="true"] .product-image-zoom-lens {
-  opacity: 1;
+.product-image-zoom[data-zooming="true"] .product-photo {
+  transition: none;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .product-image-zoom-lens {
+  .product-image-zoom .product-photo {
     transition: none;
   }
 }
