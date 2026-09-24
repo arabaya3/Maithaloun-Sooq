@@ -288,6 +288,44 @@ describe("admin database operations", () => {
     expect(JSON.stringify(auditRows)).not.toContain("0591234567");
   });
 
+  it("creates a product with a stable default variant and audit events", async () => {
+    const created = await adminCatalogService.create(actor, {
+      domainId: "e2e-admin-create-product",
+      slug: "e2e-admin-create-product",
+      nameAr: "منتج إداري جديد",
+      latinName: "Admin Create",
+      priceAgorot: 1250,
+      categoryId: "home",
+      availability: "unavailable",
+      sortOrder: 50,
+      detailsStatus: "placeholder",
+      placeholderVariant: "general-cleaner",
+      description: "وصف إنشاء",
+    });
+    expect(created.id).toBe("e2e-admin-create-product");
+    expect(created.priceAgorot).toBe(1250);
+    expect(created.availability).toBe("unavailable");
+    expect(created.defaultVariantId).toBe("e2e-admin-create-product--default");
+    expect(created.variants).toHaveLength(1);
+    expect(created.variants[0]?.id).toBe("e2e-admin-create-product--default");
+    expect(created.variants[0]?.isDefault).toBe(true);
+    expect(created.variants[0]?.priceAgorot).toBe(1250);
+    expect(created.variants[0]?.availability).toBe("unavailable");
+
+    const variants = await db
+      .select()
+      .from(productVariants)
+      .where(eq(productVariants.domainId, "e2e-admin-create-product--default"));
+    expect(variants).toHaveLength(1);
+    expect(variants[0]?.isDefault).toBe(true);
+
+    const auditRows = await db.select().from(adminAuditEvents);
+    expect(auditRows.map((row) => row.actionType)).toEqual(
+      expect.arrayContaining(["product_create", "product_variant_create"]),
+    );
+    expect(JSON.stringify(auditRows)).not.toContain("0591234567");
+  });
+
   it("snapshots delivery fees and keeps existing orders immutable", async () => {
     const before = await orderService.create(createRequest());
     expect(before.deliveryFeeAgorot).toBe(500);
