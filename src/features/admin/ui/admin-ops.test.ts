@@ -19,6 +19,16 @@ describe("admin operational helpers", () => {
     expect(getPrimaryNextStatus("delivered")).toBeNull();
   });
 
+  it("uses operational Arabic next-action verbs", async () => {
+    const { getPrimaryNextActionLabel } =
+      await import("@/features/orders/domain/order-status");
+    expect(getPrimaryNextActionLabel("pending")).toBe("تأكيد الطلب");
+    expect(getPrimaryNextActionLabel("confirmed")).toBe("بدء التجهيز");
+    expect(getPrimaryNextActionLabel("preparing")).toBe("خرج للتوصيل");
+    expect(getPrimaryNextActionLabel("out_for_delivery")).toBe("تم التسليم");
+    expect(getPrimaryNextActionLabel("delivered")).toBeNull();
+  });
+
   it("builds a WhatsApp contact URL with order reference only", () => {
     const url = buildWhatsAppContactUrl(
       "+970591234567",

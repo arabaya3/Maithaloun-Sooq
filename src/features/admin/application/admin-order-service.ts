@@ -69,6 +69,7 @@ export interface AdminOrderListItem {
   deliveryFeeAgorot: number | null;
   finalTotalAgorot: number | null;
   nextStatus: OrderStatus | null;
+  whatsappContactUrl: string | null;
 }
 
 export interface AdminOrderDetail {
@@ -113,6 +114,34 @@ function escapeIlike(value: string): string {
   return value.replace(/[\\%_]/g, "\\$&");
 }
 
+function mapListItem(row: {
+  publicReference: string;
+  status: OrderStatus;
+  createdAt: Date;
+  customerName: string;
+  customerFullName: string | null;
+  itemsSubtotalAgorot: number;
+  deliveryFeeAgorot: number | null;
+  finalTotalAgorot: number | null;
+  whatsappPhoneE164: string | null;
+}): AdminOrderListItem {
+  const phone = row.whatsappPhoneE164;
+  return {
+    publicReference: row.publicReference,
+    status: row.status,
+    createdAt: row.createdAt.toISOString(),
+    customerName: row.customerFullName ?? row.customerName,
+    itemsSubtotalAgorot: row.itemsSubtotalAgorot,
+    deliveryFeeAgorot: row.deliveryFeeAgorot,
+    finalTotalAgorot: row.finalTotalAgorot,
+    nextStatus: getPrimaryNextStatus(row.status),
+    whatsappContactUrl:
+      phone && isSupportedWhatsAppE164(phone)
+        ? buildWhatsAppContactUrl(phone, row.publicReference)
+        : null,
+  };
+}
+
 export class AdminOrderService {
   constructor(private readonly database: PostgresJsDatabase<typeof schema>) {}
 
@@ -140,6 +169,7 @@ export class AdminOrderService {
         itemsSubtotalAgorot: schema.orders.itemsSubtotalAgorot,
         deliveryFeeAgorot: schema.orders.deliveryFeeAgorot,
         finalTotalAgorot: schema.orders.finalTotalAgorot,
+        whatsappPhoneE164: schema.orders.whatsappPhoneE164,
       })
       .from(schema.orders)
       .where(filters)
@@ -155,16 +185,7 @@ export class AdminOrderService {
       .offset((page - 1) * PAGE_SIZE);
 
     return {
-      items: rows.map((row) => ({
-        publicReference: row.publicReference,
-        status: row.status,
-        createdAt: row.createdAt.toISOString(),
-        customerName: row.customerFullName ?? row.customerName,
-        itemsSubtotalAgorot: row.itemsSubtotalAgorot,
-        deliveryFeeAgorot: row.deliveryFeeAgorot,
-        finalTotalAgorot: row.finalTotalAgorot,
-        nextStatus: getPrimaryNextStatus(row.status),
-      })),
+      items: rows.map((row) => mapListItem(row)),
       total: totalRow?.total ?? 0,
       page,
     };
@@ -210,6 +231,7 @@ export class AdminOrderService {
         itemsSubtotalAgorot: schema.orders.itemsSubtotalAgorot,
         deliveryFeeAgorot: schema.orders.deliveryFeeAgorot,
         finalTotalAgorot: schema.orders.finalTotalAgorot,
+        whatsappPhoneE164: schema.orders.whatsappPhoneE164,
       })
       .from(schema.orders)
       .where(
@@ -226,16 +248,7 @@ export class AdminOrderService {
       )
       .limit(safeLimit);
 
-    return rows.map((row) => ({
-      publicReference: row.publicReference,
-      status: row.status,
-      createdAt: row.createdAt.toISOString(),
-      customerName: row.customerFullName ?? row.customerName,
-      itemsSubtotalAgorot: row.itemsSubtotalAgorot,
-      deliveryFeeAgorot: row.deliveryFeeAgorot,
-      finalTotalAgorot: row.finalTotalAgorot,
-      nextStatus: getPrimaryNextStatus(row.status),
-    }));
+    return rows.map((row) => mapListItem(row));
   }
 
   async getByPublicReference(

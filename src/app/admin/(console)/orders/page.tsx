@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { MessageCircle } from "lucide-react";
 import { connection } from "next/server";
 
 import { adminOrderService } from "@/features/admin/application/admin-services";
@@ -8,8 +9,11 @@ import { formatAdminDateTime } from "@/features/admin/ui/format-admin-datetime";
 import {
   AdminNextActionLabel,
   AdminStatusBadge,
+  formatAdminRelativeTime,
+  shortenOrderReference,
 } from "@/features/admin/ui/admin-status-badge";
 import {
+  getPrimaryNextActionLabel,
   isOrderStatus,
   orderStatusLabels,
   orderStatuses,
@@ -58,6 +62,7 @@ export default async function AdminOrdersPage({
     adminOrderService.countByStatus(actor),
   ]);
 
+  const totalAll = Object.values(statusCounts).reduce((sum, n) => sum + n, 0);
   const hasFilters = Boolean(
     statusFilter ||
     params.from ||
@@ -65,184 +70,299 @@ export default async function AdminOrdersPage({
     query ||
     params.sort === "oldest",
   );
+  const pageCount = Math.max(1, Math.ceil(result.total / 20));
 
   return (
     <main className="admin-page">
       <header className="admin-page-header">
         <div>
           <h1>الطلبات</h1>
-          <p className="admin-lede">ابحث، صفِّ، وحدّث حالات الطلبات بسرعة.</p>
+          <p className="admin-lede">
+            {result.total} نتيجة
+            {statusFilter
+              ? ` · ${orderStatusLabels[statusFilter]}`
+              : ` · ${totalAll} إجمالي`}
+          </p>
         </div>
       </header>
 
-      <div
-        className="admin-status-chips"
-        role="navigation"
-        aria-label="تصفية الحالة"
-      >
+      <nav className="admin-status-tabs" aria-label="تصفية الحالة">
         <Link
           href="/admin/orders"
           className={!statusFilter ? "is-active" : undefined}
+          aria-current={!statusFilter ? "page" : undefined}
           prefetch={false}
         >
           الكل
+          <span className="admin-tab-count">{totalAll}</span>
         </Link>
         {orderStatuses.map((status) => (
           <Link
             key={status}
             href={`/admin/orders?status=${status}`}
             className={statusFilter === status ? "is-active" : undefined}
+            aria-current={statusFilter === status ? "page" : undefined}
             prefetch={false}
           >
             {orderStatusLabels[status]}
-            <span className="admin-chip-count">{statusCounts[status]}</span>
+            <span className="admin-tab-count">{statusCounts[status]}</span>
           </Link>
         ))}
-      </div>
+      </nav>
 
-      <form className="admin-filters" method="get">
+      <form className="admin-toolbar" method="get">
         {statusFilter ? (
           <input type="hidden" name="status" value={statusFilter} />
         ) : null}
-        <label htmlFor="order-search">رقم الطلب أو الاسم أو الواتساب</label>
-        <input
-          id="order-search"
-          name="q"
-          defaultValue={query}
-          dir="auto"
-          placeholder="MS-… أو اسم أو رقم"
-        />
-        <label htmlFor="order-from">من تاريخ</label>
-        <input
-          id="order-from"
-          name="from"
-          type="date"
-          defaultValue={params.from ?? ""}
-        />
-        <label htmlFor="order-to">إلى تاريخ</label>
-        <input
-          id="order-to"
-          name="to"
-          type="date"
-          defaultValue={params.to ?? ""}
-        />
-        <label htmlFor="order-sort">الترتيب</label>
-        <select id="order-sort" name="sort" defaultValue={sort}>
-          <option value="newest">الأحدث أولاً</option>
-          <option value="oldest">الأقدم أولاً</option>
-        </select>
-        <div className="admin-filter-actions">
-          <button type="submit">تطبيق</button>
+        <div className="admin-toolbar-search">
+          <label className="sr-only" htmlFor="order-search">
+            بحث
+          </label>
+          <input
+            id="order-search"
+            name="q"
+            defaultValue={query}
+            dir="auto"
+            placeholder="ابحث برقم الطلب أو اسم الزبون أو رقم الواتساب"
+          />
+        </div>
+        <label className="admin-toolbar-field" htmlFor="order-from">
+          <span>من</span>
+          <input
+            id="order-from"
+            name="from"
+            type="date"
+            defaultValue={params.from ?? ""}
+          />
+        </label>
+        <label className="admin-toolbar-field" htmlFor="order-to">
+          <span>إلى</span>
+          <input
+            id="order-to"
+            name="to"
+            type="date"
+            defaultValue={params.to ?? ""}
+          />
+        </label>
+        <label className="admin-toolbar-field" htmlFor="order-sort">
+          <span>ترتيب</span>
+          <select id="order-sort" name="sort" defaultValue={sort}>
+            <option value="newest">الأحدث</option>
+            <option value="oldest">الأقدم</option>
+          </select>
+        </label>
+        <div className="admin-toolbar-actions">
+          <button type="submit" className="admin-btn admin-btn-secondary">
+            تطبيق
+          </button>
+          {hasFilters ? (
+            <Link
+              href="/admin/orders"
+              className="admin-btn admin-btn-ghost"
+              prefetch={false}
+            >
+              مسح
+            </Link>
+          ) : null}
+        </div>
+      </form>
+
+      {hasFilters ? (
+        <ul className="admin-filter-tokens" aria-label="الفلاتر النشطة">
+          {query ? <li>بحث: {query}</li> : null}
+          {params.from ? <li>من {params.from}</li> : null}
+          {params.to ? <li>إلى {params.to}</li> : null}
+          {params.sort === "oldest" ? <li>الأقدم أولاً</li> : null}
+        </ul>
+      ) : null}
+
+      {result.items.length === 0 ? (
+        <div className="admin-empty">
+          <p>لا توجد طلبات مطابقة للفلاتر الحالية.</p>
           {hasFilters ? (
             <Link href="/admin/orders" prefetch={false}>
               مسح التصفية
             </Link>
           ) : null}
         </div>
-      </form>
-
-      {result.items.length === 0 ? (
-        <p className="admin-empty">لا توجد طلبات مطابقة.</p>
       ) : (
         <>
           <div className="admin-table-wrap admin-table-desktop">
-            <table className="admin-table">
+            <table className="admin-data-table">
               <thead>
                 <tr>
                   <th>الطلب</th>
                   <th>الزبون</th>
-                  <th>الحالة</th>
+                  <th>التواصل</th>
                   <th>الإجمالي</th>
+                  <th>الحالة</th>
+                  <th>وقت الطلب</th>
                   <th>الإجراء التالي</th>
                 </tr>
               </thead>
               <tbody>
-                {result.items.map((order) => (
-                  <tr key={order.publicReference}>
-                    <td>
-                      <Link
-                        href={`/admin/orders/${order.publicReference}`}
-                        prefetch={false}
-                      >
-                        <bdi dir="ltr">{order.publicReference}</bdi>
-                      </Link>
-                      <div className="admin-muted">
-                        {formatAdminDateTime(order.createdAt)}
-                      </div>
-                    </td>
-                    <td>{order.customerName}</td>
-                    <td>
-                      <AdminStatusBadge status={order.status} />
-                    </td>
-                    <td>
-                      {order.finalTotalAgorot === null
-                        ? "غير معروف"
-                        : formatIls(order.finalTotalAgorot)}
-                    </td>
-                    <td>
-                      <AdminNextActionLabel status={order.status} />
-                    </td>
-                  </tr>
-                ))}
+                {result.items.map((order) => {
+                  const actionLabel = getPrimaryNextActionLabel(order.status);
+                  return (
+                    <tr key={order.publicReference}>
+                      <td>
+                        <Link
+                          href={`/admin/orders/${order.publicReference}`}
+                          prefetch={false}
+                          title={order.publicReference}
+                        >
+                          <bdi dir="ltr">
+                            {shortenOrderReference(order.publicReference)}
+                          </bdi>
+                        </Link>
+                      </td>
+                      <td>{order.customerName}</td>
+                      <td>
+                        {order.whatsappContactUrl ? (
+                          <a
+                            className="admin-icon-link"
+                            href={order.whatsappContactUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            aria-label={`واتساب لطلب ${order.publicReference}`}
+                          >
+                            <MessageCircle size={18} aria-hidden="true" />
+                          </a>
+                        ) : (
+                          <span className="admin-muted">—</span>
+                        )}
+                      </td>
+                      <td className="admin-num">
+                        {order.finalTotalAgorot === null
+                          ? order.status === "cancelled"
+                            ? "ملغي"
+                            : "غير مكتمل"
+                          : formatIls(order.finalTotalAgorot)}
+                      </td>
+                      <td>
+                        <AdminStatusBadge status={order.status} />
+                      </td>
+                      <td>
+                        <time dateTime={order.createdAt}>
+                          {formatAdminRelativeTime(order.createdAt)}
+                        </time>
+                        <div className="admin-muted admin-tiny">
+                          {formatAdminDateTime(order.createdAt)}
+                        </div>
+                      </td>
+                      <td>
+                        {actionLabel ? (
+                          <Link
+                            className="admin-btn admin-btn-primary admin-btn-sm"
+                            href={`/admin/orders/${order.publicReference}`}
+                            prefetch={false}
+                          >
+                            {actionLabel}
+                          </Link>
+                        ) : (
+                          <span className="admin-muted admin-next-idle">
+                            مكتمل
+                          </span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
 
           <ul className="admin-order-cards">
-            {result.items.map((order) => (
-              <li key={order.publicReference}>
-                <Link
-                  href={`/admin/orders/${order.publicReference}`}
-                  prefetch={false}
-                  className="admin-order-card"
-                >
-                  <div className="admin-order-card-top">
-                    <bdi dir="ltr">{order.publicReference}</bdi>
-                    <AdminStatusBadge status={order.status} />
-                  </div>
-                  <p>{order.customerName}</p>
-                  <div className="admin-order-card-bottom">
-                    <time dateTime={order.createdAt}>
-                      {formatAdminDateTime(order.createdAt)}
-                    </time>
-                    <strong>
-                      {order.finalTotalAgorot === null
-                        ? "—"
-                        : formatIls(order.finalTotalAgorot)}
-                    </strong>
-                  </div>
-                  <p className="admin-order-row-action">
-                    <AdminNextActionLabel status={order.status} />
-                  </p>
-                </Link>
-              </li>
-            ))}
+            {result.items.map((order) => {
+              const actionLabel = getPrimaryNextActionLabel(order.status);
+              return (
+                <li key={order.publicReference}>
+                  <article className="admin-order-card">
+                    <div className="admin-order-card-top">
+                      <Link
+                        href={`/admin/orders/${order.publicReference}`}
+                        prefetch={false}
+                        title={order.publicReference}
+                      >
+                        <bdi dir="ltr">
+                          {shortenOrderReference(order.publicReference)}
+                        </bdi>
+                      </Link>
+                      <AdminStatusBadge status={order.status} />
+                    </div>
+                    <p className="admin-order-card-customer">
+                      {order.customerName}
+                    </p>
+                    <div className="admin-order-card-bottom">
+                      <time dateTime={order.createdAt}>
+                        {formatAdminDateTime(order.createdAt)}
+                      </time>
+                      <strong className="admin-num">
+                        {order.finalTotalAgorot === null
+                          ? "—"
+                          : formatIls(order.finalTotalAgorot)}
+                      </strong>
+                    </div>
+                    <div className="admin-order-card-actions">
+                      {order.whatsappContactUrl ? (
+                        <a
+                          className="admin-btn admin-btn-secondary admin-btn-sm"
+                          href={order.whatsappContactUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          <MessageCircle size={16} aria-hidden="true" />
+                          واتساب
+                        </a>
+                      ) : null}
+                      {actionLabel ? (
+                        <Link
+                          className="admin-btn admin-btn-primary admin-btn-sm"
+                          href={`/admin/orders/${order.publicReference}`}
+                          prefetch={false}
+                        >
+                          {actionLabel}
+                        </Link>
+                      ) : (
+                        <AdminNextActionLabel status={order.status} />
+                      )}
+                    </div>
+                  </article>
+                </li>
+              );
+            })}
           </ul>
         </>
       )}
 
       {result.total > 20 ? (
-        <p className="admin-pagination">
+        <nav className="admin-pagination" aria-label="صفحات الطلبات">
           {result.page > 1 ? (
             <Link
               href={buildPageHref(params, result.page - 1)}
               prefetch={false}
+              className="admin-btn admin-btn-ghost admin-btn-sm"
             >
               السابق
             </Link>
-          ) : null}
+          ) : (
+            <span />
+          )}
           <span>
-            صفحة {result.page} من {Math.ceil(result.total / 20)}
+            صفحة {result.page} من {pageCount}
           </span>
           {result.page * 20 < result.total ? (
             <Link
               href={buildPageHref(params, result.page + 1)}
               prefetch={false}
+              className="admin-btn admin-btn-ghost admin-btn-sm"
             >
               التالي
             </Link>
-          ) : null}
-        </p>
+          ) : (
+            <span />
+          )}
+        </nav>
       ) : null}
     </main>
   );
