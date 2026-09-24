@@ -1,10 +1,9 @@
-import { eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 
 import * as schema from "@/server/db/schema";
 
 import { hashPassword, validatePasswordPolicy } from "./password";
-import { SessionService } from "./session-service";
 import { normalizeAdminUsername } from "./username";
 
 export class OwnerBootstrapError extends Error {
@@ -15,10 +14,7 @@ export class OwnerBootstrapError extends Error {
 }
 
 export class OwnerService {
-  constructor(
-    private readonly database: PostgresJsDatabase<typeof schema>,
-    private readonly sessions = new SessionService(database),
-  ) {}
+  constructor(private readonly database: PostgresJsDatabase<typeof schema>) {}
 
   async createOrRotate(input: {
     username: string;
@@ -150,7 +146,16 @@ export class OwnerService {
           active: true,
         })
         .where(eq(schema.adminUsers.id, existingOwner.id));
-      await this.sessions.revokeAllForUser(existingOwner.id, now);
+      // Revoke inside the same transaction — a second pool connection deadlocks when max=1.
+      await transaction
+        .update(schema.adminSessions)
+        .set({ revokedAt: now })
+        .where(
+          and(
+            eq(schema.adminSessions.adminUserId, existingOwner.id),
+            isNull(schema.adminSessions.revokedAt),
+          ),
+        );
       await transaction.insert(schema.adminAuditEvents).values({
         adminUserId: existingOwner.id,
         actionType: "password_change",

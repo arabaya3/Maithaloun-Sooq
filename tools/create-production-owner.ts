@@ -40,6 +40,7 @@ try {
     throw new OwnerBootstrapError("PASSWORD_MISMATCH");
   }
 
+  output.write("جاري حفظ كلمة المرور...\n");
   const result = await ownerService.createFirstProductionOwner({
     username,
     displayName,
