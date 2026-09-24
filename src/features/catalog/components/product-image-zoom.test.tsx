@@ -47,6 +47,8 @@ const image = {
   kind: "image" as const,
   src: "/products/arar.jpg",
   alt: "سائل جلي عرار",
+  width: 800,
+  height: 1200,
 };
 
 describe("ProductImageZoom", () => {
