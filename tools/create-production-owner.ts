@@ -29,6 +29,9 @@ try {
     "إنشاء أو إعادة تعيين مالك الإنتاج لـ سوق ميثلون. لن تُطبع كلمة المرور.\n",
   );
   output.write("كلمة المرور يجب أن تكون بين 12 و 128 حرفاً.\n");
+  output.write(
+    "اكتب كلمة المرور ببطء؛ سيظهر * لكل حرف، ثم طول الإدخال بعد Enter.\n",
+  );
   const username = await promptVisible("اسم المستخدم: ");
   const displayName = await promptVisible("الاسم الظاهر: ");
   const password = await promptHidden("كلمة المرور: ");
@@ -55,7 +58,9 @@ try {
       console.error("Password must be 12–128 characters.");
     }
     if (error.message === "PASSWORD_MISMATCH") {
-      console.error("Password confirmation did not match.");
+      console.error(
+        "Password confirmation did not match. Type the same password twice; avoid Backspace if unsure—retype from scratch.",
+      );
     }
     if (error.message === "OWNER_EXISTS") {
       console.error("Use the existing owner username to rotate the password.");
@@ -73,7 +78,7 @@ function promptVisible(question: string): Promise<string> {
   return new Promise((resolve) => {
     rl.question(question, (answer) => {
       rl.close();
-      resolve(answer);
+      resolve(answer.trim());
     });
   });
 }
@@ -85,35 +90,58 @@ function promptHidden(question: string): Promise<string> {
     input.setRawMode?.(true);
     input.resume();
     let value = "";
+    let settled = false;
 
-    const onData = (chunk: Buffer | string) => {
-      const text = chunk.toString("utf8");
-      if (text === "\u0003") {
-        cleanup();
-        reject(new Error("cancelled"));
-        return;
-      }
-      if (text === "\r" || text === "\n") {
-        cleanup();
-        output.write("\n");
-        resolve(value);
-        return;
-      }
-      if (text === "\u007f" || text === "\b") {
-        value = value.slice(0, -1);
-        return;
-      }
-      if (text === "\u0015") {
-        value = "";
-        return;
-      }
-      value += text;
+    const redrawMask = () => {
+      output.write(`\r${question}${"*".repeat(value.length)}`);
     };
 
-    const cleanup = () => {
+    const onData = (chunk: Buffer | string) => {
+      if (settled) return;
+      const text = chunk.toString("utf8");
+
+      for (const char of text) {
+        if (char === "\u0003") {
+          finish(() => reject(new Error("cancelled")));
+          return;
+        }
+        if (char === "\r" || char === "\n") {
+          finish(() => {
+            output.write(` (${value.length} حرفاً)\n`);
+            resolve(value);
+          });
+          return;
+        }
+        if (char === "\u007f" || char === "\b") {
+          if (value.length > 0) {
+            value = value.slice(0, -1);
+            redrawMask();
+            output.write("\x1b[K");
+          }
+          continue;
+        }
+        if (char === "\u0015") {
+          value = "";
+          redrawMask();
+          output.write("\x1b[K");
+          continue;
+        }
+        // Ignore other control characters from Windows terminals.
+        if (char < " " || char === "\u001b") {
+          continue;
+        }
+        value += char;
+        output.write("*");
+      }
+    };
+
+    const finish = (done: () => void) => {
+      if (settled) return;
+      settled = true;
       input.removeListener("data", onData);
       input.setRawMode?.(Boolean(wasRaw));
       input.pause();
+      done();
     };
 
     input.on("data", onData);
