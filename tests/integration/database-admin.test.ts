@@ -26,6 +26,7 @@ import {
   adminUsers,
   orderStatusHistory,
   orders,
+  productVariants,
   products,
   serviceAreas,
 } from "@/server/db/schema";
@@ -57,9 +58,17 @@ function createRequest(
     serviceAreaCode: string;
     whatsappCountryCode: "970" | "972";
     whatsappNationalNumber: string;
-    items: { productId: string; quantity: number }[];
+    items: { productId: string; variantId?: string; quantity: number }[];
   }> = {},
 ) {
+  const items = (
+    overrides.items ?? [{ productId: "general-cleaner", quantity: 2 }]
+  ).map((item) => ({
+    productId: item.productId,
+    variantId: item.variantId ?? `${item.productId}--default`,
+    quantity: item.quantity,
+  }));
+
   return checkoutRequestSchema.parse({
     idempotencyKey: overrides.idempotencyKey ?? crypto.randomUUID(),
     customerName: "عميل تجريبي",
@@ -72,7 +81,7 @@ function createRequest(
       "عنوان محلي مفصل للاختبار",
     paymentMethod: "cash_on_delivery",
     honeypot: "",
-    items: overrides.items ?? [{ productId: "general-cleaner", quantity: 2 }],
+    items,
   });
 }
 
@@ -113,7 +122,18 @@ beforeEach(async () => {
       priceAgorot: 700,
     })
     .where(eq(products.domainId, "general-cleaner"));
-  await db.update(serviceAreas).set({ enabled: true, deliveryFeeAgorot: null });
+  await db
+    .update(productVariants)
+    .set({
+      availability: "available",
+      priceAgorot: 700,
+    })
+    .where(eq(productVariants.domainId, "general-cleaner--default"));
+  await db.update(serviceAreas).set({ enabled: false });
+  await db
+    .update(serviceAreas)
+    .set({ enabled: true, deliveryFeeAgorot: null })
+    .where(eq(serviceAreas.code, "maythalun"));
 });
 
 describe("admin database operations", () => {
@@ -270,8 +290,8 @@ describe("admin database operations", () => {
 
   it("snapshots delivery fees and keeps existing orders immutable", async () => {
     const before = await orderService.create(createRequest());
-    expect(before.deliveryFeeAgorot).toBeNull();
-    expect(before.finalTotalAgorot).toBeNull();
+    expect(before.deliveryFeeAgorot).toBe(500);
+    expect(before.finalTotalAgorot).toBe(1900);
 
     await adminDeliveryService.update(actor, {
       code: "maythalun",
@@ -281,15 +301,15 @@ describe("admin database operations", () => {
     });
 
     const after = await orderService.create(createRequest());
-    expect(after.deliveryFeeAgorot).toBe(400);
-    expect(after.finalTotalAgorot).toBe(1800);
+    expect(after.deliveryFeeAgorot).toBe(500);
+    expect(after.finalTotalAgorot).toBe(1900);
 
     const [original] = await db
       .select()
       .from(orders)
       .where(eq(orders.publicReference, before.publicReference));
-    expect(original.deliveryFeeAgorot).toBeNull();
-    expect(original.finalTotalAgorot).toBeNull();
+    expect(original.deliveryFeeAgorot).toBe(500);
+    expect(original.finalTotalAgorot).toBe(1900);
     expect(original.address).toBe("عنوان محلي مفصل للاختبار");
     expect(original.deliveryAddress).toBe("عنوان محلي مفصل للاختبار");
     expect(original.whatsappPhoneE164).toBe("+970591234567");

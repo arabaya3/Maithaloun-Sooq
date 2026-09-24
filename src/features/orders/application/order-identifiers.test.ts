@@ -19,8 +19,16 @@ const request = checkoutRequestSchema.parse({
   paymentMethod: "cash_on_delivery",
   honeypot: "",
   items: [
-    { productId: "general-cleaner", quantity: 1 },
-    { productId: "dolphin-bleach", quantity: 2 },
+    {
+      productId: "general-cleaner",
+      variantId: "general-cleaner--default",
+      quantity: 1,
+    },
+    {
+      productId: "dolphin-bleach",
+      variantId: "dolphin-bleach--default",
+      quantity: 2,
+    },
   ],
 });
 

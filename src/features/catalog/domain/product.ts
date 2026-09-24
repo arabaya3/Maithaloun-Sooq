@@ -1,12 +1,26 @@
 import { z } from "zod";
 
-export const productCategoryIds = [
-  "laundry",
-  "kitchen",
-  "bathroom",
-  "tools",
-  "home",
-] as const;
+import {
+  placeholderKinds,
+  productAvailabilityValues,
+  productCategoryIds,
+  productDetailsStatusValues,
+  type PlaceholderKind,
+} from "@/features/catalog/domain/product-constants";
+import {
+  productSpecificationSchema,
+  productVariantSchema,
+  type ProductSpecification,
+  type ProductVariant,
+} from "@/features/catalog/domain/product-variant";
+
+export {
+  placeholderKinds,
+  productAvailabilityValues,
+  productDetailsStatusValues,
+  type PlaceholderKind,
+};
+
 export const categoryIds = ["all", ...productCategoryIds] as const;
 
 export type CategoryId = (typeof categoryIds)[number];
@@ -15,21 +29,10 @@ export const categorySchema = z.enum(categoryIds);
 export const productCategorySchema = categorySchema.exclude(["all"]);
 export type ProductCategoryId = z.infer<typeof productCategorySchema>;
 
+export { productCategoryIds };
+
 export const productIdSchema = z.string().regex(/^[a-z0-9-]{1,80}$/);
 export const productSlugSchema = z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/);
-
-export const placeholderKinds = [
-  "general-cleaner",
-  "bleach",
-  "brush",
-  "dish-liquid",
-  "floor-cleaner",
-  "degreaser",
-] as const;
-
-export type PlaceholderKind = (typeof placeholderKinds)[number];
-export const productAvailabilityValues = ["available", "unavailable"] as const;
-export const productDetailsStatusValues = ["placeholder", "verified"] as const;
 
 export const productSchema = z
   .object({
@@ -37,7 +40,7 @@ export const productSchema = z
     slug: productSlugSchema,
     nameAr: z.string().min(1),
     latinName: z.string().min(1).optional(),
-    priceAgorot: z.number().int().positive(),
+    priceAgorot: z.number().int().nonnegative(),
     categoryId: productCategorySchema,
     image: z.discriminatedUnion("kind", [
       z.object({
@@ -57,10 +60,34 @@ export const productSchema = z
     usageNotes: z.string().min(1).optional(),
     unit: z.string().min(1).optional(),
     detailsStatus: z.enum(productDetailsStatusValues),
+    defaultVariantId: z.string().regex(/^[a-z0-9-]{1,100}$/),
+    variants: z.array(productVariantSchema).min(1),
+    specifications: z.array(productSpecificationSchema),
   })
-  .strict();
+  .strict()
+  .superRefine((value, context) => {
+    const defaultVariant = value.variants.find(
+      (variant) => variant.id === value.defaultVariantId,
+    );
+    if (!defaultVariant) {
+      context.addIssue({
+        code: "custom",
+        path: ["defaultVariantId"],
+        message: "Default variant is missing.",
+      });
+      return;
+    }
+    if (!defaultVariant.isDefault) {
+      context.addIssue({
+        code: "custom",
+        path: ["defaultVariantId"],
+        message: "Default variant flag mismatch.",
+      });
+    }
+  });
 
 export type Product = z.infer<typeof productSchema>;
+export type { ProductSpecification, ProductVariant };
 
 export const categories: ReadonlyArray<{
   id: CategoryId;
@@ -88,5 +115,15 @@ export function getCategoryLabel(categoryId: ProductCategoryId): string {
 }
 
 export function isProductAvailable(product: Product): boolean {
-  return product.availability === "available";
+  return product.variants.some(
+    (variant) => variant.availability === "available",
+  );
+}
+
+export function getDefaultVariant(product: Product): ProductVariant {
+  return (
+    product.variants.find(
+      (variant) => variant.id === product.defaultVariantId,
+    ) ?? product.variants[0]!
+  );
 }

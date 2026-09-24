@@ -5,7 +5,15 @@ import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 
 import { calculateLineSubtotal } from "@/features/cart/cart-store";
 import { getProductDisplayName } from "@/features/catalog/domain/product";
+import {
+  formatVariantAttributes,
+  variantAttributesSchema,
+} from "@/features/catalog/domain/product-variant";
 import { mapProductRow } from "@/features/catalog/infrastructure/product-row-mapper";
+import {
+  ACTIVE_SERVICE_AREA_CODE,
+  calculateDeliveryFeeAgorot,
+} from "@/features/delivery/delivery-policy";
 import type { CheckoutRequest } from "@/features/orders/domain/checkout-request";
 import type { OrderConfirmation } from "@/features/orders/domain/order-confirmation";
 import * as schema from "@/server/db/schema";
@@ -45,41 +53,69 @@ export class OrderService {
           return this.resolveExisting(existing, requestFingerprint);
         }
 
-        const requestedIds = request.items.map((item) => item.productId);
-        const productRows = await transaction
-          .select()
-          .from(schema.products)
-          .where(inArray(schema.products.domainId, requestedIds));
-        const productsById = new Map(
-          productRows.map((product) => [product.domainId, product]),
+        if (request.serviceAreaCode !== ACTIVE_SERVICE_AREA_CODE) {
+          throw new OrderCreationError("invalid_service_area");
+        }
+
+        const requestedVariantIds = request.items.map((item) => item.variantId);
+        const variantRows = await transaction
+          .select({
+            variant: schema.productVariants,
+            product: schema.products,
+          })
+          .from(schema.productVariants)
+          .innerJoin(
+            schema.products,
+            eq(schema.productVariants.productId, schema.products.id),
+          )
+          .where(inArray(schema.productVariants.domainId, requestedVariantIds));
+
+        const variantsById = new Map(
+          variantRows.map((row) => [row.variant.domainId, row]),
         );
-        if (productsById.size !== requestedIds.length) {
+        if (variantsById.size !== new Set(requestedVariantIds).size) {
           throw new OrderCreationError("unknown_product");
         }
 
         const resolvedItems = request.items.map((item) => {
-          const product = productsById.get(item.productId);
-          if (!product) throw new OrderCreationError("unknown_product");
-          if (product.availability !== "available") {
+          const row = variantsById.get(item.variantId);
+          if (!row) throw new OrderCreationError("unknown_product");
+          if (row.product.domainId !== item.productId) {
+            throw new OrderCreationError("unknown_product");
+          }
+          if (row.variant.availability !== "available") {
             throw new OrderCreationError("unavailable_product");
           }
+          const attributes = variantAttributesSchema.parse(
+            row.variant.attributes ?? {},
+          );
           const lineSubtotalAgorot = calculateLineSubtotal(
-            product.priceAgorot,
+            row.variant.priceAgorot,
             item.quantity,
           );
-          return { ...item, product, lineSubtotalAgorot };
+          return {
+            ...item,
+            product: row.product,
+            variant: row.variant,
+            attributes,
+            lineSubtotalAgorot,
+          };
         });
+
         const itemsSubtotalAgorot = resolvedItems.reduce(
           (total, item) => total + item.lineSubtotalAgorot,
           0,
         );
+        const deliveryFeeAgorot =
+          calculateDeliveryFeeAgorot(itemsSubtotalAgorot);
+        const finalTotalAgorot = itemsSubtotalAgorot + deliveryFeeAgorot;
 
         const [serviceArea] = await transaction
           .select()
           .from(schema.serviceAreas)
           .where(
             and(
-              eq(schema.serviceAreas.code, request.serviceAreaCode),
+              eq(schema.serviceAreas.code, ACTIVE_SERVICE_AREA_CODE),
               eq(schema.serviceAreas.enabled, true),
             ),
           )
@@ -88,10 +124,6 @@ export class OrderService {
           throw new OrderCreationError("invalid_service_area");
         }
 
-        const finalTotalAgorot =
-          serviceArea.deliveryFeeAgorot === null
-            ? null
-            : itemsSubtotalAgorot + serviceArea.deliveryFeeAgorot;
         const [createdOrder] = await transaction
           .insert(schema.orders)
           .values({
@@ -108,7 +140,7 @@ export class OrderService {
             landmark: null,
             customerNote: request.customerNote,
             itemsSubtotalAgorot,
-            deliveryFeeAgorot: serviceArea.deliveryFeeAgorot,
+            deliveryFeeAgorot,
             finalTotalAgorot,
             idempotencyKey: request.idempotencyKey,
             requestFingerprint,
@@ -126,16 +158,29 @@ export class OrderService {
         }
 
         await transaction.insert(schema.orderItems).values(
-          resolvedItems.map((item) => ({
-            orderId: createdOrder.id,
-            productDomainId: item.product.domainId,
-            productNameSnapshot: getProductDisplayName(
-              mapProductRow(item.product),
-            ),
-            unitPriceAgorot: item.product.priceAgorot,
-            quantity: item.quantity,
-            lineSubtotalAgorot: item.lineSubtotalAgorot,
-          })),
+          resolvedItems.map((item) => {
+            const attributeText = formatVariantAttributes(item.attributes);
+            const displayName = getProductDisplayName(
+              mapProductRow(item.product, [item.variant], []),
+            );
+            const productNameSnapshot = attributeText
+              ? `${displayName} — ${item.variant.labelAr}`
+              : `${displayName} — ${item.variant.labelAr}`;
+
+            return {
+              orderId: createdOrder.id,
+              productDomainId: item.product.domainId,
+              variantDomainId: item.variant.domainId,
+              productNameSnapshot,
+              variantLabelSnapshot: item.variant.labelAr,
+              variantAttributesSnapshot: item.attributes,
+              variantSkuSnapshot: item.variant.sku,
+              variantBarcodeSnapshot: item.variant.barcode,
+              unitPriceAgorot: item.variant.priceAgorot,
+              quantity: item.quantity,
+              lineSubtotalAgorot: item.lineSubtotalAgorot,
+            };
+          }),
         );
 
         return this.toConfirmation(createdOrder, false);

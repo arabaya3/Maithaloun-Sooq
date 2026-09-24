@@ -13,9 +13,15 @@ import { useCart } from "@/features/cart/cart-provider";
 import { ProductMedia } from "@/features/catalog/components/product-media";
 import {
   getProductDisplayName,
-  isProductAvailable,
   type Product,
 } from "@/features/catalog/domain/product";
+import {
+  formatVariantAttributes,
+  isVariantAvailable,
+  resolveVariant,
+} from "@/features/catalog/domain/product-variant";
+import { calculateDeliveryFeeAgorot } from "@/features/delivery/delivery-policy";
+import { getFreeDeliveryMessage } from "@/features/delivery/delivery-messaging";
 import { formatIls } from "@/shared/lib/format-currency";
 
 export function CartPage({ products }: { products: readonly Product[] }) {
@@ -27,16 +33,24 @@ export function CartPage({ products }: { products: readonly Product[] }) {
   );
   const resolvedLines = lines.flatMap((line) => {
     const product = productsById.get(line.productId);
-    return product ? [{ ...line, product }] : [];
+    if (!product) return [];
+    const variant = resolveVariant(product.variants, line.variantId);
+    if (!variant) return [];
+    return [{ ...line, product, variant }];
   });
-  const subtotal = calculateCartSubtotal(
+  const merchandiseSubtotal = calculateCartSubtotal(
     resolvedLines
-      .filter((line) => isProductAvailable(line.product))
+      .filter((line) => isVariantAvailable(line.variant))
       .map((line) => ({
-        unitPriceAgorot: line.product.priceAgorot,
+        unitPriceAgorot: line.variant.priceAgorot,
         quantity: line.quantity,
       })),
   );
+  const deliveryFeeAgorot = calculateDeliveryFeeAgorot(merchandiseSubtotal);
+  const orderTotal = merchandiseSubtotal + deliveryFeeAgorot;
+  const freeDeliveryMessage = getFreeDeliveryMessage(merchandiseSubtotal);
+  const freeDeliveryQualified =
+    deliveryFeeAgorot === 0 && merchandiseSubtotal > 0;
 
   if (!ready) {
     return (
@@ -97,34 +111,46 @@ export function CartPage({ products }: { products: readonly Product[] }) {
         ) : null}
 
         <div className="cart-line-list">
-          {resolvedLines.map(({ product, quantity }) => {
+          {resolvedLines.map(({ product, variant, quantity, variantId }) => {
             const name = getProductDisplayName(product);
-            const available = isProductAvailable(product);
+            const available = isVariantAvailable(variant);
             const lineSubtotal = available
-              ? calculateLineSubtotal(product.priceAgorot, quantity)
+              ? calculateLineSubtotal(variant.priceAgorot, quantity)
               : null;
+            const attributeSummary = formatVariantAttributes(
+              variant.attributes,
+            );
+            const lineHref =
+              variantId === product.defaultVariantId
+                ? `/products/${product.slug}`
+                : `/products/${product.slug}?variant=${variantId}`;
 
             return (
-              <article className="cart-line" key={product.id}>
-                <Link
-                  href={`/products/${product.slug}`}
-                  aria-label={`عرض تفاصيل ${name}`}
-                >
+              <article
+                className="cart-line"
+                key={`${product.id}::${variantId}`}
+              >
+                <Link href={lineHref} aria-label={`عرض تفاصيل ${name}`}>
                   <ProductMedia
                     product={product}
+                    image={variant.image}
                     className="cart-line-media"
                     sizes="8rem"
                   />
                 </Link>
                 <div className="cart-line-content">
                   <h2>
-                    <Link href={`/products/${product.slug}`}>
+                    <Link href={lineHref}>
                       <bdi dir="auto">{name}</bdi>
                     </Link>
                   </h2>
+                  <p className="cart-line-variant">
+                    {variant.labelAr}
+                    {attributeSummary ? ` · ${attributeSummary}` : ""}
+                  </p>
                   <p>
                     سعر الوحدة:{" "}
-                    <bdi dir="ltr">{formatIls(product.priceAgorot)}</bdi>
+                    <bdi dir="ltr">{formatIls(variant.priceAgorot)}</bdi>
                   </p>
                   {!available ? (
                     <p className="unavailable-message">
@@ -136,13 +162,15 @@ export function CartPage({ products }: { products: readonly Product[] }) {
                       name={name}
                       quantity={quantity}
                       disabled={!available}
-                      onChange={(value) => setQuantity(product.id, value)}
+                      onChange={(value) =>
+                        setQuantity(product.id, variantId, value)
+                      }
                     />
                     <button
                       type="button"
                       className="remove-line-button"
                       aria-label={`إزالة ${name} من السلة`}
-                      onClick={() => removeItem(product.id)}
+                      onClick={() => removeItem(product.id, variantId)}
                     >
                       <Trash2 aria-hidden="true" />
                       إزالة
@@ -171,12 +199,37 @@ export function CartPage({ products }: { products: readonly Product[] }) {
 
       <aside className="cart-summary" aria-labelledby="cart-summary-title">
         <h2 id="cart-summary-title">ملخص السلة</h2>
-        <div>
-          <span>المجموع الفرعي</span>
-          <strong aria-label={`المجموع الفرعي ${formatIls(subtotal)}`}>
-            <bdi dir="ltr">{formatIls(subtotal)}</bdi>
-          </strong>
+        <div className="cart-summary-rows">
+          <div>
+            <span>مجموع المنتجات</span>
+            <strong
+              aria-label={`مجموع المنتجات ${formatIls(merchandiseSubtotal)}`}
+            >
+              <bdi dir="ltr">{formatIls(merchandiseSubtotal)}</bdi>
+            </strong>
+          </div>
+          <div>
+            <span>التوصيل</span>
+            <strong aria-label={`التوصيل ${formatIls(deliveryFeeAgorot)}`}>
+              <bdi dir="ltr">{formatIls(deliveryFeeAgorot)}</bdi>
+            </strong>
+          </div>
+          <div>
+            <span>الإجمالي</span>
+            <strong aria-label={`الإجمالي ${formatIls(orderTotal)}`}>
+              <bdi dir="ltr">{formatIls(orderTotal)}</bdi>
+            </strong>
+          </div>
         </div>
+        {merchandiseSubtotal > 0 ? (
+          <p
+            className="free-delivery-hint"
+            data-qualified={freeDeliveryQualified}
+            role="status"
+          >
+            {freeDeliveryMessage}
+          </p>
+        ) : null}
         <p>تُراجع الأسعار والتوفر مرة أخرى عند تأكيد الطلب.</p>
         <Link className="checkout-action" href="/checkout">
           متابعة إلى بيانات الطلب

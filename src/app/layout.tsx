@@ -53,6 +53,11 @@ export default async function RootLayout({
     serviceAreaRepository.listEnabled(),
   ]);
   const productIds = products.map((product) => product.id);
+  const catalog = products.map((product) => ({
+    productId: product.id,
+    defaultVariantId: product.defaultVariantId,
+    variantIds: product.variants.map((variant) => variant.id),
+  }));
   const locations = serviceAreas.map((area) => ({
     code: area.code,
     nameAr: area.nameAr,
@@ -68,7 +73,7 @@ export default async function RootLayout({
       <body>
         <DeliveryProvider locations={locations}>
           <FavoritesProvider productIds={productIds}>
-            <CartProvider productIds={productIds}>{children}</CartProvider>
+            <CartProvider catalog={catalog}>{children}</CartProvider>
           </FavoritesProvider>
         </DeliveryProvider>
       </body>

@@ -231,6 +231,136 @@ export async function updateServiceAreaAction(
   redirect("/admin/delivery-areas");
 }
 
+export async function upsertProductVariantAction(
+  formData: FormData,
+): Promise<{ ok: false; message: string } | null> {
+  const actor = await requireTrustedAdminMutation();
+  const productDomainId = String(formData.get("productDomainId") ?? "");
+  const priceAgorot = parseIlsToAgorot(String(formData.get("priceIls") ?? ""));
+  if (priceAgorot === null || priceAgorot < 0) {
+    return { ok: false, message: "أدخل سعراً صالحاً بالشيكل." };
+  }
+
+  const attributeKeys = formData.getAll("attrKey").map(String);
+  const attributeValues = formData.getAll("attrValue").map(String);
+  const attributes = attributeKeys
+    .map((key, index) => ({
+      key: key.trim(),
+      value: (attributeValues[index] ?? "").trim(),
+    }))
+    .filter((pair) => pair.key && pair.value);
+
+  const imageMode = String(formData.get("imageMode") ?? "placeholder");
+  const imageWidthRaw = String(formData.get("imageWidth") ?? "").trim();
+  const imageHeightRaw = String(formData.get("imageHeight") ?? "").trim();
+
+  try {
+    await adminCatalogService.upsertVariant(actor, {
+      productDomainId,
+      variantDomainId: String(formData.get("variantDomainId") ?? ""),
+      labelAr: String(formData.get("labelAr") ?? ""),
+      attributes,
+      priceAgorot,
+      availability: String(formData.get("availability") ?? "") as never,
+      sortOrder: Number(formData.get("sortOrder")),
+      isDefault: String(formData.get("isDefault") ?? "") === "true",
+      imageMode: imageMode as "placeholder" | "image",
+      placeholderVariant:
+        imageMode === "placeholder"
+          ? (String(formData.get("placeholderVariant") ?? "") as never)
+          : undefined,
+      imageSrc:
+        imageMode === "image" ? optional(formData.get("imageSrc")) : undefined,
+      imageAlt:
+        imageMode === "image" ? optional(formData.get("imageAlt")) : undefined,
+      imageWidth:
+        imageMode === "image" && imageWidthRaw
+          ? Number(imageWidthRaw)
+          : undefined,
+      imageHeight:
+        imageMode === "image" && imageHeightRaw
+          ? Number(imageHeightRaw)
+          : undefined,
+    });
+  } catch (error) {
+    return { ok: false, message: mapProductAdminError(error) };
+  }
+
+  revalidatePath("/");
+  revalidatePath("/cart");
+  revalidatePath("/checkout");
+  revalidatePath("/admin/products");
+  revalidatePath(`/admin/products/${productDomainId}`);
+  redirect(`/admin/products/${productDomainId}`);
+}
+
+export async function deactivateProductVariantAction(
+  formData: FormData,
+): Promise<{ ok: false; message: string } | null> {
+  const actor = await requireTrustedAdminMutation();
+  const productDomainId = String(formData.get("productDomainId") ?? "");
+
+  try {
+    await adminCatalogService.deactivateVariant(actor, {
+      productDomainId,
+      variantDomainId: String(formData.get("variantDomainId") ?? ""),
+    });
+  } catch (error) {
+    return { ok: false, message: mapProductAdminError(error) };
+  }
+
+  revalidatePath("/");
+  revalidatePath("/cart");
+  revalidatePath("/checkout");
+  revalidatePath("/admin/products");
+  revalidatePath(`/admin/products/${productDomainId}`);
+  redirect(`/admin/products/${productDomainId}`);
+}
+
+export async function upsertProductSpecificationAction(
+  formData: FormData,
+): Promise<{ ok: false; message: string } | null> {
+  const actor = await requireTrustedAdminMutation();
+  const productDomainId = String(formData.get("productDomainId") ?? "");
+  const specificationId = optional(formData.get("specificationId"));
+
+  try {
+    await adminCatalogService.upsertSpecification(actor, {
+      productDomainId,
+      specificationId,
+      labelAr: String(formData.get("labelAr") ?? ""),
+      valueAr: String(formData.get("valueAr") ?? ""),
+      sortOrder: Number(formData.get("sortOrder")),
+    });
+  } catch (error) {
+    return { ok: false, message: mapProductAdminError(error) };
+  }
+
+  revalidatePath("/");
+  revalidatePath(`/admin/products/${productDomainId}`);
+  redirect(`/admin/products/${productDomainId}`);
+}
+
+export async function removeProductSpecificationAction(
+  formData: FormData,
+): Promise<{ ok: false; message: string } | null> {
+  const actor = await requireTrustedAdminMutation();
+  const productDomainId = String(formData.get("productDomainId") ?? "");
+
+  try {
+    await adminCatalogService.removeSpecification(actor, {
+      productDomainId,
+      specificationId: String(formData.get("specificationId") ?? ""),
+    });
+  } catch (error) {
+    return { ok: false, message: mapProductAdminError(error) };
+  }
+
+  revalidatePath("/");
+  revalidatePath(`/admin/products/${productDomainId}`);
+  redirect(`/admin/products/${productDomainId}`);
+}
+
 function optional(value: FormDataEntryValue | null): string | undefined {
   const text = String(value ?? "").trim();
   return text ? text : undefined;

@@ -4,6 +4,12 @@ export const auditActionTypes = [
   "password_change",
   "product_create",
   "product_update",
+  "product_variant_create",
+  "product_variant_update",
+  "product_variant_deactivate",
+  "product_specification_create",
+  "product_specification_update",
+  "product_specification_remove",
   "service_area_update",
   "order_status_change",
 ] as const;
@@ -13,6 +19,8 @@ export type AuditActionType = (typeof auditActionTypes)[number];
 export const auditEntityTypes = [
   "admin_user",
   "product",
+  "product_variant",
+  "product_specification",
   "service_area",
   "order",
 ] as const;
@@ -46,6 +54,47 @@ export function redactProductAuditState(input: {
     detailsStatus: input.detailsStatus,
     unit: input.unit,
     placeholderVariant: input.placeholderVariant,
+  };
+}
+
+export function redactProductVariantAuditState(input: {
+  domainId: string;
+  labelAr: string;
+  priceAgorot: number;
+  availability: string;
+  sortOrder: number;
+  isDefault: boolean;
+  imageKind: string;
+  placeholderVariant: string | null;
+  imageSrc: string | null;
+  attributes: Record<string, string>;
+}): AuditState {
+  const attributeKeys = Object.keys(input.attributes).sort().join(",");
+  return {
+    domainId: input.domainId,
+    labelAr: input.labelAr,
+    priceAgorot: input.priceAgorot,
+    availability: input.availability,
+    sortOrder: input.sortOrder,
+    isDefault: input.isDefault,
+    imageKind: input.imageKind,
+    placeholderVariant: input.placeholderVariant,
+    hasImageSrc: Boolean(input.imageSrc),
+    attributeKeys: attributeKeys || null,
+  };
+}
+
+export function redactProductSpecificationAuditState(input: {
+  id: string;
+  labelAr: string;
+  valueAr: string;
+  sortOrder: number;
+}): AuditState {
+  return {
+    id: input.id,
+    labelAr: input.labelAr,
+    valueAr: input.valueAr,
+    sortOrder: input.sortOrder,
   };
 }
 

@@ -2,7 +2,8 @@ import { z } from "zod";
 
 import { MAX_CART_QUANTITY } from "@/features/cart/cart-store";
 import { productIdSchema } from "@/features/catalog/domain/product";
-import { serviceAreaCodeSchema } from "@/features/delivery/service-area";
+import { variantDomainIdSchema } from "@/features/catalog/domain/product-variant";
+import { ACTIVE_SERVICE_AREA_CODE } from "@/features/delivery/delivery-policy";
 
 import {
   isPlainDeliveryAddress,
@@ -25,6 +26,7 @@ const optionalTrimmedString = (maximumLength: number, tooLong: string) =>
 const checkoutItemSchema = z
   .object({
     productId: productIdSchema,
+    variantId: variantDomainIdSchema,
     quantity: z
       .number()
       .int()
@@ -54,7 +56,10 @@ export const checkoutRequestSchema = z
       .trim()
       .min(7, "أدخل رقم واتساب صالح.")
       .max(24, "رقم الواتساب أطول من المسموح."),
-    serviceAreaCode: serviceAreaCodeSchema,
+    serviceAreaCode: z
+      .string()
+      .optional()
+      .transform((value) => value ?? ACTIVE_SERVICE_AREA_CODE),
     deliveryAddress: z
       .string()
       .max(600, "العنوان أطول من المسموح.")
@@ -75,10 +80,17 @@ export const checkoutRequestSchema = z
   })
   .strict()
   .superRefine((value, context) => {
-    if (
-      new Set(value.items.map((item) => item.productId)).size !==
-      value.items.length
-    ) {
+    if (value.serviceAreaCode !== ACTIVE_SERVICE_AREA_CODE) {
+      context.addIssue({
+        code: "custom",
+        path: ["serviceAreaCode"],
+        message: "التوصيل متاح حالياً داخل ميثلون فقط.",
+      });
+    }
+    const keys = value.items.map(
+      (item) => `${item.productId}::${item.variantId}`,
+    );
+    if (new Set(keys).size !== keys.length) {
       context.addIssue({
         code: "custom",
         path: ["items"],
@@ -120,13 +132,12 @@ export const checkoutRequestSchema = z
       whatsappCountryCode: value.whatsappCountryCode,
       whatsappNationalNumber: value.whatsappNationalNumber,
       whatsappPhoneE164,
-      serviceAreaCode: value.serviceAreaCode,
+      serviceAreaCode: ACTIVE_SERVICE_AREA_CODE,
       deliveryAddress: value.deliveryAddress,
       customerNote: value.customerNote,
       paymentMethod: value.paymentMethod,
       honeypot: value.honeypot,
       items: value.items,
-      // Dual-write aliases for legacy columns and fingerprinting.
       normalizedPhone: whatsappPhoneE164,
       address: value.deliveryAddress,
       landmark: undefined as string | undefined,

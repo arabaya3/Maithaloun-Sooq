@@ -59,12 +59,12 @@ test("product details, favorites, and cart stay synchronized", async ({
   await expect(
     page.getByRole("heading", { level: 1, name: "سلة التسوق" }),
   ).toBeVisible();
-  await expect(page.getByLabel("المجموع الفرعي 7 ₪")).toBeVisible();
+  await expect(page.getByLabel("مجموع المنتجات 7 ₪")).toBeVisible();
 
   await page
     .getByRole("button", { name: "زيادة كمية منظف عام Secret" })
     .click();
-  await expect(page.getByLabel("المجموع الفرعي 14 ₪")).toBeVisible();
+  await expect(page.getByLabel("مجموع المنتجات 14 ₪")).toBeVisible();
 
   await page
     .getByRole("button", { name: "إزالة منظف عام Secret من السلة" })
@@ -74,16 +74,15 @@ test("product details, favorites, and cart stay synchronized", async ({
   expect(issues.failedRequests).toEqual([]);
 });
 
-test("delivery location persists after reload", async ({ page }) => {
+test("delivery area indicator is fixed to ميثلون", async ({ page }) => {
   await page.goto("/");
-  const location = page.getByRole("combobox", { name: "منطقة التوصيل" });
-
-  await location.selectOption("maythalun");
-  await expect(location).toHaveValue("maythalun");
+  await expect(page.getByLabel("منطقة التوصيل")).toHaveText(
+    "التوصيل داخل ميثلون",
+  );
   await page.reload();
-  await expect(
-    page.getByRole("combobox", { name: "منطقة التوصيل" }),
-  ).toHaveValue("maythalun");
+  await expect(page.getByLabel("منطقة التوصيل")).toHaveText(
+    "التوصيل داخل ميثلون",
+  );
 });
 
 test("unknown product slug returns not found", async ({ page }) => {

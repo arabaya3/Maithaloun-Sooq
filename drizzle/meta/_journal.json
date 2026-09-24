@@ -36,6 +36,13 @@
       "when": 1790010000000,
       "tag": "0004_order_whatsapp_contact_snapshot",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1790160000000,
+      "tag": "0005_product_variants_delivery_policy",
+      "breakpoints": true
     }
   ]
 }

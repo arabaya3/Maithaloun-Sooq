@@ -5,8 +5,6 @@ import Link from "next/link";
 import type { RefObject } from "react";
 
 import { useCart } from "@/features/cart/cart-provider";
-import { deliveryLocationIdSchema } from "@/features/delivery/delivery-location";
-import { useDelivery } from "@/features/delivery/delivery-provider";
 import { formatProductCount } from "@/shared/lib/format-product-count";
 
 const desktopNavigation = [
@@ -26,7 +24,6 @@ export function SiteHeader({
   searchInputRef?: RefObject<HTMLInputElement | null>;
 }) {
   const { count } = useCart();
-  const { locationId, locations, selectLocation } = useDelivery();
   const hasSearch = searchQuery !== undefined && onSearchChange !== undefined;
 
   return (
@@ -77,31 +74,10 @@ export function SiteHeader({
         ) : null}
 
         <div className="header-actions">
-          <label className="location-control">
+          <p className="delivery-indicator" aria-label="منطقة التوصيل">
             <MapPin aria-hidden="true" />
-            <span className="sr-only">منطقة التوصيل</span>
-            <select
-              aria-label="منطقة التوصيل"
-              value={locationId ?? ""}
-              onChange={(event) => {
-                if (!event.target.value) {
-                  selectLocation(null);
-                  return;
-                }
-                const parsed = deliveryLocationIdSchema.safeParse(
-                  event.target.value,
-                );
-                if (parsed.success) selectLocation(parsed.data);
-              }}
-            >
-              <option value="">غير محدد</option>
-              {locations.map((location) => (
-                <option key={location.code} value={location.code}>
-                  {location.nameAr}
-                </option>
-              ))}
-            </select>
-          </label>
+            <span>التوصيل داخل ميثلون</span>
+          </p>
           <Link
             href="/cart"
             className="cart-button"

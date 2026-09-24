@@ -4,7 +4,6 @@ import { describe, expect, it, vi } from "vitest";
 
 import { CART_STORAGE_KEY } from "@/features/cart/cart-store";
 import { CheckoutForm } from "@/features/orders/components/checkout-form";
-import { DELIVERY_STORAGE_KEY } from "@/features/delivery/delivery-store";
 import { renderWithProviders } from "@/test/render-with-providers";
 import { MockProductRepository } from "@/test/mock-product-repository";
 
@@ -28,17 +27,19 @@ async function renderCheckout() {
   window.localStorage.setItem(
     CART_STORAGE_KEY,
     JSON.stringify({
-      version: 1,
-      lines: [{ productId: "general-cleaner", quantity: 1 }],
+      version: 2,
+      lines: [
+        {
+          productId: "general-cleaner",
+          variantId: "general-cleaner--default",
+          quantity: 1,
+        },
+      ],
     }),
-  );
-  window.localStorage.setItem(
-    DELIVERY_STORAGE_KEY,
-    JSON.stringify({ version: 1, locationId: "maythalun" }),
   );
   renderWithProviders(
     <CheckoutForm products={products} serviceAreas={serviceAreas} />,
-    { productIds: products.map((product) => product.id) },
+    { products },
   );
   const user = userEvent.setup();
   await user.type(
@@ -71,6 +72,9 @@ describe("checkout form", () => {
     );
     const user = await renderCheckout();
 
+    expect(
+      screen.getByText("التوصيل متاح حالياً داخل ميثلون فقط"),
+    ).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "تأكيد الطلب" }));
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "تعذّر حفظ الطلب الآن.",

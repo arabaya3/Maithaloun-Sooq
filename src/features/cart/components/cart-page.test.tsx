@@ -13,9 +13,7 @@ describe("cart page", () => {
 
   it("renders an empty-cart state", async () => {
     const products = await productRepository.list();
-    renderWithProviders(<CartPage products={products} />, {
-      productIds: products.map((product) => product.id),
-    });
+    renderWithProviders(<CartPage products={products} />, { products });
 
     expect(
       await screen.findByRole("heading", { name: "سلتك فارغة" }),
@@ -27,22 +25,31 @@ describe("cart page", () => {
     window.localStorage.setItem(
       CART_STORAGE_KEY,
       JSON.stringify({
-        version: 1,
-        lines: [{ productId: "general-cleaner", quantity: 2 }],
+        version: 2,
+        lines: [
+          {
+            productId: "general-cleaner",
+            variantId: "general-cleaner--default",
+            quantity: 2,
+          },
+        ],
       }),
     );
     const user = userEvent.setup();
-    renderWithProviders(<CartPage products={products} />, {
-      productIds: products.map((product) => product.id),
-    });
+    renderWithProviders(<CartPage products={products} />, { products });
 
     const line = await screen.findByRole("article");
     expect(
       within(line).getByLabelText("مجموع منظف عام Secret 14 ₪"),
     ).toBeInTheDocument();
-    expect(screen.getByLabelText("المجموع الفرعي 14 ₪")).toBeInTheDocument();
+    expect(screen.getByLabelText("مجموع المنتجات 14 ₪")).toBeInTheDocument();
+    expect(screen.getByLabelText("التوصيل 5 ₪")).toBeInTheDocument();
+    expect(screen.getByLabelText("الإجمالي 19 ₪")).toBeInTheDocument();
     expect(
       screen.getByRole("link", { name: "متابعة إلى بيانات الطلب" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("أضف 36 ₪ لتحصل على توصيل مجاني"),
     ).toBeInTheDocument();
 
     await user.click(
@@ -50,7 +57,7 @@ describe("cart page", () => {
         name: "زيادة كمية منظف عام Secret",
       }),
     );
-    expect(screen.getByLabelText("المجموع الفرعي 21 ₪")).toBeInTheDocument();
+    expect(screen.getByLabelText("مجموع المنتجات 21 ₪")).toBeInTheDocument();
 
     await user.click(
       within(line).getByRole("button", {
@@ -67,14 +74,18 @@ describe("cart page", () => {
     window.localStorage.setItem(
       CART_STORAGE_KEY,
       JSON.stringify({
-        version: 1,
-        lines: [{ productId: "dolphin-bleach", quantity: 1 }],
+        version: 2,
+        lines: [
+          {
+            productId: "dolphin-bleach",
+            variantId: "dolphin-bleach--default",
+            quantity: 1,
+          },
+        ],
       }),
     );
     const user = userEvent.setup();
-    renderWithProviders(<CartPage products={products} />, {
-      productIds: products.map((product) => product.id),
-    });
+    renderWithProviders(<CartPage products={products} />, { products });
 
     await user.click(
       await screen.findByRole("button", { name: "إفراغ السلة" }),
@@ -89,24 +100,37 @@ describe("cart page", () => {
     const products = await productRepository.list();
     const unavailableProducts: Product[] = products.map((product) =>
       product.id === "general-cleaner"
-        ? { ...product, availability: "unavailable" }
+        ? {
+            ...product,
+            availability: "unavailable",
+            variants: product.variants.map((variant) => ({
+              ...variant,
+              availability: "unavailable" as const,
+            })),
+          }
         : product,
     );
     window.localStorage.setItem(
       CART_STORAGE_KEY,
       JSON.stringify({
-        version: 1,
-        lines: [{ productId: "general-cleaner", quantity: 1 }],
+        version: 2,
+        lines: [
+          {
+            productId: "general-cleaner",
+            variantId: "general-cleaner--default",
+            quantity: 1,
+          },
+        ],
       }),
     );
     renderWithProviders(<CartPage products={unavailableProducts} />, {
-      productIds: products.map((product) => product.id),
+      products: unavailableProducts,
     });
 
     expect(
       await screen.findByText("غير متاح حالياً ولا يدخل في المجموع."),
     ).toBeInTheDocument();
-    expect(screen.getByLabelText("المجموع الفرعي 0 ₪")).toBeInTheDocument();
+    expect(screen.getByLabelText("مجموع المنتجات 0 ₪")).toBeInTheDocument();
     expect(
       screen.getByRole("button", {
         name: "زيادة كمية منظف عام Secret",

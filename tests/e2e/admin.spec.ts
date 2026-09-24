@@ -128,8 +128,8 @@ test("admin authentication, operations, and privacy controls", async ({
     path: "artifacts/admin-screenshots/product-editor-mobile.png",
     fullPage: true,
   });
-  await page.getByLabel("السعر بالشيكل").fill("8.50");
-  await page.getByLabel("التوفر").selectOption("unavailable");
+  await page.locator("#product-price").fill("8.50");
+  await page.locator("#product-availability").selectOption("unavailable");
   await page.getByRole("button", { name: "حفظ المنتج" }).click();
   await expect(
     page.getByRole("heading", { name: "تعديل المنتج" }),
@@ -142,6 +142,15 @@ test("admin authentication, operations, and privacy controls", async ({
   await expect(page.getByText("غير متاح حالياً")).toBeVisible();
 
   await login(page);
+  await page.getByRole("link", { name: "المنتجات" }).click();
+  await page.getByRole("link", { name: /منظف عام/ }).click();
+  await page.locator("#product-price").fill("7.00");
+  await page.locator("#product-availability").selectOption("available");
+  await page.getByRole("button", { name: "حفظ المنتج" }).click();
+  await expect(
+    page.getByRole("heading", { name: "تعديل المنتج" }),
+  ).toBeVisible();
+
   await page.getByRole("link", { name: "مناطق التوصيل" }).click();
   const maythalunForm = page.locator("form", {
     has: page.locator("#fee-maythalun"),
@@ -155,9 +164,9 @@ test("admin authentication, operations, and privacy controls", async ({
   ).toBeVisible();
 
   await page.goto("/");
-  await page
-    .getByRole("combobox", { name: "منطقة التوصيل" })
-    .selectOption("maythalun");
+  await expect(page.getByLabel("منطقة التوصيل")).toHaveText(
+    "التوصيل داخل ميثلون",
+  );
   const product = page.locator('[data-product-id="dolphin-bleach"]');
   await expect(product).toBeVisible();
   await product.getByRole("button", { name: /^أضف$/ }).click();
@@ -167,9 +176,12 @@ test("admin authentication, operations, and privacy controls", async ({
   await page.locator(".cart-button").click();
   await page.getByRole("link", { name: "متابعة إلى بيانات الطلب" }).click();
   await expect(page).toHaveURL(/\/checkout/);
-  await expect(page.getByText("تكلفة التوصيل: 3 ₪")).toBeVisible({
-    timeout: 15_000,
-  });
+  await expect(page.getByRole("heading", { name: "بيانات الطلب" })).toBeVisible(
+    {
+      timeout: 15_000,
+    },
+  );
+  await expect(page.locator(".checkout-delivery")).toContainText("5 ₪");
   await expect(page.getByText("مبيض Dolphin")).toBeVisible();
   await page.getByRole("textbox", { name: "الاسم الكامل" }).fill("عميل تجريبي");
   await page.getByLabel("مفتاح الدولة").selectOption("970");
@@ -200,8 +212,8 @@ test("admin authentication, operations, and privacy controls", async ({
       where public_reference = ${reference}
     `,
   );
-  expect(stored[0]?.delivery_fee_agorot).toBe(300);
-  expect(stored[0]?.final_total_agorot).toBe(1100);
+  expect(stored[0]?.delivery_fee_agorot).toBe(500);
+  expect(stored[0]?.final_total_agorot).toBe(1300);
   expect(stored[0]?.whatsapp_phone_e164).toBe("+970591234567");
 
   await login(page);

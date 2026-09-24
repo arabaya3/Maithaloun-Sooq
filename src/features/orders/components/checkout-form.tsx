@@ -10,10 +10,16 @@ import {
 import { useCart } from "@/features/cart/cart-provider";
 import {
   getProductDisplayName,
-  isProductAvailable,
   type Product,
 } from "@/features/catalog/domain/product";
-import { useDelivery } from "@/features/delivery/delivery-provider";
+import {
+  formatVariantAttributes,
+  isVariantAvailable,
+  resolveVariant,
+} from "@/features/catalog/domain/product-variant";
+import { ACTIVE_SERVICE_AREA_CODE } from "@/features/delivery/delivery-policy";
+import { calculateDeliveryFeeAgorot } from "@/features/delivery/delivery-policy";
+import { getFreeDeliveryMessage } from "@/features/delivery/delivery-messaging";
 import type { ServiceArea } from "@/features/delivery/service-area";
 import { orderApiResponseSchema } from "@/features/orders/domain/order-confirmation";
 import { WHATSAPP_COUNTRY_CODES } from "@/features/orders/domain/phone";
@@ -36,7 +42,6 @@ export function CheckoutForm({
 }) {
   const router = useRouter();
   const { lines, ready, clearCart } = useCart();
-  const { locationId } = useDelivery();
   const [idempotencyKey] = useState(() => crypto.randomUUID());
   const [submitting, setSubmitting] = useState(false);
   const [generalError, setGeneralError] = useState("");
@@ -51,27 +56,36 @@ export function CheckoutForm({
   );
   const resolvedLines = lines.flatMap((line) => {
     const product = productsById.get(line.productId);
-    return product ? [{ ...line, product }] : [];
+    if (!product) return [];
+    const variant = resolveVariant(product.variants, line.variantId);
+    if (!variant) return [];
+    return [{ ...line, product, variant }];
   });
   const hasUnavailableProduct = resolvedLines.some(
-    (line) => !isProductAvailable(line.product),
+    (line) => !isVariantAvailable(line.variant),
   );
-  const subtotal = calculateCartSubtotal(
+  const merchandiseSubtotal = calculateCartSubtotal(
     resolvedLines
-      .filter((line) => isProductAvailable(line.product))
+      .filter((line) => isVariantAvailable(line.variant))
       .map((line) => ({
-        unitPriceAgorot: line.product.priceAgorot,
+        unitPriceAgorot: line.variant.priceAgorot,
         quantity: line.quantity,
       })),
   );
-  const selectedArea =
-    serviceAreas.find((area) => area.code === locationId) ?? null;
+  const deliveryFeeAgorot = calculateDeliveryFeeAgorot(merchandiseSubtotal);
+  const orderTotal = merchandiseSubtotal + deliveryFeeAgorot;
+  const freeDeliveryMessage = getFreeDeliveryMessage(merchandiseSubtotal);
+  const freeDeliveryQualified =
+    deliveryFeeAgorot === 0 && merchandiseSubtotal > 0;
+  const maythalunEnabled = serviceAreas.some(
+    (area) => area.code === ACTIVE_SERVICE_AREA_CODE && area.enabled,
+  );
   const canSubmit =
     ready &&
     resolvedLines.length > 0 &&
     resolvedLines.length === lines.length &&
     !hasUnavailableProduct &&
-    Boolean(selectedArea);
+    maythalunEnabled;
 
   const focusErrorSummary = () => {
     queueMicrotask(() => errorSummaryRef.current?.focus());
@@ -83,10 +97,10 @@ export function CheckoutForm({
     setGeneralError("");
     setFieldErrors({});
 
-    if (!canSubmit || !locationId) {
+    if (!canSubmit) {
       setGeneralError(
-        !locationId
-          ? "اختر منطقة التوصيل قبل إرسال الطلب."
+        !maythalunEnabled
+          ? "التوصيل متاح حالياً داخل ميثلون فقط."
           : "راجع السلة قبل إرسال الطلب.",
       );
       focusErrorSummary();
@@ -99,7 +113,7 @@ export function CheckoutForm({
       customerName: form.get("customerName"),
       whatsappCountryCode: form.get("whatsappCountryCode"),
       whatsappNationalNumber: form.get("whatsappNationalNumber"),
-      serviceAreaCode: locationId,
+      serviceAreaCode: ACTIVE_SERVICE_AREA_CODE,
       deliveryAddress: form.get("deliveryAddress"),
       customerNote: form.get("customerNote"),
       paymentMethod: "cash_on_delivery",
@@ -291,6 +305,9 @@ export function CheckoutForm({
 
       <aside className="checkout-summary" aria-labelledby="summary-title">
         <h2 id="summary-title">ملخص الطلب</h2>
+        <p className="checkout-service-note">
+          التوصيل متاح حالياً داخل ميثلون فقط
+        </p>
         {!resolvedLines.length ? (
           <p className="checkout-blocker">السلة فارغة. أضف منتجات أولاً.</p>
         ) : null}
@@ -299,45 +316,71 @@ export function CheckoutForm({
             تحتوي السلة على منتج غير متاح حالياً.
           </p>
         ) : null}
-        {!selectedArea ? (
-          <p className="checkout-blocker">اختر منطقة التوصيل من أعلى الصفحة.</p>
+        {!maythalunEnabled ? (
+          <p className="checkout-blocker">
+            التوصيل متاح حالياً داخل ميثلون فقط.
+          </p>
         ) : null}
 
         <div className="checkout-items">
-          {resolvedLines.map((line) => (
-            <div key={line.product.id}>
-              <span>
-                <bdi dir="auto">{getProductDisplayName(line.product)}</bdi>
-                {" × "}
-                {line.quantity}
-              </span>
-              <bdi dir="ltr">
-                {formatIls(
-                  calculateLineSubtotal(
-                    line.product.priceAgorot,
-                    line.quantity,
-                  ),
-                )}
-              </bdi>
-            </div>
-          ))}
+          {resolvedLines.map((line) => {
+            const attributeSummary = formatVariantAttributes(
+              line.variant.attributes,
+            );
+            return (
+              <div key={`${line.product.id}::${line.variantId}`}>
+                <span>
+                  <bdi dir="auto">{getProductDisplayName(line.product)}</bdi>
+                  {" × "}
+                  {line.quantity}
+                  <span className="checkout-item-variant">
+                    {" · "}
+                    {line.variant.labelAr}
+                    {attributeSummary ? ` · ${attributeSummary}` : ""}
+                  </span>
+                </span>
+                <bdi dir="ltr">
+                  {formatIls(
+                    calculateLineSubtotal(
+                      line.variant.priceAgorot,
+                      line.quantity,
+                    ),
+                  )}
+                </bdi>
+              </div>
+            );
+          })}
         </div>
 
-        <div className="checkout-total">
-          <span>مجموع المنتجات</span>
-          <strong>
-            <bdi dir="ltr">{formatIls(subtotal)}</bdi>
-          </strong>
+        <div className="checkout-summary-rows">
+          <div className="checkout-total">
+            <span>مجموع المنتجات</span>
+            <strong>
+              <bdi dir="ltr">{formatIls(merchandiseSubtotal)}</bdi>
+            </strong>
+          </div>
+          <div className="checkout-delivery">
+            <span>التوصيل</span>
+            <strong>
+              <bdi dir="ltr">{formatIls(deliveryFeeAgorot)}</bdi>
+            </strong>
+          </div>
+          <div className="checkout-total">
+            <span>الإجمالي</span>
+            <strong>
+              <bdi dir="ltr">{formatIls(orderTotal)}</bdi>
+            </strong>
+          </div>
         </div>
-        <div className="checkout-delivery">
-          <span>منطقة التوصيل</span>
-          <strong>{selectedArea?.nameAr ?? "غير محدد"}</strong>
-        </div>
-        <p className="delivery-pending">
-          {selectedArea?.deliveryFeeAgorot == null
-            ? "سيتم تأكيد تكلفة التوصيل لاحقاً."
-            : `تكلفة التوصيل: ${formatIls(selectedArea.deliveryFeeAgorot)}`}
-        </p>
+        {merchandiseSubtotal > 0 ? (
+          <p
+            className="free-delivery-hint"
+            data-qualified={freeDeliveryQualified}
+            role="status"
+          >
+            {freeDeliveryMessage}
+          </p>
+        ) : null}
         <button type="submit" disabled={!canSubmit || submitting}>
           {submitting ? "جارٍ إرسال الطلب…" : "تأكيد الطلب"}
         </button>
