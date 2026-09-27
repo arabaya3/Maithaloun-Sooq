@@ -248,6 +248,21 @@ const products: CatalogProduct[] = [
       },
     ],
   },
+  {
+    domainId: "lilac-ultra-hand-soap",
+    slug: "lilac-ultra-hand-soap",
+    nameAr: "صابون سائل لليدين ليلك ألترا — 3×500 مل",
+    latinName: "Lilac ULTRA",
+    priceAgorot: 1000,
+    sortOrder: 27,
+    categoryId: "bathroom",
+    imageSrc: "/products/lilac-ultra-hand-soap.png",
+    imageAlt: "عرض صابون سائل لليدين ليلك ألترا ثلاث عبوات 500 مل",
+    description:
+      "صابون سائل عالي الجودة لغسل اليدين من ليلك ألترا (عرار) — عبوة ثلاثية بألوان وروائح مختلفة، كل عبوة 500 مل.",
+    usageNotes: "للغسيل اليومي لليدين؛ رجّ العبوة قبل الاستخدام عند الحاجة.",
+    unit: "3×500 مل",
+  },
 ];
 
 const databaseUrl = process.env.DATABASE_URL;
