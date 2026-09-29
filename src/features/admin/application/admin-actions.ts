@@ -1,5 +1,7 @@
 "use server";
 
+import { randomUUID } from "node:crypto";
+
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
@@ -24,6 +26,8 @@ import {
   adminCatalogService,
   adminDeliveryService,
   adminOrderService,
+  adminNotificationService,
+  adminStaffService,
 } from "@/features/admin/application/admin-services";
 import {
   mapDeliveryAdminError,
@@ -85,6 +89,38 @@ export async function logoutAction(): Promise<void> {
   });
   await clearAdminSessionCookie();
   redirect("/admin/login");
+}
+
+export async function openNotificationAction(
+  formData: FormData,
+): Promise<void> {
+  const actor = await requireTrustedAdminMutation();
+  const href = await adminNotificationService.open(
+    actor,
+    String(formData.get("notificationId") ?? ""),
+  );
+  revalidatePath("/admin/notifications");
+  redirect(href);
+}
+
+export async function saveOperatorAction(
+  _previous: { ok: boolean; message: string } | null,
+  formData: FormData,
+): Promise<{ ok: boolean; message: string }> {
+  const actor = await requireTrustedAdminMutation();
+  try {
+    await adminStaffService.upsertOperator(actor, {
+      username: String(formData.get("username") ?? ""),
+      displayName: String(formData.get("displayName") ?? ""),
+      password: String(formData.get("password") ?? ""),
+    });
+    return { ok: true, message: "تم حفظ حساب الموظفة وإغلاق جلساتها القديمة." };
+  } catch {
+    return {
+      ok: false,
+      message: "تعذّر حفظ الحساب. راجع اسم المستخدم وكلمة المرور.",
+    };
+  }
 }
 
 export async function updateOrderStatusAction(
@@ -184,6 +220,44 @@ export async function createProductAction(
       placeholderVariant: String(
         formData.get("placeholderVariant") ?? "",
       ) as never,
+    });
+  } catch (error) {
+    return { ok: false, message: mapProductAdminError(error) };
+  }
+
+  revalidatePath("/");
+  revalidatePath("/admin/products");
+  redirect(`/admin/products/${domainId}`);
+}
+
+export async function createCapturedProductAction(
+  _previous: { ok: false; message: string } | null,
+  formData: FormData,
+): Promise<{ ok: false; message: string } | null> {
+  const actor = await requireTrustedAdminMutation();
+  const priceAgorot = parseIlsToAgorot(String(formData.get("priceIls") ?? ""));
+  if (priceAgorot === null || priceAgorot <= 0) {
+    return { ok: false, message: "أدخلي سعراً صالحاً بالشيكل." };
+  }
+
+  const suffix = randomUUID().slice(0, 8);
+  const domainId = `captured-${suffix}`;
+  try {
+    await adminCatalogService.createCaptured(actor, {
+      domainId,
+      slug: domainId,
+      nameAr: String(formData.get("nameAr") ?? ""),
+      latinName: optional(formData.get("latinName")),
+      priceAgorot,
+      categoryId: String(formData.get("categoryId") ?? "") as never,
+      description: optional(formData.get("description")),
+      unit: optional(formData.get("unit")),
+      brand: optional(formData.get("brand")),
+      size: optional(formData.get("size")),
+      barcode: optional(formData.get("barcode")),
+      imageSrc: String(formData.get("imageSrc") ?? ""),
+      imageWidth: Number(formData.get("imageWidth")),
+      imageHeight: Number(formData.get("imageHeight")),
     });
   } catch (error) {
     return { ok: false, message: mapProductAdminError(error) };

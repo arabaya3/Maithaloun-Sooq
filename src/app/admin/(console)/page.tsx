@@ -3,6 +3,7 @@ import Link from "next/link";
 import {
   AlertTriangle,
   Bike,
+  Camera,
   CheckCircle2,
   ClipboardList,
   PackagePlus,
@@ -20,6 +21,7 @@ import {
   formatAdminRelativeTime,
   shortenOrderReference,
 } from "@/features/admin/ui/admin-status-badge";
+import { PushNotificationControl } from "@/features/admin/ui/push-notification-control";
 import {
   FREE_DELIVERY_THRESHOLD_AGOROT,
   STANDARD_DELIVERY_FEE_AGOROT,
@@ -112,7 +114,45 @@ export default async function AdminDashboardPage() {
         </div>
       </header>
 
-      <section aria-labelledby="ops-metrics-title">
+      <section
+        className="admin-task-launcher"
+        aria-labelledby="daily-tasks-title"
+      >
+        <div className="admin-task-intro">
+          <p className="admin-eyebrow">العمل اليومي</p>
+          <h2 id="daily-tasks-title">
+            {attentionCount > 0
+              ? `لديك ${attentionCount} طلب يحتاج متابعة`
+              : "كل الطلبات محدّثة"}
+          </h2>
+          <p>ابدئي بالطلبات الجديدة أو صوّري منتجاً وأضيفيه خلال دقيقة.</p>
+        </div>
+        <div className="admin-task-actions">
+          <Link className="admin-task-primary" href="/admin/products/new">
+            <Camera size={26} aria-hidden="true" />
+            <span>
+              <strong>تصوير منتج جديد</strong>
+              <small>قراءة الاسم والحجم تلقائياً</small>
+            </span>
+          </Link>
+          <Link
+            className="admin-task-secondary"
+            href="/admin/orders?status=pending"
+          >
+            <ClipboardList size={22} aria-hidden="true" />
+            <span>
+              <strong>الطلبات الجديدة</strong>
+              <small>{summary.orders.pending} بانتظار المراجعة</small>
+            </span>
+          </Link>
+        </div>
+        <PushNotificationControl />
+      </section>
+
+      <section
+        className="admin-desktop-metrics"
+        aria-labelledby="ops-metrics-title"
+      >
         <h2 id="ops-metrics-title" className="sr-only">
           مؤشرات التشغيل
         </h2>

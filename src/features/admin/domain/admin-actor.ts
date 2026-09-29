@@ -1,4 +1,4 @@
-export const adminRoles = ["owner"] as const;
+export const adminRoles = ["owner", "operator"] as const;
 export type AdminRole = (typeof adminRoles)[number];
 
 export interface AdminActor {
@@ -18,6 +18,12 @@ export class AuthorizationError extends Error {
 
 export function assertOwnerActor(actor: AdminActor): void {
   if (!actor.active || actor.role !== "owner") {
+    throw new AuthorizationError();
+  }
+}
+
+export function assertOperationsActor(actor: AdminActor): void {
+  if (!actor.active || !adminRoles.includes(actor.role)) {
     throw new AuthorizationError();
   }
 }

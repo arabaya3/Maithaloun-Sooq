@@ -245,9 +245,13 @@ try {
     where domain_id = 'lamis-air-freshener-assortment'
   `;
 
-  console.log("hid loyal-fabric-softener; restored lamis assortment availability");
+  console.log(
+    "hid loyal-fabric-softener; restored lamis assortment availability",
+  );
 } finally {
   await sql.end({ timeout: 5 });
 }
 
-console.log(`Original flyer photo restore complete (${restores.length} products).`);
+console.log(
+  `Original flyer photo restore complete (${restores.length} products).`,
+);

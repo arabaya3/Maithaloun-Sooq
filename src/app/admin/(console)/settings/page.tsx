@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { connection } from "next/server";
+import { redirect } from "next/navigation";
 
 import { adminDeliveryService } from "@/features/admin/application/admin-services";
 import { requireAdminSession } from "@/features/admin/auth/admin-session";
@@ -11,6 +12,7 @@ import {
   STANDARD_DELIVERY_FEE_AGOROT,
 } from "@/features/delivery/delivery-policy";
 import { formatIls } from "@/shared/lib/format-currency";
+import { OperatorAccountForm } from "@/features/admin/ui/operator-account-form";
 
 export const metadata: Metadata = {
   title: "إعدادات المتجر",
@@ -19,6 +21,7 @@ export const metadata: Metadata = {
 export default async function AdminSettingsPage() {
   await connection();
   const actor = await requireAdminSession();
+  if (actor.role !== "owner") redirect("/admin");
   const areas = await adminDeliveryService.list(actor);
   const active = areas.find((area) => area.code === ACTIVE_SERVICE_AREA_CODE);
   const historical = areas.filter(
@@ -60,6 +63,14 @@ export default async function AdminSettingsPage() {
           هذه القيم معتمدة من خادم التطبيق عند إنشاء الطلبات. لا تُحسب من واجهة
           الزبون.
         </p>
+      </section>
+
+      <section className="admin-panel" aria-labelledby="operator-account-title">
+        <h2 id="operator-account-title">حساب الموظفة</h2>
+        <p className="admin-muted">
+          أنشئ أو حدّث حساباً منفصلاً بدل مشاركة كلمة مرور المالك.
+        </p>
+        <OperatorAccountForm />
       </section>
 
       {active ? (

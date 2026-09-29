@@ -10,6 +10,7 @@ const titles: Record<string, string> = {
   "/admin/products": "المنتجات",
   "/admin/products/new": "منتج جديد",
   "/admin/settings": "إعدادات المتجر",
+  "/admin/notifications": "الإشعارات",
 };
 
 function resolveTitle(pathname: string): string {

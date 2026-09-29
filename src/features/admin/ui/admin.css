@@ -751,6 +751,243 @@ body:has(.admin-login-page) {
   }
 }
 
+/* Mobile task-first operations */
+.admin-task-launcher {
+  display: grid;
+  gap: 1rem;
+  padding: 1.15rem;
+  background: var(--admin-surface);
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius-lg);
+}
+.admin-task-intro {
+  display: grid;
+  gap: 0.35rem;
+}
+.admin-eyebrow {
+  color: var(--admin-forest);
+  font-weight: 700;
+  font-size: 0.8rem;
+}
+.admin-task-intro > p:last-child {
+  color: var(--admin-muted);
+}
+.admin-task-actions {
+  display: grid;
+  gap: 0.65rem;
+}
+.admin-task-primary,
+.admin-task-secondary {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  min-height: 4.75rem;
+  padding: 0.9rem 1rem;
+  border-radius: var(--admin-radius-md);
+  text-decoration: none;
+}
+.admin-task-primary {
+  background: var(--admin-forest);
+  color: #fff !important;
+}
+.admin-task-secondary {
+  border: 1px solid var(--admin-border);
+  color: var(--admin-text) !important;
+}
+.admin-task-primary span,
+.admin-task-secondary span {
+  display: grid;
+  gap: 0.15rem;
+}
+.admin-task-primary small {
+  color: #dce9e4;
+}
+.admin-task-secondary small {
+  color: var(--admin-muted);
+}
+
+.admin-page-capture {
+  max-width: 46rem;
+  margin-inline: auto;
+}
+.admin-capture {
+  display: grid;
+  gap: 1rem;
+}
+.admin-capture-heading {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+.admin-capture-heading > span {
+  color: var(--admin-warm);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.admin-capture-heading div {
+  display: grid;
+  gap: 0.25rem;
+}
+.admin-capture-heading p {
+  color: var(--admin-muted);
+}
+.admin-camera-frame,
+.admin-review-image {
+  position: relative;
+  overflow: hidden;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius-lg);
+  background: #eef0ef;
+}
+.admin-camera-frame {
+  cursor: pointer;
+  color: var(--admin-muted);
+}
+.admin-camera-frame img,
+.admin-review-image img {
+  object-fit: contain;
+  background: #fff;
+}
+.admin-camera-frame > span {
+  display: grid;
+  place-items: center;
+  gap: 0.75rem;
+}
+.admin-capture-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.65rem;
+}
+.admin-capture-actions .admin-btn {
+  min-height: 3.25rem;
+}
+.admin-capture-toggle {
+  display: flex !important;
+  align-items: center;
+  gap: 0.8rem;
+}
+.admin-capture-toggle input {
+  width: 1.4rem;
+  height: 1.4rem;
+  accent-color: var(--admin-forest);
+}
+.admin-capture-toggle span {
+  display: grid;
+}
+.admin-capture-toggle small {
+  color: var(--admin-muted);
+}
+.admin-capture-trust {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.85rem;
+  background: #f0f5f2;
+}
+.admin-capture-submit {
+  width: 100%;
+  min-height: 3.5rem !important;
+}
+.admin-capture-manual {
+  justify-self: center;
+}
+.admin-push-control {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+}
+.admin-push-control p {
+  color: var(--admin-muted);
+  font-size: 0.82rem;
+}
+.admin-notification-list {
+  display: grid;
+  background: var(--admin-surface);
+  border-block: 1px solid var(--admin-border);
+}
+.admin-notification-list form + form {
+  border-top: 1px solid var(--admin-divider);
+}
+.admin-notification-item {
+  width: 100%;
+  min-height: 4.5rem;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.85rem 1rem;
+  border: 0;
+  background: transparent;
+  color: var(--admin-text);
+  text-align: start;
+  cursor: pointer;
+}
+.admin-notification-item:hover {
+  background: var(--admin-bg);
+}
+.admin-notification-item > span:nth-child(2) {
+  display: grid;
+}
+.admin-notification-item small,
+.admin-notification-item time {
+  color: var(--admin-muted);
+  font-size: 0.78rem;
+}
+.admin-notification-dot {
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 50%;
+  background: var(--admin-warm);
+}
+.admin-notification-dot.is-read {
+  background: var(--admin-border);
+}
+.admin-review-image {
+  max-width: 22rem;
+  justify-self: center;
+}
+.admin-capture-form {
+  background: var(--admin-surface);
+  border-top: 1px solid var(--admin-border);
+  padding-top: 1rem;
+}
+.admin-spin {
+  animation: admin-spin 0.9s linear infinite;
+}
+@keyframes admin-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (max-width: 47.99rem) {
+  .admin-page-header-actions {
+    display: none;
+  }
+  .admin-desktop-metrics {
+    display: none;
+  }
+  .admin-task-launcher {
+    margin-inline: -0.25rem;
+  }
+}
+@media (min-width: 48rem) {
+  .admin-task-launcher {
+    grid-template-columns: minmax(0, 1fr) minmax(22rem, 1.2fr);
+    align-items: center;
+  }
+  .admin-task-launcher > :last-child {
+    grid-column: 1 / -1;
+  }
+  .admin-camera-frame {
+    aspect-ratio: 4 / 3;
+  }
+}
+
 /* -------------------------------------------------------------------------- */
 /* Metrics & dashboard                                                        */
 /* -------------------------------------------------------------------------- */

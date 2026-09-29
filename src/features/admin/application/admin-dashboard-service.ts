@@ -6,7 +6,7 @@ import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import type { AdminOrderListItem } from "@/features/admin/application/admin-order-service";
 import { AdminOrderService } from "@/features/admin/application/admin-order-service";
 import {
-  assertOwnerActor,
+  assertOperationsActor,
   type AdminActor,
 } from "@/features/admin/domain/admin-actor";
 import {
@@ -27,7 +27,7 @@ export class AdminDashboardService {
   constructor(private readonly database: PostgresJsDatabase<typeof schema>) {}
 
   async getSummary(actor: AdminActor): Promise<AdminDashboardSummary> {
-    assertOwnerActor(actor);
+    assertOperationsActor(actor);
     const orderService = new AdminOrderService(this.database);
     const startOfUtcDay = new Date();
     startOfUtcDay.setUTCHours(0, 0, 0, 0);

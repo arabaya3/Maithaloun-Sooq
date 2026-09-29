@@ -5,7 +5,7 @@ import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import { z } from "zod";
 
 import {
-  assertOwnerActor,
+  assertOperationsActor,
   type AdminActor,
 } from "@/features/admin/domain/admin-actor";
 import {
@@ -67,6 +67,25 @@ export const adminProductUpdateSchema = z
 export const adminProductCreateSchema = adminProductUpdateSchema
   .extend({
     slug: productSlugSchema,
+  })
+  .strict();
+
+export const adminCapturedProductCreateSchema = z
+  .object({
+    domainId: productIdSchema,
+    slug: productSlugSchema,
+    nameAr: z.string().trim().min(1).max(160),
+    latinName: optionalText(120),
+    priceAgorot: z.number().int().positive().max(10_000_000),
+    categoryId: productCategorySchema,
+    description: optionalText(4_000),
+    unit: optionalText(80),
+    brand: optionalText(80),
+    size: optionalText(80),
+    barcode: optionalText(64),
+    imageSrc: z.string().url().max(500),
+    imageWidth: z.number().int().positive().max(10_000),
+    imageHeight: z.number().int().positive().max(10_000),
   })
   .strict();
 
@@ -147,6 +166,9 @@ export const adminSpecificationRemoveSchema = z
 
 export type AdminProductUpdate = z.infer<typeof adminProductUpdateSchema>;
 export type AdminProductCreate = z.infer<typeof adminProductCreateSchema>;
+export type AdminCapturedProductCreate = z.infer<
+  typeof adminCapturedProductCreateSchema
+>;
 export type AdminVariantUpsert = z.infer<typeof adminVariantUpsertSchema>;
 export type AdminVariantDeactivate = z.infer<
   typeof adminVariantDeactivateSchema
@@ -162,7 +184,7 @@ export class AdminCatalogService {
   constructor(private readonly database: PostgresJsDatabase<typeof schema>) {}
 
   async list(actor: AdminActor): Promise<readonly Product[]> {
-    assertOwnerActor(actor);
+    assertOperationsActor(actor);
     const rows = await this.database
       .select()
       .from(schema.products)
@@ -174,7 +196,7 @@ export class AdminCatalogService {
     actor: AdminActor,
     domainId: string,
   ): Promise<(Product & { sortOrder: number }) | null> {
-    assertOwnerActor(actor);
+    assertOperationsActor(actor);
     if (!productIdSchema.safeParse(domainId).success) return null;
     const [row] = await this.database
       .select()
@@ -191,7 +213,7 @@ export class AdminCatalogService {
     actor: AdminActor,
     input: AdminProductUpdate,
   ): Promise<{ product: Product; slug: string }> {
-    assertOwnerActor(actor);
+    assertOperationsActor(actor);
     const parsed = adminProductUpdateSchema.safeParse(input);
     if (!parsed.success) throw new AdminCatalogError("invalid_input");
 
@@ -204,6 +226,24 @@ export class AdminCatalogService {
       if (!existing) throw new AdminCatalogError("not_found");
 
       const now = new Date();
+      const imageFields =
+        existing.imageKind === "image"
+          ? {
+              imageKind: "image" as const,
+              placeholderVariant: null,
+              imageSrc: existing.imageSrc,
+              imageAlt: existing.imageAlt,
+              imageWidth: existing.imageWidth,
+              imageHeight: existing.imageHeight,
+            }
+          : {
+              imageKind: "placeholder" as const,
+              placeholderVariant: parsed.data.placeholderVariant,
+              imageSrc: null,
+              imageAlt: null,
+              imageWidth: null,
+              imageHeight: null,
+            };
       const [row] = await transaction
         .update(schema.products)
         .set({
@@ -217,12 +257,7 @@ export class AdminCatalogService {
           usageNotes: parsed.data.usageNotes ?? null,
           unit: parsed.data.unit ?? null,
           detailsStatus: parsed.data.detailsStatus,
-          imageKind: "placeholder",
-          placeholderVariant: parsed.data.placeholderVariant,
-          imageSrc: null,
-          imageAlt: null,
-          imageWidth: null,
-          imageHeight: null,
+          ...imageFields,
           updatedAt: now,
         })
         .where(eq(schema.products.id, existing.id))
@@ -232,12 +267,7 @@ export class AdminCatalogService {
       await this.syncDefaultVariantFromProduct(transaction, row, {
         priceAgorot: parsed.data.priceAgorot,
         availability: parsed.data.availability,
-        imageKind: "placeholder",
-        placeholderVariant: parsed.data.placeholderVariant,
-        imageSrc: null,
-        imageAlt: null,
-        imageWidth: null,
-        imageHeight: null,
+        ...imageFields,
       });
 
       const beforeState = redactProductAuditState(existing);
@@ -262,7 +292,7 @@ export class AdminCatalogService {
   }
 
   async create(actor: AdminActor, input: AdminProductCreate): Promise<Product> {
-    assertOwnerActor(actor);
+    assertOperationsActor(actor);
     const parsed = adminProductCreateSchema.safeParse(input);
     if (!parsed.success) throw new AdminCatalogError("invalid_input");
 
@@ -340,11 +370,115 @@ export class AdminCatalogService {
     }
   }
 
+  async createCaptured(
+    actor: AdminActor,
+    input: AdminCapturedProductCreate,
+  ): Promise<Product> {
+    assertOperationsActor(actor);
+    const parsed = adminCapturedProductCreateSchema.safeParse(input);
+    if (!parsed.success) throw new AdminCatalogError("invalid_input");
+
+    try {
+      const created = await this.database.transaction(async (transaction) => {
+        const imageAlt = `صورة ${parsed.data.nameAr}`;
+        const [row] = await transaction
+          .insert(schema.products)
+          .values({
+            domainId: parsed.data.domainId,
+            slug: parsed.data.slug,
+            nameAr: parsed.data.nameAr,
+            latinName: parsed.data.latinName ?? null,
+            priceAgorot: parsed.data.priceAgorot,
+            categoryId: parsed.data.categoryId,
+            availability: "unavailable",
+            sortOrder: 100,
+            description: parsed.data.description ?? null,
+            unit: parsed.data.unit ?? null,
+            detailsStatus: "placeholder",
+            imageKind: "image",
+            imageSrc: parsed.data.imageSrc,
+            imageAlt,
+            imageWidth: parsed.data.imageWidth,
+            imageHeight: parsed.data.imageHeight,
+            placeholderVariant: null,
+          })
+          .returning();
+        if (!row) throw new AdminCatalogError("invalid_input");
+
+        const attributes: Record<string, string> = parsed.data.size
+          ? { الحجم: parsed.data.size }
+          : {};
+        const [variant] = await transaction
+          .insert(schema.productVariants)
+          .values({
+            productId: row.id,
+            domainId: `${row.domainId}--default`,
+            labelAr: parsed.data.size ?? parsed.data.unit ?? "الافتراضي",
+            attributes,
+            priceAgorot: row.priceAgorot,
+            availability: "unavailable",
+            imageKind: "image",
+            imageSrc: row.imageSrc,
+            imageAlt: row.imageAlt,
+            imageWidth: row.imageWidth,
+            imageHeight: row.imageHeight,
+            barcode: parsed.data.barcode ?? null,
+            sortOrder: 0,
+            isDefault: true,
+          })
+          .returning();
+        if (!variant) throw new AdminCatalogError("invalid_input");
+
+        const specifications = [
+          parsed.data.brand
+            ? { labelAr: "العلامة التجارية", valueAr: parsed.data.brand }
+            : null,
+          parsed.data.size
+            ? { labelAr: "الحجم", valueAr: parsed.data.size }
+            : null,
+          parsed.data.barcode
+            ? { labelAr: "الباركود", valueAr: parsed.data.barcode }
+            : null,
+        ].filter((item): item is { labelAr: string; valueAr: string } =>
+          Boolean(item),
+        );
+        if (specifications.length) {
+          await transaction.insert(schema.productSpecifications).values(
+            specifications.map((item, sortOrder) => ({
+              productId: row.id,
+              ...item,
+              sortOrder,
+            })),
+          );
+        }
+
+        const afterState = redactProductAuditState(row);
+        assertSafeAuditState(afterState);
+        await transaction.insert(schema.adminAuditEvents).values({
+          adminUserId: actor.id,
+          actionType: "product_create",
+          entityType: "product",
+          entityId: row.domainId,
+          beforeState: null,
+          afterState,
+        });
+        return row;
+      });
+      const [product] = await this.mapProducts([created]);
+      if (!product) throw new AdminCatalogError("not_found");
+      return product;
+    } catch (error) {
+      if (error instanceof AdminCatalogError) throw error;
+      if (isUniqueViolation(error)) throw new AdminCatalogError("duplicate");
+      throw error;
+    }
+  }
+
   async upsertVariant(
     actor: AdminActor,
     input: AdminVariantUpsert,
   ): Promise<Product> {
-    assertOwnerActor(actor);
+    assertOperationsActor(actor);
     const parsed = adminVariantUpsertSchema.safeParse(input);
     if (!parsed.success) throw new AdminCatalogError("invalid_input");
 
@@ -502,7 +636,7 @@ export class AdminCatalogService {
     actor: AdminActor,
     input: AdminVariantDeactivate,
   ): Promise<Product> {
-    assertOwnerActor(actor);
+    assertOperationsActor(actor);
     const parsed = adminVariantDeactivateSchema.safeParse(input);
     if (!parsed.success) throw new AdminCatalogError("invalid_input");
 
@@ -570,7 +704,7 @@ export class AdminCatalogService {
     actor: AdminActor,
     input: AdminSpecificationUpsert,
   ): Promise<Product> {
-    assertOwnerActor(actor);
+    assertOperationsActor(actor);
     const parsed = adminSpecificationUpsertSchema.safeParse(input);
     if (!parsed.success) throw new AdminCatalogError("invalid_input");
 
@@ -666,7 +800,7 @@ export class AdminCatalogService {
     actor: AdminActor,
     input: AdminSpecificationRemove,
   ): Promise<Product> {
-    assertOwnerActor(actor);
+    assertOperationsActor(actor);
     const parsed = adminSpecificationRemoveSchema.safeParse(input);
     if (!parsed.success) throw new AdminCatalogError("invalid_input");
 

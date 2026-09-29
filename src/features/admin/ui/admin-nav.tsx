@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
+  Bell,
   LogOut,
   Menu,
   Package,
@@ -15,6 +16,7 @@ import {
 import { useEffect, useId, useState, type ComponentType } from "react";
 
 import { logoutAction } from "@/features/admin/application/admin-actions";
+import type { AdminRole } from "@/features/admin/domain/admin-actor";
 
 const links = [
   {
@@ -36,6 +38,12 @@ const links = [
     Icon: Package,
   },
   {
+    href: "/admin/notifications",
+    label: "الإشعارات",
+    match: "prefix" as const,
+    Icon: Bell,
+  },
+  {
     href: "/admin/settings",
     label: "إعدادات المتجر",
     match: "prefix" as const,
@@ -50,30 +58,34 @@ function isActive(pathname: string, href: string, match: "exact" | "prefix") {
 
 function NavLinks({
   pathname,
+  role,
   onNavigate,
 }: {
   pathname: string;
+  role: AdminRole;
   onNavigate?: () => void;
 }) {
   return (
     <nav aria-label="تنقل الإدارة" className="admin-nav">
-      {links.map((link) => {
-        const active = isActive(pathname, link.href, link.match);
-        const Icon = link.Icon;
-        return (
-          <Link
-            key={link.href}
-            href={link.href}
-            prefetch={false}
-            className="admin-nav-link"
-            aria-current={active ? "page" : undefined}
-            onClick={onNavigate}
-          >
-            <Icon size={18} aria-hidden="true" />
-            <span>{link.label}</span>
-          </Link>
-        );
-      })}
+      {links
+        .filter((link) => role === "owner" || link.href !== "/admin/settings")
+        .map((link) => {
+          const active = isActive(pathname, link.href, link.match);
+          const Icon = link.Icon;
+          return (
+            <Link
+              key={link.href}
+              href={link.href}
+              prefetch={false}
+              className="admin-nav-link"
+              aria-current={active ? "page" : undefined}
+              onClick={onNavigate}
+            >
+              <Icon size={18} aria-hidden="true" />
+              <span>{link.label}</span>
+            </Link>
+          );
+        })}
     </nav>
   );
 }
@@ -123,17 +135,29 @@ export function AdminBrand({ compact = false }: { compact?: boolean }) {
   );
 }
 
-export function AdminDesktopNav({ displayName }: { displayName: string }) {
+export function AdminDesktopNav({
+  displayName,
+  role,
+}: {
+  displayName: string;
+  role: AdminRole;
+}) {
   const pathname = usePathname();
   return (
     <div className="admin-nav-desktop">
-      <NavLinks pathname={pathname} />
+      <NavLinks pathname={pathname} role={role} />
       <NavFooter displayName={displayName} />
     </div>
   );
 }
 
-export function AdminMobileNav({ displayName }: { displayName: string }) {
+export function AdminMobileNav({
+  displayName,
+  role,
+}: {
+  displayName: string;
+  role: AdminRole;
+}) {
   const pathname = usePathname();
   const drawerId = useId();
   const [open, setOpen] = useState(false);
@@ -194,7 +218,11 @@ export function AdminMobileNav({ displayName }: { displayName: string }) {
                 <X size={20} aria-hidden="true" />
               </button>
             </div>
-            <NavLinks pathname={pathname} onNavigate={() => setOpen(false)} />
+            <NavLinks
+              pathname={pathname}
+              role={role}
+              onNavigate={() => setOpen(false)}
+            />
             <NavFooter displayName={displayName} />
           </div>
         </div>
