@@ -1,3 +1,5 @@
+/// <reference lib="webworker" />
+
 import {
   CacheFirst,
   ExpirationPlugin,
@@ -14,7 +16,7 @@ declare global {
   }
 }
 
-declare const self: WorkerGlobalScope & SerwistGlobalConfig;
+declare const self: ServiceWorkerGlobalScope & SerwistGlobalConfig;
 
 const sensitivePrefixes = [
   "/api/",
@@ -84,6 +86,35 @@ const serwist = new Serwist({
       },
     ],
   },
+});
+
+self.addEventListener("push", (event) => {
+  const payload = event.data?.json() as
+    { title?: string; body?: string; href?: string } | undefined;
+  event.waitUntil(
+    self.registration.showNotification(payload?.title ?? "سوق ميثلون", {
+      body: payload?.body ?? "لديك تحديث جديد في الطلبات.",
+      icon: "/icons/icon-192.png",
+      badge: "/icons/icon-192.png",
+      data: { href: payload?.href ?? "/admin/orders" },
+      tag: payload?.href ?? "admin-update",
+    }),
+  );
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const href = String(event.notification.data?.href ?? "/admin/orders");
+  const url = new URL(href, self.location.origin).href;
+  event.waitUntil(
+    self.clients
+      .matchAll({ type: "window", includeUncontrolled: true })
+      .then(async (clients) => {
+        const existing = clients.find((client) => client.url === url);
+        if (existing && "focus" in existing) return existing.focus();
+        return self.clients.openWindow(url);
+      }),
+  );
 });
 
 serwist.addEventListeners();

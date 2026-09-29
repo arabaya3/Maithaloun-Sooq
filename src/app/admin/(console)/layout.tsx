@@ -10,5 +10,9 @@ export default async function AdminConsoleLayout({
 }) {
   await connection();
   const actor = await requireAdminSession();
-  return <AdminShell displayName={actor.displayName}>{children}</AdminShell>;
+  return (
+    <AdminShell displayName={actor.displayName} role={actor.role}>
+      {children}
+    </AdminShell>
+  );
 }

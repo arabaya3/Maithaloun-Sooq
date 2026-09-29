@@ -183,6 +183,14 @@ export class OrderService {
           }),
         );
 
+        await transaction.insert(schema.adminNotifications).values({
+          type: "order_created",
+          orderId: createdOrder.id,
+          title: "طلب جديد",
+          body: `وصل طلب جديد بقيمة ${(finalTotalAgorot / 100).toFixed(2)} ₪`,
+          href: `/admin/orders/${createdOrder.publicReference}`,
+        });
+
         return this.toConfirmation(createdOrder, false);
       });
     } catch (error) {

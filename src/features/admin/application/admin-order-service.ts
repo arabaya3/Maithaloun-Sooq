@@ -15,7 +15,7 @@ import {
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 
 import {
-  assertOwnerActor,
+  assertOperationsActor,
   type AdminActor,
 } from "@/features/admin/domain/admin-actor";
 import {
@@ -149,7 +149,7 @@ export class AdminOrderService {
     actor: AdminActor,
     query: AdminOrderListQuery,
   ): Promise<{ items: AdminOrderListItem[]; total: number; page: number }> {
-    assertOwnerActor(actor);
+    assertOperationsActor(actor);
     const page =
       Number.isInteger(query.page) && query.page > 0 ? query.page : 1;
     const filters = this.buildFilters(query);
@@ -192,7 +192,7 @@ export class AdminOrderService {
   }
 
   async countByStatus(actor: AdminActor): Promise<Record<OrderStatus, number>> {
-    assertOwnerActor(actor);
+    assertOperationsActor(actor);
     const rows = await this.database
       .select({
         status: schema.orders.status,
@@ -219,7 +219,7 @@ export class AdminOrderService {
     actor: AdminActor,
     limit = 8,
   ): Promise<AdminOrderListItem[]> {
-    assertOwnerActor(actor);
+    assertOperationsActor(actor);
     const safeLimit = Math.min(Math.max(limit, 1), 20);
     const rows = await this.database
       .select({
@@ -255,7 +255,7 @@ export class AdminOrderService {
     actor: AdminActor,
     publicReference: string,
   ): Promise<AdminOrderDetail | null> {
-    assertOwnerActor(actor);
+    assertOperationsActor(actor);
     if (!PUBLIC_REFERENCE_PATTERN.test(publicReference)) return null;
 
     const [order] = await this.database
@@ -345,7 +345,7 @@ export class AdminOrderService {
       reason?: string;
     },
   ): Promise<AdminOrderDetail> {
-    assertOwnerActor(actor);
+    assertOperationsActor(actor);
     if (!PUBLIC_REFERENCE_PATTERN.test(input.publicReference)) {
       throw new AdminOrderError("invalid_input");
     }

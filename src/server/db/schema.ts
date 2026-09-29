@@ -513,3 +513,65 @@ export const adminAuditEvents = pgTable(
     index("admin_audit_events_entity_idx").on(table.entityType, table.entityId),
   ],
 );
+
+export const adminNotifications = pgTable(
+  "admin_notifications",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    type: varchar("type", { length: 40 }).notNull(),
+    orderId: uuid("order_id").references(() => orders.id, {
+      onDelete: "cascade",
+      onUpdate: "cascade",
+    }),
+    title: varchar("title", { length: 120 }).notNull(),
+    body: varchar("body", { length: 240 }).notNull(),
+    href: varchar("href", { length: 300 }).notNull(),
+    createdAt: timestamp("created_at", {
+      withTimezone: true,
+      mode: "date",
+    })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    index("admin_notifications_created_at_idx").on(table.createdAt),
+    uniqueIndex("admin_notifications_order_type_uidx")
+      .on(table.orderId, table.type)
+      .where(sql`${table.orderId} IS NOT NULL`),
+  ],
+);
+
+export const adminNotificationReads = pgTable(
+  "admin_notification_reads",
+  {
+    notificationId: uuid("notification_id")
+      .notNull()
+      .references(() => adminNotifications.id, { onDelete: "cascade" }),
+    adminUserId: uuid("admin_user_id")
+      .notNull()
+      .references(() => adminUsers.id, { onDelete: "cascade" }),
+    readAt: timestamp("read_at", { withTimezone: true, mode: "date" })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.notificationId, table.adminUserId] }),
+    index("admin_notification_reads_user_idx").on(table.adminUserId),
+  ],
+);
+
+export const adminPushSubscriptions = pgTable(
+  "admin_push_subscriptions",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    adminUserId: uuid("admin_user_id")
+      .notNull()
+      .references(() => adminUsers.id, { onDelete: "cascade" }),
+    endpoint: text("endpoint").notNull().unique(),
+    p256dh: varchar("p256dh", { length: 180 }).notNull(),
+    auth: varchar("auth", { length: 80 }).notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true, mode: "date" }),
+    ...timestamps,
+  },
+  (table) => [index("admin_push_subscriptions_user_idx").on(table.adminUserId)],
+);

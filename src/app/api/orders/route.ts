@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { after } from "next/server";
 
 import { MAX_ORDER_REQUEST_BYTES } from "@/features/orders/application/order-submission-guard";
 import { OrderCreationError } from "@/features/orders/application/order-service";
@@ -8,6 +9,7 @@ import { checkoutRequestSchema } from "@/features/orders/domain/checkout-request
 import { createPostgresOrderSubmissionGuard } from "@/features/orders/infrastructure/postgres-order-submission-guard";
 import { db } from "@/server/db/db";
 import { getServerEnv } from "@/server/env/env";
+import { adminNotificationService } from "@/features/admin/application/admin-services";
 
 export const dynamic = "force-dynamic";
 
@@ -75,6 +77,17 @@ export async function POST(request: Request) {
 
   try {
     const confirmation = await orderService.create(parsed.data);
+    if (!confirmation.duplicate) {
+      after(async () => {
+        try {
+          await adminNotificationService.dispatchOrderNotification(
+            confirmation.publicReference,
+          );
+        } catch {
+          // The durable in-app notification remains available if push delivery fails.
+        }
+      });
+    }
     return NextResponse.json(
       { ok: true, confirmation },
       {
