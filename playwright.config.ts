@@ -44,6 +44,7 @@ export default defineConfig({
       ORDER_RATE_LIMIT_PEPPER: testEnvironment.ORDER_RATE_LIMIT_PEPPER,
       APP_ORIGIN: process.env.E2E_PORT ? origin : testEnvironment.APP_ORIGIN,
       AI_FAKE_MODE: "1",
+      CRON_SECRET: "e2e-cron-secret-0123456789abcdef0123456789",
       OPENAI_API_KEY: "",
       SUPABASE_URL: "",
       SUPABASE_SECRET_KEY: "",

@@ -1155,3 +1155,33 @@
   font-size: 0.875rem;
   font-weight: 650;
 }
+
+.admin-insight {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.admin-insight-label {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.5rem 0.7rem;
+  border: 1px solid var(--admin-info-border);
+  border-radius: var(--admin-radius);
+  color: var(--admin-info);
+  background: var(--admin-info-bg);
+  font-size: 0.8125rem;
+  font-weight: 650;
+}
+
+.admin-insight h3 {
+  margin-top: 0.4rem;
+  font-size: 0.9375rem;
+}
+
+.admin-app .admin-insight ul {
+  display: grid;
+  gap: 0.25rem;
+  padding-inline-start: 1.1rem;
+  list-style: disc;
+}

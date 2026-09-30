@@ -75,6 +75,13 @@ export async function createOperatorActor(): Promise<AdminActor> {
 }
 
 export const OPERATIONS_TABLES = [
+  "voice_commands",
+  "customer_reminders",
+  "customer_reminder_state",
+  "business_reports",
+  "store_settings",
+  "scheduled_job_runs",
+  "admin_notifications",
   "customer_ledger_entries",
   "customer_payments",
   "customer_invoice_lines",

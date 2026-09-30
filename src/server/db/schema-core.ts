@@ -526,6 +526,7 @@ export const adminNotifications = pgTable(
     title: varchar("title", { length: 120 }).notNull(),
     body: varchar("body", { length: 240 }).notNull(),
     href: varchar("href", { length: 300 }).notNull(),
+    dedupeKey: varchar("dedupe_key", { length: 120 }).unique(),
     createdAt: timestamp("created_at", {
       withTimezone: true,
       mode: "date",

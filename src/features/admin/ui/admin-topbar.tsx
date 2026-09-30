@@ -12,6 +12,7 @@ const titles: Record<string, string> = {
   "/admin/settings": "إعدادات المتجر",
   "/admin/notifications": "الإشعارات",
   "/admin/reports": "التقارير",
+  "/admin/reports/archive": "أرشيف الملخصات",
   "/admin/sales": "المبيعات",
   "/admin/sales/new": "بيع يدوي",
   "/admin/customers": "الزبائن والديون",
@@ -29,6 +30,7 @@ function resolveTitle(pathname: string): string {
   if (titles[pathname]) return titles[pathname];
   if (pathname.startsWith("/admin/orders/")) return "تفاصيل الطلب";
   if (pathname.startsWith("/admin/products/")) return "تعديل المنتج";
+  if (pathname.startsWith("/admin/reports/archive/")) return "ملخص محفوظ";
   if (pathname.startsWith("/admin/sales/")) return "فاتورة بيع";
   if (pathname.startsWith("/admin/customers/")) return "ملف الزبون";
   if (pathname.startsWith("/admin/inventory/stock/")) return "تفاصيل المخزون";

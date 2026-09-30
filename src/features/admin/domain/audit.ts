@@ -28,6 +28,8 @@ export const auditActionTypes = [
   "customer_payment_reversal",
   "customer_create",
   "customer_update",
+  "reminder_state_update",
+  "settings_update",
 ] as const;
 
 export type AuditActionType = (typeof auditActionTypes)[number];
@@ -46,6 +48,7 @@ export const auditEntityTypes = [
   "price_review",
   "customer_invoice",
   "customer",
+  "store_settings",
 ] as const;
 
 export type AuditEntityType = (typeof auditEntityTypes)[number];

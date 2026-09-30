@@ -8,6 +8,7 @@ import { reportService } from "@/features/admin/application/admin-services";
 import { requireAdminSession } from "@/features/admin/auth/admin-session";
 import { can } from "@/features/admin/domain/permissions";
 import { Money, PageHeader, Quantity } from "@/features/admin/ui/kit";
+import { InsightPanel } from "@/features/reminders/ui/insight-panel";
 import {
   reportPresetLabels,
   reportPresets,
@@ -103,6 +104,15 @@ export default async function ReportsPage({
             <bdi dir="ltr">{period.to}</bdi>
           </>
         }
+        actions={
+          <Link
+            className="admin-btn admin-btn-secondary admin-btn-sm"
+            href="/admin/reports/archive"
+            prefetch={false}
+          >
+            أرشيف الملخصات
+          </Link>
+        }
       />
 
       <nav className="admin-tabs" aria-label="الفترة">
@@ -191,6 +201,8 @@ export default async function ReportsPage({
           </Figure>
         </dl>
       </section>
+
+      <InsightPanel period={period} />
 
       <section className="admin-panel" aria-labelledby="cash-figures">
         <h2 id="cash-figures">النقد والديون والمخزون</h2>

@@ -10,7 +10,10 @@ import {
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
 
-import { customerService } from "@/features/admin/application/admin-services";
+import {
+  customerService,
+  reminderService,
+} from "@/features/admin/application/admin-services";
 import { requireAdminSession } from "@/features/admin/auth/admin-session";
 import { can } from "@/features/admin/domain/permissions";
 import { formatAdminDateTime } from "@/features/admin/ui/format-admin-datetime";
@@ -21,6 +24,7 @@ import {
   type PillTone,
 } from "@/features/admin/ui/kit";
 import { formatWhatsAppDisplay } from "@/features/orders/domain/phone";
+import { ReminderControls } from "@/features/reminders/ui/reminder-controls";
 import {
   invoicePaymentStateLabels,
   type InvoicePaymentState,
@@ -54,6 +58,8 @@ export default async function CustomerProfilePage({
   const customer = await customerService.getDetail(actor, (await params).id);
   if (!customer) notFound();
   const { summary } = customer;
+  const reminders = await reminderService.getView(actor, customer.id);
+  const canManageReminders = can(actor, "reminders.manage");
   const canCorrect = can(actor, "ledger.correct");
 
   return (
@@ -211,6 +217,46 @@ export default async function CustomerProfilePage({
         ) : (
           <p className="admin-empty">لا توجد دفعات بعد.</p>
         )}
+      </section>
+
+      <section className="admin-panel" aria-labelledby="reminders-title">
+        <h2 id="reminders-title">التذكير بالدين</h2>
+        <p className="admin-muted">
+          {reminders.disputed
+            ? `الرصيد متنازع عليه${reminders.disputeNote ? `: ${reminders.disputeNote}` : ""} — التذكيرات متوقفة.`
+            : reminders.snoozedUntil
+              ? `التذكير مؤجَّل حتى ${reminders.snoozedUntil}.`
+              : "يصلك تذكير كل 5 أيام ما دام الرصيد غير مسدَّد. لا تُرسل أي رسالة للزبون."}
+        </p>
+        {reminders.history.length ? (
+          <ul className="admin-line-list">
+            {reminders.history.map((reminder) => (
+              <li key={reminder.reminderDate} className="admin-line">
+                <span className="admin-line-main">
+                  <strong>
+                    تذكير <bdi dir="ltr">{reminder.reminderDate}</bdi>
+                  </strong>
+                  <small>
+                    بعد <bdi dir="ltr">{reminder.daysOutstanding}</bdi> يوم ·{" "}
+                    {reminder.pushStatus === "sent"
+                      ? "وصل إشعار للهاتف"
+                      : "إشعار داخل التطبيق فقط"}
+                  </small>
+                </span>
+                <span className="admin-line-side">
+                  <Money agorot={reminder.balanceAgorot} />
+                </span>
+              </li>
+            ))}
+          </ul>
+        ) : null}
+        {canManageReminders && summary.balanceAgorot > 0 ? (
+          <ReminderControls
+            customerId={customer.id}
+            snoozed={Boolean(reminders.snoozedUntil)}
+            disputed={reminders.disputed}
+          />
+        ) : null}
       </section>
 
       <section className="admin-panel" aria-labelledby="details-title">

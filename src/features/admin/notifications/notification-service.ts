@@ -9,6 +9,7 @@ import {
   assertOperationsActor,
   type AdminActor,
 } from "@/features/admin/domain/admin-actor";
+import type { PushDeliveryStatus } from "@/features/reminders/domain/schedule-constants";
 import * as schema from "@/server/db/schema";
 
 const subscriptionSchema = z
@@ -135,9 +136,6 @@ export class AdminNotificationService {
   }
 
   async dispatchOrderNotification(publicReference: string): Promise<void> {
-    const config = pushConfiguration();
-    if (!config) return;
-
     const [notification] = await this.database
       .select({
         title: schema.adminNotifications.title,
@@ -152,7 +150,50 @@ export class AdminNotificationService {
       .where(eq(schema.orders.publicReference, publicReference))
       .limit(1);
     if (!notification) return;
+    await this.pushToAll(notification);
+  }
 
+  // The dedupe key makes scheduled notifications safe to retry: a second attempt creates nothing.
+  async publish(input: {
+    type: string;
+    title: string;
+    body: string;
+    href: string;
+    dedupeKey: string;
+  }): Promise<{
+    notificationId: string | null;
+    created: boolean;
+    pushStatus: PushDeliveryStatus | null;
+  }> {
+    const [created] = await this.database
+      .insert(schema.adminNotifications)
+      .values({
+        type: input.type,
+        title: input.title.slice(0, 120),
+        body: input.body.slice(0, 240),
+        href: input.href,
+        dedupeKey: input.dedupeKey,
+      })
+      .onConflictDoNothing({ target: schema.adminNotifications.dedupeKey })
+      .returning({ id: schema.adminNotifications.id });
+    if (!created) {
+      return { notificationId: null, created: false, pushStatus: null };
+    }
+    const pushStatus = await this.pushToAll({
+      title: input.title,
+      body: input.body,
+      href: input.href,
+    });
+    return { notificationId: created.id, created: true, pushStatus };
+  }
+
+  private async pushToAll(payload: {
+    title: string;
+    body: string;
+    href: string;
+  }): Promise<PushDeliveryStatus> {
+    const config = pushConfiguration();
+    if (!config) return "not_configured";
     webpush.setVapidDetails(
       config.subject,
       config.publicKey,
@@ -174,8 +215,9 @@ export class AdminNotificationService {
           ),
         ),
       );
+    if (!subscriptions.length) return "no_subscribers";
 
-    await Promise.allSettled(
+    const results = await Promise.allSettled(
       subscriptions.map(async ({ admin_push_subscriptions: subscription }) => {
         try {
           await webpush.sendNotification(
@@ -184,7 +226,7 @@ export class AdminNotificationService {
               expirationTime: subscription.expiresAt?.getTime() ?? null,
               keys: { p256dh: subscription.p256dh, auth: subscription.auth },
             },
-            JSON.stringify(notification),
+            JSON.stringify(payload),
           );
         } catch (error) {
           const statusCode =
@@ -196,6 +238,7 @@ export class AdminNotificationService {
               .delete(schema.adminPushSubscriptions)
               .where(eq(schema.adminPushSubscriptions.id, subscription.id));
           }
+          throw error;
         }
       }),
     );
@@ -203,5 +246,8 @@ export class AdminNotificationService {
     await this.database
       .delete(schema.adminPushSubscriptions)
       .where(lt(schema.adminPushSubscriptions.expiresAt, new Date()));
+    return results.some((result) => result.status === "fulfilled")
+      ? "sent"
+      : "failed";
   }
 }

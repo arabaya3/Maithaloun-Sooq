@@ -1,8 +1,12 @@
 import "server-only";
 
+import { ReminderService } from "@/features/reminders/application/reminder-service";
+import { ScheduledJobs } from "@/features/reminders/application/scheduled-jobs";
+import { SummaryService } from "@/features/reminders/application/summary-service";
 import { ReportService } from "@/features/reports/application/report-service";
 import { CustomerService } from "@/features/sales/application/customer-service";
 import { SalesService } from "@/features/sales/application/sales-service";
+import { getInsightGenerator } from "@/server/ai/insight-generator";
 import { db } from "@/server/db/db";
 import { getPrivateDocumentStore } from "@/server/storage/private-documents";
 
@@ -39,4 +43,20 @@ export const extractionService = new ExtractionService(
   db,
   purchaseService,
   getPrivateDocumentStore,
+);
+export const reminderService = new ReminderService(
+  db,
+  customerService,
+  adminNotificationService,
+);
+export const summaryService = new SummaryService(
+  db,
+  reportService,
+  adminNotificationService,
+  getInsightGenerator,
+);
+export const scheduledJobs = new ScheduledJobs(
+  db,
+  reminderService,
+  summaryService,
 );
