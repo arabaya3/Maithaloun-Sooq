@@ -3,6 +3,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { InstallHelpEntry } from "@/features/pwa/install-help-entry";
+
 const sections = {
   categories: {
     title: "الفئات",
@@ -15,6 +17,7 @@ const sections = {
   account: {
     title: "حسابي",
     description: "تسجيل الحسابات غير متاح في النسخة الحالية من المتجر.",
+    installHelp: true,
   },
 } as const;
 
@@ -47,6 +50,7 @@ export default async function PlaceholderPage({
         <span className="eyebrow">سوق ميثلون</span>
         <h1>{section.title}</h1>
         <p>{section.description}</p>
+        {"installHelp" in section ? <InstallHelpEntry /> : null}
         <Link href="/">
           <ArrowRight aria-hidden="true" />
           العودة إلى الرئيسية

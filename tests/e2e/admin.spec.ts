@@ -154,7 +154,9 @@ test("admin authentication, operations, and privacy controls", async ({
   );
 
   await login(page);
-  await expect(page.getByText("طلبات جديدة")).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: /الطلبات الجديدة/ }).first(),
+  ).toBeVisible();
   await expect(
     page.getByRole("heading", { name: "طلبات تحتاج إجراء" }),
   ).toBeVisible();
@@ -220,6 +222,7 @@ test("admin authentication, operations, and privacy controls", async ({
 
   await goAdminSection(page, "المنتجات");
   await page.getByRole("link", { name: "إضافة منتج" }).click();
+  await page.getByRole("link", { name: "إدخال المنتج يدوياً" }).click();
   await expect(
     page.getByText("هذا المنتج له أكثر من حجم أو وزن"),
   ).toBeVisible();
@@ -245,6 +248,7 @@ test("admin authentication, operations, and privacy controls", async ({
 
   await goAdminSection(page, "المنتجات");
   await page.getByRole("link", { name: "إضافة منتج" }).click();
+  await page.getByRole("link", { name: "إدخال المنتج يدوياً" }).click();
   await page.getByRole("checkbox", { name: /أكثر من حجم أو وزن/ }).check();
   await expect(
     page.getByRole("heading", { name: "المعلومات الأساسية" }),

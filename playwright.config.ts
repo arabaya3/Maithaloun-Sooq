@@ -11,6 +11,9 @@ const testEnvironment = parseTestEnv({
   APP_ORIGIN: process.env.APP_ORIGIN,
 });
 
+const port = Number(process.env.E2E_PORT ?? 3000);
+const origin = `http://localhost:${port}`;
+
 export default defineConfig({
   testDir: "./tests/e2e",
   fullyParallel: true,
@@ -19,7 +22,7 @@ export default defineConfig({
   workers: 1,
   reporter: "list",
   use: {
-    baseURL: "http://localhost:3000",
+    baseURL: origin,
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
   },
@@ -30,14 +33,14 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: "node ./node_modules/next/dist/bin/next dev --webpack -p 3000",
-    url: "http://localhost:3000",
+    command: `node ./node_modules/next/dist/bin/next dev --webpack -p ${port}`,
+    url: origin,
     reuseExistingServer: false,
     timeout: 180_000,
     env: {
       DATABASE_URL: testEnvironment.TEST_DATABASE_URL,
       ORDER_RATE_LIMIT_PEPPER: testEnvironment.ORDER_RATE_LIMIT_PEPPER,
-      APP_ORIGIN: testEnvironment.APP_ORIGIN,
+      APP_ORIGIN: process.env.E2E_PORT ? origin : testEnvironment.APP_ORIGIN,
     },
   },
 });

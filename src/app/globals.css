@@ -2378,3 +2378,198 @@ select:focus-visible {
 }
 
 /* Product-editor admin styles moved to admin.css */
+
+/* Shared bottom sheet (native dialog) */
+.sheet {
+  position: fixed;
+  inset: 0;
+  display: none;
+  width: 100%;
+  max-width: none;
+  height: 100%;
+  max-height: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.sheet[open] {
+  display: flex;
+}
+
+.sheet::backdrop {
+  background: rgb(24 32 29 / 45%);
+}
+
+.sheet-panel {
+  width: min(100%, 32rem);
+  max-height: 88dvh;
+  overflow: auto;
+  padding: 1rem 1.25rem calc(1.25rem + env(safe-area-inset-bottom));
+  border-radius: 1rem 1rem 0 0;
+  color: var(--text);
+  background: var(--white);
+  font-family: var(--font-sans);
+}
+
+.sheet-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.sheet-header h2 {
+  margin: 0;
+  font-size: 1.0625rem;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.sheet-close {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--white);
+  cursor: pointer;
+}
+
+.sheet-close:focus-visible,
+.install-banner button:focus-visible,
+.install-help-entry:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: 2px;
+}
+
+@media (min-width: 48rem) {
+  .sheet {
+    align-items: center;
+  }
+
+  .sheet-panel {
+    border-radius: 1rem;
+  }
+}
+
+/* Install experience */
+.install-steps {
+  display: grid;
+  gap: 0.625rem;
+  margin: 0 0 0.875rem;
+  padding: 0;
+  list-style: none;
+}
+
+.install-steps li {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-height: 2.75rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+
+.install-steps li > span:nth-child(2) {
+  flex: 1;
+}
+
+.install-step-number {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 999px;
+  color: var(--white);
+  background: var(--action);
+  font-weight: 700;
+  font-size: 0.875rem;
+}
+
+.install-note {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.875rem;
+}
+
+.install-banner {
+  position: fixed;
+  inset-inline: var(--page-gutter);
+  bottom: calc(var(--mobile-nav-height) + env(safe-area-inset-bottom) + 0.5rem);
+  z-index: 15;
+  display: flex;
+  align-items: stretch;
+  max-width: 26rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--white);
+  box-shadow: 0 6px 20px rgb(31 36 33 / 12%);
+}
+
+.install-banner-action {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 0.625rem;
+  min-height: 3rem;
+  padding: 0.5rem 0.875rem;
+  border: 0;
+  border-radius: var(--radius-lg);
+  color: var(--action);
+  background: transparent;
+  font-weight: 700;
+  font-size: 0.9375rem;
+  text-align: start;
+  cursor: pointer;
+}
+
+.install-banner-dismiss {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 3rem;
+  border: 0;
+  border-inline-start: 1px solid var(--border);
+  color: var(--text-muted);
+  background: transparent;
+  cursor: pointer;
+}
+
+.install-help-entry {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 2.75rem;
+  margin-top: 0.75rem;
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  color: var(--action);
+  background: var(--white);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.install-help-installed {
+  color: var(--text-muted);
+  font-size: 0.875rem;
+}
+
+@media (min-width: 64rem) {
+  .install-banner {
+    inset-inline: auto 1.5rem;
+    bottom: 1.5rem;
+  }
+}

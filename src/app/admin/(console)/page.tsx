@@ -22,6 +22,7 @@ import {
   shortenOrderReference,
 } from "@/features/admin/ui/admin-status-badge";
 import { PushNotificationControl } from "@/features/admin/ui/push-notification-control";
+import { AdminInstallAction } from "@/features/pwa/admin-install-action";
 import {
   FREE_DELIVERY_THRESHOLD_AGOROT,
   STANDARD_DELIVERY_FEE_AGOROT,
@@ -146,6 +147,7 @@ export default async function AdminDashboardPage() {
             </span>
           </Link>
         </div>
+        <AdminInstallAction />
         <PushNotificationControl />
       </section>
 
