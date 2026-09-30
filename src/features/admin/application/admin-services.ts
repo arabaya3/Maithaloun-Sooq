@@ -10,6 +10,7 @@ import { AdminOrderService } from "./admin-order-service";
 import { AdminNotificationService } from "../notifications/notification-service";
 import { AdminStaffService } from "./admin-staff-service";
 import { InventoryService } from "@/features/inventory/application/inventory-service";
+import { PriceReviewService } from "@/features/inventory/application/price-review-service";
 import { ExtractionService } from "@/features/purchasing/application/extraction-service";
 import { PurchaseService } from "@/features/purchasing/application/purchase-service";
 import { SupplierService } from "@/features/purchasing/application/supplier-service";
@@ -21,6 +22,7 @@ export const adminDashboardService = new AdminDashboardService(db);
 export const adminNotificationService = new AdminNotificationService(db);
 export const adminStaffService = new AdminStaffService(db);
 export const inventoryService = new InventoryService(db);
+export const priceReviewService = new PriceReviewService(db);
 export const purchaseService = new PurchaseService(db);
 export const supplierService = new SupplierService(db);
 export const extractionService = new ExtractionService(

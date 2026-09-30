@@ -8,6 +8,7 @@ import {
   adminCatalogService,
   extractionService,
   inventoryService,
+  priceReviewService,
   purchaseService,
   supplierService,
 } from "@/features/admin/application/admin-services";
@@ -250,4 +251,39 @@ export async function createProductForLineAction(input: {
   } catch {
     return { ok: false, message: "تعذّر إنشاء المنتج. راجعي الاسم والسعر." };
   }
+}
+
+export async function decidePriceReviewAction(
+  _previous: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const actor = await requireTrustedAdminMutation();
+  const decision = text(formData, "decision");
+  if (decision !== "keep" && decision !== "later" && decision !== "change") {
+    return { ok: false, message: "اختاري إجراءً." };
+  }
+  const newPriceAgorot =
+    decision === "change" ? money(formData, "newPrice") : null;
+  if (
+    decision === "change" &&
+    (newPriceAgorot === null || newPriceAgorot <= 0)
+  ) {
+    return { ok: false, message: "أدخلي سعر بيع صالحاً بالشيكل." };
+  }
+  try {
+    const { productSlug } = await priceReviewService.decide(actor, {
+      id: text(formData, "id"),
+      action: decision,
+      newPriceAgorot: newPriceAgorot ?? undefined,
+    });
+    if (productSlug) {
+      revalidatePath("/");
+      revalidatePath(`/products/${productSlug}`);
+      revalidatePath("/admin/products");
+    }
+  } catch (error) {
+    return { ok: false, message: mapInventoryError(error) };
+  }
+  revalidateInventory();
+  return { ok: true, message: "تم حفظ القرار." };
 }

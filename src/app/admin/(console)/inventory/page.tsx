@@ -15,6 +15,7 @@ import { connection } from "next/server";
 import {
   extractionService,
   inventoryService,
+  priceReviewService,
   purchaseService,
 } from "@/features/admin/application/admin-services";
 import { requireAdminSession } from "@/features/admin/auth/admin-session";
@@ -66,6 +67,9 @@ export default async function InventoryOverviewPage() {
     extractionService.listAwaitingReview(actor),
   ]);
   const canAdjust = can(actor, "stock.adjust");
+  const pendingPriceReviews = can(actor, "pricing.review")
+    ? await priceReviewService.countPending(actor)
+    : 0;
   const attention = [...overview.outOfStock, ...overview.lowStock];
 
   const actions = [
@@ -161,6 +165,22 @@ export default async function InventoryOverviewPage() {
             ))}
           </ul>
         </section>
+      ) : null}
+
+      {pendingPriceReviews > 0 ? (
+        <Link
+          href="/admin/inventory/price-reviews"
+          prefetch={false}
+          className="admin-callout"
+        >
+          <TriangleAlert size={20} aria-hidden="true" />
+          <span>
+            <strong>
+              {pendingPriceReviews} صنف تغيّرت تكلفته — راجعي سعر البيع
+            </strong>
+            <small>السعر في المتجر لا يتغيّر تلقائياً</small>
+          </span>
+        </Link>
       ) : null}
 
       <section className="admin-panel" aria-labelledby="attention-title">

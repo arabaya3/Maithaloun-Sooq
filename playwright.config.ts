@@ -21,6 +21,8 @@ export default defineConfig({
   retries: 0,
   workers: 1,
   reporter: "list",
+  // The dev server compiles each route on first visit, which can exceed the 5s default.
+  expect: { timeout: 15_000 },
   use: {
     baseURL: origin,
     trace: "retain-on-failure",
