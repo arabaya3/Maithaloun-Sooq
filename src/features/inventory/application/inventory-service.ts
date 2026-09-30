@@ -45,7 +45,8 @@ export const stockAdjustmentSchema = z
   .strict();
 export type StockAdjustmentInput = z.infer<typeof stockAdjustmentSchema>;
 
-export type StockListFilter = "all" | "low" | "out" | "tracked" | "untracked";
+export type StockListFilter =
+  "all" | "attention" | "low" | "out" | "tracked" | "untracked";
 
 export interface StockListItem {
   variantId: string;
@@ -187,6 +188,13 @@ export class InventoryService {
         };
       })
       .filter((row) => {
+        if (
+          filter === "attention" &&
+          row.status !== "low" &&
+          row.status !== "out"
+        ) {
+          return false;
+        }
         if (filter === "low" && row.status !== "low") return false;
         if (filter === "out" && row.status !== "out") return false;
         if (filter === "tracked" && !row.tracked) return false;

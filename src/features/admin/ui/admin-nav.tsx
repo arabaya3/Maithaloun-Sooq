@@ -3,115 +3,115 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  LayoutDashboard,
   Bell,
+  Boxes,
+  Camera,
+  Home,
   LogOut,
-  Menu,
+  MoreHorizontal,
   Package,
+  PenLine,
+  Plus,
   Settings,
   ShoppingBag,
   Store,
-  X,
+  Truck,
+  type LucideIcon,
 } from "lucide-react";
-import { useEffect, useId, useState, type ComponentType } from "react";
+import { useState } from "react";
 
 import { logoutAction } from "@/features/admin/application/admin-actions";
 import type { AdminRole } from "@/features/admin/domain/admin-actor";
+import { Sheet } from "@/shared/ui/sheet";
 
-const links = [
-  {
-    href: "/admin",
-    label: "لوحة المتابعة",
-    match: "exact" as const,
-    Icon: LayoutDashboard,
-  },
+interface NavLink {
+  href: string;
+  label: string;
+  match: "exact" | "prefix";
+  Icon: LucideIcon;
+  ownerOnly?: boolean;
+}
+
+const primaryLinks: NavLink[] = [
+  { href: "/admin", label: "الرئيسية", match: "exact", Icon: Home },
   {
     href: "/admin/orders",
     label: "الطلبات",
-    match: "prefix" as const,
+    match: "prefix",
     Icon: ShoppingBag,
   },
+  { href: "/admin/inventory", label: "المخزون", match: "prefix", Icon: Boxes },
+];
+
+const secondaryLinks: NavLink[] = [
   {
     href: "/admin/products",
     label: "المنتجات",
-    match: "prefix" as const,
+    match: "prefix",
     Icon: Package,
+  },
+  {
+    href: "/admin/inventory/suppliers",
+    label: "الموردون",
+    match: "prefix",
+    Icon: Truck,
   },
   {
     href: "/admin/notifications",
     label: "الإشعارات",
-    match: "prefix" as const,
+    match: "prefix",
     Icon: Bell,
   },
   {
     href: "/admin/settings",
     label: "إعدادات المتجر",
-    match: "prefix" as const,
+    match: "prefix",
     Icon: Settings,
+    ownerOnly: true,
   },
 ];
 
-function isActive(pathname: string, href: string, match: "exact" | "prefix") {
-  if (match === "exact") return pathname === href;
-  return pathname === href || pathname.startsWith(`${href}/`);
+interface AddTask {
+  href: string;
+  label: string;
+  hint: string;
+  Icon: LucideIcon;
+  ownerOnly?: boolean;
 }
 
-function NavLinks({
-  pathname,
-  role,
-  onNavigate,
-}: {
-  pathname: string;
-  role: AdminRole;
-  onNavigate?: () => void;
-}) {
-  return (
-    <nav aria-label="تنقل الإدارة" className="admin-nav">
-      {links
-        .filter((link) => role === "owner" || link.href !== "/admin/settings")
-        .map((link) => {
-          const active = isActive(pathname, link.href, link.match);
-          const Icon = link.Icon;
-          return (
-            <Link
-              key={link.href}
-              href={link.href}
-              prefetch={false}
-              className="admin-nav-link"
-              aria-current={active ? "page" : undefined}
-              onClick={onNavigate}
-            >
-              <Icon size={18} aria-hidden="true" />
-              <span>{link.label}</span>
-            </Link>
-          );
-        })}
-    </nav>
-  );
+const addTasks: AddTask[] = [
+  {
+    href: "/admin/products/new",
+    label: "تصوير منتج",
+    hint: "قراءة الاسم والحجم من الصورة",
+    Icon: Camera,
+  },
+  {
+    href: "/admin/inventory/purchases/new",
+    label: "إدخال شراء يدوي",
+    hint: "فاتورة مورد تُضاف إلى المخزون",
+    Icon: PenLine,
+  },
+];
+
+function visible<T extends { ownerOnly?: boolean }>(
+  items: T[],
+  role: AdminRole,
+): T[] {
+  return items.filter((item) => !item.ownerOnly || role === "owner");
 }
 
-function NavFooter({ displayName }: { displayName: string }) {
-  return (
-    <div className="admin-nav-footer">
-      <p className="admin-nav-user">{displayName}</p>
-      <Link
-        href="/"
-        prefetch={false}
-        className="admin-nav-link admin-nav-link-secondary"
-      >
-        <Store size={18} aria-hidden="true" />
-        <span>العودة إلى المتجر</span>
-      </Link>
-      <form action={logoutAction}>
-        <button
-          type="submit"
-          className="admin-nav-link admin-nav-link-secondary"
-        >
-          <LogOut size={18} aria-hidden="true" />
-          <span>تسجيل الخروج</span>
-        </button>
-      </form>
-    </div>
+function isActive(pathname: string, link: NavLink): boolean {
+  if (link.match === "exact") return pathname === link.href;
+  if (pathname !== link.href && !pathname.startsWith(`${link.href}/`)) {
+    return false;
+  }
+  // A more specific destination (الموردون) wins over its parent (المخزون).
+  return ![...primaryLinks, ...secondaryLinks].some(
+    (other) =>
+      other.href.length > link.href.length &&
+      other.href.startsWith(`${link.href}/`) &&
+      (pathname === other.href || pathname.startsWith(`${other.href}/`)),
   );
 }
 
@@ -128,7 +128,7 @@ export function AdminBrand({ compact = false }: { compact?: boolean }) {
       <div>
         <p className="admin-sidebar-brand-title">إدارة سوق ميثلون</p>
         {!compact ? (
-          <p className="admin-sidebar-brand-subtitle">لوحة المالك</p>
+          <p className="admin-sidebar-brand-subtitle">الطلبات والمخزون</p>
         ) : null}
       </div>
     </div>
@@ -145,13 +145,45 @@ export function AdminDesktopNav({
   const pathname = usePathname();
   return (
     <div className="admin-nav-desktop">
-      <NavLinks pathname={pathname} role={role} />
-      <NavFooter displayName={displayName} />
+      <nav aria-label="تنقل الإدارة" className="admin-nav">
+        {visible([...primaryLinks, ...secondaryLinks], role).map((link) => (
+          <Link
+            key={link.href}
+            href={link.href}
+            prefetch={false}
+            className="admin-nav-link"
+            aria-current={isActive(pathname, link) ? "page" : undefined}
+          >
+            <link.Icon size={18} aria-hidden="true" />
+            <span>{link.label}</span>
+          </Link>
+        ))}
+      </nav>
+      <div className="admin-nav-footer">
+        <p className="admin-nav-user">{displayName}</p>
+        <Link
+          href="/"
+          prefetch={false}
+          className="admin-nav-link admin-nav-link-secondary"
+        >
+          <Store size={18} aria-hidden="true" />
+          <span>العودة إلى المتجر</span>
+        </Link>
+        <form action={logoutAction}>
+          <button
+            type="submit"
+            className="admin-nav-link admin-nav-link-secondary"
+          >
+            <LogOut size={18} aria-hidden="true" />
+            <span>تسجيل الخروج</span>
+          </button>
+        </form>
+      </div>
     </div>
   );
 }
 
-export function AdminMobileNav({
+export function AdminBottomNav({
   displayName,
   role,
 }: {
@@ -159,79 +191,114 @@ export function AdminMobileNav({
   role: AdminRole;
 }) {
   const pathname = usePathname();
-  const drawerId = useId();
-  const [open, setOpen] = useState(false);
-  const [navPath, setNavPath] = useState(pathname);
-  if (navPath !== pathname) {
-    setNavPath(pathname);
-    setOpen(false);
+  const [sheet, setSheet] = useState<"add" | "more" | null>(null);
+  const [sheetPath, setSheetPath] = useState(pathname);
+  if (sheetPath !== pathname) {
+    setSheetPath(pathname);
+    setSheet(null);
   }
-
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setOpen(false);
-    };
-    window.addEventListener("keydown", onKey);
-    const previous = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      window.removeEventListener("keydown", onKey);
-      document.body.style.overflow = previous;
-    };
-  }, [open]);
+  const moreActive = visible(secondaryLinks, role).some((link) =>
+    isActive(pathname, link),
+  );
 
   return (
     <>
-      <button
-        type="button"
-        className="admin-nav-menu-button"
-        aria-expanded={open}
-        aria-controls={drawerId}
-        onClick={() => setOpen((value) => !value)}
-      >
-        <Menu size={20} aria-hidden="true" />
-        <span>القائمة</span>
-      </button>
-
-      {open ? (
-        <div
-          className="admin-nav-drawer-backdrop"
-          onClick={() => setOpen(false)}
+      <nav className="admin-bottom-nav" aria-label="التنقل السفلي">
+        {primaryLinks.map((link) => (
+          <BottomLink key={link.href} link={link} pathname={pathname} />
+        ))}
+        <button
+          type="button"
+          className="admin-bottom-nav-item admin-bottom-nav-add"
+          aria-haspopup="dialog"
+          onClick={() => setSheet("add")}
         >
-          <div
-            id={drawerId}
-            className="admin-nav-drawer"
-            role="dialog"
-            aria-modal="true"
-            aria-label="قائمة الإدارة"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <div className="admin-nav-drawer-header">
-              <AdminBrand />
-              <button
-                type="button"
-                className="admin-btn admin-btn-ghost admin-btn-icon"
-                onClick={() => setOpen(false)}
-                aria-label="إغلاق"
+          <span className="admin-bottom-nav-add-mark" aria-hidden="true">
+            <Plus size={22} />
+          </span>
+          <span>إضافة</span>
+        </button>
+        <button
+          type="button"
+          className="admin-bottom-nav-item"
+          aria-haspopup="dialog"
+          data-active={moreActive || undefined}
+          onClick={() => setSheet("more")}
+        >
+          <MoreHorizontal size={22} aria-hidden="true" />
+          <span>المزيد</span>
+        </button>
+      </nav>
+
+      <Sheet
+        open={sheet === "add"}
+        onClose={() => setSheet(null)}
+        title="ماذا تريدين أن تضيفي؟"
+      >
+        <ul className="admin-task-sheet">
+          {visible(addTasks, role).map((task) => (
+            <li key={task.href}>
+              <Link href={task.href} prefetch={false}>
+                <task.Icon size={22} aria-hidden="true" />
+                <span>
+                  <strong>{task.label}</strong>
+                  <small>{task.hint}</small>
+                </span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </Sheet>
+
+      <Sheet
+        open={sheet === "more"}
+        onClose={() => setSheet(null)}
+        title="المزيد"
+      >
+        <ul className="admin-more-sheet">
+          {visible(secondaryLinks, role).map((link) => (
+            <li key={link.href}>
+              <Link
+                href={link.href}
+                prefetch={false}
+                aria-current={isActive(pathname, link) ? "page" : undefined}
               >
-                <X size={20} aria-hidden="true" />
+                <link.Icon size={20} aria-hidden="true" />
+                <span>{link.label}</span>
+              </Link>
+            </li>
+          ))}
+          <li>
+            <Link href="/" prefetch={false}>
+              <Store size={20} aria-hidden="true" />
+              <span>العودة إلى المتجر</span>
+            </Link>
+          </li>
+          <li>
+            <form action={logoutAction}>
+              <button type="submit">
+                <LogOut size={20} aria-hidden="true" />
+                <span>تسجيل الخروج</span>
               </button>
-            </div>
-            <NavLinks
-              pathname={pathname}
-              role={role}
-              onNavigate={() => setOpen(false)}
-            />
-            <NavFooter displayName={displayName} />
-          </div>
-        </div>
-      ) : null}
+            </form>
+          </li>
+        </ul>
+        <p className="admin-more-user">{displayName}</p>
+      </Sheet>
     </>
   );
 }
 
-export type AdminNavIcon = ComponentType<{
-  size?: number;
-  "aria-hidden"?: boolean | "true";
-}>;
+function BottomLink({ link, pathname }: { link: NavLink; pathname: string }) {
+  return (
+    <Link
+      href={link.href}
+      prefetch={false}
+      className="admin-bottom-nav-item"
+      aria-current={isActive(pathname, link) ? "page" : undefined}
+    >
+      <link.Icon size={22} aria-hidden="true" />
+      <span>{link.label}</span>
+    </Link>
+  );
+}

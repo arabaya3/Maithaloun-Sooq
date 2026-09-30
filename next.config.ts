@@ -11,6 +11,7 @@ const withSerwist = withSerwistInit({
 const nextConfig: NextConfig = {
   poweredByHeader: false,
   reactStrictMode: true,
+  devIndicators: false,
   images: {
     remotePatterns: [
       {

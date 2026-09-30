@@ -1,6 +1,10 @@
-import { AdminBrand, AdminDesktopNav, AdminMobileNav } from "./admin-nav";
-import { AdminTopbar } from "./admin-topbar";
+import Link from "next/link";
+import { Bell } from "lucide-react";
+
 import type { AdminRole } from "@/features/admin/domain/admin-actor";
+
+import { AdminBottomNav, AdminBrand, AdminDesktopNav } from "./admin-nav";
+import { AdminTopbar } from "./admin-topbar";
 
 export function AdminShell({
   displayName,
@@ -20,11 +24,19 @@ export function AdminShell({
       <div className="admin-main">
         <header className="admin-mobile-header">
           <AdminBrand compact />
-          <AdminMobileNav displayName={displayName} role={role} />
+          <Link
+            href="/admin/notifications"
+            prefetch={false}
+            className="admin-mobile-header-action"
+            aria-label="الإشعارات"
+          >
+            <Bell size={20} aria-hidden="true" />
+          </Link>
         </header>
         <AdminTopbar />
         <div className="admin-body">{children}</div>
       </div>
+      <AdminBottomNav displayName={displayName} role={role} />
     </div>
   );
 }

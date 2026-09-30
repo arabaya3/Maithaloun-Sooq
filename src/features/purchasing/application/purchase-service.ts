@@ -40,6 +40,7 @@ import {
   normalizeArabicText,
   normalizeReference,
 } from "@/shared/lib/normalize-arabic";
+import { todayInStoreZone } from "@/shared/lib/store-time";
 import * as schema from "@/server/db/schema";
 
 export type PurchaseErrorCode =
@@ -148,12 +149,6 @@ interface ResolvedVariant {
   sku: string | null;
   barcode: string | null;
   priceAgorot: number;
-}
-
-function todayInStoreZone(now = new Date()): string {
-  return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Hebron" }).format(
-    now,
-  );
 }
 
 function calculate(data: PurchaseInput): {

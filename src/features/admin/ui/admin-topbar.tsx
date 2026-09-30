@@ -11,12 +11,19 @@ const titles: Record<string, string> = {
   "/admin/products/new": "منتج جديد",
   "/admin/settings": "إعدادات المتجر",
   "/admin/notifications": "الإشعارات",
+  "/admin/inventory": "المخزون والمشتريات",
+  "/admin/inventory/stock": "قائمة المخزون",
+  "/admin/inventory/purchases": "فواتير الشراء",
+  "/admin/inventory/purchases/new": "إدخال شراء يدوي",
+  "/admin/inventory/suppliers": "الموردون",
 };
 
 function resolveTitle(pathname: string): string {
   if (titles[pathname]) return titles[pathname];
   if (pathname.startsWith("/admin/orders/")) return "تفاصيل الطلب";
   if (pathname.startsWith("/admin/products/")) return "تعديل المنتج";
+  if (pathname.startsWith("/admin/inventory/stock/")) return "تفاصيل المخزون";
+  if (pathname.startsWith("/admin/inventory/purchases/")) return "فاتورة شراء";
   return "إدارة سوق ميثلون";
 }
 

@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { ADMIN_MANIFEST_PATH } from "@/features/pwa/admin-manifest";
 
 import "@/features/admin/ui/admin.css";
+import "@/features/admin/ui/admin-operations.css";
 
 export const dynamic = "force-dynamic";
 

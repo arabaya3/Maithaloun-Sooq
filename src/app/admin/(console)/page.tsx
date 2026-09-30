@@ -3,6 +3,7 @@ import Link from "next/link";
 import {
   AlertTriangle,
   Bike,
+  Boxes,
   Camera,
   CheckCircle2,
   ClipboardList,
@@ -134,6 +135,13 @@ export default async function AdminDashboardPage() {
             <span>
               <strong>تصوير منتج جديد</strong>
               <small>قراءة الاسم والحجم تلقائياً</small>
+            </span>
+          </Link>
+          <Link className="admin-task-secondary" href="/admin/inventory">
+            <Boxes size={22} aria-hidden="true" />
+            <span>
+              <strong>المخزون والمشتريات</strong>
+              <small>فواتير الشراء والنواقص</small>
             </span>
           </Link>
           <Link
