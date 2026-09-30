@@ -7,6 +7,7 @@ import {
   Camera,
   CheckCircle2,
   ClipboardList,
+  Mic,
   PackagePlus,
   Sparkles,
   Truck,
@@ -135,6 +136,13 @@ export default async function AdminDashboardPage() {
             <span>
               <strong>تصوير منتج جديد</strong>
               <small>قراءة الاسم والحجم تلقائياً</small>
+            </span>
+          </Link>
+          <Link className="admin-task-secondary" href="/admin/voice">
+            <Mic size={22} aria-hidden="true" />
+            <span>
+              <strong>سجّل عملية بالصوت</strong>
+              <small>بيع، دفعة، أو سؤال عن الربح والديون</small>
             </span>
           </Link>
           <Link className="admin-task-secondary" href="/admin/inventory">

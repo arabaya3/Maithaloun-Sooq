@@ -73,7 +73,7 @@ export function SaleForm({
   initialDraft: SaleDraft;
   source?: SaleSource;
   initialReview?: { preview: SalePreview; payload: SalePayload };
-  onSaved?: (result: SalePostResult) => void;
+  onSaved?: (result: SalePostResult, edited: boolean) => void;
 }) {
   const [draft, setDraft] = useState(initialDraft);
   const [errors, setErrors] = useState<SaleDraftErrors>({});
@@ -88,6 +88,7 @@ export function SaleForm({
   );
   const [pending, startTransition] = useTransition();
   const [dirty, setDirty] = useState(Boolean(initialReview));
+  const [edited, setEdited] = useState(false);
   useUnsavedChanges(dirty && !posted);
 
   const runningTotal = useMemo(
@@ -106,6 +107,7 @@ export function SaleForm({
     setDraft((current) => ({ ...current, ...patch }));
     setErrors({});
     setDirty(true);
+    setEdited(true);
   }
 
   function updateLine(key: string, patch: Partial<SaleLineDraft>) {
@@ -153,7 +155,7 @@ export function SaleForm({
         return;
       }
       setPosted(response.result);
-      onSaved?.(response.result);
+      onSaved?.(response.result, edited);
     });
   }
 

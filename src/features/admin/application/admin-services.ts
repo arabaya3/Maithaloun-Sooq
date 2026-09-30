@@ -7,6 +7,8 @@ import { ReportService } from "@/features/reports/application/report-service";
 import { CustomerService } from "@/features/sales/application/customer-service";
 import { SalesService } from "@/features/sales/application/sales-service";
 import { getInsightGenerator } from "@/server/ai/insight-generator";
+import { VoiceService } from "@/features/voice/application/voice-service";
+import { getVoiceInterpreter } from "@/server/ai/voice-interpreter";
 import { db } from "@/server/db/db";
 import { getPrivateDocumentStore } from "@/server/storage/private-documents";
 
@@ -59,4 +61,13 @@ export const scheduledJobs = new ScheduledJobs(
   db,
   reminderService,
   summaryService,
+);
+export const voiceService = new VoiceService(
+  db,
+  getVoiceInterpreter,
+  inventoryService,
+  salesService,
+  customerService,
+  supplierService,
+  reportService,
 );

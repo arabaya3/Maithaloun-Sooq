@@ -1185,3 +1185,84 @@
   padding-inline-start: 1.1rem;
   list-style: disc;
 }
+
+/* Voice assistant ------------------------------------------------------------ */
+
+.admin-voice {
+  display: grid;
+  justify-items: center;
+  gap: 0.85rem;
+}
+
+.admin-voice > .admin-form {
+  justify-self: stretch;
+}
+
+.admin-voice-mic {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 5.5rem;
+  height: 5.5rem;
+  border: 0;
+  border-radius: 999px;
+  color: #fff;
+  background: var(--admin-forest);
+  cursor: pointer;
+}
+
+.admin-voice-mic[data-listening] {
+  background: var(--admin-danger);
+  box-shadow: 0 0 0 0.5rem
+    color-mix(in srgb, var(--admin-danger) 18%, transparent);
+}
+
+.admin-voice-mic:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+.admin-voice-status {
+  font-weight: 650;
+  text-align: center;
+}
+
+.admin-voice-heard {
+  padding: 0.6rem 0.8rem;
+  border-inline-start: 3px solid var(--admin-forest);
+  background: var(--admin-surface);
+  font-size: 0.9375rem;
+}
+
+.admin-voice-question {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.admin-suggestions-plain,
+.admin-voice-examples {
+  display: grid;
+  gap: 0.45rem;
+  margin-bottom: 0.75rem;
+}
+
+.admin-suggestions-plain .admin-suggestion,
+.admin-voice-examples .admin-suggestion {
+  width: 100%;
+}
+
+.admin-voice-answer {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.admin-voice-answer > svg {
+  color: var(--admin-success);
+}
+
+.admin-voice-answer > p {
+  font-size: 1.0625rem;
+  font-weight: 650;
+}

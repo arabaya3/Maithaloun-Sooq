@@ -10,6 +10,7 @@ import {
   HandCoins,
   Home,
   LogOut,
+  Mic,
   MoreHorizontal,
   Package,
   PenLine,
@@ -115,6 +116,12 @@ const addTasks: AddTask[] = [
     label: "تصوير منتج",
     hint: "قراءة الاسم والحجم من الصورة",
     Icon: Camera,
+  },
+  {
+    href: "/admin/voice",
+    label: "تسجيل عملية بالصوت",
+    hint: "بيع، دفعة، أو سؤال عن الربح والديون",
+    Icon: Mic,
   },
   {
     href: "/admin/sales/new",
