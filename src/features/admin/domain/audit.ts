@@ -12,6 +12,12 @@ export const auditActionTypes = [
   "product_specification_remove",
   "service_area_update",
   "order_status_change",
+  "stock_adjustment",
+  "reorder_threshold_update",
+  "purchase_post",
+  "supplier_create",
+  "supplier_update",
+  "supplier_payment",
 ] as const;
 
 export type AuditActionType = (typeof auditActionTypes)[number];
@@ -23,6 +29,9 @@ export const auditEntityTypes = [
   "product_specification",
   "service_area",
   "order",
+  "inventory_item",
+  "purchase_invoice",
+  "supplier",
 ] as const;
 
 export type AuditEntityType = (typeof auditEntityTypes)[number];

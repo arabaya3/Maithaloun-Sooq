@@ -8,6 +8,9 @@ import { AdminDeliveryService } from "./admin-delivery-service";
 import { AdminOrderService } from "./admin-order-service";
 import { AdminNotificationService } from "../notifications/notification-service";
 import { AdminStaffService } from "./admin-staff-service";
+import { InventoryService } from "@/features/inventory/application/inventory-service";
+import { PurchaseService } from "@/features/purchasing/application/purchase-service";
+import { SupplierService } from "@/features/purchasing/application/supplier-service";
 
 export const adminOrderService = new AdminOrderService(db);
 export const adminCatalogService = new AdminCatalogService(db);
@@ -15,3 +18,6 @@ export const adminDeliveryService = new AdminDeliveryService(db);
 export const adminDashboardService = new AdminDashboardService(db);
 export const adminNotificationService = new AdminNotificationService(db);
 export const adminStaffService = new AdminStaffService(db);
+export const inventoryService = new InventoryService(db);
+export const purchaseService = new PurchaseService(db);
+export const supplierService = new SupplierService(db);

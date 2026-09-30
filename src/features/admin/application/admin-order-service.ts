@@ -22,6 +22,11 @@ import {
   assertSafeAuditState,
   redactOrderStatusAuditState,
 } from "@/features/admin/domain/audit";
+import { applyOrderInventoryTransition } from "@/features/inventory/application/order-inventory";
+import {
+  InventoryError,
+  getDefaultLocationId,
+} from "@/features/inventory/application/stock-ledger";
 import {
   buildWhatsAppContactUrl,
   formatWhatsAppDisplay,
@@ -42,7 +47,9 @@ export class AdminOrderError extends Error {
       | "not_found"
       | "invalid_transition"
       | "concurrency_conflict"
-      | "invalid_input",
+      | "invalid_input"
+      | "insufficient_stock",
+    readonly detail?: string,
   ) {
     super(code);
     this.name = "AdminOrderError";
@@ -92,6 +99,11 @@ export interface AdminOrderDetail {
     quantity: number;
     unitPriceAgorot: number;
     lineSubtotalAgorot: number;
+    stock: {
+      tracked: boolean;
+      availableMilli: number | null;
+      reservation: "active" | "released" | "fulfilled" | null;
+    };
   }>;
   itemsSubtotalAgorot: number;
   deliveryFeeAgorot: number | null;
@@ -291,6 +303,7 @@ export class AdminOrderService {
         ),
     ]);
 
+    const stockByItem = await this.loadItemStock(order.id);
     const customerName = order.customerFullName ?? order.customerName;
     const deliveryAddress = order.deliveryAddress ?? order.address;
     const whatsappPhoneE164 =
@@ -323,6 +336,11 @@ export class AdminOrderService {
         quantity: item.quantity,
         unitPriceAgorot: item.unitPriceAgorot,
         lineSubtotalAgorot: item.lineSubtotalAgorot,
+        stock: stockByItem.get(item.id) ?? {
+          tracked: false,
+          availableMilli: null,
+          reservation: null,
+        },
       })),
       itemsSubtotalAgorot: order.itemsSubtotalAgorot,
       deliveryFeeAgorot: order.deliveryFeeAgorot,
@@ -355,6 +373,36 @@ export class AdminOrderService {
     const reason = input.reason?.trim() ?? "";
     if (reason.length > 180) throw new AdminOrderError("invalid_input");
 
+    try {
+      await this.applyStatusChange(actor, { ...input, reason });
+    } catch (error) {
+      if (error instanceof InventoryError) {
+        if (error.code === "insufficient_stock") {
+          throw new AdminOrderError("insufficient_stock", error.detail);
+        }
+        throw new AdminOrderError("invalid_input");
+      }
+      throw error;
+    }
+
+    const detail = await this.getByPublicReference(
+      actor,
+      input.publicReference,
+    );
+    if (!detail) throw new AdminOrderError("not_found");
+    return detail;
+  }
+
+  private async applyStatusChange(
+    actor: AdminActor,
+    input: {
+      publicReference: string;
+      nextStatus: OrderStatus;
+      expectedVersion: number;
+      reason: string;
+    },
+  ): Promise<void> {
+    const reason = input.reason;
     await this.database.transaction(async (transaction) => {
       const [order] = await transaction
         .select()
@@ -396,6 +444,13 @@ export class AdminOrderService {
         createdAt: now,
       });
 
+      await applyOrderInventoryTransition(transaction, {
+        orderId: order.id,
+        nextStatus: input.nextStatus,
+        actorId: actor.id,
+        at: now,
+      });
+
       const beforeState = redactOrderStatusAuditState(order);
       const afterState = redactOrderStatusAuditState({
         publicReference: order.publicReference,
@@ -414,13 +469,48 @@ export class AdminOrderService {
         createdAt: now,
       });
     });
+  }
 
-    const detail = await this.getByPublicReference(
-      actor,
-      input.publicReference,
+  private async loadItemStock(orderId: string) {
+    const locationId = await getDefaultLocationId(this.database);
+    const rows = await this.database
+      .select({
+        orderItemId: schema.orderItems.id,
+        onHandMilli: schema.inventoryItems.onHandMilli,
+        reservedMilli: schema.inventoryItems.reservedMilli,
+        inventoryItemId: schema.inventoryItems.id,
+        reservation: schema.stockReservations.status,
+      })
+      .from(schema.orderItems)
+      .leftJoin(
+        schema.productVariants,
+        eq(schema.productVariants.domainId, schema.orderItems.variantDomainId),
+      )
+      .leftJoin(
+        schema.inventoryItems,
+        and(
+          eq(schema.inventoryItems.variantId, schema.productVariants.id),
+          eq(schema.inventoryItems.locationId, locationId),
+        ),
+      )
+      .leftJoin(
+        schema.stockReservations,
+        eq(schema.stockReservations.orderItemId, schema.orderItems.id),
+      )
+      .where(eq(schema.orderItems.orderId, orderId));
+    return new Map(
+      rows.map((row) => [
+        row.orderItemId,
+        {
+          tracked: row.inventoryItemId !== null,
+          availableMilli:
+            row.onHandMilli === null || row.reservedMilli === null
+              ? null
+              : row.onHandMilli - row.reservedMilli,
+          reservation: row.reservation,
+        },
+      ]),
     );
-    if (!detail) throw new AdminOrderError("not_found");
-    return detail;
   }
 
   private buildFilters(query: AdminOrderListQuery) {

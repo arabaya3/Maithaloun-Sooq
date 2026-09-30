@@ -10,7 +10,11 @@ function shouldApplyMigrations(databaseUrl: string): boolean {
   if (["127.0.0.1", "localhost"].includes(hostname)) {
     return false;
   }
-  return Boolean(process.env.VERCEL) || process.env.APPLY_DB_MIGRATIONS === "1";
+  // Preview builds must never migrate the database they were pointed at.
+  return (
+    process.env.VERCEL_ENV === "production" ||
+    process.env.APPLY_DB_MIGRATIONS === "1"
+  );
 }
 
 /** DDL needs session mode; transaction pooler (:6543) often times out on ALTER. */

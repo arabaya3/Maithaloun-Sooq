@@ -2591,3 +2591,14 @@ body:has(.admin-login-page) {
   color: var(--admin-muted);
   font-size: 0.8125rem;
 }
+
+.admin-stock-note {
+  display: block;
+  color: var(--admin-muted);
+  font-size: 0.8125rem;
+}
+
+.admin-stock-note--short {
+  color: var(--admin-danger);
+  font-weight: 600;
+}
