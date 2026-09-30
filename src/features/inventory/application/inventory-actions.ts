@@ -1,0 +1,289 @@
+"use server";
+
+import { randomUUID } from "node:crypto";
+
+import { revalidatePath } from "next/cache";
+
+import {
+  adminCatalogService,
+  extractionService,
+  inventoryService,
+  priceReviewService,
+  purchaseService,
+  supplierService,
+} from "@/features/admin/application/admin-services";
+import { requireTrustedAdminMutation } from "@/features/admin/auth/admin-session";
+import {
+  mapExtractionError,
+  mapInventoryError,
+  mapPurchaseError,
+  mapSupplierError,
+} from "@/features/inventory/application/inventory-action-errors";
+import { parseQuantityToMilli } from "@/features/inventory/domain/quantity";
+import {
+  adjustmentReasons,
+  stockUnits,
+  type AdjustmentReason,
+  type StockUnit,
+} from "@/features/inventory/domain/stock-constants";
+import type {
+  PurchaseInput,
+  PurchasePostResult,
+  PurchasePreview,
+} from "@/features/purchasing/application/purchase-service";
+import { toLatinDigits } from "@/shared/lib/digits";
+import { parseIlsToAgorot } from "@/shared/lib/parse-ils";
+
+export type FormState = { ok: boolean; message: string } | null;
+export type ActionResult<T> =
+  ({ ok: true } & T) | { ok: false; message: string };
+
+function text(formData: FormData, name: string): string {
+  return String(formData.get(name) ?? "").trim();
+}
+
+function money(formData: FormData, name: string): number | null {
+  const raw = toLatinDigits(text(formData, name));
+  return raw ? parseIlsToAgorot(raw) : null;
+}
+
+function revalidateInventory() {
+  revalidatePath("/admin");
+  revalidatePath("/admin/inventory", "layout");
+}
+
+export async function adjustStockAction(
+  _previous: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const actor = await requireTrustedAdminMutation();
+  const reason = text(formData, "reason");
+  const unit = text(formData, "unit");
+  const quantityMilli = parseQuantityToMilli(text(formData, "quantity"));
+  const costText = text(formData, "unitCost");
+  const unitCostAgorot = money(formData, "unitCost");
+  if (
+    !(adjustmentReasons as readonly string[]).includes(reason) ||
+    quantityMilli === null ||
+    (costText && unitCostAgorot === null)
+  ) {
+    return { ok: false, message: "أدخلي كمية وسعراً صالحين." };
+  }
+
+  try {
+    await inventoryService.adjust(actor, {
+      idempotencyKey: text(formData, "idempotencyKey"),
+      variantId: text(formData, "variantId"),
+      reason: reason as AdjustmentReason,
+      quantityMilli,
+      unit: (stockUnits as readonly string[]).includes(unit)
+        ? (unit as StockUnit)
+        : undefined,
+      unitCostAgorot: unitCostAgorot ?? undefined,
+      note: text(formData, "note") || undefined,
+    });
+  } catch (error) {
+    return { ok: false, message: mapInventoryError(error) };
+  }
+  revalidateInventory();
+  return { ok: true, message: "تم حفظ تعديل المخزون." };
+}
+
+export async function setReorderThresholdAction(
+  _previous: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const actor = await requireTrustedAdminMutation();
+  const raw = text(formData, "threshold");
+  const thresholdMilli = raw ? parseQuantityToMilli(raw) : null;
+  if (raw && thresholdMilli === null) {
+    return { ok: false, message: "أدخلي حد تنبيه صالحاً أو اتركيه فارغاً." };
+  }
+  try {
+    await inventoryService.setReorderThreshold(actor, {
+      variantId: text(formData, "variantId"),
+      thresholdMilli,
+    });
+  } catch (error) {
+    return { ok: false, message: mapInventoryError(error) };
+  }
+  revalidateInventory();
+  return { ok: true, message: "تم حفظ حد التنبيه." };
+}
+
+export async function previewPurchaseAction(
+  input: PurchaseInput,
+): Promise<ActionResult<{ preview: PurchasePreview }>> {
+  const actor = await requireTrustedAdminMutation();
+  try {
+    return { ok: true, preview: await purchaseService.preview(actor, input) };
+  } catch (error) {
+    return { ok: false, message: mapPurchaseError(error) };
+  }
+}
+
+export async function postPurchaseAction(
+  input: PurchaseInput,
+): Promise<ActionResult<{ result: PurchasePostResult }>> {
+  const actor = await requireTrustedAdminMutation();
+  try {
+    const result = await purchaseService.post(actor, input);
+    revalidateInventory();
+    return { ok: true, result };
+  } catch (error) {
+    return { ok: false, message: mapPurchaseError(error) };
+  }
+}
+
+export async function createSupplierAction(
+  _previous: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const actor = await requireTrustedAdminMutation();
+  try {
+    await supplierService.create(actor, {
+      nameAr: text(formData, "nameAr"),
+      phone: text(formData, "phone") || undefined,
+      notes: text(formData, "notes") || undefined,
+    });
+  } catch (error) {
+    return { ok: false, message: mapSupplierError(error) };
+  }
+  revalidateInventory();
+  return { ok: true, message: "تمت إضافة المورد." };
+}
+
+export async function recordSupplierPaymentAction(
+  _previous: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const actor = await requireTrustedAdminMutation();
+  const amountAgorot = money(formData, "amount");
+  if (amountAgorot === null || amountAgorot <= 0) {
+    return { ok: false, message: "أدخلي مبلغاً صالحاً بالشيكل." };
+  }
+  try {
+    await supplierService.recordPayment(actor, {
+      supplierId: text(formData, "supplierId"),
+      amountAgorot,
+      note: text(formData, "note") || undefined,
+      idempotencyKey: text(formData, "idempotencyKey"),
+    });
+  } catch (error) {
+    return { ok: false, message: mapSupplierError(error) };
+  }
+  revalidateInventory();
+  return { ok: true, message: "تم تسجيل الدفعة للمورد." };
+}
+
+export async function createSpreadsheetJobAction(input: {
+  documentId: string;
+  sheetName: string;
+  headerRow: number;
+  mapping: Record<string, number | undefined>;
+  idempotencyKey: string;
+}): Promise<ActionResult<{ jobId: string }>> {
+  const actor = await requireTrustedAdminMutation();
+  try {
+    const job = await extractionService.createSpreadsheetJob(actor, input);
+    revalidateInventory();
+    return { ok: true, jobId: job.jobId };
+  } catch (error) {
+    return { ok: false, message: mapExtractionError(error) };
+  }
+}
+
+export async function confirmExtractionAction(
+  jobId: string,
+  input: PurchaseInput,
+): Promise<ActionResult<{ result: PurchasePostResult }>> {
+  const actor = await requireTrustedAdminMutation();
+  try {
+    const result = await extractionService.confirm(actor, jobId, input);
+    revalidateInventory();
+    return { ok: true, result };
+  } catch (error) {
+    return { ok: false, message: mapExtractionError(error) };
+  }
+}
+
+export async function discardExtractionAction(
+  _previous: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const actor = await requireTrustedAdminMutation();
+  try {
+    await extractionService.discard(actor, text(formData, "jobId"));
+  } catch (error) {
+    return { ok: false, message: mapExtractionError(error) };
+  }
+  revalidateInventory();
+  return { ok: true, message: "تم تجاهل هذه المراجعة. لم يتغيّر المخزون." };
+}
+
+export async function createProductForLineAction(input: {
+  nameAr: string;
+  priceIls: string;
+}): Promise<ActionResult<{ variant: { variantId: string; name: string } }>> {
+  const actor = await requireTrustedAdminMutation();
+  const priceAgorot = parseIlsToAgorot(toLatinDigits(input.priceIls).trim());
+  if (priceAgorot === null || priceAgorot <= 0) {
+    return { ok: false, message: "أدخلي سعر بيع صالحاً بالشيكل." };
+  }
+  const domainId = `new-${randomUUID().slice(0, 8)}`;
+  try {
+    const product = await adminCatalogService.create(actor, {
+      domainId,
+      slug: domainId,
+      nameAr: input.nameAr.trim(),
+      priceAgorot,
+      categoryId: "home",
+      availability: "unavailable",
+      sortOrder: 100,
+      detailsStatus: "placeholder",
+      placeholderVariant: "general-cleaner",
+    });
+    revalidatePath("/admin/products");
+    return {
+      ok: true,
+      variant: { variantId: product.defaultVariantId, name: product.nameAr },
+    };
+  } catch {
+    return { ok: false, message: "تعذّر إنشاء المنتج. راجعي الاسم والسعر." };
+  }
+}
+
+export async function decidePriceReviewAction(
+  _previous: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const actor = await requireTrustedAdminMutation();
+  const decision = text(formData, "decision");
+  if (decision !== "keep" && decision !== "later" && decision !== "change") {
+    return { ok: false, message: "اختاري إجراءً." };
+  }
+  const newPriceAgorot =
+    decision === "change" ? money(formData, "newPrice") : null;
+  if (
+    decision === "change" &&
+    (newPriceAgorot === null || newPriceAgorot <= 0)
+  ) {
+    return { ok: false, message: "أدخلي سعر بيع صالحاً بالشيكل." };
+  }
+  try {
+    const { productSlug } = await priceReviewService.decide(actor, {
+      id: text(formData, "id"),
+      action: decision,
+      newPriceAgorot: newPriceAgorot ?? undefined,
+    });
+    if (productSlug) {
+      revalidatePath("/");
+      revalidatePath(`/products/${productSlug}`);
+      revalidatePath("/admin/products");
+    }
+  } catch (error) {
+    return { ok: false, message: mapInventoryError(error) };
+  }
+  revalidateInventory();
+  return { ok: true, message: "تم حفظ القرار." };
+}

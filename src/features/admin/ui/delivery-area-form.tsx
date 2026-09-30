@@ -40,7 +40,7 @@ export function DeliveryAreaForm({ area }: { area: ServiceArea }) {
       />
       <fieldset>
         <legend>تكلفة التوصيل</legend>
-        <label>
+        <label className="admin-area-choice">
           <input
             type="radio"
             name="feeMode"
@@ -49,7 +49,7 @@ export function DeliveryAreaForm({ area }: { area: ServiceArea }) {
           />
           مبلغ معروف
         </label>
-        <label>
+        <label className="admin-area-choice">
           <input
             type="radio"
             name="feeMode"
@@ -79,7 +79,11 @@ export function DeliveryAreaForm({ area }: { area: ServiceArea }) {
           {state.message}
         </p>
       ) : null}
-      <button type="submit" disabled={pending}>
+      <button
+        type="submit"
+        className="admin-btn admin-btn-secondary"
+        disabled={pending}
+      >
         {pending ? "جارٍ الحفظ…" : "حفظ المنطقة"}
       </button>
     </form>

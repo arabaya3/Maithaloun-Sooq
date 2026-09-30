@@ -25,6 +25,9 @@
 !/.cursor/rules/
 !/.cursor/rules/**
 
+# local private documents (development only)
+/.local-documents/
+
 # environment
 .env*
 !.env.example

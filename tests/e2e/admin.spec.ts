@@ -66,37 +66,33 @@ async function restoreCatalog() {
   });
 }
 
-async function openAdminNav(page: Page) {
-  const menu = page.getByRole("button", { name: "القائمة" });
-  if (await menu.isVisible()) {
-    await menu.click();
-    await expect(
-      page.getByRole("dialog", { name: "قائمة الإدارة" }),
-    ).toBeVisible();
-  }
+async function openMoreSheet(page: Page) {
+  await page
+    .getByRole("navigation", { name: "التنقل السفلي" })
+    .getByRole("button", { name: "المزيد" })
+    .click();
+  const sheet = page.getByRole("dialog", { name: "المزيد" });
+  await expect(sheet).toBeVisible();
+  return sheet;
 }
 
 async function goAdminSection(page: Page, name: string) {
-  const menu = page.getByRole("button", { name: "القائمة" });
-  if (await menu.isVisible()) {
-    await openAdminNav(page);
+  const bottomNav = page.getByRole("navigation", { name: "التنقل السفلي" });
+  if (await bottomNav.isVisible()) {
+    const direct = bottomNav.getByRole("link", { name, exact: true });
+    if ((await direct.count()) > 0) {
+      await direct.click();
+    } else {
+      const sheet = await openMoreSheet(page);
+      await sheet.getByRole("link", { name, exact: true }).click();
+    }
+  } else {
     await page
-      .getByRole("dialog", { name: "قائمة الإدارة" })
+      .locator(".admin-sidebar")
       .getByRole("link", { name, exact: true })
       .click();
-  } else {
-    await page.getByRole("link", { name, exact: true }).click();
   }
-  const headings: Record<string, string | RegExp> = {
-    "لوحة المتابعة": "لوحة المتابعة",
-    الطلبات: "الطلبات",
-    المنتجات: "المنتجات",
-    "إعدادات المتجر": "إعدادات المتجر",
-  };
-  const heading = headings[name] ?? name;
-  await expect(
-    page.getByRole("heading", { name: heading, level: 1 }),
-  ).toBeVisible({
+  await expect(page.getByRole("heading", { name, level: 1 })).toBeVisible({
     timeout: 15_000,
   });
 }
@@ -154,7 +150,9 @@ test("admin authentication, operations, and privacy controls", async ({
   );
 
   await login(page);
-  await expect(page.getByText("طلبات جديدة")).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: /الطلبات الجديدة/ }).first(),
+  ).toBeVisible();
   await expect(
     page.getByRole("heading", { name: "طلبات تحتاج إجراء" }),
   ).toBeVisible();
@@ -220,6 +218,7 @@ test("admin authentication, operations, and privacy controls", async ({
 
   await goAdminSection(page, "المنتجات");
   await page.getByRole("link", { name: "إضافة منتج" }).click();
+  await page.getByRole("link", { name: "إدخال المنتج يدوياً" }).click();
   await expect(
     page.getByText("هذا المنتج له أكثر من حجم أو وزن"),
   ).toBeVisible();
@@ -245,6 +244,7 @@ test("admin authentication, operations, and privacy controls", async ({
 
   await goAdminSection(page, "المنتجات");
   await page.getByRole("link", { name: "إضافة منتج" }).click();
+  await page.getByRole("link", { name: "إدخال المنتج يدوياً" }).click();
   await page.getByRole("checkbox", { name: /أكثر من حجم أو وزن/ }).check();
   await expect(
     page.getByRole("heading", { name: "المعلومات الأساسية" }),
@@ -346,6 +346,11 @@ test("admin authentication, operations, and privacy controls", async ({
   });
   await expect(page.getByText("الاسم الكامل")).toBeVisible();
   await expect(page.getByText("عميل تجريبي")).toBeVisible();
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth - window.innerWidth,
+    ),
+  ).toBeLessThanOrEqual(1);
   const whatsappLink = page.getByRole("link", { name: "تواصل عبر واتساب" });
   await expect(whatsappLink).toBeVisible();
   await expect(whatsappLink).toHaveAttribute(
@@ -378,11 +383,8 @@ test("admin authentication, operations, and privacy controls", async ({
     page.getByText("هذه الحالة نهائية ولا يمكن تغييرها."),
   ).toBeVisible();
 
-  await openAdminNav(page);
-  await page
-    .getByRole("dialog", { name: "قائمة الإدارة" })
-    .getByRole("button", { name: "تسجيل الخروج" })
-    .click({ force: true });
+  const moreSheet = await openMoreSheet(page);
+  await moreSheet.getByRole("button", { name: "تسجيل الخروج" }).click();
   await expect(
     page.getByRole("heading", { name: "دخول إدارة سوق ميثلون" }),
   ).toBeVisible();

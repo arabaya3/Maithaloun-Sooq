@@ -2,7 +2,10 @@ import type { Metadata } from "next";
 import { connection } from "next/server";
 import { redirect } from "next/navigation";
 
-import { adminDeliveryService } from "@/features/admin/application/admin-services";
+import {
+  adminDeliveryService,
+  summaryService,
+} from "@/features/admin/application/admin-services";
 import { requireAdminSession } from "@/features/admin/auth/admin-session";
 import { DeliveryAreaForm } from "@/features/admin/ui/delivery-area-form";
 import {
@@ -13,6 +16,7 @@ import {
 } from "@/features/delivery/delivery-policy";
 import { formatIls } from "@/shared/lib/format-currency";
 import { OperatorAccountForm } from "@/features/admin/ui/operator-account-form";
+import { SummaryFrequencyForm } from "@/features/reminders/ui/reminder-controls";
 
 export const metadata: Metadata = {
   title: "إعدادات المتجر",
@@ -23,6 +27,7 @@ export default async function AdminSettingsPage() {
   const actor = await requireAdminSession();
   if (actor.role !== "owner") redirect("/admin");
   const areas = await adminDeliveryService.list(actor);
+  const summaryFrequency = await summaryService.getFrequency();
   const active = areas.find((area) => area.code === ACTIVE_SERVICE_AREA_CODE);
   const historical = areas.filter(
     (area) => area.code !== ACTIVE_SERVICE_AREA_CODE,
@@ -63,6 +68,18 @@ export default async function AdminSettingsPage() {
           هذه القيم معتمدة من خادم التطبيق عند إنشاء الطلبات. لا تُحسب من واجهة
           الزبون.
         </p>
+      </section>
+
+      <section
+        className="admin-panel"
+        aria-labelledby="summary-frequency-title"
+      >
+        <h2 id="summary-frequency-title">ملخص الأعمال الدوري</h2>
+        <p className="admin-muted">
+          ملخص تلقائي للمبيعات والربح والمخزون يُحفظ في أرشيف التقارير ويصل
+          كإشعار.
+        </p>
+        <SummaryFrequencyForm frequency={summaryFrequency} />
       </section>
 
       <section className="admin-panel" aria-labelledby="operator-account-title">

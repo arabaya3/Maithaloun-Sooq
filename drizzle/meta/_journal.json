@@ -50,6 +50,34 @@
       "when": 1790677945934,
       "tag": "0006_mobile_ai_admin",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1790758076981,
+      "tag": "0007_inventory_purchasing",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1790763144040,
+      "tag": "0008_customers_sales",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1790765075561,
+      "tag": "0009_reminders_reports_voice",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1790767068513,
+      "tag": "0010_catalog_rls",
+      "breakpoints": true
     }
   ]
 }

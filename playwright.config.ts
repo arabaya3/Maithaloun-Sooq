@@ -11,6 +11,9 @@ const testEnvironment = parseTestEnv({
   APP_ORIGIN: process.env.APP_ORIGIN,
 });
 
+const port = Number(process.env.E2E_PORT ?? 3000);
+const origin = `http://localhost:${port}`;
+
 export default defineConfig({
   testDir: "./tests/e2e",
   fullyParallel: true,
@@ -18,8 +21,10 @@ export default defineConfig({
   retries: 0,
   workers: 1,
   reporter: "list",
+  // The dev server compiles each route on first visit, which can exceed the 5s default.
+  expect: { timeout: 15_000 },
   use: {
-    baseURL: "http://localhost:3000",
+    baseURL: origin,
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
   },
@@ -30,14 +35,19 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: "node ./node_modules/next/dist/bin/next dev --webpack -p 3000",
-    url: "http://localhost:3000",
+    command: `node ./node_modules/next/dist/bin/next dev --webpack -p ${port}`,
+    url: origin,
     reuseExistingServer: false,
     timeout: 180_000,
     env: {
       DATABASE_URL: testEnvironment.TEST_DATABASE_URL,
       ORDER_RATE_LIMIT_PEPPER: testEnvironment.ORDER_RATE_LIMIT_PEPPER,
-      APP_ORIGIN: testEnvironment.APP_ORIGIN,
+      APP_ORIGIN: process.env.E2E_PORT ? origin : testEnvironment.APP_ORIGIN,
+      AI_FAKE_MODE: "1",
+      CRON_SECRET: "e2e-cron-secret-0123456789abcdef0123456789",
+      OPENAI_API_KEY: "",
+      SUPABASE_URL: "",
+      SUPABASE_SECRET_KEY: "",
     },
   },
 });

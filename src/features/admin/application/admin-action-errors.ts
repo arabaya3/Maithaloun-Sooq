@@ -10,6 +10,11 @@ export function mapOrderAdminError(error: unknown): string {
       return "تم تعديل الطلب من جلسة أخرى. حدّث الصفحة ثم حاول مجدداً.";
     }
     if (error.code === "not_found") return "الطلب غير موجود.";
+    if (error.code === "insufficient_stock") {
+      return error.detail
+        ? `الكمية المتوفرة في المخزون لا تكفي: ${error.detail}. حدّثي المخزون ثم حاولي مجدداً.`
+        : "الكمية المتوفرة في المخزون لا تكفي لهذا الطلب.";
+    }
   }
   return "تعذّر تحديث حالة الطلب.";
 }

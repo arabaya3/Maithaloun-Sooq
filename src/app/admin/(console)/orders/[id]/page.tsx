@@ -8,6 +8,7 @@ import { adminOrderService } from "@/features/admin/application/admin-services";
 import { requireAdminSession } from "@/features/admin/auth/admin-session";
 import { formatAdminDateTime } from "@/features/admin/ui/format-admin-datetime";
 import { AdminStatusBadge } from "@/features/admin/ui/admin-status-badge";
+import { OrderItemStockNote } from "@/features/admin/ui/order-item-stock-note";
 import { OrderStatusForm } from "@/features/admin/ui/order-status-form";
 import { orderStatusLabels } from "@/features/orders/domain/order-status";
 import { formatIls } from "@/shared/lib/format-currency";
@@ -133,7 +134,13 @@ export default async function AdminOrderDetailPage({
                     <tr
                       key={`${item.productId}-${item.variantLabel ?? "default"}`}
                     >
-                      <td>{item.productName}</td>
+                      <td>
+                        {item.productName}
+                        <OrderItemStockNote
+                          stock={item.stock}
+                          quantity={item.quantity}
+                        />
+                      </td>
                       <td>{item.variantLabel ?? "—"}</td>
                       <td className="admin-num">{item.quantity}</td>
                       <td className="admin-num">

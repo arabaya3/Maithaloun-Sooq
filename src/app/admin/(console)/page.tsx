@@ -3,9 +3,11 @@ import Link from "next/link";
 import {
   AlertTriangle,
   Bike,
+  Boxes,
   Camera,
   CheckCircle2,
   ClipboardList,
+  Mic,
   PackagePlus,
   Sparkles,
   Truck,
@@ -22,6 +24,7 @@ import {
   shortenOrderReference,
 } from "@/features/admin/ui/admin-status-badge";
 import { PushNotificationControl } from "@/features/admin/ui/push-notification-control";
+import { AdminInstallAction } from "@/features/pwa/admin-install-action";
 import {
   FREE_DELIVERY_THRESHOLD_AGOROT,
   STANDARD_DELIVERY_FEE_AGOROT,
@@ -135,6 +138,20 @@ export default async function AdminDashboardPage() {
               <small>قراءة الاسم والحجم تلقائياً</small>
             </span>
           </Link>
+          <Link className="admin-task-secondary" href="/admin/voice">
+            <Mic size={22} aria-hidden="true" />
+            <span>
+              <strong>سجّل عملية بالصوت</strong>
+              <small>بيع، دفعة، أو سؤال عن الربح والديون</small>
+            </span>
+          </Link>
+          <Link className="admin-task-secondary" href="/admin/inventory">
+            <Boxes size={22} aria-hidden="true" />
+            <span>
+              <strong>المخزون والمشتريات</strong>
+              <small>فواتير الشراء والنواقص</small>
+            </span>
+          </Link>
           <Link
             className="admin-task-secondary"
             href="/admin/orders?status=pending"
@@ -146,6 +163,7 @@ export default async function AdminDashboardPage() {
             </span>
           </Link>
         </div>
+        <AdminInstallAction />
         <PushNotificationControl />
       </section>
 

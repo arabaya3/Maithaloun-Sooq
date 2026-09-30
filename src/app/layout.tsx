@@ -8,6 +8,7 @@ import { productRepository } from "@/features/catalog/infrastructure/product-rep
 import { DeliveryProvider } from "@/features/delivery/delivery-provider";
 import { serviceAreaRepository } from "@/features/delivery/service-area-repository";
 import { FavoritesProvider } from "@/features/favorites/favorites-provider";
+import { StorefrontInstallBanner } from "@/features/pwa/storefront-install-banner";
 
 import "./globals.css";
 
@@ -74,6 +75,7 @@ export default async function RootLayout({
         <DeliveryProvider locations={locations}>
           <FavoritesProvider productIds={productIds}>
             <CartProvider catalog={catalog}>{children}</CartProvider>
+            <StorefrontInstallBanner />
           </FavoritesProvider>
         </DeliveryProvider>
       </body>
