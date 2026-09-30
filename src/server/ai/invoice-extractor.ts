@@ -42,7 +42,7 @@ function openAiExtractor(): InvoiceExtractor {
           },
           ...pages,
         ],
-        timeoutMs: 55_000,
+        timeoutMs: 50_000,
       });
     },
   };

@@ -87,7 +87,8 @@ const extractionMessages: Record<ExtractionError["code"], string> = {
     "قراءة الفواتير بالذكاء الاصطناعي غير مهيأة بعد. استخدمي الإدخال اليدوي.",
   unsupported_file:
     "نوع الملف غير مدعوم. المسموح: صور JPG أو PNG أو WebP أو ملف PDF.",
-  file_too_large: "حجم الملف أكبر من المسموح (10MB للصورة و8MB لملف PDF).",
+  file_too_large:
+    "حجم الملف أكبر من المسموح (4MB للفاتورة كلها). صوّري الصفحات من جديد أو قلّلي عددها.",
   too_many_files: "الحد الأقصى 6 صور، أو ملف PDF واحد.",
   no_files: "صوّري الفاتورة أو اختاري ملفاً أولاً.",
 };
@@ -101,5 +102,8 @@ export function mapExtractionError(error: unknown): string {
   if (error instanceof Error && error.message === "STORAGE_NOT_CONFIGURED") {
     return "تخزين الملفات غير مهيأ على الخادم بعد.";
   }
-  return "تعذّرت معالجة الملف. حاولي مجدداً.";
+  if (error instanceof Error && error.message.startsWith("STORAGE_")) {
+    return "تعذّر حفظ الملف في التخزين الآمن على الخادم. أعيدي المحاولة، وإن تكرّر الخطأ أبلغي المالك.";
+  }
+  return "حدث خطأ غير متوقع أثناء معالجة الملف. أعيدي المحاولة أو أدخلي الفاتورة يدوياً.";
 }
