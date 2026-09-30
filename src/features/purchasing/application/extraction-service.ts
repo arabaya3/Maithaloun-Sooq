@@ -72,7 +72,10 @@ export type ExtractionErrorCode =
   | SpreadsheetError["code"];
 
 export class ExtractionError extends Error {
-  constructor(readonly code: ExtractionErrorCode) {
+  constructor(
+    readonly code: ExtractionErrorCode,
+    readonly detail?: string,
+  ) {
     super(code);
     this.name = "ExtractionError";
   }
@@ -444,7 +447,7 @@ export class ExtractionService {
         .update(schema.extractionJobs)
         .set({ status: "failed", errorCode, updatedAt: new Date() })
         .where(eq(schema.extractionJobs.id, job.id));
-      throw new ExtractionError(code);
+      throw new ExtractionError(code, errorCode);
     };
 
     let raw: unknown;

@@ -160,3 +160,107 @@ test("a file that is not an image is refused with a retry option", async ({
     page.getByRole("button", { name: "إعادة المحاولة" }),
   ).toBeEnabled();
 });
+
+async function largePage(): Promise<Buffer> {
+  const size = 1_500;
+  const noise = Buffer.alloc(size * size * 3);
+  for (let index = 0; index < noise.length; index += 1) {
+    noise[index] = (index * 2_654_435_761) >>> 24;
+  }
+  for (let index = 0; index < noise.length; index += 7) {
+    noise[index] = Math.floor(Math.random() * 256);
+  }
+  return sharp(noise, { raw: { width: size, height: size, channels: 3 } })
+    .png({ compressionLevel: 0 })
+    .toBuffer();
+}
+
+test("two large PNG pages are shrunk to fit one request and reach review", async ({
+  page,
+}) => {
+  test.setTimeout(120_000);
+  await login(page);
+  await page.goto("/admin/inventory/capture");
+  const first = await largePage();
+  const second = await largePage();
+  // Together these exceed the platform's 4.5MB body limit.
+  expect(first.length + second.length).toBeGreaterThan(5_000_000);
+  await page.getByLabel("اختيار صور الفاتورة").setInputFiles([
+    { name: "page-1.png", mimeType: "image/png", buffer: first },
+    { name: "page-2.png", mimeType: "image/png", buffer: second },
+  ]);
+  await expect(
+    page.getByRole("list", { name: "صفحات الفاتورة" }).getByRole("listitem"),
+  ).toHaveCount(2);
+
+  const upload = page.waitForRequest(
+    (request) =>
+      request.method() === "POST" &&
+      request.url().endsWith("/admin/api/invoices"),
+  );
+  await page.getByRole("button", { name: "قراءة الفاتورة" }).click();
+  const sent = Number((await (await upload).allHeaders())["content-length"]);
+  expect(sent).toBeGreaterThan(0);
+  expect(sent).toBeLessThan(4_000_000);
+  await expect(
+    page.getByRole("heading", { name: "مراجعة قبل الحفظ", level: 1 }),
+  ).toBeVisible({ timeout: 45_000 });
+  await expect(
+    page.getByRole("img", { name: "صفحة الفاتورة 2" }),
+  ).toBeVisible();
+});
+
+test("failures are named precisely and keep the previews", async ({ page }) => {
+  await login(page);
+  await page.goto("/admin/inventory/capture");
+  await page.getByLabel("اختيار صور الفاتورة").setInputFiles([
+    { name: "a.png", mimeType: "image/png", buffer: await invoicePhoto() },
+    { name: "b.png", mimeType: "image/png", buffer: await invoicePhoto() },
+  ]);
+  const previews = page
+    .getByRole("list", { name: "صفحات الفاتورة" })
+    .getByRole("img");
+  await expect(previews).toHaveCount(2);
+
+  await page.route("**/admin/api/invoices", (route) => route.abort("failed"));
+  await page.getByRole("button", { name: "قراءة الفاتورة" }).click();
+  await expect(page.locator("p.admin-form-error")).toContainText(
+    "تعذّر الوصول إلى الخادم",
+  );
+  await expect(previews).toHaveCount(2);
+
+  await page.unroute("**/admin/api/invoices");
+  await page.route("**/admin/api/invoices", (route) =>
+    route.fulfill({
+      status: 413,
+      contentType: "text/plain",
+      body: "Request Entity Too Large",
+    }),
+  );
+  await page.getByRole("button", { name: "إعادة المحاولة" }).click();
+  await expect(page.locator("p.admin-form-error")).toContainText(
+    "حجم الصور أكبر",
+  );
+  await expect(previews).toHaveCount(2);
+
+  await page.unroute("**/admin/api/invoices");
+  await page.route("**/admin/api/invoices", (route) =>
+    route.fulfill({
+      status: 502,
+      contentType: "application/json",
+      body: JSON.stringify({
+        ok: false,
+        message:
+          "تعذّرت قراءة الفاتورة آلياً. الصور محفوظة؛ أعيدي المحاولة أو أدخليها يدوياً.",
+      }),
+    }),
+  );
+  await page.getByRole("button", { name: "إعادة المحاولة" }).click();
+  await expect(page.locator("p.admin-form-error")).toContainText(
+    "تعذّرت قراءة الفاتورة آلياً",
+  );
+  await expect(previews).toHaveCount(2);
+  await expect(
+    page.getByRole("button", { name: "إعادة المحاولة" }),
+  ).toBeEnabled();
+});

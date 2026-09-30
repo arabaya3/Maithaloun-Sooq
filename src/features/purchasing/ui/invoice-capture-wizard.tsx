@@ -14,10 +14,20 @@ import {
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 
+import {
+  INVOICE_ENCODE_STEPS,
+  MAX_INVOICE_UPLOAD_BYTES,
+  UPLOAD_TOO_LARGE_MESSAGE,
+  describeUploadFailure,
+  fitsInvoiceUpload,
+  invoicePageBudget,
+} from "@/features/purchasing/domain/invoice-upload";
 import { useUnsavedChanges } from "@/shared/ui/use-unsaved-changes";
 
 const MAX_PAGES = 6;
 const IMAGE_TYPES = "image/jpeg,image/png,image/webp";
+// Longer than the server's own limit, so its answer normally arrives first.
+const REQUEST_TIMEOUT_MS = 75_000;
 
 interface Page {
   id: string;
@@ -40,9 +50,14 @@ function subscribeOnline(listener: () => void) {
   };
 }
 
-async function reencode(file: File, quarterTurns: number): Promise<File> {
+async function reencode(
+  file: File,
+  quarterTurns: number,
+  maxEdge = 2_200,
+  quality = 0.88,
+): Promise<File> {
   const bitmap = await createImageBitmap(file);
-  const scale = Math.min(1, 2_200 / Math.max(bitmap.width, bitmap.height));
+  const scale = Math.min(1, maxEdge / Math.max(bitmap.width, bitmap.height));
   const width = Math.max(1, Math.round(bitmap.width * scale));
   const height = Math.max(1, Math.round(bitmap.height * scale));
   const swap = quarterTurns % 2 === 1;
@@ -51,15 +66,42 @@ async function reencode(file: File, quarterTurns: number): Promise<File> {
   canvas.height = swap ? width : height;
   const context = canvas.getContext("2d");
   if (!context) throw new Error("canvas");
+  // Transparent PNG areas would turn black in JPEG.
+  context.fillStyle = "#ffffff";
+  context.fillRect(0, 0, canvas.width, canvas.height);
   context.translate(canvas.width / 2, canvas.height / 2);
   context.rotate((quarterTurns * Math.PI) / 2);
   context.drawImage(bitmap, -width / 2, -height / 2, width, height);
   bitmap.close();
   const blob = await new Promise<Blob | null>((resolve) =>
-    canvas.toBlob(resolve, "image/jpeg", 0.88),
+    canvas.toBlob(resolve, "image/jpeg", quality),
   );
   if (!blob) throw new Error("encode");
   return new File([blob], "invoice.jpg", { type: "image/jpeg" });
+}
+
+// Shrinks pages only as far as needed for the whole invoice to fit in one request.
+async function fitPages(pages: Page[]): Promise<Page[] | null> {
+  if (fitsInvoiceUpload(pages.map((page) => page.file.size))) return pages;
+  const budget = invoicePageBudget(pages.length);
+  const fitted: Page[] = [];
+  for (const page of pages) {
+    let file = page.file;
+    if (file.type !== "application/pdf" && file.size > budget) {
+      for (const step of INVOICE_ENCODE_STEPS) {
+        try {
+          file = await reencode(page.file, 0, step.maxEdge, step.quality);
+        } catch {
+          return null;
+        }
+        if (file.size <= budget) break;
+      }
+    }
+    fitted.push({ ...page, file });
+  }
+  return fitsInvoiceUpload(fitted.map((page) => page.file.size))
+    ? fitted
+    : null;
 }
 
 function send(
@@ -80,35 +122,43 @@ function send(
       }
     });
     request.upload.addEventListener("load", onUploaded);
+    request.timeout = REQUEST_TIMEOUT_MS;
     request.addEventListener("error", () =>
       resolve({
         ok: false,
-        message: "انقطع الاتصال. الصور ما زالت هنا — أعيدي المحاولة.",
-        retrySameKey: true,
+        ...describeUploadFailure({ kind: "network", online: navigator.onLine }),
       }),
+    );
+    request.addEventListener("abort", () =>
+      resolve({
+        ok: false,
+        ...describeUploadFailure({ kind: "network", online: navigator.onLine }),
+      }),
+    );
+    request.addEventListener("timeout", () =>
+      resolve({ ok: false, ...describeUploadFailure({ kind: "timeout" }) }),
     );
     request.addEventListener("load", () => {
       try {
         const body = JSON.parse(request.responseText) as {
-          ok: boolean;
+          ok?: boolean;
           jobId?: string;
-          message?: string;
         };
-        if (body.ok && body.jobId) resolve({ ok: true, jobId: body.jobId });
-        else {
-          resolve({
-            ok: false,
-            message: body.message ?? "تعذّرت قراءة الفاتورة.",
-            retrySameKey: false,
-          });
+        if (request.status === 200 && body.ok && body.jobId) {
+          resolve({ ok: true, jobId: body.jobId });
+          return;
         }
       } catch {
-        resolve({
-          ok: false,
-          message: "انتهت الجلسة أو تعذّر الإرسال. حدّثي الصفحة وحاولي مجدداً.",
-          retrySameKey: false,
-        });
+        // Not JSON: a platform error page or a login redirect. Classified by status below.
       }
+      resolve({
+        ok: false,
+        ...describeUploadFailure({
+          kind: "response",
+          status: request.status,
+          body: request.responseText,
+        }),
+      });
     });
     const body = new FormData();
     for (const page of pages) body.append("files", page.file);
@@ -204,18 +254,16 @@ export function InvoiceCaptureWizard() {
     if (!pages.length || busy) return;
     setNotice(null);
     setPhase({ name: "uploading", percent: 0 });
-    let prepared = pages;
-    try {
-      // Large camera photos are downscaled on the device to save mobile data.
-      prepared = await Promise.all(
-        pages.map(async (page) =>
-          page.file.type !== "application/pdf" && page.file.size > 3_000_000
-            ? { ...page, file: await reencode(page.file, 0) }
-            : page,
-        ),
-      );
-    } catch {
-      prepared = pages;
+    const prepared = await fitPages(pages);
+    if (!prepared) {
+      setRetryKey(null);
+      setPhase({
+        name: "failed",
+        message: hasPdf
+          ? `ملف PDF أكبر من المسموح (${MAX_INVOICE_UPLOAD_BYTES / 1_000_000}MB). صوّري الصفحات بدلاً منه.`
+          : UPLOAD_TOO_LARGE_MESSAGE,
+      });
+      return;
     }
     const idempotencyKey = retryKey ?? crypto.randomUUID();
     const result = await send(
