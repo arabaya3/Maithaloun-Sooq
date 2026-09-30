@@ -57,6 +57,13 @@
       "when": 1790758076981,
       "tag": "0007_inventory_purchasing",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1790763144040,
+      "tag": "0008_customers_sales",
+      "breakpoints": true
     }
   ]
 }

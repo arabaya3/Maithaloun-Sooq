@@ -1,5 +1,7 @@
 import "server-only";
 
+import { CustomerService } from "@/features/sales/application/customer-service";
+import { SalesService } from "@/features/sales/application/sales-service";
 import { db } from "@/server/db/db";
 import { getPrivateDocumentStore } from "@/server/storage/private-documents";
 
@@ -25,6 +27,8 @@ export const inventoryService = new InventoryService(db);
 export const priceReviewService = new PriceReviewService(db);
 export const purchaseService = new PurchaseService(db);
 export const supplierService = new SupplierService(db);
+export const salesService = new SalesService(db);
+export const customerService = new CustomerService(db);
 export const extractionService = new ExtractionService(
   db,
   purchaseService,

@@ -1078,3 +1078,51 @@
   display: grid;
   gap: 0.6rem;
 }
+
+/* Sales, customers, invoices ------------------------------------------------ */
+
+.admin-payment-row {
+  display: grid;
+  gap: 0.4rem;
+  padding-bottom: 0.5rem;
+}
+
+.admin-reasoned {
+  padding: 0.75rem;
+  border: 1px solid var(--admin-danger-border);
+  border-radius: var(--admin-radius);
+}
+
+.admin-invoice {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.admin-invoice-brand {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: var(--admin-forest);
+}
+
+@media print {
+  .admin-sidebar,
+  .admin-topbar,
+  .admin-mobile-header,
+  .admin-bottom-nav,
+  .admin-no-print,
+  .admin-back-link {
+    display: none !important;
+  }
+
+  .admin-app,
+  .admin-body {
+    display: block;
+    padding: 0;
+    background: #fff;
+  }
+
+  .admin-panel {
+    border: 0;
+    padding: 0;
+  }
+}

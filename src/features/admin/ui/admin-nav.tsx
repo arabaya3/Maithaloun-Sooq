@@ -6,6 +6,7 @@ import {
   Bell,
   Boxes,
   Camera,
+  HandCoins,
   Home,
   LogOut,
   MoreHorizontal,
@@ -18,6 +19,7 @@ import {
   ShoppingBag,
   Store,
   Truck,
+  Users,
   type LucideIcon,
 } from "lucide-react";
 import { useState } from "react";
@@ -51,6 +53,18 @@ const secondaryLinks: NavLink[] = [
     label: "المنتجات",
     match: "prefix",
     Icon: Package,
+  },
+  {
+    href: "/admin/sales",
+    label: "المبيعات",
+    match: "prefix",
+    Icon: ReceiptText,
+  },
+  {
+    href: "/admin/customers",
+    label: "الزبائن والديون",
+    match: "prefix",
+    Icon: Users,
   },
   {
     href: "/admin/inventory/suppliers",
@@ -93,6 +107,12 @@ const addTasks: AddTask[] = [
     label: "تصوير منتج",
     hint: "قراءة الاسم والحجم من الصورة",
     Icon: Camera,
+  },
+  {
+    href: "/admin/sales/new",
+    label: "إدخال بيع يدوي",
+    hint: "بيع في المحل نقداً أو على الحساب",
+    Icon: HandCoins,
   },
   {
     href: "/admin/inventory/purchases/new",

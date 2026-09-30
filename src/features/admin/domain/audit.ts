@@ -22,6 +22,12 @@ export const auditActionTypes = [
   "extraction_confirm",
   "extraction_discard",
   "price_review_decision",
+  "sale_post",
+  "sale_cancel",
+  "customer_payment",
+  "customer_payment_reversal",
+  "customer_create",
+  "customer_update",
 ] as const;
 
 export type AuditActionType = (typeof auditActionTypes)[number];
@@ -38,6 +44,8 @@ export const auditEntityTypes = [
   "supplier",
   "extraction_job",
   "price_review",
+  "customer_invoice",
+  "customer",
 ] as const;
 
 export type AuditEntityType = (typeof auditEntityTypes)[number];
