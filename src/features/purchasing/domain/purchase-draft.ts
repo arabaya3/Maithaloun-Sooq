@@ -1,7 +1,13 @@
-import { parseQuantityToMilli } from "@/features/inventory/domain/quantity";
+import {
+  formatQuantity,
+  parseQuantityToMilli,
+} from "@/features/inventory/domain/quantity";
 import type { StockUnit } from "@/features/inventory/domain/stock-constants";
 import { toLatinDigits } from "@/shared/lib/digits";
-import { parseIlsToAgorot } from "@/shared/lib/parse-ils";
+import {
+  formatAgorotAsIlsInput,
+  parseIlsToAgorot,
+} from "@/shared/lib/parse-ils";
 
 import {
   PurchaseCalculationError,
@@ -18,6 +24,9 @@ export interface PurchaseLineDraft {
   unitCost: string;
   lineDiscount: string;
   sourceText?: string;
+  sourceLineNo?: number;
+  confidence?: number | null;
+  suggestions?: Array<{ variantId: string; label: string; score: number }>;
 }
 
 export type PaymentChoice = "paid" | "unpaid" | "partial";
@@ -51,6 +60,7 @@ export interface PurchasePayload {
     unitCostAgorot: number;
     lineDiscountAgorot: number;
     sourceText?: string;
+    sourceLineNo?: number;
   }>;
   discountAgorot: number;
   taxAgorot: number | null;
@@ -149,7 +159,8 @@ export function buildPurchasePayload(
         `${line.key}.lineDiscount`,
         errors,
       ),
-      sourceText: line.sourceText || undefined,
+      sourceText: line.sourceText?.slice(0, 280) || undefined,
+      sourceLineNo: line.sourceLineNo,
     };
   });
 
@@ -216,5 +227,87 @@ export function buildPurchasePayload(
       extractionJobId: options.extractionJobId,
       acknowledgeDuplicate: options.acknowledgeDuplicate,
     },
+  };
+}
+
+export interface ExtractionDraftSource {
+  header: {
+    supplierName: string | null;
+    supplierId: string | null;
+    reference: string | null;
+    invoiceDate: string | null;
+    paymentStatus: "paid" | "unpaid" | "partially_paid" | null;
+    paidAgorot: number | null;
+    discountAgorot: number | null;
+    taxAgorot: number | null;
+    printedTotalAgorot: number | null;
+  };
+  lines: ReadonlyArray<{
+    lineNo: number;
+    status: string;
+    variantId: string | null;
+    confidence: number | null;
+    candidates: ReadonlyArray<{
+      variantId: string;
+      label: string;
+      score: number;
+    }>;
+    values: {
+      name: string;
+      size: string;
+      unit: StockUnit;
+      quantityMilli: number | null;
+      unitCostAgorot: number | null;
+    };
+  }>;
+}
+
+const money = (agorot: number | null) =>
+  agorot === null ? "" : formatAgorotAsIlsInput(agorot);
+
+// Extracted values only pre-fill the form; nothing here selects an uncertain product.
+export function draftFromExtraction(
+  source: ExtractionDraftSource,
+  today: string,
+): PurchaseDraft {
+  const { header } = source;
+  return {
+    supplierId: header.supplierId ?? (header.supplierName ? NEW_SUPPLIER : ""),
+    newSupplierName: header.supplierId ? "" : (header.supplierName ?? ""),
+    reference: header.reference ?? "",
+    invoiceDate: header.invoiceDate ?? today,
+    lines: source.lines
+      .filter((line) => line.status !== "error" && line.status !== "ignored")
+      .map((line) => ({
+        key: `line-${line.lineNo}`,
+        variantId: line.status === "matched" ? (line.variantId ?? "") : "",
+        quantity:
+          line.values.quantityMilli === null
+            ? ""
+            : formatQuantity(line.values.quantityMilli),
+        unit: line.values.unit,
+        packQuantity: "1",
+        unitCost: money(line.values.unitCostAgorot),
+        lineDiscount: "",
+        sourceText: [line.values.name, line.values.size]
+          .filter(Boolean)
+          .join(" "),
+        sourceLineNo: line.lineNo,
+        confidence: line.confidence,
+        suggestions:
+          line.status === "matched" ? [] : [...line.candidates].slice(0, 4),
+      })),
+    discount: header.discountAgorot ? money(header.discountAgorot) : "",
+    tax: header.taxAgorot ? money(header.taxAgorot) : "",
+    printedTotal: money(header.printedTotalAgorot),
+    payment:
+      header.paymentStatus === "unpaid"
+        ? "unpaid"
+        : header.paymentStatus === "partially_paid"
+          ? "partial"
+          : "paid",
+    paid:
+      header.paymentStatus === "partially_paid" ? money(header.paidAgorot) : "",
+    notes: "",
   };
 }

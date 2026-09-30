@@ -1,6 +1,7 @@
 import "server-only";
 
 import { db } from "@/server/db/db";
+import { getPrivateDocumentStore } from "@/server/storage/private-documents";
 
 import { AdminCatalogService } from "./admin-catalog-service";
 import { AdminDashboardService } from "./admin-dashboard-service";
@@ -9,6 +10,7 @@ import { AdminOrderService } from "./admin-order-service";
 import { AdminNotificationService } from "../notifications/notification-service";
 import { AdminStaffService } from "./admin-staff-service";
 import { InventoryService } from "@/features/inventory/application/inventory-service";
+import { ExtractionService } from "@/features/purchasing/application/extraction-service";
 import { PurchaseService } from "@/features/purchasing/application/purchase-service";
 import { SupplierService } from "@/features/purchasing/application/supplier-service";
 
@@ -21,3 +23,8 @@ export const adminStaffService = new AdminStaffService(db);
 export const inventoryService = new InventoryService(db);
 export const purchaseService = new PurchaseService(db);
 export const supplierService = new SupplierService(db);
+export const extractionService = new ExtractionService(
+  db,
+  purchaseService,
+  getPrivateDocumentStore,
+);

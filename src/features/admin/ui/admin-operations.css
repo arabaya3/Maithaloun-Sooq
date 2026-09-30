@@ -824,3 +824,195 @@
   gap: 1rem;
   min-width: 0;
 }
+
+/* Extraction review --------------------------------------------------------- */
+
+.admin-suggestions {
+  display: grid;
+  gap: 0.4rem;
+  padding: 0.6rem 0.7rem;
+  border: 1px solid var(--admin-warning-border);
+  border-radius: var(--admin-radius);
+  background: var(--admin-warning-bg);
+  font-size: 0.875rem;
+}
+
+.admin-suggestions p {
+  color: var(--admin-warning);
+  font-weight: 650;
+}
+
+.admin-suggestion {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  min-height: var(--admin-touch);
+  padding: 0.4rem 0.7rem;
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius);
+  color: var(--admin-text);
+  background: var(--admin-surface);
+  font-weight: 600;
+  text-align: start;
+  cursor: pointer;
+}
+
+.admin-suggestion small {
+  flex: none;
+  color: var(--admin-muted);
+}
+
+.admin-picker-create {
+  display: grid;
+  gap: 0.6rem;
+  margin-top: 0.85rem;
+}
+
+.admin-picker-create label {
+  display: grid;
+  gap: 0.25rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.admin-app .admin-picker-create input {
+  width: 100%;
+  min-height: var(--admin-touch);
+  padding: 0.45rem 0.7rem;
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius);
+  background: var(--admin-surface);
+}
+
+.admin-upload-zone {
+  display: grid;
+  justify-items: center;
+  gap: 0.6rem;
+  padding: 1.5rem 1rem;
+  border: 2px dashed var(--admin-border);
+  border-radius: var(--admin-radius-lg);
+  background: var(--admin-surface);
+  text-align: center;
+}
+
+.admin-upload-zone svg {
+  color: var(--admin-forest);
+}
+
+.admin-progress {
+  width: 100%;
+  height: 0.5rem;
+  border: 0;
+  border-radius: 999px;
+  background: var(--admin-divider);
+  overflow: hidden;
+  appearance: none;
+}
+
+.admin-progress::-webkit-progress-bar {
+  background: var(--admin-divider);
+}
+
+.admin-progress::-webkit-progress-value {
+  background: var(--admin-forest);
+}
+
+.admin-progress::-moz-progress-bar {
+  background: var(--admin-forest);
+}
+
+.admin-steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.75rem;
+  color: var(--admin-muted);
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.admin-steps [aria-current="step"] {
+  color: var(--admin-forest);
+}
+
+.admin-mapping-list {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.admin-mapping-list label small {
+  color: var(--admin-muted);
+  font-weight: 500;
+}
+
+.admin-preview-rows {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.admin-preview-rows > li {
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--admin-divider);
+  border-radius: var(--admin-radius);
+  font-size: 0.875rem;
+}
+
+.admin-summary-counts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.admin-review-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1.25rem;
+}
+
+.admin-review-side,
+.admin-review-main {
+  display: grid;
+  align-content: start;
+  gap: 1rem;
+  min-width: 0;
+}
+
+@media (min-width: 64rem) {
+  .admin-review-layout {
+    grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+    align-items: start;
+  }
+
+  .admin-review-side {
+    position: sticky;
+    top: calc(var(--admin-topbar-height) + 1rem);
+    max-height: calc(100dvh - var(--admin-topbar-height) - 2rem);
+    overflow: auto;
+  }
+}
+
+.admin-invoice-pages {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.admin-invoice-pages img {
+  width: 100%;
+  max-height: 28rem;
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius);
+  object-fit: contain;
+  background: var(--admin-bg);
+}
+
+.admin-panel > .admin-steps {
+  margin-bottom: 0.75rem;
+}
+
+.admin-panel > .admin-steps + h2 {
+  margin-bottom: 0.85rem;
+}
+
+.admin-suggestion > span {
+  display: grid;
+}

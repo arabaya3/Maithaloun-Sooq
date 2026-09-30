@@ -12,6 +12,7 @@ import {
   Package,
   PenLine,
   Plus,
+  Sheet as SheetIcon,
   Settings,
   ShoppingBag,
   Store,
@@ -91,6 +92,13 @@ const addTasks: AddTask[] = [
     label: "إدخال شراء يدوي",
     hint: "فاتورة مورد تُضاف إلى المخزون",
     Icon: PenLine,
+  },
+  {
+    href: "/admin/inventory/import",
+    label: "رفع Excel",
+    hint: "فاتورة شراء من ملف xlsx أو csv",
+    Icon: SheetIcon,
+    ownerOnly: true,
   },
 ];
 

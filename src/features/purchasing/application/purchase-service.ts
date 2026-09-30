@@ -76,6 +76,7 @@ export const purchaseLineSchema = z
     unitCostAgorot: amount,
     lineDiscountAgorot: amount,
     sourceText: z.string().trim().max(280).optional(),
+    sourceLineNo: z.number().int().min(1).max(5_000).optional(),
   })
   .strict();
 

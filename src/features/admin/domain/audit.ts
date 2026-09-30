@@ -18,6 +18,9 @@ export const auditActionTypes = [
   "supplier_create",
   "supplier_update",
   "supplier_payment",
+  "extraction_create",
+  "extraction_confirm",
+  "extraction_discard",
 ] as const;
 
 export type AuditActionType = (typeof auditActionTypes)[number];
@@ -32,6 +35,7 @@ export const auditEntityTypes = [
   "inventory_item",
   "purchase_invoice",
   "supplier",
+  "extraction_job",
 ] as const;
 
 export type AuditEntityType = (typeof auditEntityTypes)[number];

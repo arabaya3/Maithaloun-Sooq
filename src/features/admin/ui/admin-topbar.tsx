@@ -16,6 +16,7 @@ const titles: Record<string, string> = {
   "/admin/inventory/purchases": "فواتير الشراء",
   "/admin/inventory/purchases/new": "إدخال شراء يدوي",
   "/admin/inventory/suppliers": "الموردون",
+  "/admin/inventory/import": "رفع ملف Excel",
 };
 
 function resolveTitle(pathname: string): string {
@@ -24,6 +25,8 @@ function resolveTitle(pathname: string): string {
   if (pathname.startsWith("/admin/products/")) return "تعديل المنتج";
   if (pathname.startsWith("/admin/inventory/stock/")) return "تفاصيل المخزون";
   if (pathname.startsWith("/admin/inventory/purchases/")) return "فاتورة شراء";
+  if (pathname.startsWith("/admin/inventory/review/"))
+    return "مراجعة قبل الحفظ";
   return "إدارة سوق ميثلون";
 }
 

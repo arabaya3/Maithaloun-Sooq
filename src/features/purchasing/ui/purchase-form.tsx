@@ -6,6 +6,7 @@ import { useMemo, useState, useTransition } from "react";
 
 import { Money } from "@/features/admin/ui/kit";
 import {
+  createProductForLineAction,
   postPurchaseAction,
   previewPurchaseAction,
 } from "@/features/inventory/application/inventory-actions";
@@ -17,6 +18,7 @@ import {
 } from "@/features/inventory/domain/stock-constants";
 import {
   VariantPicker,
+  type CreateVariant,
   type VariantOption,
 } from "@/features/inventory/ui/variant-picker";
 import type {
@@ -82,6 +84,7 @@ export function PurchaseForm({
   }>;
 }) {
   const [draft, setDraft] = useState(initialDraft);
+  const [variantOptions, setVariantOptions] = useState(variants);
   const [errors, setErrors] = useState<DraftErrors>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [review, setReview] = useState<{
@@ -142,9 +145,30 @@ export function PurchaseForm({
   }
 
   function selectVariant(key: string, variantId: string) {
-    const variant = variants.find((item) => item.variantId === variantId);
-    updateLine(key, { variantId, unit: variant?.unit ?? "piece" });
+    const variant = variantOptions.find((item) => item.variantId === variantId);
+    updateLine(
+      key,
+      variant ? { variantId, unit: variant.unit } : { variantId },
+    );
   }
+
+  const createVariant: CreateVariant = async (input) => {
+    const response = await createProductForLineAction(input);
+    if (!response.ok) return response;
+    setVariantOptions((current) => [
+      ...current,
+      {
+        variantId: response.variant.variantId,
+        name: response.variant.name,
+        variantLabel: null,
+        sku: null,
+        barcode: null,
+        unit: "piece",
+        hint: "منتج جديد",
+      },
+    ]);
+    return { ok: true, variantId: response.variant.variantId };
+  };
 
   function build(acknowledgeDuplicate: boolean) {
     const built = buildPurchasePayload(draft, {
@@ -364,17 +388,19 @@ export function PurchaseForm({
               <div className="admin-purchase-line-head">
                 <span className="admin-purchase-line-number">{index + 1}</span>
                 <VariantPicker
-                  options={variants}
+                  options={variantOptions}
                   value={line.variantId}
                   label={`منتج السطر ${index + 1}`}
                   invalid={Boolean(errors[`${line.key}.variantId`])}
                   onChange={(variantId) => selectVariant(line.key, variantId)}
+                  onCreate={createVariant}
+                  createDefaultName={line.sourceText ?? ""}
                 />
                 {draft.lines.length > 1 ? (
                   <button
                     type="button"
                     className="admin-btn admin-btn-ghost admin-btn-icon"
-                    aria-label={`حذف السطر ${index + 1}`}
+                    aria-label={`${line.sourceLineNo ? "تجاهل" : "حذف"} السطر ${index + 1}`}
                     onClick={() =>
                       update({
                         lines: draft.lines.filter(
@@ -389,8 +415,50 @@ export function PurchaseForm({
               </div>
               {line.sourceText ? (
                 <p className="admin-muted">
-                  كما ورد في الفاتورة: <bdi>{line.sourceText}</bdi>
+                  كما ورد في المصدر: <bdi>{line.sourceText}</bdi>
+                  {typeof line.confidence === "number" ? (
+                    <>
+                      {" "}
+                      · ثقة المطابقة <bdi dir="ltr">{line.confidence}%</bdi>
+                    </>
+                  ) : null}
                 </p>
+              ) : null}
+              {line.sourceLineNo && !line.variantId ? (
+                <div
+                  className="admin-suggestions"
+                  role="group"
+                  aria-label={`اقتراحات السطر ${index + 1}`}
+                >
+                  <p>
+                    {line.suggestions?.length
+                      ? "لم يُطابق تلقائياً. اختاري المنتج الصحيح:"
+                      : "لا يوجد منتج مطابق. اختاريه يدوياً أو أنشئي منتجاً جديداً أو تجاهلي السطر."}
+                  </p>
+                  {line.suggestions?.map((suggestion) => (
+                    <button
+                      key={suggestion.variantId}
+                      type="button"
+                      className="admin-suggestion"
+                      onClick={() =>
+                        selectVariant(line.key, suggestion.variantId)
+                      }
+                    >
+                      <span>
+                        {suggestion.label}
+                        <small>
+                          {variantOptions.find(
+                            (option) =>
+                              option.variantId === suggestion.variantId,
+                          )?.hint ?? ""}
+                        </small>
+                      </span>
+                      <small>
+                        تشابه <bdi dir="ltr">{suggestion.score}%</bdi>
+                      </small>
+                    </button>
+                  ))}
+                </div>
               ) : null}
               <FieldError
                 id={`error-${line.key}-variant`}

@@ -1,7 +1,7 @@
 "use client";
 
 import { ChevronDown, Search } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useMemo, useState, type KeyboardEvent } from "react";
 
 import { normalizeArabicText } from "@/shared/lib/normalize-arabic";
 import { Sheet } from "@/shared/ui/sheet";
@@ -15,10 +15,20 @@ export interface VariantOption {
   hint?: string;
 }
 
+export type CreateVariant = (input: {
+  nameAr: string;
+  priceIls: string;
+}) => Promise<{ ok: true; variantId: string } | { ok: false; message: string }>;
+
 export function variantOptionLabel(option: VariantOption): string {
   return option.variantLabel
     ? `${option.name} — ${option.variantLabel}`
     : option.name;
+}
+
+// The picker lives inside larger forms; Enter must not submit them.
+function blockSubmit(event: KeyboardEvent<HTMLInputElement>) {
+  if (event.key === "Enter") event.preventDefault();
 }
 
 export function VariantPicker({
@@ -27,15 +37,23 @@ export function VariantPicker({
   onChange,
   label,
   invalid,
+  onCreate,
+  createDefaultName = "",
 }: {
   options: readonly VariantOption[];
   value: string;
   onChange: (variantId: string) => void;
   label: string;
   invalid?: boolean;
+  onCreate?: CreateVariant;
+  createDefaultName?: string;
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
+  const [newName, setNewName] = useState(createDefaultName);
+  const [newPrice, setNewPrice] = useState("");
+  const [createError, setCreateError] = useState<string | null>(null);
+  const [creating, setCreating] = useState(false);
   const selected = options.find((option) => option.variantId === value);
   const filtered = useMemo(() => {
     const needle = normalizeArabicText(query);
@@ -46,6 +64,29 @@ export function VariantPicker({
       ).includes(needle),
     );
   }, [options, query]);
+
+  function close() {
+    setOpen(false);
+    setQuery("");
+  }
+
+  async function create() {
+    if (!onCreate) return;
+    if (newName.trim().length < 2) {
+      setCreateError("اكتبي اسم المنتج.");
+      return;
+    }
+    setCreating(true);
+    setCreateError(null);
+    const result = await onCreate({ nameAr: newName, priceIls: newPrice });
+    setCreating(false);
+    if (!result.ok) {
+      setCreateError(result.message);
+      return;
+    }
+    onChange(result.variantId);
+    close();
+  }
 
   return (
     <>
@@ -60,13 +101,14 @@ export function VariantPicker({
         <span>{selected ? variantOptionLabel(selected) : "اختاري المنتج"}</span>
         <ChevronDown size={18} aria-hidden="true" />
       </button>
-      <Sheet open={open} onClose={() => setOpen(false)} title={label}>
+      <Sheet open={open} onClose={close} title={label}>
         <div className="admin-picker-search">
           <Search size={18} aria-hidden="true" />
           <input
             type="search"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
+            onKeyDown={blockSubmit}
             placeholder="ابحثي بالاسم أو الباركود"
             aria-label="بحث عن منتج"
           />
@@ -80,8 +122,7 @@ export function VariantPicker({
                   aria-pressed={option.variantId === value}
                   onClick={() => {
                     onChange(option.variantId);
-                    setOpen(false);
-                    setQuery("");
+                    close();
                   }}
                 >
                   <strong>{variantOptionLabel(option)}</strong>
@@ -91,10 +132,49 @@ export function VariantPicker({
             ))}
           </ul>
         ) : (
-          <p className="admin-picker-empty">
-            لا يوجد منتج بهذا الاسم. أضيفيه من “المنتجات” أولاً.
-          </p>
+          <p className="admin-picker-empty">لا يوجد منتج بهذا الاسم.</p>
         )}
+        {onCreate ? (
+          <details className="admin-disclosure admin-picker-create">
+            <summary>منتج جديد</summary>
+            <label>
+              اسم المنتج
+              <input
+                value={newName}
+                maxLength={160}
+                onChange={(event) => setNewName(event.target.value)}
+                onKeyDown={blockSubmit}
+              />
+            </label>
+            <label>
+              سعر البيع للزبون ₪
+              <input
+                value={newPrice}
+                inputMode="decimal"
+                dir="ltr"
+                placeholder="0.00"
+                onChange={(event) => setNewPrice(event.target.value)}
+                onKeyDown={blockSubmit}
+              />
+            </label>
+            <p className="admin-picker-empty">
+              يُحفظ المنتج غير متاح في المتجر حتى تراجعيه وتنشريه.
+            </p>
+            {createError ? (
+              <p className="admin-form-error" role="alert">
+                {createError}
+              </p>
+            ) : null}
+            <button
+              type="button"
+              className="admin-btn admin-btn-secondary"
+              disabled={creating}
+              onClick={create}
+            >
+              {creating ? "جارٍ الإنشاء…" : "إنشاء المنتج واختياره"}
+            </button>
+          </details>
+        ) : null}
       </Sheet>
     </>
   );

@@ -1,14 +1,19 @@
 "use server";
 
+import { randomUUID } from "node:crypto";
+
 import { revalidatePath } from "next/cache";
 
 import {
+  adminCatalogService,
+  extractionService,
   inventoryService,
   purchaseService,
   supplierService,
 } from "@/features/admin/application/admin-services";
 import { requireTrustedAdminMutation } from "@/features/admin/auth/admin-session";
 import {
+  mapExtractionError,
   mapInventoryError,
   mapPurchaseError,
   mapSupplierError,
@@ -168,4 +173,81 @@ export async function recordSupplierPaymentAction(
   }
   revalidateInventory();
   return { ok: true, message: "تم تسجيل الدفعة للمورد." };
+}
+
+export async function createSpreadsheetJobAction(input: {
+  documentId: string;
+  sheetName: string;
+  headerRow: number;
+  mapping: Record<string, number | undefined>;
+  idempotencyKey: string;
+}): Promise<ActionResult<{ jobId: string }>> {
+  const actor = await requireTrustedAdminMutation();
+  try {
+    const job = await extractionService.createSpreadsheetJob(actor, input);
+    revalidateInventory();
+    return { ok: true, jobId: job.jobId };
+  } catch (error) {
+    return { ok: false, message: mapExtractionError(error) };
+  }
+}
+
+export async function confirmExtractionAction(
+  jobId: string,
+  input: PurchaseInput,
+): Promise<ActionResult<{ result: PurchasePostResult }>> {
+  const actor = await requireTrustedAdminMutation();
+  try {
+    const result = await extractionService.confirm(actor, jobId, input);
+    revalidateInventory();
+    return { ok: true, result };
+  } catch (error) {
+    return { ok: false, message: mapExtractionError(error) };
+  }
+}
+
+export async function discardExtractionAction(
+  _previous: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const actor = await requireTrustedAdminMutation();
+  try {
+    await extractionService.discard(actor, text(formData, "jobId"));
+  } catch (error) {
+    return { ok: false, message: mapExtractionError(error) };
+  }
+  revalidateInventory();
+  return { ok: true, message: "تم تجاهل هذه المراجعة. لم يتغيّر المخزون." };
+}
+
+export async function createProductForLineAction(input: {
+  nameAr: string;
+  priceIls: string;
+}): Promise<ActionResult<{ variant: { variantId: string; name: string } }>> {
+  const actor = await requireTrustedAdminMutation();
+  const priceAgorot = parseIlsToAgorot(toLatinDigits(input.priceIls).trim());
+  if (priceAgorot === null || priceAgorot <= 0) {
+    return { ok: false, message: "أدخلي سعر بيع صالحاً بالشيكل." };
+  }
+  const domainId = `new-${randomUUID().slice(0, 8)}`;
+  try {
+    const product = await adminCatalogService.create(actor, {
+      domainId,
+      slug: domainId,
+      nameAr: input.nameAr.trim(),
+      priceAgorot,
+      categoryId: "home",
+      availability: "unavailable",
+      sortOrder: 100,
+      detailsStatus: "placeholder",
+      placeholderVariant: "general-cleaner",
+    });
+    revalidatePath("/admin/products");
+    return {
+      ok: true,
+      variant: { variantId: product.defaultVariantId, name: product.nameAr },
+    };
+  } catch {
+    return { ok: false, message: "تعذّر إنشاء المنتج. راجعي الاسم والسعر." };
+  }
 }

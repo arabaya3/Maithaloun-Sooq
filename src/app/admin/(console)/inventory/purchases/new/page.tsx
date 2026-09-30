@@ -13,6 +13,7 @@ import {
   type PurchaseDraft,
 } from "@/features/purchasing/domain/purchase-draft";
 import { PurchaseForm } from "@/features/purchasing/ui/purchase-form";
+import { formatIls } from "@/shared/lib/format-currency";
 import { todayInStoreZone } from "@/shared/lib/store-time";
 
 export const metadata: Metadata = { title: "إدخال شراء يدوي" };
@@ -54,9 +55,7 @@ export default async function ManualPurchasePage() {
           sku: item.sku,
           barcode: item.barcode,
           unit: item.unit,
-          hint: item.tracked
-            ? `المتوفر ${formatQuantity(item.availableMilli)}`
-            : "غير متتبَّع بعد",
+          hint: `${item.tracked ? `المتوفر ${formatQuantity(item.availableMilli)}` : "غير متتبَّع بعد"} · البيع ${formatIls(item.salePriceAgorot)}`,
         }))}
         suppliers={suppliers
           .filter((supplier) => supplier.active)

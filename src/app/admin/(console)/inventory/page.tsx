@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import {
   ClipboardList,
+  FileSpreadsheet,
   PackageCheck,
   PenLine,
   SlidersHorizontal,
@@ -11,6 +12,7 @@ import {
 import { connection } from "next/server";
 
 import {
+  extractionService,
   inventoryService,
   purchaseService,
 } from "@/features/admin/application/admin-services";
@@ -57,9 +59,10 @@ function AttentionList({ items }: { items: StockListItem[] }) {
 export default async function InventoryOverviewPage() {
   await connection();
   const actor = await requireAdminSession();
-  const [overview, invoices] = await Promise.all([
+  const [overview, invoices, awaitingReview] = await Promise.all([
     inventoryService.getOverview(actor),
     purchaseService.list(actor, 5),
+    extractionService.listAwaitingReview(actor),
   ]);
   const canAdjust = can(actor, "stock.adjust");
   const attention = [...overview.outOfStock, ...overview.lowStock];
@@ -70,6 +73,12 @@ export default async function InventoryOverviewPage() {
       label: "إدخال شراء يدوي",
       Icon: PenLine,
       show: true,
+    },
+    {
+      href: "/admin/inventory/import",
+      label: "رفع ملف Excel",
+      Icon: FileSpreadsheet,
+      show: can(actor, "purchase.import"),
     },
     {
       href: "/admin/inventory/stock?filter=tracked",
@@ -115,6 +124,37 @@ export default async function InventoryOverviewPage() {
           </Link>
         ))}
       </nav>
+
+      {awaitingReview.length ? (
+        <section className="admin-panel" aria-labelledby="review-queue-title">
+          <div className="admin-panel-header">
+            <h2 id="review-queue-title">
+              بانتظار مراجعتك ({awaitingReview.length})
+            </h2>
+          </div>
+          <ul className="admin-line-list">
+            {awaitingReview.map((job) => (
+              <li key={job.id}>
+                <Link
+                  href={`/admin/inventory/review/${job.id}`}
+                  prefetch={false}
+                  className="admin-line"
+                >
+                  <span className="admin-line-main">
+                    <strong>
+                      {job.kind === "purchase_excel"
+                        ? "ملف Excel لم يُؤكَّد بعد"
+                        : "فاتورة مصوّرة لم تُؤكَّد بعد"}
+                    </strong>
+                    <small>{formatAdminDateTime(job.createdAt)}</small>
+                  </span>
+                  <span className="admin-line-side">متابعة المراجعة</span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
 
       <section className="admin-panel" aria-labelledby="attention-title">
         <div className="admin-panel-header">

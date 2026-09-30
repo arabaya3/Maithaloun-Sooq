@@ -1,5 +1,6 @@
 import { AuthorizationError } from "@/features/admin/domain/admin-actor";
 import { InventoryError } from "@/features/inventory/application/stock-ledger";
+import { ExtractionError } from "@/features/purchasing/application/extraction-service";
 import { PurchaseError } from "@/features/purchasing/application/purchase-service";
 import { SupplierError } from "@/features/purchasing/application/supplier-service";
 
@@ -63,4 +64,33 @@ export function mapSupplierError(error: unknown): string {
     }
   }
   return "تعذّر حفظ بيانات المورد. راجعي الاسم ورقم الهاتف.";
+}
+
+const extractionMessages: Record<ExtractionError["code"], string> = {
+  invalid_input: "البيانات المُدخلة غير مكتملة. راجعي الأعمدة المطلوبة.",
+  not_found: "الملف أو المراجعة غير موجودة.",
+  not_reviewable: "هذه المراجعة أُغلقت مسبقاً.",
+  multiple_invoices:
+    "الملف يحتوي أكثر من مورد أو أكثر من رقم فاتورة. ارفعي كل فاتورة في ملف مستقل.",
+  no_valid_rows: "لا توجد صفوف بيانات تحت صف العناوين المحدد.",
+  too_large: "حجم الملف أكبر من المسموح (5MB).",
+  empty: "الملف فارغ.",
+  macros: "الملف يحتوي وحدات ماكرو. احفظيه بصيغة xlsx عادية ثم ارفعيه.",
+  legacy_xls:
+    "صيغة xls القديمة غير مدعومة. افتحي الملف واحفظيه بصيغة xlsx أو csv.",
+  unsupported: "نوع الملف غير مدعوم. المسموح: xlsx أو csv.",
+  too_many_rows: "عدد الصفوف أكبر من 1000. قسّمي الملف إلى أكثر من ملف.",
+  unreadable: "تعذّرت قراءة الملف. تأكدي أنه xlsx سليم أو csv بترميز UTF-8.",
+};
+
+export function mapExtractionError(error: unknown): string {
+  if (error instanceof AuthorizationError) return UNAUTHORIZED_MESSAGE;
+  if (error instanceof ExtractionError) return extractionMessages[error.code];
+  if (error instanceof PurchaseError || error instanceof InventoryError) {
+    return mapPurchaseError(error);
+  }
+  if (error instanceof Error && error.message === "STORAGE_NOT_CONFIGURED") {
+    return "تخزين الملفات غير مهيأ على الخادم بعد.";
+  }
+  return "تعذّرت معالجة الملف. حاولي مجدداً.";
 }
