@@ -6,6 +6,7 @@ import {
   Bell,
   Boxes,
   Camera,
+  ChartNoAxesColumn,
   HandCoins,
   Home,
   LogOut,
@@ -65,6 +66,13 @@ const secondaryLinks: NavLink[] = [
     label: "الزبائن والديون",
     match: "prefix",
     Icon: Users,
+  },
+  {
+    href: "/admin/reports",
+    label: "التقارير",
+    match: "prefix",
+    Icon: ChartNoAxesColumn,
+    ownerOnly: true,
   },
   {
     href: "/admin/inventory/suppliers",

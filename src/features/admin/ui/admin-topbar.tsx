@@ -11,6 +11,7 @@ const titles: Record<string, string> = {
   "/admin/products/new": "منتج جديد",
   "/admin/settings": "إعدادات المتجر",
   "/admin/notifications": "الإشعارات",
+  "/admin/reports": "التقارير",
   "/admin/sales": "المبيعات",
   "/admin/sales/new": "بيع يدوي",
   "/admin/customers": "الزبائن والديون",
