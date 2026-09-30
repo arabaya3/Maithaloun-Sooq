@@ -112,4 +112,49 @@ Enforced in services through `assertPermission(actor, permission)`.
 
 `0007_store_operations.sql` is additive: new enums, tables, indexes, triggers, RLS enabled with no anon/authenticated grants, one nullable column on `admin_notifications`. No existing column or row is changed.
 
+Later migrations follow the same additive rule:
+
+- `0008_customers_sales.sql`: customers, invoices, payments, customer ledger, invoice number sequence.
+- `0009_reminders_reports_voice.sql`: reminder state and log, archived reports, store settings, job runs, voice commands.
+- `0010_catalog_rls.sql`: enables row level security on `product_variants` and `product_specifications`, which predate this branch and had none. The app connects as the table owner, so no query changes.
+
+Migrations run only on a Production build (`VERCEL_ENV=production`) or with `APPLY_DB_MIGRATIONS=1`; Preview builds never migrate.
+
 Rollback: drop the new tables and enums in reverse dependency order and drop `admin_notifications.dedupe_key`. No existing behaviour depends on them once the application is reverted.
+
+## Voice assistant
+
+- The model receives only the spoken sentence. It returns a flat intent object that is re-validated with Zod; names are matched to the catalog and customers in code, and every price, total and balance comes from the database.
+- A fuzzy product or customer match is never auto-selected; the assistant asks one question at a time.
+- Sales and purchases open in the normal review forms. Payments and stock adjustments show a before/after card. Nothing is written before the confirm button.
+- The command id is the idempotency key of the resulting mutation. Commands are private to the admin who created them.
+- Audio is forwarded for transcription and discarded. The transcript is stored in `voice_commands`; it is not logged.
+
+## Scheduled work
+
+`/api/cron/daily` (Vercel cron `0 5 * * *`, `Authorization: Bearer $CRON_SECRET`) creates debt reminders for the owner and operator every 5 days per owing customer and archives the periodic summary. `scheduled_job_runs` makes a repeated call a no-op. No message is ever sent to a customer.
+
+## Configuration
+
+| Variable                                                              | Purpose                                                                     |
+| --------------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| `OPENAI_API_KEY`                                                      | Invoice extraction, insights, voice. Server only.                           |
+| `OPENAI_VISION_MODEL`, `OPENAI_TEXT_MODEL`, `OPENAI_TRANSCRIBE_MODEL` | Model overrides.                                                            |
+| `SUPABASE_URL`, `SUPABASE_SECRET_KEY`                                 | Private bucket `private-documents` (create it as private before first use). |
+| `CRON_SECRET`                                                         | At least 32 characters; required for the daily job.                         |
+| `AI_FAKE_MODE`                                                        | Local and test fixtures only; ignored in production.                        |
+
+## Verification
+
+- Supabase advisors were not run against this schema because no isolated Supabase database exists. `tests/integration/database-schema-hygiene.test.ts` checks the same things locally: RLS on every table, no grants to API roles, an index behind every foreign key, append-only triggers on the ledgers.
+- `tests/e2e/zz-visual-qa.spec.ts` loads 15 admin screens at 360, 390, 768, 1024 and 1440 wide, at 640×400 (1280×800 at 200% zoom) and at 320 wide, asserting no horizontal overflow and 44px targets. Screenshots are in `docs/screenshots/store-ops`.
+
+## Known limitations
+
+- Legacy `.xls` files are rejected with a message asking for `.xlsx` or `.csv`.
+- Invoice photos cannot be cropped in the app; metadata is stripped and the image is re-encoded.
+- Work entered while offline is kept only in the open page; there is no background sync queue.
+- A supplier return reduces stock but does not yet reduce the supplier payable.
+- Orders confirmed before migration 0007 move no stock when delivered.
+- The cost-change explanation on price reviews is computed text, not AI.
+- Browser speech recognition and the recorded-audio fallback are covered by typed-transcript tests only; they need a check on a real phone.

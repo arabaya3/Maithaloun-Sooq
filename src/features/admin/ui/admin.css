@@ -41,7 +41,7 @@ body:has(.admin-login-page) {
   --admin-radius-md: 10px;
   --admin-radius-lg: 12px;
   --admin-touch: 44px;
-  --admin-control: 40px;
+  --admin-control: 44px;
   --admin-sidebar-width: 240px;
   --admin-topbar-height: 56px;
   --admin-body-max: none;
@@ -739,7 +739,7 @@ body:has(.admin-login-page) {
 }
 
 .admin-btn-sm {
-  min-height: 2.25rem;
+  min-height: 2.75rem;
   padding: 0 0.75rem;
   font-size: 0.8125rem;
   border-radius: var(--admin-radius);
@@ -2556,7 +2556,7 @@ body:has(.admin-login-page) {
 }
 
 .admin-btn-sm {
-  min-height: 2.25rem !important;
+  min-height: 2.75rem !important;
   padding: 0 0.75rem !important;
   font-size: 0.8125rem !important;
 }

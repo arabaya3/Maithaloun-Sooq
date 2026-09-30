@@ -1266,3 +1266,10 @@
   font-size: 1.0625rem;
   font-weight: 650;
 }
+
+.admin-area-choice {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: var(--admin-touch);
+}
