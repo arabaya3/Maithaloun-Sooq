@@ -419,7 +419,7 @@ export function PurchaseForm({
                   {typeof line.confidence === "number" ? (
                     <>
                       {" "}
-                      · ثقة المطابقة <bdi dir="ltr">{line.confidence}%</bdi>
+                      · درجة الثقة <bdi dir="ltr">{line.confidence}%</bdi>
                     </>
                   ) : null}
                 </p>

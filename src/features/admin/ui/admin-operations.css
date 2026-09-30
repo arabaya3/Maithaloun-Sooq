@@ -1016,3 +1016,39 @@
 .admin-suggestion > span {
   display: grid;
 }
+
+.admin-capture-pages {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.6rem;
+}
+
+.admin-capture-pages > li {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius-md);
+  background: var(--admin-surface);
+}
+
+.admin-capture-pages img {
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  object-fit: cover;
+}
+
+.admin-capture-pdf {
+  display: grid;
+  justify-items: center;
+  gap: 0.4rem;
+  padding: 1.5rem 0.75rem;
+  overflow-wrap: anywhere;
+  text-align: center;
+}
+
+.admin-capture-page-actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.4rem;
+  padding: 0.4rem;
+}

@@ -186,6 +186,19 @@ export default async function ExtractionReviewPage({
         <div className="admin-review-side">
           <section className="admin-panel" aria-label="ملخص القراءة">
             {summary}
+            {job.header.warnings.map((warning) => (
+              <p key={warning} className="admin-form-warning" role="status">
+                <AlertTriangle size={16} aria-hidden="true" />
+                {warning}
+              </p>
+            ))}
+            {job.kind === "purchase_invoice_ai" &&
+            job.header.confidence !== null ? (
+              <p className="admin-muted">
+                ثقة قراءة رأس الفاتورة:{" "}
+                <bdi dir="ltr">{job.header.confidence}%</bdi>
+              </p>
+            ) : null}
           </section>
           <InvoiceDocuments documents={job.documents} />
           {errorsPanel}

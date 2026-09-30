@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import {
+  Camera,
   ClipboardList,
   FileSpreadsheet,
   PackageCheck,
@@ -68,6 +69,12 @@ export default async function InventoryOverviewPage() {
   const attention = [...overview.outOfStock, ...overview.lowStock];
 
   const actions = [
+    {
+      href: "/admin/inventory/capture",
+      label: "تصوير فاتورة شراء",
+      Icon: Camera,
+      show: true,
+    },
     {
       href: "/admin/inventory/purchases/new",
       label: "إدخال شراء يدوي",

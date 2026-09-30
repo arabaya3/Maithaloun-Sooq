@@ -41,6 +41,10 @@ export default defineConfig({
       DATABASE_URL: testEnvironment.TEST_DATABASE_URL,
       ORDER_RATE_LIMIT_PEPPER: testEnvironment.ORDER_RATE_LIMIT_PEPPER,
       APP_ORIGIN: process.env.E2E_PORT ? origin : testEnvironment.APP_ORIGIN,
+      AI_FAKE_MODE: "1",
+      OPENAI_API_KEY: "",
+      SUPABASE_URL: "",
+      SUPABASE_SECRET_KEY: "",
     },
   },
 });

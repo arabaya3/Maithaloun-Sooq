@@ -17,6 +17,7 @@ const titles: Record<string, string> = {
   "/admin/inventory/purchases/new": "إدخال شراء يدوي",
   "/admin/inventory/suppliers": "الموردون",
   "/admin/inventory/import": "رفع ملف Excel",
+  "/admin/inventory/capture": "تصوير فاتورة شراء",
 };
 
 function resolveTitle(pathname: string): string {

@@ -17,6 +17,13 @@ import {
   type PurchaseService,
 } from "@/features/purchasing/application/purchase-service";
 import {
+  INVOICE_EXTRACTION_VERSION,
+  INVOICE_PROMPT_VERSION,
+  MIN_AUTO_MATCH_CONFIDENCE,
+  invoiceExtractionSchema,
+  normalizeInvoiceExtraction,
+} from "@/features/purchasing/domain/invoice-extraction";
+import {
   matchLine,
   type CatalogVariant,
   type MatchCandidate,
@@ -39,9 +46,16 @@ import {
   toCsv,
   type ColumnMapping,
 } from "@/features/purchasing/domain/spreadsheet";
+import {
+  InvoiceFileError,
+  prepareInvoiceFiles,
+  type InvoiceFileErrorCode,
+} from "@/features/purchasing/infrastructure/invoice-files";
 import { readSpreadsheet } from "@/features/purchasing/infrastructure/workbook-reader";
 import { normalizeArabicText } from "@/shared/lib/normalize-arabic";
 import * as schema from "@/server/db/schema";
+import { AiError } from "@/server/ai/openai-client";
+import type { InvoiceExtractor } from "@/server/ai/invoice-extractor";
 import type { PrivateDocumentStore } from "@/server/storage/private-documents";
 
 export const SPREADSHEET_EXTRACTION_VERSION = "spreadsheet-v1";
@@ -52,6 +66,9 @@ export type ExtractionErrorCode =
   | "not_reviewable"
   | "multiple_invoices"
   | "no_valid_rows"
+  | "ai_failed"
+  | "ai_not_configured"
+  | InvoiceFileErrorCode
   | SpreadsheetError["code"];
 
 export class ExtractionError extends Error {
@@ -73,6 +90,7 @@ export interface ExtractionHeader {
   printedTotalAgorot: number | null;
   currency: string | null;
   confidence: number | null;
+  warnings: string[];
 }
 
 export interface ExtractionLineValues {
@@ -84,6 +102,7 @@ export interface ExtractionLineValues {
   quantityMilli: number | null;
   unitCostAgorot: number | null;
   totalAgorot: number | null;
+  extractionConfidence?: number;
 }
 
 export interface ExtractionLineView {
@@ -151,6 +170,7 @@ const emptyHeader: ExtractionHeader = {
   printedTotalAgorot: null,
   currency: null,
   confidence: null,
+  warnings: [],
 };
 
 function distinct(values: string[]): string[] {
@@ -347,6 +367,194 @@ export class ExtractionService {
       });
       return { jobId: job.id };
     });
+  }
+
+  async createInvoiceJob(
+    actor: AdminActor,
+    input: {
+      files: ReadonlyArray<{ bytes: Buffer; name: string }>;
+      idempotencyKey: string;
+    },
+    extractor: InvoiceExtractor,
+  ): Promise<{ jobId: string }> {
+    assertPermission(actor, "purchase.record");
+    if (!z.uuid().safeParse(input.idempotencyKey).success) {
+      throw new ExtractionError("invalid_input");
+    }
+    const [existing] = await this.database
+      .select({
+        id: schema.extractionJobs.id,
+        status: schema.extractionJobs.status,
+      })
+      .from(schema.extractionJobs)
+      .where(eq(schema.extractionJobs.idempotencyKey, input.idempotencyKey))
+      .limit(1);
+    if (existing && existing.status !== "failed") return { jobId: existing.id };
+    if (existing) throw new ExtractionError("ai_failed");
+
+    let prepared;
+    try {
+      prepared = await prepareInvoiceFiles(input.files);
+    } catch (error) {
+      if (error instanceof InvoiceFileError) {
+        throw new ExtractionError(error.code);
+      }
+      throw error;
+    }
+
+    // Originals are stored first, so a failed reading still leaves the invoice on record.
+    const documents = [];
+    for (const file of prepared) {
+      documents.push(
+        await this.saveDocument(actor, {
+          kind: file.kind,
+          bytes: file.bytes,
+          extension: file.extension,
+          mimeType: file.mimeType,
+          originalName: file.originalName,
+        }),
+      );
+    }
+    const [job] = await this.database
+      .insert(schema.extractionJobs)
+      .values({
+        kind: "purchase_invoice_ai",
+        status: "processing",
+        idempotencyKey: input.idempotencyKey,
+        aiModel: extractor.model,
+        promptVersion: INVOICE_PROMPT_VERSION,
+        extractionVersion: INVOICE_EXTRACTION_VERSION,
+        createdBy: actor.id,
+      })
+      .returning({ id: schema.extractionJobs.id });
+    if (!job) throw new ExtractionError("invalid_input");
+    await this.database.insert(schema.extractionJobDocuments).values(
+      documents.map((document, index) => ({
+        jobId: job.id,
+        documentId: document.id,
+        pageNo: index + 1,
+      })),
+    );
+
+    const fail = async (
+      errorCode: string,
+      code: ExtractionErrorCode,
+    ): Promise<never> => {
+      await this.database
+        .update(schema.extractionJobs)
+        .set({ status: "failed", errorCode, updatedAt: new Date() })
+        .where(eq(schema.extractionJobs.id, job.id));
+      throw new ExtractionError(code);
+    };
+
+    let raw: unknown;
+    try {
+      raw = await extractor.extract(prepared);
+    } catch (error) {
+      const code = error instanceof AiError ? error.code : "AI_REQUEST_FAILED";
+      return fail(
+        code,
+        code === "AI_NOT_CONFIGURED" ? "ai_not_configured" : "ai_failed",
+      );
+    }
+    // The model's output is untrusted input: it must satisfy the schema before anything is stored.
+    const parsed = invoiceExtractionSchema.safeParse(raw);
+    if (!parsed.success) return fail("AI_RESPONSE_INVALID", "ai_failed");
+    const invoice = normalizeInvoiceExtraction(parsed.data);
+    if (!invoice.lines.length) return fail("NO_LINES", "no_valid_rows");
+
+    const supplierId = invoice.supplierName
+      ? await this.findSupplierId(invoice.supplierName)
+      : null;
+    const catalog = await this.loadCatalog();
+    const aliases = await this.loadAliases(supplierId);
+    const variantUuid = new Map(
+      catalog.map((item) => [item.variantId, item.id]),
+    );
+    const header: ExtractionHeader = {
+      supplierName: invoice.supplierName,
+      supplierId,
+      reference: invoice.reference,
+      invoiceDate: invoice.invoiceDate,
+      paymentStatus: invoice.paymentStatus,
+      paidAgorot: invoice.paidAgorot,
+      discountAgorot: invoice.discountAgorot,
+      taxAgorot: invoice.taxAgorot,
+      printedTotalAgorot: invoice.printedTotalAgorot,
+      currency: invoice.currency,
+      confidence: invoice.confidence,
+      warnings: invoice.warnings,
+    };
+
+    await this.database.transaction(async (transaction) => {
+      await transaction
+        .update(schema.extractionJobs)
+        .set({
+          status: "needs_review",
+          header: { ...header },
+          updatedAt: new Date(),
+        })
+        .where(eq(schema.extractionJobs.id, job.id));
+      await transaction.insert(schema.extractionJobLines).values(
+        invoice.lines.map((line) => {
+          const values: ExtractionLineValues = {
+            name: line.name,
+            barcode: line.barcode,
+            sku: line.sku,
+            size: line.size,
+            unit: line.unit,
+            quantityMilli: line.quantityMilli,
+            unitCostAgorot: line.unitCostAgorot,
+            totalAgorot: line.totalAgorot,
+            extractionConfidence: line.extractionConfidence,
+          };
+          const base = {
+            jobId: job.id,
+            lineNo: line.lineNo,
+            raw: { ...parsed.data.lines[line.lineNo - 1] },
+            normalized: { ...values },
+          };
+          if (line.errors.length) {
+            return { ...base, status: "error" as const, errors: line.errors };
+          }
+          const match = matchLine(line, catalog, aliases);
+          // A line the model could barely read is never matched automatically.
+          const trusted =
+            line.extractionConfidence >= MIN_AUTO_MATCH_CONFIDENCE;
+          const status =
+            match.status === "matched" && !trusted ? "suggested" : match.status;
+          return {
+            ...base,
+            status,
+            matchMethod: match.method,
+            matchedVariantId:
+              status === "matched" && match.variantId
+                ? (variantUuid.get(match.variantId) ?? null)
+                : null,
+            confidence: Math.min(
+              match.confidence ?? line.extractionConfidence,
+              line.extractionConfidence,
+            ),
+            candidates: match.candidates,
+            errors: [],
+          };
+        }),
+      );
+      await transaction.insert(schema.adminAuditEvents).values({
+        adminUserId: actor.id,
+        actionType: "extraction_create",
+        entityType: "extraction_job",
+        entityId: job.id,
+        beforeState: null,
+        afterState: {
+          kind: "purchase_invoice_ai",
+          rowCount: invoice.lines.length,
+          model: extractor.model,
+          promptVersion: INVOICE_PROMPT_VERSION,
+        },
+      });
+    });
+    return { jobId: job.id };
   }
 
   async getJob(

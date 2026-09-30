@@ -258,6 +258,7 @@ export interface ExtractionDraftSource {
       unit: StockUnit;
       quantityMilli: number | null;
       unitCostAgorot: number | null;
+      extractionConfidence?: number;
     };
   }>;
 }
@@ -293,7 +294,7 @@ export function draftFromExtraction(
           .filter(Boolean)
           .join(" "),
         sourceLineNo: line.lineNo,
-        confidence: line.confidence,
+        confidence: line.values.extractionConfidence ?? line.confidence,
         suggestions:
           line.status === "matched" ? [] : [...line.candidates].slice(0, 4),
       })),

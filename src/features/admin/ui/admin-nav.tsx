@@ -12,6 +12,7 @@ import {
   Package,
   PenLine,
   Plus,
+  ReceiptText,
   Sheet as SheetIcon,
   Settings,
   ShoppingBag,
@@ -81,6 +82,12 @@ interface AddTask {
 }
 
 const addTasks: AddTask[] = [
+  {
+    href: "/admin/inventory/capture",
+    label: "تصوير فاتورة شراء",
+    hint: "قراءة الأصناف والأسعار من الصورة",
+    Icon: ReceiptText,
+  },
   {
     href: "/admin/products/new",
     label: "تصوير منتج",

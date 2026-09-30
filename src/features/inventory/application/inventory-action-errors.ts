@@ -81,6 +81,15 @@ const extractionMessages: Record<ExtractionError["code"], string> = {
   unsupported: "نوع الملف غير مدعوم. المسموح: xlsx أو csv.",
   too_many_rows: "عدد الصفوف أكبر من 1000. قسّمي الملف إلى أكثر من ملف.",
   unreadable: "تعذّرت قراءة الملف. تأكدي أنه xlsx سليم أو csv بترميز UTF-8.",
+  ai_failed:
+    "تعذّرت قراءة الفاتورة آلياً. الصور محفوظة؛ أعيدي المحاولة أو أدخليها يدوياً.",
+  ai_not_configured:
+    "قراءة الفواتير بالذكاء الاصطناعي غير مهيأة بعد. استخدمي الإدخال اليدوي.",
+  unsupported_file:
+    "نوع الملف غير مدعوم. المسموح: صور JPG أو PNG أو WebP أو ملف PDF.",
+  file_too_large: "حجم الملف أكبر من المسموح (10MB للصورة و8MB لملف PDF).",
+  too_many_files: "الحد الأقصى 6 صور، أو ملف PDF واحد.",
+  no_files: "صوّري الفاتورة أو اختاري ملفاً أولاً.",
 };
 
 export function mapExtractionError(error: unknown): string {
