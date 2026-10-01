@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 
 import { ADMIN_MANIFEST_PATH } from "@/features/pwa/admin-manifest";
 
@@ -6,6 +6,16 @@ import "@/features/admin/ui/admin.css";
 import "@/features/admin/ui/admin-operations.css";
 
 export const dynamic = "force-dynamic";
+
+// The on-screen keyboard shrinks the layout so the assistant composer stays visible.
+export const viewport: Viewport = {
+  themeColor: "#1F4D3A",
+  colorScheme: "light",
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  interactiveWidget: "resizes-content",
+};
 
 export const metadata: Metadata = {
   title: {
