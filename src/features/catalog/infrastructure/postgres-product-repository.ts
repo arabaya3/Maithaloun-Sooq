@@ -1,6 +1,6 @@
 import "server-only";
 
-import { asc, eq, inArray } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull } from "drizzle-orm";
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 
 import {
@@ -20,6 +20,7 @@ export class PostgresProductRepository implements ProductRepository {
     const rows = await this.database
       .select()
       .from(schema.products)
+      .where(isNull(schema.products.archivedAt))
       .orderBy(asc(schema.products.sortOrder));
     return this.mapProducts(rows);
   }
@@ -29,7 +30,12 @@ export class PostgresProductRepository implements ProductRepository {
     const [row] = await this.database
       .select()
       .from(schema.products)
-      .where(eq(schema.products.domainId, id))
+      .where(
+        and(
+          eq(schema.products.domainId, id),
+          isNull(schema.products.archivedAt),
+        ),
+      )
       .limit(1);
     if (!row) return null;
     const [product] = await this.mapProducts([row]);
@@ -41,7 +47,9 @@ export class PostgresProductRepository implements ProductRepository {
     const [row] = await this.database
       .select()
       .from(schema.products)
-      .where(eq(schema.products.slug, slug))
+      .where(
+        and(eq(schema.products.slug, slug), isNull(schema.products.archivedAt)),
+      )
       .limit(1);
     if (!row) return null;
     const [product] = await this.mapProducts([row]);
@@ -57,7 +65,12 @@ export class PostgresProductRepository implements ProductRepository {
     const rows = await this.database
       .select()
       .from(schema.products)
-      .where(inArray(schema.products.domainId, validIds));
+      .where(
+        and(
+          inArray(schema.products.domainId, validIds),
+          isNull(schema.products.archivedAt),
+        ),
+      );
     const products = await this.mapProducts(rows);
     const byId = new Map(products.map((product) => [product.id, product]));
     return validIds.flatMap((id) => {

@@ -78,6 +78,13 @@
       "when": 1790767068513,
       "tag": "0010_catalog_rls",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1790837751003,
+      "tag": "0011_admin_assistant",
+      "breakpoints": true
     }
   ]
 }

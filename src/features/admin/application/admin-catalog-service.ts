@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, asc, eq, inArray } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull } from "drizzle-orm";
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import { z } from "zod";
 
@@ -188,6 +188,7 @@ export class AdminCatalogService {
     const rows = await this.database
       .select()
       .from(schema.products)
+      .where(isNull(schema.products.archivedAt))
       .orderBy(asc(schema.products.sortOrder), asc(schema.products.domainId));
     return this.mapProducts(rows);
   }
@@ -893,6 +894,63 @@ export class AdminCatalogService {
         specsByProductId.get(row.id) ?? [],
       ),
     );
+  }
+
+  async setImage(
+    actor: AdminActor,
+    input: {
+      domainId: string;
+      image: { src: string; width: number; height: number };
+    },
+  ): Promise<{ previousSrc: string | null }> {
+    assertOperationsActor(actor);
+    if (
+      !productIdSchema.safeParse(input.domainId).success ||
+      !(
+        z.url().max(500).safeParse(input.image.src).success ||
+        /^\/dev-product-images\/[0-9a-f-]{36}\.webp$/.test(input.image.src)
+      )
+    ) {
+      throw new AdminCatalogError("invalid_input");
+    }
+    return this.database.transaction(async (transaction) => {
+      const [existing] = await transaction
+        .select()
+        .from(schema.products)
+        .where(eq(schema.products.domainId, input.domainId))
+        .for("update");
+      if (!existing) throw new AdminCatalogError("not_found");
+      const now = new Date();
+      const image = {
+        imageKind: "image" as const,
+        placeholderVariant: null,
+        imageSrc: input.image.src,
+        imageAlt: existing.nameAr.slice(0, 250),
+        imageWidth: input.image.width,
+        imageHeight: input.image.height,
+      };
+      const [row] = await transaction
+        .update(schema.products)
+        .set({ ...image, updatedAt: now })
+        .where(eq(schema.products.id, existing.id))
+        .returning();
+      if (!row) throw new AdminCatalogError("not_found");
+      await this.syncDefaultVariantFromProduct(transaction, row, {
+        priceAgorot: row.priceAgorot,
+        availability: row.availability,
+        ...image,
+      });
+      await transaction.insert(schema.adminAuditEvents).values({
+        adminUserId: actor.id,
+        actionType: "product_image_update",
+        entityType: "product",
+        entityId: row.domainId,
+        beforeState: { imageSrc: existing.imageSrc },
+        afterState: { imageSrc: row.imageSrc },
+        createdAt: now,
+      });
+      return { previousSrc: existing.imageSrc };
+    });
   }
 
   private async syncProductFromVariant(

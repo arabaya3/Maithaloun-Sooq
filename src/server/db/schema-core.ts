@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import {
+  type AnyPgColumn,
   boolean,
   check,
   index,
@@ -86,9 +87,15 @@ export const products = pgTable(
     usageNotes: text("usage_notes"),
     unit: varchar("unit", { length: 80 }),
     detailsStatus: productDetailsStatusEnum("details_status").notNull(),
+    archivedAt: timestamp("archived_at", { withTimezone: true, mode: "date" }),
+    mergedIntoProductId: uuid("merged_into_product_id").references(
+      (): AnyPgColumn => products.id,
+      { onDelete: "restrict", onUpdate: "cascade" },
+    ),
     ...timestamps,
   },
   (table) => [
+    index("products_merged_into_idx").on(table.mergedIntoProductId),
     check("products_positive_price", sql`${table.priceAgorot} > 0`),
     check("products_non_negative_sort", sql`${table.sortOrder} >= 0`),
     check(
