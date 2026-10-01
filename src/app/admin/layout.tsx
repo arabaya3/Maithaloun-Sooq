@@ -1,9 +1,20 @@
 import type { Metadata, Viewport } from "next";
+import localFont from "next/font/local";
 
 import { ADMIN_MANIFEST_PATH } from "@/features/pwa/admin-manifest";
 
 import "@/features/admin/ui/admin.css";
 import "@/features/admin/ui/admin-operations.css";
+
+// Noto Sans Arabic (OFL), the unchanged admin typeface.
+const adminFont = localFont({
+  src: "../fonts/noto-sans-arabic-subset.woff2",
+  weight: "400 900",
+  style: "normal",
+  display: "optional",
+  variable: "--font-arabic",
+  adjustFontFallback: "Arial",
+});
 
 export const dynamic = "force-dynamic";
 
@@ -33,5 +44,9 @@ export default function AdminRootLayout({
 }: {
   children: React.ReactNode;
 }) {
-  return children;
+  return (
+    <div className={`${adminFont.variable} admin-font-scope font-scope`}>
+      {children}
+    </div>
+  );
 }

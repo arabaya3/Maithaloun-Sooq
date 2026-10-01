@@ -1,54 +1,38 @@
 import { ChevronLeft, Truck, WalletCards } from "lucide-react";
 import { getImageProps } from "next/image";
 
-const common = { alt: "", quality: 75 };
+const bannerSizes = "(min-width: 75rem) 560px, 48vw";
+const compactSizes = "46vw";
 
 export function Hero() {
   const {
-    props: { srcSet: wide },
+    props: { srcSet: banner },
   } = getImageProps({
-    ...common,
-    src: "/assets/hero/home-wide.webp",
-    width: 1600,
-    height: 703,
-    sizes: "(min-width: 75rem) 1152px, calc(100vw - 3rem)",
+    alt: "",
+    src: "/assets/hero/home-banner.webp",
+    width: 1200,
+    height: 617,
+    sizes: bannerSizes,
   });
   const {
-    props: { srcSet: narrow, ...image },
+    props: { srcSet: compact, ...image },
   } = getImageProps({
-    ...common,
-    src: "/assets/hero/home-narrow.webp",
-    width: 960,
-    height: 600,
-    sizes: "calc(100vw - 2rem)",
+    alt: "",
+    src: "/assets/hero/home-compact.webp",
+    width: 640,
+    height: 506,
+    sizes: compactSizes,
   });
 
   return (
     <section className="hero" aria-labelledby="hero-title">
-      <picture className="hero-media">
-        <source
-          media="(min-width: 48rem)"
-          srcSet={wide}
-          sizes="(min-width: 75rem) 1152px, calc(100vw - 3rem)"
-          width={1600}
-          height={703}
-        />
-        <img
-          {...image}
-          srcSet={narrow}
-          alt=""
-          loading="eager"
-          fetchPriority="high"
-        />
-      </picture>
       <div className="hero-body">
-        <h1 id="hero-title">
-          <span>نظافة تريحك…</span>
-          <span className="hero-accent">وعطر بتحبه</span>
-        </h1>
-        <p>كل احتياجات النظافة والعناية بالمنزل في مكان واحد</p>
+        <h2 id="hero-title">
+          <span>أساسيات البيت،</span>
+          <span className="hero-accent">أقرب إلك</span>
+        </h2>
         <a className="hero-cta" href="#catalog">
-          اكتشف المنتجات
+          ابدأ التسوق
           <ChevronLeft aria-hidden="true" />
         </a>
         <ul className="hero-facts">
@@ -62,6 +46,22 @@ export function Hero() {
           </li>
         </ul>
       </div>
+      <picture className="hero-media">
+        <source
+          media="(min-width: 48rem)"
+          srcSet={banner}
+          sizes={bannerSizes}
+          width={1200}
+          height={617}
+        />
+        <img
+          {...image}
+          srcSet={compact}
+          alt=""
+          loading="eager"
+          fetchPriority="high"
+        />
+      </picture>
     </section>
   );
 }

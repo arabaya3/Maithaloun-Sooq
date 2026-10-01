@@ -66,18 +66,25 @@ describe("storefront", () => {
     ).toBeInTheDocument();
   });
 
-  it("renders the hero text as HTML over one decorative art-directed image", () => {
+  it("greets, then renders the hero text as HTML beside one decorative image", () => {
     const { container } = renderStorefront();
 
     expect(
       screen.getByRole("heading", {
         level: 1,
-        name: /نظافة تريحك.*وعطر بتحبه/,
+        name: "أهلًا! شو ناقص البيت اليوم؟",
       }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("link", { name: "اكتشف المنتجات" }),
-    ).toHaveAttribute("href", "#catalog");
+      screen.getByRole("heading", {
+        level: 2,
+        name: /أساسيات البيت،.*أقرب إلك/,
+      }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "ابدأ التسوق" })).toHaveAttribute(
+      "href",
+      "#catalog",
+    );
     const facts = container.querySelector(".hero-facts");
     expect(facts).toHaveTextContent("توصيل داخل ميثلون");
     expect(facts).toHaveTextContent("الدفع عند الاستلام");
@@ -154,24 +161,44 @@ describe("storefront", () => {
     expect(screen.getByText("منظف عام Secret")).toBeInTheDocument();
   });
 
-  it("adds the selected quantity and updates the cart count", async () => {
+  it("adds to the cart, then adjusts and removes the quantity in place", async () => {
     const user = userEvent.setup();
     renderStorefront();
 
-    const firstCard = screen.getByText("منظف عام Secret").closest("article");
-    expect(firstCard).not.toBeNull();
+    const card = screen.getByText("منظف عام Secret").closest("article")!;
+    expect(
+      within(card).queryByRole("button", {
+        name: "زيادة كمية منظف عام Secret",
+      }),
+    ).toBeNull();
     await user.click(
-      within(firstCard!).getByRole("button", {
+      within(card).getByRole("button", { name: "أضف إلى السلة" }),
+    );
+    await user.click(
+      within(card).getByRole("button", {
         name: "زيادة كمية منظف عام Secret",
       }),
     );
-    await user.click(
-      within(firstCard!).getByRole("button", { name: "أضف إلى السلة" }),
-    );
-
     expect(
       screen.getByRole("link", { name: /^السلة، عدد المنتجات\s*2$/ }),
     ).toBeVisible();
+
+    await user.click(
+      within(card).getByRole("button", {
+        name: "تقليل كمية منظف عام Secret",
+      }),
+    );
+    await user.click(
+      within(card).getByRole("button", {
+        name: "إزالة منظف عام Secret من السلة",
+      }),
+    );
+    expect(
+      within(card).getByRole("button", { name: "أضف إلى السلة" }),
+    ).toBeVisible();
+    expect(
+      screen.getByRole("link", { name: /^السلة، عدد المنتجات\s*0$/ }),
+    ).toBeInTheDocument();
   });
 
   it("prevents quantity changes and cart additions for unavailable products", () => {
@@ -180,8 +207,8 @@ describe("storefront", () => {
     const card = screen.getByText("منظف غير متاح").closest("article");
     expect(card).not.toBeNull();
     expect(
-      within(card!).getByRole("button", { name: "غير متاح" }),
-    ).toBeDisabled();
+      within(card!).queryByRole("button", { name: "أضف إلى السلة" }),
+    ).toBeNull();
     expect(
       within(card!).queryByRole("button", {
         name: "زيادة كمية منظف غير متاح",

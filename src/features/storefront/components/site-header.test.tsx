@@ -49,11 +49,11 @@ describe("SiteHeader", () => {
     const ref = createRef<HTMLInputElement>();
     Element.prototype.scrollIntoView = vi.fn();
     renderWithProviders(
-      <SiteHeader
-        searchQuery=""
-        onSearchChange={() => {}}
-        searchInputRef={ref}
-      />,
+      <>
+        <SiteHeader searchInputRef={ref} />
+        <label htmlFor="search">ابحث في المنتجات</label>
+        <input id="search" type="search" ref={ref} />
+      </>,
       { productIds: [] },
     );
 

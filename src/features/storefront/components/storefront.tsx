@@ -6,12 +6,13 @@ import {
   CookingPot,
   House,
   LayoutGrid,
-  Leaf,
   PackageSearch,
+  Search,
   WashingMachine,
+  X,
   type LucideIcon,
 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
 
 import { ProductCard } from "@/features/catalog/components/product-card";
 import {
@@ -33,6 +34,48 @@ const categoryIcons: Record<CategoryId, LucideIcon> = {
   tools: Brush,
   home: House,
 };
+
+function ProductSearch({
+  query,
+  onChange,
+  inputRef,
+}: {
+  query: string;
+  onChange: (value: string) => void;
+  inputRef: RefObject<HTMLInputElement | null>;
+}) {
+  return (
+    <div className="search-wrap">
+      <label htmlFor="product-search" className="sr-only">
+        ابحث في المنتجات
+      </label>
+      <Search aria-hidden="true" />
+      <input
+        ref={inputRef}
+        id="product-search"
+        type="search"
+        enterKeyHint="search"
+        value={query}
+        onChange={(event) => onChange(event.target.value)}
+        placeholder="ابحث عن منظف، معطر، فرشاة…"
+        autoComplete="off"
+      />
+      {query ? (
+        <button
+          type="button"
+          className="clear-search"
+          aria-label="مسح البحث"
+          onClick={() => {
+            onChange("");
+            inputRef.current?.focus();
+          }}
+        >
+          <X aria-hidden="true" />
+        </button>
+      ) : null}
+    </div>
+  );
+}
 
 function CategoryPicker({
   selected,
@@ -67,7 +110,7 @@ function CategoryPicker({
               <span className="category-icon" aria-hidden="true">
                 <Icon />
               </span>
-              <span>{category.label}</span>
+              <span className="category-label">{category.label}</span>
             </button>
           );
         })}
@@ -102,12 +145,16 @@ export function Storefront({ products }: { products: readonly Product[] }) {
 
   return (
     <>
-      <SiteHeader
-        searchQuery={query}
-        onSearchChange={setQuery}
-        searchInputRef={searchInputRef}
-      />
+      <SiteHeader searchInputRef={searchInputRef} />
       <main className="page-shell storefront-main">
+        <section className="welcome" aria-labelledby="welcome-title">
+          <h1 id="welcome-title">أهلًا! شو ناقص البيت اليوم؟</h1>
+          <ProductSearch
+            query={query}
+            onChange={setQuery}
+            inputRef={searchInputRef}
+          />
+        </section>
         <Hero />
         <CategoryPicker selected={category} onSelect={setCategory} />
         {hasActiveFilter ? (
@@ -131,8 +178,7 @@ export function Storefront({ products }: { products: readonly Product[] }) {
         >
           <div className="section-heading catalog-heading">
             <h2 id="catalog-title">
-              <Leaf aria-hidden="true" />
-              {hasActiveFilter ? "نتائج البحث" : "مختارات ميثلون"}
+              {hasActiveFilter ? "نتائج البحث" : "اختيارات للبيت"}
             </h2>
             <span className="results-count" aria-live="polite">
               {formatProductCount(filteredProducts.length)}
@@ -141,12 +187,8 @@ export function Storefront({ products }: { products: readonly Product[] }) {
 
           {filteredProducts.length ? (
             <div className="product-grid">
-              {filteredProducts.map((product, index) => (
-                <ProductCard
-                  key={product.id}
-                  product={product}
-                  priority={index < 4}
-                />
+              {filteredProducts.map((product) => (
+                <ProductCard key={product.id} product={product} />
               ))}
             </div>
           ) : (
