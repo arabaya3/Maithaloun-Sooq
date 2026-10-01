@@ -13,6 +13,7 @@ import {
   type PointerEvent,
 } from "react";
 
+import { MissingProductPhoto } from "@/features/catalog/components/product-photo";
 import type { ProductVariant } from "@/features/catalog/domain/product-variant";
 
 type ZoomImage = Extract<ProductVariant["image"], { kind: "image" }>;
@@ -40,6 +41,7 @@ export function ProductImageZoom({
   const [isCoarse, setIsCoarse] = useState(false);
   const [reduceMotion, setReduceMotion] = useState(false);
   const [zooming, setZooming] = useState(false);
+  const [failed, setFailed] = useState(false);
   const [photoStyle, setPhotoStyle] = useState<CSSProperties>({});
 
   useEffect(() => {
@@ -130,6 +132,10 @@ export function ProductImageZoom({
     openDialog();
   }
 
+  if (failed) {
+    return <MissingProductPhoto alt={image.alt} className={className} />;
+  }
+
   return (
     <>
       <button
@@ -154,7 +160,7 @@ export function ProductImageZoom({
             className="product-photo"
             priority={priority}
             style={photoStyle}
-            onError={resetZoom}
+            onError={() => setFailed(true)}
           />
         </div>
       </button>

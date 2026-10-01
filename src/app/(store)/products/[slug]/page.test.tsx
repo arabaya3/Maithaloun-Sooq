@@ -1,4 +1,4 @@
-import { screen } from "@testing-library/react";
+import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
@@ -40,14 +40,15 @@ describe("product details page", () => {
     ).toBeInTheDocument();
     expect(screen.getByLabelText("السعر 7 ₪")).toHaveTextContent("7 ₪");
     expect(screen.getByText("متاح للإضافة إلى السلة")).toBeInTheDocument();
-    expect(screen.getByLabelText("منطقة التوصيل")).toHaveTextContent(
-      "التوصيل داخل ميثلون",
-    );
+    expect(screen.getByText(/توصيل داخل ميثلون/)).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "أضف إلى السلة" }));
-    expect(
-      screen.getByRole("link", { name: "السلة، منتج واحد" }),
-    ).toBeVisible();
+    const actions = document.querySelector<HTMLElement>(
+      ".product-detail-actions",
+    );
+    expect(actions).not.toBeNull();
+    await user.click(
+      within(actions!).getByRole("button", { name: "أضف إلى السلة" }),
+    );
     expect(
       screen.getByRole("link", { name: /^السلة، عدد المنتجات\s*1$/ }),
     ).toBeVisible();

@@ -1,6 +1,6 @@
 "use client";
 
-import { Heart, ShoppingBasket } from "lucide-react";
+import { Heart, Plus } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 
@@ -28,9 +28,14 @@ export function ProductCard({
   const name = getProductDisplayName(product);
   const favorite = isFavorite(product.id);
   const available = isProductAvailable(product);
+  const optionCount = product.variants.length;
 
   return (
-    <article className="product-card" data-product-id={product.id}>
+    <article
+      className="product-card"
+      data-product-id={product.id}
+      data-available={available}
+    >
       <button
         type="button"
         className="icon-button favorite-button"
@@ -47,28 +52,40 @@ export function ProductCard({
         <ProductMedia
           product={product}
           priority={priority}
-          sizes="(min-width: 1024px) 252px, (min-width: 768px) 27vw, 34vw"
+          sizes="(min-width: 1024px) 252px, (min-width: 768px) 30vw, 46vw"
         />
         <div className="product-details">
           <h3>
             <bdi dir="auto">{name}</bdi>
           </h3>
+          {product.unit || optionCount > 1 ? (
+            <p className="product-meta">
+              {product.unit ? <span>{product.unit}</span> : null}
+              {optionCount > 1 ? (
+                <span className="product-options">{optionCount} خيارات</span>
+              ) : null}
+            </p>
+          ) : null}
           <p
             className="product-price"
             aria-label={`السعر ${formatIls(product.priceAgorot)}`}
           >
             <bdi dir="ltr">{formatIls(product.priceAgorot)}</bdi>
           </p>
+          {available ? null : (
+            <p className="product-unavailable">غير متوفر حالياً</p>
+          )}
         </div>
       </Link>
 
       <div className="product-actions">
-        <QuantityControl
-          name={name}
-          quantity={quantity}
-          disabled={!available}
-          onChange={setQuantity}
-        />
+        {available ? (
+          <QuantityControl
+            name={name}
+            quantity={quantity}
+            onChange={setQuantity}
+          />
+        ) : null}
         <button
           type="button"
           className="add-button"
@@ -77,8 +94,14 @@ export function ProductCard({
             addItem(product.id, product.defaultVariantId, quantity)
           }
         >
-          <ShoppingBasket aria-hidden="true" />
-          {available ? "أضف" : "غير متاح"}
+          {available ? (
+            <>
+              <Plus aria-hidden="true" />
+              أضف إلى السلة
+            </>
+          ) : (
+            "غير متاح"
+          )}
         </button>
       </div>
     </article>

@@ -1,6 +1,5 @@
-import Image from "next/image";
-
 import { ProductImageZoom } from "@/features/catalog/components/product-image-zoom";
+import { ProductPhoto } from "@/features/catalog/components/product-photo";
 import { ProductPlaceholder } from "@/features/catalog/components/product-placeholder";
 import type { Product } from "@/features/catalog/domain/product";
 
@@ -37,19 +36,14 @@ export function ProductMedia({
     }
 
     return (
-      <div
-        className={`${className} product-art--photo`}
-        data-image-kind="image"
-      >
-        <Image
-          src={displayImage.src}
-          alt={displayImage.alt}
-          fill
-          sizes={sizes}
-          className="product-photo"
-          priority={priority}
-        />
-      </div>
+      <ProductPhoto
+        key={displayImage.src}
+        src={displayImage.src}
+        alt={displayImage.alt}
+        className={className}
+        sizes={sizes}
+        priority={priority}
+      />
     );
   }
 

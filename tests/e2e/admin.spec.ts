@@ -274,12 +274,10 @@ test("admin authentication, operations, and privacy controls", async ({
   );
 
   await page.goto("/");
-  await expect(page.getByLabel("منطقة التوصيل")).toHaveText(
-    "التوصيل داخل ميثلون",
-  );
+  await expect(page.locator(".hero-facts")).toContainText("توصيل داخل ميثلون");
   const product = page.locator('[data-product-id="dolphin-bleach"]');
   await expect(product).toBeVisible();
-  await product.getByRole("button", { name: /^أضف$/ }).click();
+  await product.getByRole("button", { name: "أضف إلى السلة" }).click();
   await expect(page.locator(".cart-button")).toHaveAccessibleName(
     /السلة، عدد المنتجات [1-9]/,
   );
