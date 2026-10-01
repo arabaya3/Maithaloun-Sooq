@@ -281,7 +281,7 @@ test("admin authentication, operations, and privacy controls", async ({
   await expect(product).toBeVisible();
   await product.getByRole("button", { name: /^أضف$/ }).click();
   await expect(page.locator(".cart-button")).toHaveAccessibleName(
-    /السلة، منتج/,
+    /السلة، عدد المنتجات [1-9]/,
   );
   await page.locator(".cart-button").click();
   await page.getByRole("link", { name: "متابعة إلى بيانات الطلب" }).click();

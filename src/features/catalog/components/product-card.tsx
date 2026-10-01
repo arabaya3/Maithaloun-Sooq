@@ -43,15 +43,11 @@ export function ProductCard({
         <Heart aria-hidden="true" className={favorite ? "fill-current" : ""} />
       </button>
 
-      <Link
-        href={`/products/${product.slug}`}
-        className="product-card-link"
-        aria-label={`عرض تفاصيل ${name}`}
-      >
+      <Link href={`/products/${product.slug}`} className="product-card-link">
         <ProductMedia
           product={product}
           priority={priority}
-          sizes="(min-width: 1024px) 20vw, (min-width: 768px) 30vw, 45vw"
+          sizes="(min-width: 1024px) 252px, (min-width: 768px) 27vw, 34vw"
         />
         <div className="product-details">
           <h3>

@@ -17,6 +17,7 @@ import {
   verifyConfirmation,
   type StoredConfirmation,
 } from "./confirmation-token";
+import { assistantInstructions } from "./assistant-instructions";
 import { resolveCatalogEntity, type CatalogEntry } from "./entity-match";
 import { maskPhone, summarizeToolInput } from "./redaction";
 import { assistantRequestSchema, toModelUserText } from "./user-message";
@@ -372,5 +373,12 @@ describe("voice states", () => {
         { type: "transcribed", transcript: "x" },
       ]),
     ).toEqual({ name: "idle" });
+  });
+});
+
+describe("assistant instructions", () => {
+  it("tell the model in read mode that changes are disabled", () => {
+    expect(assistantInstructions("read")).toContain("وضع القراءة فقط");
+    expect(assistantInstructions("full")).not.toContain("وضع القراءة فقط");
   });
 });

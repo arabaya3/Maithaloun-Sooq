@@ -46,8 +46,11 @@ describe("product details page", () => {
 
     await user.click(screen.getByRole("button", { name: "أضف إلى السلة" }));
     expect(
-      screen.getAllByRole("link", { name: "السلة، منتج واحد" }),
-    ).toHaveLength(2);
+      screen.getByRole("link", { name: "السلة، منتج واحد" }),
+    ).toBeVisible();
+    expect(
+      screen.getByRole("link", { name: /^السلة، عدد المنتجات\s*1$/ }),
+    ).toBeVisible();
     expect(
       screen.getByText("تمت إضافة منظف عام Secret إلى السلة."),
     ).toBeInTheDocument();

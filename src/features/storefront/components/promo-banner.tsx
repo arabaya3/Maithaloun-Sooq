@@ -19,7 +19,7 @@ export function PromoBanner() {
             alt=""
             fill
             priority
-            sizes="(max-width: 48rem) 100vw, min(72rem, 100vw)"
+            sizes="(max-width: 48rem) 100vw, 42rem"
             className="promo-photo"
             onError={() => {
               if (source !== HERO_FALLBACK) {
