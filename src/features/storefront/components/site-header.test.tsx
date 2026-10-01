@@ -22,6 +22,21 @@ describe("SiteHeader", () => {
       screen.getByRole("link", { name: "سوق ميثلون، الرئيسية" }),
     ).toBeInTheDocument();
     expect(container).not.toHaveTextContent("ميتلون");
+    const brand = container.querySelector(".brand")!;
+    expect(brand.querySelector(".brand-word")!.textContent).toMatch(
+      /^سوق ميثلون، الرئيسية$/,
+    );
+    const visibleWord = [
+      ...brand.querySelectorAll(".brand-word > span:not(.sr-only)"),
+    ]
+      .map((part) => part.textContent)
+      .join(" ");
+    expect(visibleWord).toBe("سوق ميثلون");
+    expect(brand.querySelector(".brand-tagline")).toHaveTextContent(
+      "منظفات ومعطرات جو",
+    );
+    expect(brand.querySelector("img")).toHaveAttribute("alt", "");
+    expect(container.textContent).not.toContain("سوق ميثون");
     expect(
       screen.getByRole("link", { name: /^السلة، عدد المنتجات\s*0$/ }),
     ).toHaveAttribute("href", "/cart");

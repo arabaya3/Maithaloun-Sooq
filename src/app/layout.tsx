@@ -1,13 +1,17 @@
 import type { Metadata, Viewport } from "next";
-import { Noto_Sans_Arabic } from "next/font/google";
+import localFont from "next/font/local";
 import type { ReactNode } from "react";
 
 import "./globals.css";
 
-const arabicFont = Noto_Sans_Arabic({
-  subsets: ["arabic"],
-  display: "swap",
+// Noto Sans Arabic (OFL), width axis pinned and subset to the Arabic and Latin text the site uses.
+const arabicFont = localFont({
+  src: "./fonts/noto-sans-arabic-subset.woff2",
+  weight: "400 900",
+  style: "normal",
+  display: "optional",
   variable: "--font-arabic",
+  adjustFontFallback: "Arial",
 });
 
 export const metadata: Metadata = {

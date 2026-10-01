@@ -1931,12 +1931,24 @@ select:focus-visible {
 }
 
 .brand {
-  display: grid;
+  display: flex;
+  align-items: center;
   justify-self: center;
-  justify-items: center;
+  gap: 0.45rem;
   color: var(--text);
   text-decoration: none;
   line-height: 1.1;
+}
+
+.brand-mark {
+  width: auto;
+  height: 2.6rem;
+  flex: none;
+}
+
+.brand-text {
+  display: grid;
+  justify-items: center;
 }
 
 .brand-word {
@@ -2045,17 +2057,27 @@ select:focus-visible {
 }
 
 .hero {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+}
+
+.hero-media img {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+}
+
+.hero-body {
+  position: relative;
   display: grid;
   justify-items: start;
   gap: 0.55rem;
-  padding: 1.1rem 1.1rem 0.9rem;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  background: linear-gradient(
-    160deg,
-    var(--surface) 35%,
-    var(--action-tint) 100%
-  );
+  padding: 0.9rem 1.1rem 0.9rem;
 }
 
 .hero h1 {
@@ -2450,25 +2472,44 @@ select:focus-visible {
   }
 
   .hero {
-    grid-template-columns: 1fr auto;
-    align-items: end;
-    column-gap: var(--space-8);
-    padding: 2rem 2.5rem 1.5rem;
+    display: grid;
+    min-height: clamp(20rem, 36vw, 27rem);
   }
 
-  .hero h1,
-  .hero p {
-    grid-column: 1;
+  .hero-media img {
+    position: absolute;
+    inset: 0;
+    height: 100%;
+    aspect-ratio: auto;
+    object-position: left center;
   }
 
-  .hero-cta {
-    grid-column: 2;
-    grid-row: 1 / span 2;
-    align-self: center;
+  .hero::after {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      to left,
+      rgb(251 250 247 / 0.94) 0%,
+      rgb(251 250 247 / 0.86) 38%,
+      rgb(251 250 247 / 0) 62%
+    );
+    content: "";
   }
 
-  .hero-facts {
-    grid-column: 1 / -1;
+  .hero-body {
+    z-index: 1;
+    display: flex;
+    width: min(100%, 26rem);
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.7rem;
+    padding: 2.4rem 2.5rem 1.4rem;
+  }
+
+  .hero-body .hero-facts {
+    margin-top: auto;
+    padding-top: 0.6rem;
+    color: var(--text);
   }
 
   .category-list {

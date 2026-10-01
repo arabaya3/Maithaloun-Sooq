@@ -66,7 +66,7 @@ describe("storefront", () => {
     ).toBeInTheDocument();
   });
 
-  it("renders a text-led hero with delivery and payment facts, no claims", () => {
+  it("renders the hero text as HTML over one decorative art-directed image", () => {
     const { container } = renderStorefront();
 
     expect(
@@ -81,7 +81,11 @@ describe("storefront", () => {
     const facts = container.querySelector(".hero-facts");
     expect(facts).toHaveTextContent("توصيل داخل ميثلون");
     expect(facts).toHaveTextContent("الدفع عند الاستلام");
-    expect(container.querySelector(".hero img")).toBeNull();
+    const images = container.querySelectorAll(".hero img");
+    expect(images).toHaveLength(1);
+    expect(images[0]).toHaveAttribute("alt", "");
+    expect(images[0]).toHaveAttribute("fetchpriority", "high");
+    expect(container.querySelectorAll(".hero source")).toHaveLength(1);
     expect(screen.queryByText(/جودة عالية|منتجات مختارة/)).toBeNull();
   });
 

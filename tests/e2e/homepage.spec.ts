@@ -50,6 +50,35 @@ test("homepage search, filtering, and cart work in RTL", async ({ page }) => {
   expect(issues.failedRequests).toEqual([]);
 });
 
+test("brand name is spelled سوق ميثلون everywhere it renders", async ({
+  page,
+}) => {
+  for (const route of [
+    "/",
+    "/products/general-cleaner-secret",
+    "/cart",
+    "/checkout",
+    "/offers",
+    "/categories",
+    "/account",
+  ]) {
+    await page.goto(route);
+    const word = page.locator("header .brand .brand-word");
+    const visible = await word.evaluate((element) =>
+      [...element.children]
+        .filter((child) => !child.classList.contains("sr-only"))
+        .map((child) => (child as HTMLElement).innerText)
+        .join(" "),
+    );
+    expect(visible).toBe("سوق ميثلون");
+    await expect(page.locator("header .brand-tagline")).toHaveText(
+      "منظفات ومعطرات جو",
+    );
+    expect(await page.locator("body").innerText()).not.toContain("سوق ميثون");
+    expect(await page.content()).not.toContain("سوق ميثون");
+  }
+});
+
 test("placeholder navigation routes resolve successfully", async ({ page }) => {
   for (const route of ["/categories", "/offers", "/account"]) {
     const response = await page.goto(route);
