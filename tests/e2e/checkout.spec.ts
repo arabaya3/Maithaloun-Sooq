@@ -31,11 +31,9 @@ async function countOrders(): Promise<number> {
 
 async function openCheckout(page: Page) {
   await page.goto("/");
-  await expect(page.getByLabel("منطقة التوصيل")).toHaveText(
-    "التوصيل داخل ميثلون",
-  );
+  await expect(page.locator(".hero-facts")).toContainText("توصيل داخل ميثلون");
   const product = page.locator('[data-product-id="general-cleaner"]');
-  await product.getByRole("button", { name: /^أضف$/ }).click();
+  await product.getByRole("button", { name: "أضف إلى السلة" }).click();
   await page.locator(".cart-button").click();
   await page.getByRole("link", { name: "متابعة إلى بيانات الطلب" }).click();
   await expect(

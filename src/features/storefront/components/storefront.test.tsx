@@ -66,27 +66,23 @@ describe("storefront", () => {
     ).toBeInTheDocument();
   });
 
-  it("renders a local Maythalun hero with commercial copy", () => {
+  it("renders a text-led hero with delivery and payment facts, no claims", () => {
     const { container } = renderStorefront();
 
-    expect(screen.getByLabelText("منطقة التوصيل")).toHaveTextContent(
-      "التوصيل داخل ميثلون",
-    );
-
-    expect(container.querySelector(".promo-copy")).not.toBeNull();
-    expect(container.querySelector(".promo-media")).not.toBeNull();
     expect(
       screen.getByRole("heading", {
         level: 1,
-        name: "من ميثلون… لبيتك",
+        name: /نظافة تريحك.*وعطر بتحبه/,
       }),
     ).toBeInTheDocument();
     expect(
-      screen.getByText("احتياجات النظافة والمنزل بسهولة، مع توصيل محلي."),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("link", { name: "تسوّق المنتجات" }),
-    ).toBeInTheDocument();
+      screen.getByRole("link", { name: "اكتشف المنتجات" }),
+    ).toHaveAttribute("href", "#catalog");
+    const facts = container.querySelector(".hero-facts");
+    expect(facts).toHaveTextContent("توصيل داخل ميثلون");
+    expect(facts).toHaveTextContent("الدفع عند الاستلام");
+    expect(container.querySelector(".hero img")).toBeNull();
+    expect(screen.queryByText(/جودة عالية|منتجات مختارة/)).toBeNull();
   });
 
   it("orders RTL categories from all to home and exposes selection semantics", async () => {
@@ -126,7 +122,7 @@ describe("storefront", () => {
     renderStorefront();
 
     await user.type(
-      screen.getByRole("searchbox", { name: "ابحث في منتجات التنظيف" }),
+      screen.getByRole("searchbox", { name: "ابحث في المنتجات" }),
       "Arar",
     );
 
@@ -146,7 +142,7 @@ describe("storefront", () => {
     expect(screen.getByText("سائل جلي Arar")).toBeInTheDocument();
 
     await user.type(
-      screen.getByRole("searchbox", { name: "ابحث في منتجات التنظيف" }),
+      screen.getByRole("searchbox", { name: "ابحث في المنتجات" }),
       "غير موجود",
     );
     expect(screen.getByText("لا توجد نتائج مطابقة")).toBeInTheDocument();
@@ -165,9 +161,10 @@ describe("storefront", () => {
         name: "زيادة كمية منظف عام Secret",
       }),
     );
-    await user.click(within(firstCard!).getByRole("button", { name: /^أضف$/ }));
+    await user.click(
+      within(firstCard!).getByRole("button", { name: "أضف إلى السلة" }),
+    );
 
-    expect(screen.getByRole("link", { name: "السلة، منتجان" })).toBeVisible();
     expect(
       screen.getByRole("link", { name: /^السلة، عدد المنتجات\s*2$/ }),
     ).toBeVisible();
@@ -182,9 +179,10 @@ describe("storefront", () => {
       within(card!).getByRole("button", { name: "غير متاح" }),
     ).toBeDisabled();
     expect(
-      within(card!).getByRole("button", {
+      within(card!).queryByRole("button", {
         name: "زيادة كمية منظف غير متاح",
       }),
-    ).toBeDisabled();
+    ).toBeNull();
+    expect(within(card!).getByText("غير متوفر حالياً")).toBeVisible();
   });
 });

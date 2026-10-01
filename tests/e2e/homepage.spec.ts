@@ -22,17 +22,17 @@ test("homepage search, filtering, and cart work in RTL", async ({ page }) => {
   await expect(page.locator("html")).toHaveAttribute("lang", "ar");
   await expect(page.locator("html")).toHaveAttribute("dir", "rtl");
   await expect(
-    page.getByRole("link", { name: "سوق ميثلون، الرئيسية" }),
+    page.getByRole("link", { name: /^سوق ميثلون\s?، الرئيسية$/ }),
   ).toBeVisible();
   const search = page.getByRole("searchbox", {
-    name: "ابحث في منتجات التنظيف",
+    name: "ابحث في المنتجات",
   });
   await search.fill("Arar");
   await expect(page.getByText("سائل جلي Arar")).toBeVisible();
   await expect(page.getByText("منظف عام Secret")).toBeHidden();
 
   const product = page.locator("article").filter({ hasText: "سائل جلي Arar" });
-  await product.getByRole("button", { name: /^أضف$/ }).click();
+  await product.getByRole("button", { name: "أضف إلى السلة" }).click();
   await expect(page.locator(".cart-button")).toHaveAccessibleName(
     "السلة، عدد المنتجات 1",
   );
@@ -69,7 +69,7 @@ test("mobile header, hero, RTL categories, and bottom spacing remain usable", as
 
   const brand = page.locator(".brand");
   const cart = page.locator(".cart-button");
-  const location = page.locator(".delivery-indicator");
+  const location = page.locator(".hero-facts");
   const [brandBox, cartBox, locationBox] = await Promise.all([
     brand.boundingBox(),
     cart.boundingBox(),
@@ -81,9 +81,7 @@ test("mobile header, hero, RTL categories, and bottom spacing remain usable", as
   expect(locationBox).not.toBeNull();
   expect(Math.abs(brandBox!.y - cartBox!.y)).toBeLessThan(10);
   expect(locationBox!.y).toBeGreaterThan(brandBox!.y + brandBox!.height);
-  await expect(page.getByLabel("منطقة التوصيل")).toHaveText(
-    "التوصيل داخل ميثلون",
-  );
+  await expect(page.locator(".hero-facts")).toContainText("توصيل داخل ميثلون");
   expect(
     await location.evaluate(
       (element) => element.scrollWidth <= element.clientWidth,
@@ -92,7 +90,7 @@ test("mobile header, hero, RTL categories, and bottom spacing remain usable", as
 
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
   await expect(
-    page.getByRole("link", { name: "تسوّق المنتجات" }),
+    page.getByRole("link", { name: "اكتشف المنتجات" }),
   ).toBeVisible();
 
   const categoryList = page.locator(".category-list");
@@ -179,7 +177,7 @@ for (const viewport of [
     await page.goto("/");
     await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
     await expect(
-      page.getByRole("link", { name: "تسوّق المنتجات" }),
+      page.getByRole("link", { name: "اكتشف المنتجات" }),
     ).toBeVisible();
 
     const overflow = await page.evaluate(

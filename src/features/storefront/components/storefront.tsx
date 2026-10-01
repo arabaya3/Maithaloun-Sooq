@@ -1,7 +1,17 @@
 "use client";
 
-import { PackageSearch } from "lucide-react";
-import { useMemo, useRef, useState } from "react";
+import {
+  Bath,
+  Brush,
+  CookingPot,
+  House,
+  LayoutGrid,
+  Leaf,
+  PackageSearch,
+  WashingMachine,
+  type LucideIcon,
+} from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { ProductCard } from "@/features/catalog/components/product-card";
 import {
@@ -11,9 +21,18 @@ import {
 } from "@/features/catalog/domain/product";
 import { filterProducts } from "@/features/catalog/domain/product-search";
 import { MobileNavigation } from "@/features/storefront/components/mobile-navigation";
-import { PromoBanner } from "@/features/storefront/components/promo-banner";
+import { Hero } from "@/features/storefront/components/hero";
 import { SiteHeader } from "@/features/storefront/components/site-header";
 import { formatProductCount } from "@/shared/lib/format-product-count";
+
+const categoryIcons: Record<CategoryId, LucideIcon> = {
+  all: LayoutGrid,
+  laundry: WashingMachine,
+  kitchen: CookingPot,
+  bathroom: Bath,
+  tools: Brush,
+  home: House,
+};
 
 function CategoryPicker({
   selected,
@@ -24,11 +43,9 @@ function CategoryPicker({
 }) {
   return (
     <section className="categories-section" aria-labelledby="categories-title">
-      <div className="section-heading">
-        <div>
-          <h2 id="categories-title">الفئات</h2>
-        </div>
-      </div>
+      <h2 id="categories-title" className="sr-only">
+        الأقسام
+      </h2>
       <div
         className="category-list"
         role="group"
@@ -36,6 +53,7 @@ function CategoryPicker({
       >
         {categories.map((category) => {
           const active = selected === category.id;
+          const Icon = categoryIcons[category.id];
           return (
             <button
               key={category.id}
@@ -46,6 +64,9 @@ function CategoryPicker({
               aria-pressed={active}
               onClick={() => onSelect(category.id)}
             >
+              <span className="category-icon" aria-hidden="true">
+                <Icon />
+              </span>
               <span>{category.label}</span>
             </button>
           );
@@ -67,6 +88,12 @@ export function Storefront({ products }: { products: readonly Product[] }) {
   const selectedCategory = categories.find((item) => item.id === category);
   const hasActiveFilter = Boolean(query.trim()) || category !== "all";
 
+  useEffect(() => {
+    if (window.location.hash === "#product-search") {
+      searchInputRef.current?.focus();
+    }
+  }, []);
+
   const resetFilters = () => {
     setQuery("");
     setCategory("all");
@@ -81,7 +108,7 @@ export function Storefront({ products }: { products: readonly Product[] }) {
         searchInputRef={searchInputRef}
       />
       <main className="page-shell storefront-main">
-        <PromoBanner />
+        <Hero />
         <CategoryPicker selected={category} onSelect={setCategory} />
         {hasActiveFilter ? (
           <div className="active-filter-summary" role="status">
@@ -103,9 +130,10 @@ export function Storefront({ products }: { products: readonly Product[] }) {
           aria-labelledby="catalog-title"
         >
           <div className="section-heading catalog-heading">
-            <div>
-              <h2 id="catalog-title">المنتجات</h2>
-            </div>
+            <h2 id="catalog-title">
+              <Leaf aria-hidden="true" />
+              {hasActiveFilter ? "نتائج البحث" : "مختارات ميثلون"}
+            </h2>
             <span className="results-count" aria-live="polite">
               {formatProductCount(filteredProducts.length)}
             </span>

@@ -40,7 +40,10 @@ test("product details, favorites, and cart stay synchronized", async ({
     }),
   ).toHaveAttribute("aria-pressed", "true");
 
-  await page.getByRole("button", { name: "أضف إلى السلة" }).click();
+  await page
+    .locator(".product-detail-actions")
+    .getByRole("button", { name: "أضف إلى السلة" })
+    .click();
   await expect(page.locator(".cart-button")).toHaveAccessibleName(
     "السلة، عدد المنتجات 1",
   );
@@ -48,7 +51,7 @@ test("product details, favorites, and cart stay synchronized", async ({
     page.getByText("تمت إضافة منظف عام Secret إلى السلة."),
   ).toBeVisible();
 
-  await page.getByRole("link", { name: "سوق ميثلون، الرئيسية" }).click();
+  await page.getByRole("link", { name: /^سوق ميثلون\s?، الرئيسية$/ }).click();
   await expect(
     page.getByRole("button", {
       name: "إزالة منظف عام Secret من المفضلة",
@@ -76,13 +79,9 @@ test("product details, favorites, and cart stay synchronized", async ({
 
 test("delivery area indicator is fixed to ميثلون", async ({ page }) => {
   await page.goto("/");
-  await expect(page.getByLabel("منطقة التوصيل")).toHaveText(
-    "التوصيل داخل ميثلون",
-  );
+  await expect(page.locator(".hero-facts")).toContainText("توصيل داخل ميثلون");
   await page.reload();
-  await expect(page.getByLabel("منطقة التوصيل")).toHaveText(
-    "التوصيل داخل ميثلون",
-  );
+  await expect(page.locator(".hero-facts")).toContainText("توصيل داخل ميثلون");
 });
 
 test("unknown product slug returns not found", async ({ page }) => {
