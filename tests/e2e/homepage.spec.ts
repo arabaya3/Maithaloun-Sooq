@@ -118,9 +118,7 @@ test("mobile header, hero, RTL categories, and bottom spacing remain usable", as
   ).toBe(true);
 
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
-  await expect(
-    page.getByRole("link", { name: "اكتشف المنتجات" }),
-  ).toBeVisible();
+  await expect(page.getByRole("link", { name: "ابدأ التسوق" })).toBeVisible();
 
   const categoryList = page.locator(".category-list");
   const firstCategory = page.getByRole("button", { name: "الكل" });
@@ -148,7 +146,7 @@ test("mobile header, hero, RTL categories, and bottom spacing remain usable", as
   const finalAction = page
     .locator(".product-card")
     .last()
-    .locator(".add-button");
+    .locator(".product-actions");
   await page.evaluate(() =>
     window.scrollTo({
       top: document.documentElement.scrollHeight,
@@ -205,9 +203,7 @@ for (const viewport of [
     await page.setViewportSize(viewport);
     await page.goto("/");
     await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
-    await expect(
-      page.getByRole("link", { name: "اكتشف المنتجات" }),
-    ).toBeVisible();
+    await expect(page.getByRole("link", { name: "ابدأ التسوق" })).toBeVisible();
 
     const overflow = await page.evaluate(
       () => document.documentElement.scrollWidth - window.innerWidth,
@@ -217,3 +213,85 @@ for (const viewport of [
     expect(issues.failedRequests).toEqual([]);
   });
 }
+
+test("keyboard users reach search and products in RTL order with a visible focus ring", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/");
+  expect(
+    await page.evaluate(() => getComputedStyle(document.body).direction),
+  ).toBe("rtl");
+
+  await page.keyboard.press("Tab");
+  await expect(
+    page.getByRole("link", { name: /^سوق ميثلون\s?، الرئيسية$/ }),
+  ).toBeFocused();
+
+  const search = page.getByRole("searchbox", { name: "ابحث في المنتجات" });
+  for (
+    let step = 0;
+    step < 6 && !(await search.evaluate((el) => el === document.activeElement));
+    step += 1
+  ) {
+    await page.keyboard.press("Tab");
+  }
+  await expect(search).toBeFocused();
+  expect(
+    await search.evaluate((el) => getComputedStyle(el).outlineStyle),
+  ).not.toBe("none");
+
+  await page.keyboard.press("Tab");
+  const focused = page.locator(":focus");
+  await expect(focused).toHaveText(/ابدأ التسوق/);
+  expect(
+    await focused.evaluate((el) => getComputedStyle(el).outlineStyle),
+  ).not.toBe("none");
+});
+
+test("product rows add to the cart, then change quantity in place", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/");
+  const card = page
+    .locator(".product-card")
+    .filter({ hasText: "منظف عام Secret" });
+
+  await card.getByRole("button", { name: "أضف إلى السلة" }).click();
+  await card
+    .getByRole("button", { name: "زيادة كمية منظف عام Secret" })
+    .click();
+  await expect(card.locator(".card-quantity output")).toHaveText("2");
+  await expect(page.locator(".cart-button")).toHaveAccessibleName(
+    "السلة، عدد المنتجات 2",
+  );
+
+  await card
+    .getByRole("button", { name: "تقليل كمية منظف عام Secret" })
+    .click();
+  await card
+    .getByRole("button", { name: "إزالة منظف عام Secret من السلة" })
+    .click();
+  await expect(
+    card.getByRole("button", { name: "أضف إلى السلة" }),
+  ).toBeVisible();
+});
+
+test("bottom navigation targets are at least 44px and mark the current page", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 360, height: 800 });
+  await page.goto("/offers");
+  const links = page.locator(".mobile-navigation a");
+  await expect(links).toHaveCount(4);
+  for (const box of await links.evaluateAll((items) =>
+    items.map((item) => item.getBoundingClientRect().toJSON()),
+  )) {
+    expect(box.width).toBeGreaterThanOrEqual(44);
+    expect(box.height).toBeGreaterThanOrEqual(44);
+  }
+  await expect(
+    page.locator(".mobile-navigation").getByRole("link", { name: "العروض" }),
+  ).toHaveAttribute("aria-current", "page");
+});

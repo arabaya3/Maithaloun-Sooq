@@ -1,5 +1,6 @@
 import { connection } from "next/server";
 import type { ReactNode } from "react";
+import { preload } from "react-dom";
 
 import { CartProvider } from "@/features/cart/cart-provider";
 import { productRepository } from "@/features/catalog/infrastructure/product-repository";
@@ -14,6 +15,11 @@ export default async function StoreLayout({
 }: {
   children: ReactNode;
 }) {
+  preload("/assets/fonts/readex-pro-v1.woff2", {
+    as: "font",
+    type: "font/woff2",
+    crossOrigin: "anonymous",
+  });
   await connection();
   const [products, serviceAreas] = await Promise.all([
     productRepository.list(),

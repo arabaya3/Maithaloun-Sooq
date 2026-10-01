@@ -1,13 +1,13 @@
 "use client";
 
-import { House, LayoutGrid, Tag, UserRound } from "lucide-react";
+import { BadgePercent, House, LayoutGrid, UserRound } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const navigation = [
   { href: "/", label: "الرئيسية", icon: House },
   { href: "/categories", label: "الأقسام", icon: LayoutGrid },
-  { href: "/offers", label: "العروض", icon: Tag },
+  { href: "/offers", label: "العروض", icon: BadgePercent },
   { href: "/account", label: "حسابي", icon: UserRound },
 ];
 
