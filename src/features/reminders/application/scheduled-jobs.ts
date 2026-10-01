@@ -22,6 +22,9 @@ export class ScheduledJobs {
     private readonly database: Database,
     private readonly reminders: ReminderService,
     private readonly summaries: SummaryService,
+    private readonly housekeeping: (
+      now: Date,
+    ) => Promise<Record<string, number>> = async () => ({}),
   ) {}
 
   async runDaily(today: string): Promise<DailyJobResult> {
@@ -72,12 +75,17 @@ export class ScheduledJobs {
     try {
       const reminders = await this.reminders.runDaily(actor, today);
       const summary = await this.summaries.runScheduled(actor, today);
+      const cleaned = await this.housekeeping(new Date());
       await this.database
         .update(schema.scheduledJobRuns)
         .set({
           status: "completed",
           finishedAt: new Date(),
-          details: { ...reminders, summaryGenerated: summary.generated },
+          details: {
+            ...reminders,
+            summaryGenerated: summary.generated,
+            cleaned,
+          },
         })
         .where(runFilter);
       return {

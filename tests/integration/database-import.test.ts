@@ -56,6 +56,9 @@ function memoryStore(): PrivateDocumentStore & { files: Map<string, Buffer> } {
       return file;
     },
     signedUrl: async () => null,
+    remove: async (location) => {
+      files.delete(location.path);
+    },
   };
 }
 

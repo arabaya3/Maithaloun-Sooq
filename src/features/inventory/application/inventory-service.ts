@@ -1,6 +1,8 @@
 import "server-only";
 
-import { and, asc, desc, eq } from "drizzle-orm";
+import { createHash } from "node:crypto";
+
+import { and, asc, desc, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 
 import type { AdminActor } from "@/features/admin/domain/admin-actor";
@@ -28,9 +30,181 @@ import {
   ensureInventoryItem,
   getDefaultLocationId,
   postStockIn,
+  lockInventoryItem,
   postStockOut,
   type Database,
 } from "./stock-ledger";
+
+export const stockTransferSchema = z
+  .object({
+    idempotencyKey: z.uuid(),
+    fromVariantId: variantDomainIdSchema,
+    toVariantId: variantDomainIdSchema,
+    quantityMilli: z.number().int().positive().max(MAX_QUANTITY_MILLI),
+    note: z.string().trim().max(200).optional(),
+  })
+  .strict()
+  .refine((value) => value.fromVariantId !== value.toVariantId);
+export type StockTransferInput = z.infer<typeof stockTransferSchema>;
+
+export interface StockTransferResult {
+  fromOnHandMilli: number;
+  toOnHandMilli: number;
+  costAgorot: number;
+  replayed: boolean;
+}
+
+function derivedUuid(key: string, part: string): string {
+  const hex = createHash("sha256").update(`${key}:${part}`).digest("hex");
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-5${hex.slice(13, 16)}-a${hex.slice(17, 20)}-${hex.slice(20, 32)}`;
+}
+
+// Moves stock at its carried cost so total value and later profit stay unchanged.
+export async function transferStockInTransaction(
+  transaction: Database,
+  actorId: string,
+  input: StockTransferInput,
+): Promise<StockTransferResult> {
+  const outKey = derivedUuid(input.idempotencyKey, "out");
+  const inKey = derivedUuid(input.idempotencyKey, "in");
+  const [variants, locationId] = await Promise.all([
+    transaction
+      .select({
+        id: schema.productVariants.id,
+        domainId: schema.productVariants.domainId,
+      })
+      .from(schema.productVariants)
+      .where(
+        inArray(schema.productVariants.domainId, [
+          input.fromVariantId,
+          input.toVariantId,
+        ]),
+      ),
+    getDefaultLocationId(transaction),
+  ]);
+  const from = variants.find((row) => row.domainId === input.fromVariantId);
+  const to = variants.find((row) => row.domainId === input.toVariantId);
+  if (!from || !to) throw new InventoryError("not_found");
+
+  const [done] = await transaction
+    .select({ id: schema.inventoryAdjustments.id })
+    .from(schema.inventoryAdjustments)
+    .where(eq(schema.inventoryAdjustments.idempotencyKey, outKey))
+    .limit(1);
+  if (done) {
+    const [fromItem, toItem] = await Promise.all([
+      lockInventoryItem(transaction, from.id, locationId),
+      lockInventoryItem(transaction, to.id, locationId),
+    ]);
+    return {
+      fromOnHandMilli: fromItem?.onHandMilli ?? 0,
+      toOnHandMilli: toItem?.onHandMilli ?? 0,
+      costAgorot: 0,
+      replayed: true,
+    };
+  }
+
+  // Locks are always taken in id order so two opposite transfers cannot deadlock.
+  const ordered = [from, to].sort((a, b) => a.id.localeCompare(b.id));
+  const locked = new Map<
+    string,
+    Awaited<ReturnType<typeof ensureInventoryItem>>
+  >();
+  for (const variant of ordered) {
+    const item =
+      variant.id === from.id
+        ? await lockInventoryItem(transaction, variant.id, locationId)
+        : await ensureInventoryItem(
+            transaction,
+            variant.id,
+            locationId,
+            "piece",
+          );
+    if (item) locked.set(variant.id, item);
+  }
+  const fromItem = locked.get(from.id);
+  const toItem = locked.get(to.id);
+  if (!fromItem) throw new InventoryError("untracked");
+  if (!toItem) throw new InventoryError("not_found");
+
+  const now = new Date();
+  const note =
+    input.note || `نقل بين ${input.fromVariantId} و${input.toVariantId}`;
+  const [outDoc] = await transaction
+    .insert(schema.inventoryAdjustments)
+    .values({
+      inventoryItemId: fromItem.id,
+      reason: "correction",
+      quantityDeltaMilli: -input.quantityMilli,
+      note: note.slice(0, 240),
+      idempotencyKey: outKey,
+      createdBy: actorId,
+      createdAt: now,
+    })
+    .returning({ id: schema.inventoryAdjustments.id });
+  if (!outDoc) throw new InventoryError("invalid_input");
+  const issued = await postStockOut(transaction, {
+    item: fromItem,
+    reason: "correction",
+    quantityMilli: input.quantityMilli,
+    references: { adjustmentId: outDoc.id },
+    idempotencyKey: `adjustment:${outDoc.id}`,
+    actorId,
+    at: now,
+  });
+
+  const [inDoc] = await transaction
+    .insert(schema.inventoryAdjustments)
+    .values({
+      inventoryItemId: toItem.id,
+      reason: "correction",
+      quantityDeltaMilli: input.quantityMilli,
+      unitCostAgorot: issued.movement.unitCostAgorot,
+      note: note.slice(0, 240),
+      idempotencyKey: inKey,
+      createdBy: actorId,
+      createdAt: now,
+    })
+    .returning({ id: schema.inventoryAdjustments.id });
+  if (!inDoc) throw new InventoryError("invalid_input");
+  const received = await postStockIn(transaction, {
+    item: toItem,
+    reason: "correction",
+    quantityMilli: input.quantityMilli,
+    costAgorot: issued.costAgorot,
+    references: { adjustmentId: inDoc.id },
+    idempotencyKey: `adjustment:${inDoc.id}`,
+    actorId,
+    at: now,
+  });
+
+  const afterState = {
+    fromVariantId: input.fromVariantId,
+    toVariantId: input.toVariantId,
+    quantityMilli: input.quantityMilli,
+    fromOnHandAfterMilli: issued.movement.onHandAfterMilli,
+    toOnHandAfterMilli: received.onHandAfterMilli,
+  };
+  assertSafeAuditState(afterState);
+  await transaction.insert(schema.adminAuditEvents).values({
+    adminUserId: actorId,
+    actionType: "stock_transfer",
+    entityType: "inventory_item",
+    entityId: input.fromVariantId,
+    beforeState: {
+      fromOnHandMilli: fromItem.onHandMilli,
+      toOnHandMilli: toItem.onHandMilli,
+    },
+    afterState,
+    createdAt: now,
+  });
+  return {
+    fromOnHandMilli: issued.movement.onHandAfterMilli,
+    toOnHandMilli: received.onHandAfterMilli,
+    costAgorot: issued.costAgorot,
+    replayed: false,
+  };
+}
 
 export const stockAdjustmentSchema = z
   .object({
@@ -488,5 +662,17 @@ export class InventoryService {
         afterState: { reorderThresholdMilli: input.thresholdMilli },
       });
     });
+  }
+
+  async transfer(
+    actor: AdminActor,
+    input: StockTransferInput,
+  ): Promise<StockTransferResult> {
+    assertPermission(actor, "stock.adjust");
+    const parsed = stockTransferSchema.safeParse(input);
+    if (!parsed.success) throw new InventoryError("invalid_input");
+    return this.database.transaction((transaction) =>
+      transferStockInTransaction(transaction, actor.id, parsed.data),
+    );
   }
 }

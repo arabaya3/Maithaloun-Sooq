@@ -1,6 +1,6 @@
 import "server-only";
 
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 import { createClient } from "@supabase/supabase-js";
@@ -22,6 +22,7 @@ export interface PrivateDocumentStore {
     location: StoredDocumentLocation,
     expiresInSeconds: number,
   ): Promise<string | null>;
+  remove(location: StoredDocumentLocation): Promise<void>;
 }
 
 const BUCKET = "private-documents";
@@ -81,6 +82,13 @@ function supabaseStore(url: string, secret: string): PrivateDocumentStore {
       if (signed.error) throw new Error("STORAGE_SIGN_FAILED");
       return signed.data.signedUrl;
     },
+    async remove(location) {
+      assertSafePath(location.path);
+      const removed = await client.storage
+        .from(location.bucket)
+        .remove([location.path]);
+      if (removed.error) throw new Error("STORAGE_REMOVE_FAILED");
+    },
   };
 }
 
@@ -98,6 +106,7 @@ function localStore(root: string): PrivateDocumentStore {
     },
     read: (location) => readFile(resolve(location.path)),
     signedUrl: async () => null,
+    remove: (location) => rm(resolve(location.path), { force: true }),
   };
 }
 

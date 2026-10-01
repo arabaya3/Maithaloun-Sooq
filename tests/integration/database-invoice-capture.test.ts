@@ -34,6 +34,9 @@ const store: PrivateDocumentStore = {
     return files.get(location.path)!;
   },
   signedUrl: async () => null,
+  remove: async (location) => {
+    files.delete(location.path);
+  },
 };
 const purchaseService = new PurchaseService(db);
 const extractionService = new ExtractionService(

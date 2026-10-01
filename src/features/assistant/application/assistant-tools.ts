@@ -1,0 +1,707 @@
+import "server-only";
+
+import { tool } from "ai";
+import { z } from "zod";
+
+import type { AdminOrderService } from "@/features/admin/application/admin-order-service";
+import type { AdminActor } from "@/features/admin/domain/admin-actor";
+import { can } from "@/features/admin/domain/permissions";
+import type { InventoryService } from "@/features/inventory/application/inventory-service";
+import { formatQuantity } from "@/features/inventory/domain/quantity";
+import { stockUnitLabels } from "@/features/inventory/domain/stock-constants";
+import {
+  isOrderStatus,
+  orderStatusLabels,
+} from "@/features/orders/domain/order-status";
+import type { PurchaseService } from "@/features/purchasing/application/purchase-service";
+import type { ReportService } from "@/features/reports/application/report-service";
+import {
+  reportPresetLabels,
+  resolvePeriod,
+} from "@/features/reports/domain/report-calculation";
+import type { CustomerService } from "@/features/sales/application/customer-service";
+import type { SalesService } from "@/features/sales/application/sales-service";
+import { formatIls } from "@/shared/lib/format-currency";
+import { todayInStoreZone } from "@/shared/lib/store-time";
+import type { Database } from "@/features/inventory/application/stock-ledger";
+
+import { toolRisk, type AssistantMode } from "../domain/assistant-policy";
+import { resolveCatalogEntity } from "../domain/entity-match";
+import { assistantFailure } from "./assistant-errors";
+import {
+  catalogEntries,
+  type AssistantOperations,
+  type PrepareResult,
+} from "./assistant-operations";
+import type { ConfirmationService } from "./confirmation-service";
+import type { ToolRunLog } from "./tool-run-log";
+import type { AdminCatalogService } from "@/features/admin/application/admin-catalog-service";
+
+export interface AssistantToolContext {
+  actor: AdminActor;
+  conversationId: string;
+  mode: AssistantMode;
+  database: Database;
+  catalog: AdminCatalogService;
+  inventory: InventoryService;
+  orders: AdminOrderService;
+  customers: CustomerService;
+  sales: SalesService;
+  reports: ReportService;
+  purchases: PurchaseService;
+  operations: AssistantOperations;
+  confirmations: ConfirmationService;
+  toolRuns: ToolRunLog;
+}
+
+const text = (max: number) => z.string().trim().min(1).max(max);
+const period = z
+  .enum(["today", "week", "last14", "month"])
+  .describe(
+    "today=اليوم، week=هذا الأسبوع، last14=آخر 14 يوماً، month=هذا الشهر",
+  );
+const ownerOnly = {
+  status: "forbidden" as const,
+  message: "هذه المعلومة للمالك فقط.",
+};
+
+export type PrepareToolOutput =
+  | {
+      status: "awaiting_confirmation";
+      confirmationId: string;
+      summary: string;
+      expiresAt: string;
+    }
+  | Exclude<PrepareResult, { status: "ready" }>
+  | { status: "error"; message: string };
+
+export function createAssistantTools(context: AssistantToolContext) {
+  const { actor } = context;
+
+  async function run<T>(
+    name: string,
+    input: unknown,
+    action: () => Promise<T>,
+    reference?: (result: T) => string | null,
+  ): Promise<T | { status: "error"; message: string }> {
+    const started = Date.now();
+    try {
+      const result = await action();
+      await context.toolRuns.record({
+        conversationId: context.conversationId,
+        adminUserId: actor.id,
+        toolName: name,
+        riskLevel: toolRisk(name),
+        status: "succeeded",
+        input,
+        resultRef: reference?.(result) ?? null,
+        durationMs: Date.now() - started,
+      });
+      return result;
+    } catch (error) {
+      const failure = assistantFailure(error);
+      await context.toolRuns.record({
+        conversationId: context.conversationId,
+        adminUserId: actor.id,
+        toolName: name,
+        riskLevel: toolRisk(name),
+        status: "failed",
+        input,
+        errorCode: failure.code,
+        durationMs: Date.now() - started,
+      });
+      return { status: "error", message: failure.message };
+    }
+  }
+
+  // A prepare tool only stores a pending card; executing it needs the person's tap on that card.
+  const prepare = (
+    name: string,
+    input: unknown,
+    build: () => Promise<PrepareResult>,
+  ) =>
+    run<PrepareToolOutput>(
+      name,
+      input,
+      async () => {
+        const prepared = await build();
+        if (prepared.status !== "ready") return prepared;
+        const created = await context.confirmations.create(
+          actor,
+          context.conversationId,
+          prepared,
+        );
+        if (!created) {
+          return {
+            status: "error",
+            message: "تغيّرت البيانات أثناء التجهيز، حاولي مرة أخرى.",
+          };
+        }
+        return {
+          status: "awaiting_confirmation",
+          confirmationId: created.confirmationId,
+          summary: prepared.summary,
+          expiresAt: created.expiresAt,
+        };
+      },
+      (result) =>
+        result.status === "awaiting_confirmation"
+          ? `confirmation:${result.confirmationId}`
+          : null,
+    );
+
+  const read = {
+    searchProducts: tool({
+      description:
+        "ابحث عن منتج بالاسم العربي أو اللاتيني أو الباركود أو SKU. يعيد منتجاً محدداً أو خيارات قريبة للاختيار.",
+      inputSchema: z.object({ query: text(120) }).strict(),
+      execute: ({ query }) =>
+        run("searchProducts", { query }, async () => {
+          const products = await context.catalog.list(actor);
+          const resolution = resolveCatalogEntity(
+            query,
+            catalogEntries(products),
+            "product",
+          );
+          const list =
+            resolution.status === "resolved"
+              ? [resolution.match]
+              : resolution.candidates;
+          const stock = await context.inventory.listStock(actor);
+          return {
+            status: resolution.status,
+            results: list.map((item) => {
+              const product = products.find(
+                (row) => row.id === item.productId,
+              )!;
+              const row = stock.find(
+                (entry) => entry.variantId === item.variantId,
+              );
+              return {
+                productId: item.productId,
+                variantId: item.variantId,
+                label: item.label,
+                confidence: item.confidence,
+                price: formatIls(product.priceAgorot),
+                availability:
+                  product.availability === "available"
+                    ? "متوفر للبيع"
+                    : "غير متوفر",
+                stock: row?.tracked
+                  ? `${formatQuantity(row.availableMilli)} ${stockUnitLabels[row.unit]}`
+                  : "غير متتبَّع",
+                href: `/admin/products/${item.productId}`,
+              };
+            }),
+          };
+        }),
+    }),
+    getProductDetails: tool({
+      description:
+        "تفاصيل منتج محدد بمعرّفه (productId) كما أعاده searchProducts.",
+      inputSchema: z.object({ productId: text(80) }).strict(),
+      execute: ({ productId }) =>
+        run("getProductDetails", { productId }, async () => {
+          const product = await context.catalog.getByDomainId(actor, productId);
+          if (!product) return { status: "not_found" as const };
+          return {
+            status: "found" as const,
+            productId: product.id,
+            nameAr: product.nameAr,
+            latinName: product.latinName ?? null,
+            category: product.categoryId,
+            unit: product.unit ?? null,
+            price: formatIls(product.priceAgorot),
+            availability: product.availability,
+            description: product.description?.slice(0, 300) ?? null,
+            variants: product.variants.map((variant) => ({
+              variantId: variant.id,
+              label: variant.labelAr,
+              price: formatIls(variant.priceAgorot),
+              sku: variant.sku ?? null,
+            })),
+            imageUrl: product.image.kind === "image" ? product.image.src : null,
+            href: `/admin/products/${product.id}`,
+          };
+        }),
+    }),
+    getInventoryItem: tool({
+      description:
+        "المخزون الحالي لصنف (variantId): الموجود، المحجوز، المتاح، والتكلفة للمالك، وآخر الحركات.",
+      inputSchema: z.object({ variantId: text(100) }).strict(),
+      execute: ({ variantId }) =>
+        run("getInventoryItem", { variantId }, async () => {
+          const detail = await context.inventory.getVariantStock(
+            actor,
+            variantId,
+          );
+          if (!detail) return { status: "not_found" as const };
+          const { stock } = detail;
+          const unit = stockUnitLabels[stock.unit];
+          return {
+            status: "found" as const,
+            name: stock.name,
+            tracked: stock.tracked,
+            onHand: `${formatQuantity(stock.onHandMilli)} ${unit}`,
+            reserved: `${formatQuantity(stock.reservedMilli)} ${unit}`,
+            available: `${formatQuantity(stock.availableMilli)} ${unit}`,
+            salePrice: formatIls(stock.salePriceAgorot),
+            averageCost:
+              stock.avgCostAgorot === null
+                ? null
+                : formatIls(stock.avgCostAgorot),
+            stockValue:
+              stock.stockValueAgorot === null
+                ? null
+                : formatIls(stock.stockValueAgorot),
+            unitProfit:
+              stock.unitProfitAgorot === null
+                ? null
+                : formatIls(stock.unitProfitAgorot),
+            reorderAt:
+              stock.reorderThresholdMilli === null
+                ? null
+                : formatQuantity(stock.reorderThresholdMilli),
+            recentMovements: detail.movements.slice(0, 5).map((movement) => ({
+              change: formatQuantity(movement.qtyDeltaMilli),
+              after: formatQuantity(movement.onHandAfterMilli),
+              at: movement.createdAt,
+            })),
+            href: `/admin/inventory/stock/${stock.variantId}`,
+          };
+        }),
+    }),
+    getInventorySummary: tool({
+      description:
+        "ملخص المخزون: قيمة البضاعة الحالية وعدد الأصناف القليلة والنافدة.",
+      inputSchema: z.object({}).strict(),
+      execute: () =>
+        run("getInventorySummary", {}, async () => {
+          const overview = await context.inventory.getOverview(actor);
+          return {
+            trackedItems: overview.trackedCount,
+            lowCount: overview.lowCount,
+            outCount: overview.outCount,
+            inventoryValue:
+              overview.inventoryValueAgorot === null
+                ? null
+                : formatIls(overview.inventoryValueAgorot),
+            href: "/admin/inventory",
+          };
+        }),
+    }),
+    getLowStockItems: tool({
+      description: "الأصناف التي قاربت على النفاد أو نفدت ويجب طلبها.",
+      inputSchema: z.object({}).strict(),
+      execute: () =>
+        run("getLowStockItems", {}, async () => {
+          const items = await context.inventory.listStock(actor, {
+            filter: "attention",
+          });
+          return {
+            count: items.length,
+            items: items.slice(0, 15).map((item) => ({
+              variantId: item.variantId,
+              name: item.variantLabel
+                ? `${item.name} — ${item.variantLabel}`
+                : item.name,
+              available: `${formatQuantity(item.availableMilli)} ${stockUnitLabels[item.unit]}`,
+              status: item.status === "out" ? "نفد" : "قليل",
+            })),
+            href: "/admin/inventory/stock?filter=attention",
+          };
+        }),
+    }),
+    searchOrders: tool({
+      description:
+        "ابحث في طلبات المتجر برقم الطلب أو اسم الزبون أو الحالة. يعيد آخر 10 نتائج.",
+      inputSchema: z
+        .object({
+          reference: z.string().trim().max(30).optional(),
+          customerName: z.string().trim().max(80).optional(),
+          status: z
+            .enum([
+              "pending",
+              "confirmed",
+              "preparing",
+              "out_for_delivery",
+              "delivered",
+              "cancelled",
+            ])
+            .optional(),
+        })
+        .strict(),
+      execute: (input) =>
+        run("searchOrders", input, async () => {
+          const result = await context.orders.list(actor, {
+            page: 1,
+            ...(input.status && isOrderStatus(input.status)
+              ? { status: input.status }
+              : {}),
+            ...(input.reference
+              ? { publicReference: input.reference.trim() }
+              : {}),
+            ...(input.customerName ? { customerName: input.customerName } : {}),
+          });
+          return {
+            total: result.total,
+            orders: result.items.slice(0, 10).map((order) => ({
+              reference: order.publicReference,
+              status: orderStatusLabels[order.status],
+              customer: order.customerName,
+              total: formatIls(
+                order.finalTotalAgorot ?? order.itemsSubtotalAgorot,
+              ),
+              createdAt: order.createdAt,
+              href: `/admin/orders/${order.publicReference}`,
+            })),
+          };
+        }),
+    }),
+    getOrderDetails: tool({
+      description: "تفاصيل طلب برقمه.",
+      inputSchema: z.object({ reference: text(30) }).strict(),
+      execute: ({ reference }) =>
+        run("getOrderDetails", { reference }, async () => {
+          const order = await context.orders.getByPublicReference(
+            actor,
+            reference.trim(),
+          );
+          if (!order) return { status: "not_found" as const };
+          return {
+            status: "found" as const,
+            reference: order.publicReference,
+            orderStatus: orderStatusLabels[order.status],
+            customer: order.customerName,
+            area: order.serviceAreaName,
+            items: order.items.map((item) => ({
+              name: item.variantLabel
+                ? `${item.productName} — ${item.variantLabel}`
+                : item.productName,
+              quantity: item.quantity,
+              total: formatIls(item.lineSubtotalAgorot),
+            })),
+            itemsTotal: formatIls(order.itemsSubtotalAgorot),
+            finalTotal:
+              order.finalTotalAgorot === null
+                ? null
+                : formatIls(order.finalTotalAgorot),
+            createdAt: order.createdAt,
+            href: `/admin/orders/${order.publicReference}`,
+          };
+        }),
+    }),
+    searchCustomers: tool({
+      description: "ابحث عن زبون بالاسم، مع رصيده الحالي.",
+      inputSchema: z.object({ name: text(80) }).strict(),
+      execute: ({ name }) =>
+        run("searchCustomers", { name }, async () => {
+          const rows = await context.customers.list(actor, { search: name });
+          return {
+            customers: rows.slice(0, 8).map((row) => ({
+              customerId: row.id,
+              name: row.name,
+              balance: formatIls(row.balanceAgorot),
+              href: `/admin/customers/${row.id}`,
+            })),
+          };
+        }),
+    }),
+    getCustomerBalance: tool({
+      description: "رصيد زبون محدد (customerId) وآخر فواتيره غير المدفوعة.",
+      inputSchema: z.object({ customerId: z.uuid() }).strict(),
+      execute: ({ customerId }) =>
+        run("getCustomerBalance", { customerId }, async () => {
+          const detail = await context.customers.getDetail(actor, customerId);
+          if (!detail) return { status: "not_found" as const };
+          return {
+            status: "found" as const,
+            name: detail.name,
+            balance: formatIls(detail.summary.balanceAgorot),
+            oldestUnpaidDays: detail.summary.oldestUnpaid?.ageDays ?? null,
+            href: `/admin/customers/${detail.id}`,
+          };
+        }),
+    }),
+    getDebtors: tool({
+      description: "الزبائن الذين عليهم ديون، مرتبين حسب المبلغ وأقدم دين.",
+      inputSchema: z.object({}).strict(),
+      execute: () =>
+        run("getDebtors", {}, async () => {
+          if (!can(actor, "reports.view")) return ownerOnly;
+          const debtors = await context.reports.listDebtors(actor);
+          return {
+            count: debtors.length,
+            total: formatIls(
+              debtors.reduce((sum, row) => sum + row.balanceAgorot, 0),
+            ),
+            debtors: debtors.slice(0, 15).map((row) => ({
+              customerId: row.id,
+              name: row.name,
+              balance: formatIls(row.balanceAgorot),
+              oldestDebtDays: row.oldestDays,
+            })),
+            href: "/admin/customers?filter=owing",
+          };
+        }),
+    }),
+    getPurchaseInvoice: tool({
+      description: "آخر فواتير الشراء أو فاتورة محددة بمعرّفها.",
+      inputSchema: z.object({ invoiceId: z.uuid().optional() }).strict(),
+      execute: ({ invoiceId }) =>
+        run("getPurchaseInvoice", { invoiceId }, async () => {
+          if (!invoiceId) {
+            const list = await context.purchases.list(actor, 8);
+            return {
+              invoices: list.map((row) => ({
+                invoiceId: row.id,
+                supplier: row.supplierName,
+                reference: row.reference,
+                date: row.invoiceDate,
+                total:
+                  row.totalAgorot === null ? null : formatIls(row.totalAgorot),
+                href: `/admin/inventory/purchases/${row.id}`,
+              })),
+            };
+          }
+          const detail = await context.purchases.getDetail(actor, invoiceId);
+          if (!detail) return { status: "not_found" as const };
+          return {
+            status: "found" as const,
+            invoiceId,
+            supplier: detail.supplierName,
+            reference: detail.reference,
+            date: detail.invoiceDate,
+            total:
+              detail.totalAgorot === null
+                ? null
+                : formatIls(detail.totalAgorot),
+            lines: detail.lines.slice(0, 30).map((line) => ({
+              name: line.name,
+              quantity: formatQuantity(line.quantityMilli),
+              lineTotal:
+                line.lineTotalAgorot === null
+                  ? null
+                  : formatIls(line.lineTotalAgorot),
+            })),
+            href: `/admin/inventory/purchases/${invoiceId}`,
+          };
+        }),
+    }),
+    getSalesSummary: tool({
+      description:
+        "المبيعات لفترة: صافي المبيعات وعدد العمليات وأكثر المنتجات مبيعاً.",
+      inputSchema: z.object({ period }).strict(),
+      execute: ({ period: preset }) =>
+        run("getSalesSummary", { preset }, async () => {
+          if (!can(actor, "reports.view")) return ownerOnly;
+          const report = await context.reports.getReport(
+            actor,
+            resolvePeriod(preset, todayInStoreZone()),
+          );
+          return {
+            period: reportPresetLabels[preset],
+            netSales: formatIls(report.metrics.netSalesAgorot),
+            orderCount: report.metrics.orderCount,
+            topByQuantity: report.byQuantity.slice(0, 3).map((row) => ({
+              name: row.name,
+              quantity: formatQuantity(row.quantityMilli),
+              sales: formatIls(row.netSalesAgorot),
+            })),
+            href: `/admin/reports?preset=${preset}`,
+          };
+        }),
+    }),
+    getProfitSummary: tool({
+      description:
+        "الربح الإجمالي لفترة وأعلى المنتجات ربحاً، مع تنبيه إن كانت تكلفة بعض المبيعات غير مسجّلة.",
+      inputSchema: z.object({ period }).strict(),
+      execute: ({ period: preset }) =>
+        run("getProfitSummary", { preset }, async () => {
+          if (!can(actor, "reports.view")) return ownerOnly;
+          const report = await context.reports.getReport(
+            actor,
+            resolvePeriod(preset, todayInStoreZone()),
+          );
+          const { metrics } = report;
+          return {
+            period: reportPresetLabels[preset],
+            grossProfit: formatIls(metrics.grossProfitAgorot),
+            netSales: formatIls(metrics.netSalesAgorot),
+            costComplete: metrics.costComplete,
+            uncostedSales: metrics.costComplete
+              ? null
+              : formatIls(metrics.uncostedSalesAgorot),
+            topByProfit: report.byProfit.slice(0, 3).map((row) => ({
+              name: row.name,
+              profit:
+                row.profitAgorot === null ? null : formatIls(row.profitAgorot),
+            })),
+            href: `/admin/reports?preset=${preset}`,
+          };
+        }),
+    }),
+  };
+
+  if (context.mode !== "full") return read;
+
+  const ops = context.operations;
+  const product = text(160).describe(
+    "اسم المنتج كما قالته المستخدمة، أو productId إن كان معروفاً",
+  );
+  const quantity = z
+    .string()
+    .trim()
+    .min(1)
+    .max(12)
+    .describe('الكمية بالأرقام كنص مثل "3" أو "2.5"');
+  const money = z
+    .string()
+    .trim()
+    .min(1)
+    .max(12)
+    .describe('المبلغ بالشيكل كنص مثل "14" أو "14.50"');
+
+  return {
+    ...read,
+    prepareProductUpdate: tool({
+      description:
+        "جهّز بطاقة تأكيد لتعديل بيانات منتج (الاسم، الاسم اللاتيني، الوصف، القسم، الوحدة، سعر البيع، التوفر). لا ينفّذ شيئاً.",
+      inputSchema: z
+        .object({
+          product,
+          changes: z
+            .object({
+              nameAr: z.string().trim().max(160).optional(),
+              latinName: z.string().trim().max(120).nullable().optional(),
+              description: z.string().trim().max(4_000).optional(),
+              categoryId: z
+                .enum(["laundry", "kitchen", "bathroom", "tools", "home"])
+                .optional(),
+              unit: z.string().trim().max(80).optional(),
+              priceIls: money.optional(),
+              availability: z.enum(["available", "unavailable"]).optional(),
+            })
+            .strict(),
+        })
+        .strict(),
+      execute: (input) =>
+        prepare("prepareProductUpdate", input, () =>
+          ops.prepareProductUpdate(actor, input),
+        ),
+    }),
+    prepareProductImageReplacement: tool({
+      description: "جهّز بطاقة استبدال صورة منتج بصورة مرفقة (attachmentId).",
+      inputSchema: z.object({ product, attachmentId: z.uuid() }).strict(),
+      execute: (input) =>
+        prepare("prepareProductImageReplacement", input, () =>
+          ops.prepareProductImageReplacement(actor, input),
+        ),
+    }),
+    prepareProductArchive: tool({
+      description:
+        "جهّز بطاقة حذف منتج غير صحيح. إن كان له طلبات أو فواتير أو حركات مخزون يُؤرشف بدل الحذف.",
+      inputSchema: z.object({ product, reason: text(200) }).strict(),
+      execute: (input) =>
+        prepare("prepareProductArchive", input, () =>
+          ops.prepareProductArchive(actor, input),
+        ),
+    }),
+    prepareProductMerge: tool({
+      description:
+        "جهّز بطاقة دمج منتج مكرر (duplicate) في المنتج الصحيح (target) مع نقل كميته.",
+      inputSchema: z.object({ duplicate: product, target: product }).strict(),
+      execute: (input) =>
+        prepare("prepareProductMerge", input, () =>
+          ops.prepareProductMerge(actor, input),
+        ),
+    }),
+    prepareInventoryCorrection: tool({
+      description:
+        "جهّز بطاقة تعديل مخزون. correction = الكمية الصحيحة بعد العد. damaged/expired = الكمية التي ستُخصم.",
+      inputSchema: z
+        .object({
+          product,
+          reason: z.enum(["correction", "damaged", "expired"]),
+          quantity,
+          note: z.string().trim().max(200).optional(),
+        })
+        .strict(),
+      execute: (input) =>
+        prepare("prepareInventoryCorrection", input, () =>
+          ops.prepareInventoryCorrection(actor, input),
+        ),
+    }),
+    prepareStockTransfer: tool({
+      description:
+        "جهّز بطاقة نقل كمية من صنف سُجّلت عليه بالخطأ إلى الصنف الصحيح.",
+      inputSchema: z.object({ from: product, to: product, quantity }).strict(),
+      execute: (input) =>
+        prepare("prepareStockTransfer", input, () =>
+          ops.prepareStockTransfer(actor, input),
+        ),
+    }),
+    prepareReorderThreshold: tool({
+      description: "جهّز بطاقة تغيير حد إعادة الطلب لصنف (null لإلغاء الحد).",
+      inputSchema: z
+        .object({ product, threshold: quantity.nullable() })
+        .strict(),
+      execute: (input) =>
+        prepare("prepareReorderThreshold", input, () =>
+          ops.prepareReorderThreshold(actor, input),
+        ),
+    }),
+    prepareManualSale: tool({
+      description:
+        "جهّز بطاقة بيع مباشر. الأسعار تُؤخذ من النظام إلا إذا ذكرت المستخدمة سعراً مختلفاً. payment: full دفع كامل، partial جزء (paidIls)، none على الحساب.",
+      inputSchema: z
+        .object({
+          customer: z.string().trim().max(100).nullable(),
+          items: z
+            .array(
+              z
+                .object({ product, quantity, unitPriceIls: money.optional() })
+                .strict(),
+            )
+            .min(1)
+            .max(20),
+          payment: z.enum(["full", "partial", "none"]),
+          paidIls: money.optional(),
+        })
+        .strict(),
+      execute: (input) =>
+        prepare("prepareManualSale", input, () =>
+          ops.prepareManualSale(actor, input),
+        ),
+    }),
+    prepareCustomerPayment: tool({
+      description: "جهّز بطاقة تسجيل دفعة من زبون على دينه.",
+      inputSchema: z.object({ customer: text(100), amountIls: money }).strict(),
+      execute: (input) =>
+        prepare("prepareCustomerPayment", input, () =>
+          ops.prepareCustomerPayment(actor, input),
+        ),
+    }),
+    prepareOrderCancellation: tool({
+      description: "جهّز بطاقة إلغاء طلب برقمه وفق قواعد حالات الطلب.",
+      inputSchema: z
+        .object({ reference: text(30), reason: text(180) })
+        .strict(),
+      execute: (input) =>
+        prepare("prepareOrderCancellation", input, () =>
+          ops.prepareOrderCancellation(actor, input),
+        ),
+    }),
+    preparePurchaseInvoiceImport: tool({
+      description:
+        "جهّز بطاقة قراءة فاتورة شراء من الصور المرفقة (attachmentIds) ثم مراجعتها.",
+      inputSchema: z
+        .object({ attachmentIds: z.array(z.uuid()).min(1).max(6) })
+        .strict(),
+      execute: (input) =>
+        prepare("preparePurchaseInvoiceImport", input, () =>
+          ops.preparePurchaseInvoiceImport(actor, input),
+        ),
+    }),
+  };
+}

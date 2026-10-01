@@ -154,10 +154,22 @@ const serviceAreaSeed: (typeof schema.serviceAreas.$inferInsert)[] = [
 export async function insertVerifiedReferenceData(
   database: PostgresJsDatabase<typeof schema>,
 ) {
-  await database
-    .insert(schema.products)
-    .values(productSeed)
-    .onConflictDoNothing({ target: schema.products.domainId });
+  // Only the original columns are named, so the seed also works on the first schema version.
+  for (const product of productSeed) {
+    await database.execute(sql`
+      insert into products (
+        domain_id, slug, name_ar, latin_name, price_agorot, sort_order,
+        category_id, availability, image_kind, placeholder_variant, details_status
+      )
+      values (
+        ${product.domainId}, ${product.slug}, ${product.nameAr},
+        ${product.latinName ?? null}, ${product.priceAgorot}, ${product.sortOrder},
+        ${product.categoryId}, ${product.availability}, ${product.imageKind},
+        ${product.placeholderVariant ?? null}, ${product.detailsStatus}
+      )
+      on conflict (domain_id) do nothing
+    `);
+  }
   await database
     .insert(schema.serviceAreas)
     .values(serviceAreaSeed)

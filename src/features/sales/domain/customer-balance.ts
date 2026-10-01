@@ -14,7 +14,7 @@ export type CustomerLedgerEntryType = (typeof customerLedgerEntryTypes)[number];
 export const customerInvoiceStatuses = ["posted", "cancelled"] as const;
 export type CustomerInvoiceStatus = (typeof customerInvoiceStatuses)[number];
 
-export const saleSources = ["manual", "voice"] as const;
+export const saleSources = ["manual", "voice", "assistant"] as const;
 export type SaleSource = (typeof saleSources)[number];
 
 export const invoicePaymentStates = [
