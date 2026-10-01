@@ -8,7 +8,7 @@ import {
   type AssistantToolContext,
 } from "@/features/assistant/application/assistant-tools";
 import { MAX_AGENT_STEPS } from "@/features/assistant/domain/assistant-policy";
-import { ASSISTANT_INSTRUCTIONS } from "@/features/assistant/domain/assistant-instructions";
+import { assistantInstructions } from "@/features/assistant/domain/assistant-instructions";
 
 import { createFakeAssistantModel } from "./assistant-fake-model";
 import { isFakeAiEnabled } from "./fake-mode";
@@ -30,7 +30,9 @@ function assistantModel() {
 export function createAssistantAgent(context: AssistantToolContext) {
   return new ToolLoopAgent({
     model: assistantModel(),
-    instructions: ASSISTANT_INSTRUCTIONS,
+    instructions: assistantInstructions(
+      context.mode === "full" ? "full" : "read",
+    ),
     tools: createAssistantTools(context),
     stopWhen: isStepCount(MAX_AGENT_STEPS),
     maxRetries: 1,

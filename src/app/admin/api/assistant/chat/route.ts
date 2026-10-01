@@ -21,6 +21,7 @@ import {
   toModelUserText,
 } from "@/features/assistant/domain/user-message";
 import {
+  assistantModelId,
   createAssistantAgent,
   type AssistantAgent,
   type AssistantUIMessage,
@@ -116,6 +117,8 @@ export async function POST(request: Request) {
   ) as AssistantUIMessage[];
   await assistantConversations.save(conversationId, [userMessage]);
 
+  const requestId = randomUUID();
+  const usage = { steps: 0, inputTokens: 0, outputTokens: 0 };
   let firstTokenMs: number | null = null;
   const measureFirstToken: StreamTextTransform<AssistantAgent["tools"]> = () =>
     new TransformStream({
@@ -136,11 +139,20 @@ export async function POST(request: Request) {
     originalMessages: uiMessages,
     generateMessageId: () => `a-${randomUUID()}`,
     experimental_transform: measureFirstToken,
+    onStepEnd: ({ usage: step }) => {
+      usage.steps += 1;
+      usage.inputTokens += step.inputTokens ?? 0;
+      usage.outputTokens += step.outputTokens ?? 0;
+    },
     messageMetadata: ({ part }) =>
       part.type === "start" ? { conversationId } : undefined,
-    headers: { "Cache-Control": "no-store, max-age=0" },
+    headers: {
+      "Cache-Control": "no-store, max-age=0",
+      "X-Request-Id": requestId,
+    },
     onError: (error) => {
       logEvent("error", "assistant.chat.failed", {
+        requestId,
         code: errorCode(error),
         durationMs: Date.now() - started,
       });
@@ -159,7 +171,13 @@ export async function POST(request: Request) {
         })),
       );
       logEvent("info", "assistant.chat.completed", {
+        requestId,
+        model: assistantModelId(),
         durationMs: Date.now() - started,
+        steps: usage.steps,
+        inputTokens: usage.inputTokens,
+        outputTokens: usage.outputTokens,
+        totalTokens: usage.inputTokens + usage.outputTokens,
         firstTokenMs,
         aborted: Boolean(isAborted),
         history: uiMessages.length,
