@@ -24,7 +24,7 @@ test("product details, favorites, and cart stay synchronized", async ({
   const card = page
     .locator('[data-product-id="general-cleaner"]')
     .filter({ hasText: "منظف عام Secret" });
-  await card.getByRole("link", { name: "عرض تفاصيل منظف عام Secret" }).click();
+  await card.getByRole("link", { name: /منظف عام Secret/ }).click();
   await expect(page).toHaveURL(/\/products\/general-cleaner-secret$/);
   await expect(
     page.getByRole("heading", { level: 1, name: "منظف عام Secret" }),
@@ -42,7 +42,7 @@ test("product details, favorites, and cart stay synchronized", async ({
 
   await page.getByRole("button", { name: "أضف إلى السلة" }).click();
   await expect(page.locator(".cart-button")).toHaveAccessibleName(
-    "السلة، منتج واحد",
+    "السلة، عدد المنتجات 1",
   );
   await expect(
     page.getByText("تمت إضافة منظف عام Secret إلى السلة."),

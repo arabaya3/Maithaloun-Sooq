@@ -5,7 +5,6 @@ import Link from "next/link";
 import type { RefObject } from "react";
 
 import { useCart } from "@/features/cart/cart-provider";
-import { formatProductCount } from "@/shared/lib/format-product-count";
 
 const desktopNavigation = [
   { href: "/", label: "الرئيسية" },
@@ -78,12 +77,9 @@ export function SiteHeader({
             <MapPin aria-hidden="true" />
             <span>التوصيل داخل ميثلون</span>
           </p>
-          <Link
-            href="/cart"
-            className="cart-button"
-            aria-label={`السلة، ${formatProductCount(count)}`}
-          >
+          <Link href="/cart" className="cart-button">
             <ShoppingBasket aria-hidden="true" />
+            <span className="sr-only">السلة، عدد المنتجات </span>
             <span className="cart-count" aria-live="polite">
               {count}
             </span>

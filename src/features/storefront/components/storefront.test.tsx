@@ -167,9 +167,10 @@ describe("storefront", () => {
     );
     await user.click(within(firstCard!).getByRole("button", { name: /^أضف$/ }));
 
-    expect(screen.getAllByRole("link", { name: "السلة، منتجان" })).toHaveLength(
-      2,
-    );
+    expect(screen.getByRole("link", { name: "السلة، منتجان" })).toBeVisible();
+    expect(
+      screen.getByRole("link", { name: /^السلة، عدد المنتجات\s*2$/ }),
+    ).toBeVisible();
   });
 
   it("prevents quantity changes and cart additions for unavailable products", () => {

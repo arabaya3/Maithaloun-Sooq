@@ -29,7 +29,11 @@ function CategoryPicker({
           <h2 id="categories-title">الفئات</h2>
         </div>
       </div>
-      <div className="category-list" role="list">
+      <div
+        className="category-list"
+        role="group"
+        aria-labelledby="categories-title"
+      >
         {categories.map((category) => {
           const active = selected === category.id;
           return (

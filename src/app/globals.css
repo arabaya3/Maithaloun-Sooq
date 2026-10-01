@@ -55,6 +55,12 @@ html {
   scroll-padding-top: 8rem;
 }
 
+/* Focused or scrolled-to controls must not end up under the fixed bottom navigation. */
+html:has(.admin-bottom-nav),
+html:has(.mobile-navigation) {
+  scroll-padding-bottom: calc(5.5rem + env(safe-area-inset-bottom));
+}
+
 body {
   min-width: 320px;
   margin: 0;
@@ -536,9 +542,9 @@ select:focus-visible {
   z-index: 2;
   top: 0.4rem;
   inset-inline-start: 0.4rem;
-  width: 2.5rem;
-  min-width: 2.5rem;
-  min-height: 2.5rem;
+  width: 2.75rem;
+  min-width: 2.75rem;
+  min-height: 2.75rem;
   padding: 0;
   color: var(--text-muted);
   border: 1px solid var(--border);

@@ -34,7 +34,7 @@ test("homepage search, filtering, and cart work in RTL", async ({ page }) => {
   const product = page.locator("article").filter({ hasText: "سائل جلي Arar" });
   await product.getByRole("button", { name: /^أضف$/ }).click();
   await expect(page.locator(".cart-button")).toHaveAccessibleName(
-    "السلة، منتج واحد",
+    "السلة، عدد المنتجات 1",
   );
 
   await search.clear();

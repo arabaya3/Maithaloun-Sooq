@@ -120,7 +120,7 @@ test("validates and creates a cash-on-delivery order with +970", async ({
 
   await page.getByRole("link", { name: "العودة إلى المتجر" }).click();
   await expect(page.locator(".cart-button")).toHaveAccessibleName(
-    "السلة، لا منتجات",
+    "السلة، عدد المنتجات 0",
   );
   expect(consoleErrors).toEqual([]);
   expect(failedRequests).toEqual([]);
@@ -156,7 +156,7 @@ test("failed submission preserves the cart", async ({ page }) => {
     "تعذّر حفظ الطلب الآن.",
   );
   await expect(page.locator(".cart-button")).toHaveAccessibleName(
-    "السلة، منتج واحد",
+    "السلة، عدد المنتجات 1",
   );
   await expect(page.getByRole("textbox", { name: "الاسم الكامل" })).toHaveValue(
     "عميل تجريبي",
