@@ -34,8 +34,12 @@
     "verify": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm test:db && pnpm test:e2e && pnpm build"
   },
   "dependencies": {
+    "@ai-sdk/openai": "^4.0.82",
+    "@ai-sdk/provider": "^4.0.20",
+    "@ai-sdk/react": "^4.0.126",
     "@serwist/next": "9.5.12",
     "@supabase/supabase-js": "^2.117.2",
+    "ai": "^7.0.123",
     "drizzle-orm": "^0.45.2",
     "exceljs": "^4.4.0",
     "lucide-react": "^1.47.0",

@@ -9,7 +9,14 @@ import { SalesService } from "@/features/sales/application/sales-service";
 import { getInsightGenerator } from "@/server/ai/insight-generator";
 import { VoiceService } from "@/features/voice/application/voice-service";
 import { getVoiceInterpreter } from "@/server/ai/voice-interpreter";
+import { AssistantOperations } from "@/features/assistant/application/assistant-operations";
+import { AttachmentService } from "@/features/assistant/application/attachment-service";
+import { ConfirmationService } from "@/features/assistant/application/confirmation-service";
+import { ConversationRepository } from "@/features/assistant/application/conversation-repository";
+import { ToolRunLog } from "@/features/assistant/application/tool-run-log";
+import { getInvoiceExtractor } from "@/server/ai/invoice-extractor";
 import { db } from "@/server/db/db";
+import { getProductImageStore } from "@/server/storage/product-images";
 import { getPrivateDocumentStore } from "@/server/storage/private-documents";
 
 import { AdminCatalogService } from "./admin-catalog-service";
@@ -18,6 +25,7 @@ import { AdminDeliveryService } from "./admin-delivery-service";
 import { AdminOrderService } from "./admin-order-service";
 import { AdminNotificationService } from "../notifications/notification-service";
 import { AdminStaffService } from "./admin-staff-service";
+import { ProductMaintenanceService } from "./product-maintenance-service";
 import { InventoryService } from "@/features/inventory/application/inventory-service";
 import { PriceReviewService } from "@/features/inventory/application/price-review-service";
 import { ExtractionService } from "@/features/purchasing/application/extraction-service";
@@ -61,6 +69,11 @@ export const scheduledJobs = new ScheduledJobs(
   db,
   reminderService,
   summaryService,
+  async (now) => ({
+    assistantAttachments: await assistantAttachments.expireTemporary(now),
+    assistantConfirmations: await assistantConfirmations.expirePending(now),
+    ...(await assistantConversations.purge(now)),
+  }),
 );
 export const voiceService = new VoiceService(
   db,
@@ -70,4 +83,30 @@ export const voiceService = new VoiceService(
   customerService,
   supplierService,
   reportService,
+);
+export const productMaintenanceService = new ProductMaintenanceService(db);
+export const assistantAttachments = new AttachmentService(
+  db,
+  getPrivateDocumentStore,
+);
+export const assistantConversations = new ConversationRepository(db);
+export const assistantToolRuns = new ToolRunLog(db);
+export const assistantOperations = new AssistantOperations({
+  database: db,
+  catalog: adminCatalogService,
+  maintenance: productMaintenanceService,
+  inventory: inventoryService,
+  sales: salesService,
+  customers: customerService,
+  orders: adminOrderService,
+  extraction: extractionService,
+  attachments: assistantAttachments,
+  productImages: getProductImageStore,
+  invoiceExtractor: getInvoiceExtractor,
+});
+export const assistantConfirmations = new ConfirmationService(
+  db,
+  assistantOperations,
+  assistantConversations,
+  assistantToolRuns,
 );
