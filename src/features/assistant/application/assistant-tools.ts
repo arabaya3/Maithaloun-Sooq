@@ -36,6 +36,11 @@ import {
 import type { ConfirmationService } from "./confirmation-service";
 import type { ToolRunLog } from "./tool-run-log";
 import type { AdminCatalogService } from "@/features/admin/application/admin-catalog-service";
+import type { CatalogAuthoringService } from "@/features/admin/application/catalog-authoring-service";
+import type { ProductImageAnalyzer } from "@/server/ai/product-image-analyzer";
+
+import type { AttachmentService } from "./attachment-service";
+import { createCatalogTools } from "./catalog-tools";
 
 export interface AssistantToolContext {
   actor: AdminActor;
@@ -43,6 +48,9 @@ export interface AssistantToolContext {
   mode: AssistantMode;
   database: Database;
   catalog: AdminCatalogService;
+  authoring: CatalogAuthoringService;
+  attachments: AttachmentService;
+  imageAnalyzer: () => ProductImageAnalyzer;
   inventory: InventoryService;
   orders: AdminOrderService;
   customers: CustomerService;
@@ -150,7 +158,10 @@ export function createAssistantTools(context: AssistantToolContext) {
           : null,
     );
 
+  const catalogTools = createCatalogTools(context, run, prepare);
+
   const read = {
+    ...catalogTools.read,
     searchProducts: tool({
       description:
         "ابحث عن منتج بالاسم العربي أو اللاتيني أو الباركود أو SKU. يعيد منتجاً محدداً أو خيارات قريبة للاختيار.",
@@ -204,21 +215,42 @@ export function createAssistantTools(context: AssistantToolContext) {
         run("getProductDetails", { productId }, async () => {
           const product = await context.catalog.getByDomainId(actor, productId);
           if (!product) return { status: "not_found" as const };
+          const [categories, archivedVariants] = await Promise.all([
+            context.authoring.listCategories(true),
+            context.authoring.archivedVariants(product.id),
+          ]);
           return {
             status: "found" as const,
             productId: product.id,
             nameAr: product.nameAr,
             latinName: product.latinName ?? null,
-            category: product.categoryId,
+            category:
+              categories.find((row) => row.code === product.categoryId)
+                ?.nameAr ?? product.categoryId,
             unit: product.unit ?? null,
             price: formatIls(product.priceAgorot),
             availability: product.availability,
+            publication: product.archived ? "archived" : product.publication,
+            slug: product.slug,
+            sortOrder: product.sortOrder,
             description: product.description?.slice(0, 300) ?? null,
+            specifications: product.specifications.map((row) => ({
+              label: row.labelAr,
+              value: row.valueAr,
+            })),
             variants: product.variants.map((variant) => ({
               variantId: variant.id,
               label: variant.labelAr,
               price: formatIls(variant.priceAgorot),
+              availability: variant.availability,
+              isDefault: variant.isDefault,
+              attributes: variant.attributes,
               sku: variant.sku ?? null,
+              barcode: variant.barcode ?? null,
+            })),
+            archivedVariants: archivedVariants.map((row) => ({
+              variantId: row.variantId,
+              label: row.labelAr,
             })),
             imageUrl: product.image.kind === "image" ? product.image.src : null,
             href: `/admin/products/${product.id}`,
@@ -564,6 +596,7 @@ export function createAssistantTools(context: AssistantToolContext) {
 
   return {
     ...read,
+    ...catalogTools.mutate,
     prepareProductUpdate: tool({
       description:
         "جهّز بطاقة تأكيد لتعديل بيانات منتج (الاسم، الاسم اللاتيني، الوصف، القسم، الوحدة، سعر البيع، التوفر). لا ينفّذ شيئاً.",
@@ -576,7 +609,10 @@ export function createAssistantTools(context: AssistantToolContext) {
               latinName: z.string().trim().max(120).nullable().optional(),
               description: z.string().trim().max(4_000).optional(),
               categoryId: z
-                .enum(["laundry", "kitchen", "bathroom", "tools", "home"])
+                .string()
+                .trim()
+                .max(80)
+                .describe("اسم القسم الجديد أو رمزه")
                 .optional(),
               unit: z.string().trim().max(80).optional(),
               priceIls: money.optional(),
@@ -600,7 +636,7 @@ export function createAssistantTools(context: AssistantToolContext) {
     }),
     prepareProductArchive: tool({
       description:
-        "جهّز بطاقة حذف منتج غير صحيح. إن كان له طلبات أو فواتير أو حركات مخزون يُؤرشف بدل الحذف.",
+        "جهّز بطاقة أرشفة منتج: يختفي من المتجر ويبقى تاريخه ويمكن استرجاعه. للحذف النهائي لمنتج غير مستخدم استعمل prepareUnusedProductDeletion.",
       inputSchema: z.object({ product, reason: text(200) }).strict(),
       execute: (input) =>
         prepare("prepareProductArchive", input, () =>

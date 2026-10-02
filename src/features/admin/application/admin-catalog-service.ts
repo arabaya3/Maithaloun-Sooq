@@ -196,7 +196,7 @@ export class AdminCatalogService {
   async getByDomainId(
     actor: AdminActor,
     domainId: string,
-  ): Promise<(Product & { sortOrder: number }) | null> {
+  ): Promise<(Product & { sortOrder: number; archived: boolean }) | null> {
     assertOperationsActor(actor);
     if (!productIdSchema.safeParse(domainId).success) return null;
     const [row] = await this.database
@@ -207,7 +207,11 @@ export class AdminCatalogService {
     if (!row) return null;
     const [product] = await this.mapProducts([row]);
     if (!product) return null;
-    return { ...product, sortOrder: row.sortOrder };
+    return {
+      ...product,
+      sortOrder: row.sortOrder,
+      archived: Boolean(row.archivedAt),
+    };
   }
 
   async update(

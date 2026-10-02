@@ -22,6 +22,14 @@ vi.mock("@/features/catalog/infrastructure/product-repository", async () => {
   return { productRepository: new MockProductRepository() };
 });
 
+vi.mock("@/features/catalog/infrastructure/category-repository", async () => {
+  const { seedCategories } = await import("@/features/catalog/domain/product");
+  return {
+    assignableCategories: async () =>
+      seedCategories.map(({ code, nameAr }) => ({ code, nameAr })),
+  };
+});
+
 import ProductPage from "./page";
 
 describe("product details page", () => {

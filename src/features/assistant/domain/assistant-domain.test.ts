@@ -47,9 +47,25 @@ describe("assistant policy", () => {
     ]) {
       expect(toolRisk(name)).toBe(3);
     }
-    expect(toolRisk("anythingUnknown")).toBe(3);
+    for (const name of [
+      "prepareUnusedProductDeletion",
+      "prepareUnusedVariantDeletion",
+      "prepareEmptyCategoryDeletion",
+    ]) {
+      expect(toolRisk(name)).toBe(4);
+    }
+    expect(toolRisk("prepareProductCreation")).toBe(2);
+    expect(toolRisk("prepareProductCreationWithOpeningStock")).toBe(3);
+    expect(toolRisk("anythingUnknown")).toBe(4);
     for (const operation of operations) {
-      expect([2, 3]).toContain(operationRisk[operation]);
+      expect([2, 3, 4]).toContain(operationRisk[operation]);
+    }
+    for (const operation of [
+      "productDelete",
+      "variantDelete",
+      "categoryDelete",
+    ] as const) {
+      expect(operationRisk[operation]).toBe(4);
     }
   });
 

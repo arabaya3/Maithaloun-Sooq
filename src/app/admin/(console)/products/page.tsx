@@ -4,11 +4,8 @@ import { connection } from "next/server";
 
 import { adminCatalogService } from "@/features/admin/application/admin-services";
 import { requireAdminSession } from "@/features/admin/auth/admin-session";
-import {
-  categories,
-  getProductDisplayName,
-  type ProductCategoryId,
-} from "@/features/catalog/domain/product";
+import { getProductDisplayName } from "@/features/catalog/domain/product";
+import { assignableCategories } from "@/features/catalog/infrastructure/category-repository";
 import { formatIls } from "@/shared/lib/format-currency";
 
 export const metadata: Metadata = {
@@ -27,11 +24,15 @@ export default async function AdminProductsPage({
   await connection();
   const actor = await requireAdminSession();
   const params = await searchParams;
-  const products = await adminCatalogService.list(actor);
+  const [products, categories] = await Promise.all([
+    adminCatalogService.list(actor),
+    assignableCategories(),
+  ]);
   const query = params.q?.trim().toLowerCase() ?? "";
   const category =
-    params.category && categories.some((entry) => entry.id === params.category)
-      ? (params.category as ProductCategoryId)
+    params.category &&
+    categories.some((entry) => entry.code === params.category)
+      ? params.category
       : undefined;
   const availability =
     params.availability === "available" || params.availability === "unavailable"
@@ -87,13 +88,11 @@ export default async function AdminProductsPage({
             defaultValue={category ?? ""}
           >
             <option value="">الكل</option>
-            {categories
-              .filter((entry) => entry.id !== "all")
-              .map((entry) => (
-                <option key={entry.id} value={entry.id}>
-                  {entry.label}
-                </option>
-              ))}
+            {categories.map((entry) => (
+              <option key={entry.code} value={entry.code}>
+                {entry.nameAr}
+              </option>
+            ))}
           </select>
         </label>
         <label className="admin-toolbar-field" htmlFor="product-availability">
@@ -169,8 +168,8 @@ export default async function AdminProductsPage({
                       </td>
                       <td>
                         {categories.find(
-                          (entry) => entry.id === product.categoryId,
-                        )?.label ?? product.categoryId}
+                          (entry) => entry.code === product.categoryId,
+                        )?.nameAr ?? product.categoryId}
                       </td>
                       <td className="admin-num">
                         {min === max
@@ -230,8 +229,8 @@ export default async function AdminProductsPage({
                       <h2>{getProductDisplayName(product)}</h2>
                       <p className="admin-muted">
                         {categories.find(
-                          (entry) => entry.id === product.categoryId,
-                        )?.label ?? product.categoryId}
+                          (entry) => entry.code === product.categoryId,
+                        )?.nameAr ?? product.categoryId}
                         {" · "}
                         {variantCount > 1
                           ? `${variantCount} خيارات`

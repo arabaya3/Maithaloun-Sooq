@@ -41,6 +41,8 @@ export function tokenMatches(token: string, storedHash: string): boolean {
 }
 
 export type ConfirmationRejection =
+  | "not_acknowledged"
+  | "token_stale"
   | "not_found"
   | "wrong_owner"
   | "wrong_operation"

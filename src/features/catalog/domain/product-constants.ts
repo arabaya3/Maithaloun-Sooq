@@ -18,4 +18,9 @@ export const placeholderKinds = [
 export type PlaceholderKind = (typeof placeholderKinds)[number];
 
 export const productAvailabilityValues = ["available", "unavailable"] as const;
+export const productPublicationValues = [
+  "draft",
+  "published",
+  "hidden",
+] as const;
 export const productDetailsStatusValues = ["placeholder", "verified"] as const;

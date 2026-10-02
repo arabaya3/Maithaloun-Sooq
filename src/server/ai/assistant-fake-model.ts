@@ -25,13 +25,103 @@ type Plan =
 const ATTACHMENT =
   /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/g;
 
-function planFromUser(text: string): Plan {
+function catalogPlan(
+  words: string,
+  attachments: string[],
+  previous: (toolName: string) => Record<string, unknown> | null,
+): Plan | null {
+  if (/المعرّف create_new/.test(words)) {
+    const input = previous("prepareProductCreation");
+    if (input) {
+      return {
+        kind: "tool",
+        toolName: "prepareProductCreation",
+        input: { ...input, duplicateDecision: "create_new" },
+      };
+    }
+  }
+  if (/(?:اقرئي|حللي) (?:صورة|صور) المنتج/.test(words) && attachments.length) {
+    return {
+      kind: "tool",
+      toolName: "analyzeProductImages",
+      input: { attachmentIds: attachments.slice(0, 4) },
+    };
+  }
+  let match =
+    /أضيفي منتج (.+?)(?: ماركة (\S+))? بسعر (\d+(?:\.\d+)?) (?:في|قسم) (.+?) (مسودة|منشور)$/.exec(
+      words,
+    );
+  if (match) {
+    return {
+      kind: "tool",
+      toolName: "prepareProductCreation",
+      input: {
+        ...(attachments.length
+          ? { attachmentIds: attachments.slice(0, 4) }
+          : {}),
+        nameAr: match[1]!,
+        ...(match[2] ? { latinName: match[2] } : {}),
+        priceIls: match[3]!,
+        category: match[4]!,
+        state: match[5] === "منشور" ? "published" : "draft",
+        acceptPlaceholder: true,
+      },
+    };
+  }
+  match = /^(انشري|اخفي) (.+)$/.exec(words);
+  if (match) {
+    return {
+      kind: "tool",
+      toolName: "prepareProductPublication",
+      input: {
+        product: match[2]!,
+        state: match[1] === "انشري" ? "published" : "hidden",
+        acceptPlaceholder: true,
+      },
+    };
+  }
+  match = /أضيفي صنف (.+?) لـ ?(.+?) بسعر (\d+(?:\.\d+)?)$/.exec(words);
+  if (match) {
+    return {
+      kind: "tool",
+      toolName: "prepareVariantCreation",
+      input: { product: match[2]!, label: match[1]!, priceIls: match[3]! },
+    };
+  }
+  match = /أضيفي قسم (.+?) بأيقونة (\S+)$/.exec(words);
+  if (match) {
+    return {
+      kind: "tool",
+      toolName: "prepareCategoryCreation",
+      input: { nameAr: match[1]!, icon: match[2]! },
+    };
+  }
+  match = /احذفي القسم (.+?) نهائي[اًا]*$/.exec(words);
+  if (match) {
+    return {
+      kind: "tool",
+      toolName: "prepareEmptyCategoryDeletion",
+      input: { category: match[1]! },
+    };
+  }
+  if (/^(?:شو الأقسام|اعرضي الأقسام)/.test(words)) {
+    return { kind: "tool", toolName: "listCategories", input: {} };
+  }
+  return null;
+}
+
+function planFromUser(
+  text: string,
+  previous: (toolName: string) => Record<string, unknown> | null = () => null,
+): Plan {
   const attachments = text.match(ATTACHMENT) ?? [];
   const words = text
     .replace(/\[مرفقات:[^\]]*\]/g, " ")
     .replace(/[؟?!.]/g, " ")
     .replace(/\s+/g, " ")
     .trim();
+  const catalog = catalogPlan(words, attachments, previous);
+  if (catalog) return catalog;
   let match = /غي[ّ]?ر اسم (.+?) (?:إلى|الى) (.+)$/.exec(words);
   if (match) {
     return {
@@ -142,6 +232,18 @@ function describe(toolName: string, value: Record<string, unknown>): string {
       ? `عليهم ديون بمجموع ${String(value.total)}.`
       : "ما حدا عليه ديون.";
   }
+  if (toolName === "analyzeProductImages") {
+    const fields =
+      (value.fields as Array<{ label: string; value: string }>) ?? [];
+    return `قرأت من الصورة: ${fields
+      .filter((row) => row.value)
+      .map((row) => `${row.label} ${row.value}`)
+      .join("، ")}. ما سعر البيع؟`;
+  }
+  if (toolName === "listCategories") {
+    const rows = (value.categories as Array<{ name: string }>) ?? [];
+    return `الأقسام: ${rows.map((row) => row.name).join("، ")}.`;
+  }
   if (toolName === "getInventorySummary") {
     return `قيمة المخزون الحالية ${String(value.inventoryValue ?? "غير متاحة")}.`;
   }
@@ -159,6 +261,23 @@ function lastToolResult(prompt: LanguageModelV4Prompt) {
       ? (output.value as Record<string, unknown>)
       : {};
   return { toolName: part.toolName, value };
+}
+
+function previousToolInput(prompt: LanguageModelV4Prompt) {
+  return (toolName: string) => {
+    for (let index = prompt.length - 1; index >= 0; index -= 1) {
+      const message = prompt[index]!;
+      if (message.role !== "assistant") continue;
+      for (const part of message.content) {
+        if (part.type === "tool-call" && part.toolName === toolName) {
+          return (
+            typeof part.input === "string" ? JSON.parse(part.input) : part.input
+          ) as Record<string, unknown>;
+        }
+      }
+    }
+    return null;
+  };
 }
 
 function lastUserText(prompt: LanguageModelV4Prompt): string {
@@ -214,7 +333,10 @@ export function createFakeAssistantModel(): LanguageModelV4 {
     const result = lastToolResult(options.prompt);
     const plan: Plan = result
       ? { kind: "text", text: describe(result.toolName, result.value) }
-      : planFromUser(lastUserText(options.prompt));
+      : planFromUser(
+          lastUserText(options.prompt),
+          previousToolInput(options.prompt),
+        );
     return chunks(plan, `fake-call-${calls}`);
   };
   return {

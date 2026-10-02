@@ -14,6 +14,7 @@ const actionSchema = z
     action: z.enum(["confirm", "cancel"]),
     operation: z.string().max(60),
     token: z.string().max(80),
+    acknowledged: z.boolean().optional(),
   })
   .strict();
 
@@ -66,6 +67,7 @@ export async function POST(
     id,
     operation: body.data.operation,
     token: body.data.token,
+    acknowledged: body.data.acknowledged,
   });
   if (outcome.ok) {
     revalidatePath("/admin", "layout");

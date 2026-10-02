@@ -146,7 +146,7 @@ export const adminAssistantToolRuns = pgTable(
     ),
     check(
       "admin_assistant_tool_runs_risk",
-      sql`${table.riskLevel} BETWEEN 1 AND 3`,
+      sql`${table.riskLevel} BETWEEN 1 AND 4`,
     ),
   ],
 );
@@ -166,6 +166,10 @@ export const adminAssistantConfirmations = pgTable(
     payloadHash: varchar("payload_hash", { length: 64 }).notNull(),
     recordVersion: varchar("record_version", { length: 120 }).notNull(),
     tokenHash: varchar("token_hash", { length: 64 }).notNull(),
+    tokenIssuedAt: timestamp("token_issued_at", {
+      withTimezone: true,
+      mode: "date",
+    }),
     status: varchar("status", { length: 16 }).default("pending").notNull(),
     expiresAt: timestamp("expires_at", {
       withTimezone: true,
@@ -190,7 +194,7 @@ export const adminAssistantConfirmations = pgTable(
     ),
     check(
       "admin_assistant_confirmations_risk",
-      sql`${table.riskLevel} BETWEEN 2 AND 3`,
+      sql`${table.riskLevel} BETWEEN 2 AND 4`,
     ),
   ],
 );

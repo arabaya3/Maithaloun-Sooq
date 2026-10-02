@@ -529,3 +529,103 @@
   color: var(--admin-danger);
   background: var(--admin-danger-bg);
 }
+
+.assistant-card[data-permanent] {
+  border-width: 2px;
+  border-color: var(--admin-danger);
+}
+
+.assistant-card-permanent {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin: 0 0 0.35rem;
+  padding: 0.35rem 0.6rem;
+  color: var(--admin-danger);
+  border-radius: var(--admin-radius);
+  background: var(--admin-danger-bg);
+  font-size: 0.875rem;
+  font-weight: 700;
+}
+
+.assistant-card-dependencies {
+  font-size: 0.875rem;
+}
+
+.assistant-card-dependencies p {
+  margin: 0 0 0.2rem;
+  color: var(--admin-text-muted, inherit);
+}
+
+.assistant-card-dependencies ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem 0.8rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.assistant-card-meta {
+  margin: 0;
+  color: var(--admin-text-muted, inherit);
+  font-size: 0.8125rem;
+}
+
+.assistant-card-acknowledge {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  min-height: 44px;
+  padding: 0.5rem 0.6rem;
+  border: 1px solid var(--admin-danger-border);
+  border-radius: var(--admin-radius);
+  font-size: 0.875rem;
+}
+
+.assistant-card-acknowledge input {
+  width: 1.25rem;
+  height: 1.25rem;
+  flex: none;
+  margin-top: 0.1rem;
+}
+
+.assistant-analysis {
+  display: grid;
+  gap: 0.35rem;
+  margin: 0;
+}
+
+.assistant-analysis > div {
+  display: grid;
+  grid-template-columns: minmax(5.5rem, auto) 1fr auto;
+  align-items: baseline;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+}
+
+.assistant-analysis dt {
+  color: var(--admin-text-muted, inherit);
+}
+
+.assistant-analysis dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.assistant-confidence {
+  padding: 0 0.4rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.assistant-confidence[data-level="low"] {
+  color: var(--admin-danger);
+  background: var(--admin-danger-bg);
+}
+
+.assistant-confidence[data-level="high"] {
+  background: color-mix(in srgb, var(--admin-forest, #1f4d3a) 12%, transparent);
+}

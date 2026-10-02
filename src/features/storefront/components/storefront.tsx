@@ -4,10 +4,16 @@ import {
   Bath,
   Brush,
   CookingPot,
+  Droplets,
   House,
   LayoutGrid,
+  Leaf,
+  Package,
   PackageSearch,
   Search,
+  Shirt,
+  Sparkles,
+  SprayCan,
   WashingMachine,
   X,
   type LucideIcon,
@@ -16,23 +22,30 @@ import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
 
 import { ProductCard } from "@/features/catalog/components/product-card";
 import {
-  categories,
-  type CategoryId,
-  type Product,
-} from "@/features/catalog/domain/product";
+  ALL_CATEGORIES,
+  type CategoryIconKey,
+  type ProductCategory,
+} from "@/features/catalog/domain/category";
+import type { CategoryId, Product } from "@/features/catalog/domain/product";
 import { filterProducts } from "@/features/catalog/domain/product-search";
 import { MobileNavigation } from "@/features/storefront/components/mobile-navigation";
 import { Hero } from "@/features/storefront/components/hero";
 import { SiteHeader } from "@/features/storefront/components/site-header";
 import { formatProductCount } from "@/shared/lib/format-product-count";
 
-const categoryIcons: Record<CategoryId, LucideIcon> = {
-  all: LayoutGrid,
-  laundry: WashingMachine,
-  kitchen: CookingPot,
-  bathroom: Bath,
-  tools: Brush,
-  home: House,
+const categoryIcons: Record<CategoryIconKey, LucideIcon> = {
+  grid: LayoutGrid,
+  "washing-machine": WashingMachine,
+  "cooking-pot": CookingPot,
+  bath: Bath,
+  brush: Brush,
+  house: House,
+  "spray-can": SprayCan,
+  sparkles: Sparkles,
+  droplets: Droplets,
+  shirt: Shirt,
+  package: Package,
+  leaf: Leaf,
 };
 
 function ProductSearch({
@@ -78,12 +91,18 @@ function ProductSearch({
 }
 
 function CategoryPicker({
+  categories,
   selected,
   onSelect,
 }: {
+  categories: readonly ProductCategory[];
   selected: CategoryId;
   onSelect: (category: CategoryId) => void;
 }) {
+  const options = [
+    { code: ALL_CATEGORIES, nameAr: "الكل", icon: "grid" as const },
+    ...categories,
+  ];
   return (
     <section className="categories-section" aria-labelledby="categories-title">
       <h2 id="categories-title" className="sr-only">
@@ -94,23 +113,23 @@ function CategoryPicker({
         role="group"
         aria-labelledby="categories-title"
       >
-        {categories.map((category) => {
-          const active = selected === category.id;
-          const Icon = categoryIcons[category.id];
+        {options.map((category) => {
+          const active = selected === category.code;
+          const Icon = categoryIcons[category.icon] ?? LayoutGrid;
           return (
             <button
-              key={category.id}
+              key={category.code}
               type="button"
               className="category-item"
-              data-category-id={category.id}
+              data-category-id={category.code}
               data-active={active}
               aria-pressed={active}
-              onClick={() => onSelect(category.id)}
+              onClick={() => onSelect(category.code)}
             >
               <span className="category-icon" aria-hidden="true">
                 <Icon />
               </span>
-              <span className="category-label">{category.label}</span>
+              <span className="category-label">{category.nameAr}</span>
             </button>
           );
         })}
@@ -119,17 +138,23 @@ function CategoryPicker({
   );
 }
 
-export function Storefront({ products }: { products: readonly Product[] }) {
+export function Storefront({
+  products,
+  categories,
+}: {
+  products: readonly Product[];
+  categories: readonly ProductCategory[];
+}) {
   const [query, setQuery] = useState("");
-  const [category, setCategory] = useState<CategoryId>("all");
+  const [category, setCategory] = useState<CategoryId>(ALL_CATEGORIES);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   const filteredProducts = useMemo(
     () => filterProducts(products, { query, categoryId: category }),
     [category, products, query],
   );
-  const selectedCategory = categories.find((item) => item.id === category);
-  const hasActiveFilter = Boolean(query.trim()) || category !== "all";
+  const selectedCategory = categories.find((item) => item.code === category);
+  const hasActiveFilter = Boolean(query.trim()) || category !== ALL_CATEGORIES;
 
   useEffect(() => {
     if (window.location.hash === "#product-search") {
@@ -139,7 +164,7 @@ export function Storefront({ products }: { products: readonly Product[] }) {
 
   const resetFilters = () => {
     setQuery("");
-    setCategory("all");
+    setCategory(ALL_CATEGORIES);
     queueMicrotask(() => searchInputRef.current?.focus());
   };
 
@@ -156,14 +181,18 @@ export function Storefront({ products }: { products: readonly Product[] }) {
           />
         </section>
         <Hero />
-        <CategoryPicker selected={category} onSelect={setCategory} />
+        <CategoryPicker
+          categories={categories}
+          selected={category}
+          onSelect={setCategory}
+        />
         {hasActiveFilter ? (
           <div className="active-filter-summary" role="status">
             <span>
               {query.trim() ? `البحث: ${query.trim()}` : null}
-              {query.trim() && category !== "all" ? "، " : null}
-              {category !== "all"
-                ? `الفئة: ${selectedCategory?.label ?? ""}`
+              {query.trim() && category !== ALL_CATEGORIES ? "، " : null}
+              {category !== ALL_CATEGORIES
+                ? `الفئة: ${selectedCategory?.nameAr ?? ""}`
                 : null}
             </span>
             <button type="button" onClick={resetFilters}>

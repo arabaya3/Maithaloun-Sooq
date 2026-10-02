@@ -8,6 +8,8 @@ import { Suspense } from "react";
 import { ProductCard } from "@/features/catalog/components/product-card";
 import { ProductDetailPanel } from "@/features/catalog/components/product-detail-panel";
 import { getProductDisplayName } from "@/features/catalog/domain/product";
+import { categoryLabel } from "@/features/catalog/domain/category";
+import { assignableCategories } from "@/features/catalog/infrastructure/category-repository";
 import { productRepository } from "@/features/catalog/infrastructure/product-repository";
 import { MobileNavigation } from "@/features/storefront/components/mobile-navigation";
 import { SiteHeader } from "@/features/storefront/components/site-header";
@@ -45,7 +47,10 @@ export default async function ProductPage({
     ? variantParam[0]
     : variantParam;
 
-  const products = await productRepository.list();
+  const [products, categories] = await Promise.all([
+    productRepository.list(),
+    assignableCategories(),
+  ]);
   const relatedProducts = products
     .filter(
       (candidate) =>
@@ -75,6 +80,7 @@ export default async function ProductPage({
         <Suspense fallback={null}>
           <ProductDetailPanel
             product={product}
+            categoryLabel={categoryLabel(categories, product.categoryId)}
             initialVariantId={initialVariantId}
           />
         </Suspense>

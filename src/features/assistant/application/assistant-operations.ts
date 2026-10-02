@@ -12,11 +12,9 @@ import type { AdminOrderService } from "@/features/admin/application/admin-order
 import type { ProductMaintenanceService } from "@/features/admin/application/product-maintenance-service";
 import type { AdminActor } from "@/features/admin/domain/admin-actor";
 import { can } from "@/features/admin/domain/permissions";
-import {
-  categories,
-  productCategoryIds,
-  type Product,
-} from "@/features/catalog/domain/product";
+import type { CatalogAuthoringService } from "@/features/admin/application/catalog-authoring-service";
+import { categoryCodeSchema } from "@/features/catalog/domain/category";
+import type { Product } from "@/features/catalog/domain/product";
 import type { InventoryService } from "@/features/inventory/application/inventory-service";
 import type { Database } from "@/features/inventory/application/stock-ledger";
 import {
@@ -45,6 +43,7 @@ import {
   type EntityCandidate,
 } from "../domain/entity-match";
 import type { AttachmentService } from "./attachment-service";
+import { CatalogOperations } from "./catalog-operations";
 
 export interface ConfirmationCard {
   title: string;
@@ -55,6 +54,8 @@ export interface ConfirmationCard {
   images?: { before: string | null; after: string };
   confirmLabel: string;
   destructive: boolean;
+  reversible?: boolean;
+  dependencies?: string[];
 }
 
 export type PrepareResult =
@@ -79,7 +80,7 @@ export interface ExecutionResult {
   ref: string;
 }
 
-interface Handler<A> {
+export interface Handler<A> {
   args: z.ZodType<A>;
   version(actor: AdminActor, args: A): Promise<string | null>;
   execute(
@@ -119,6 +120,7 @@ function erase<A>(handler: Handler<A>): OperationHandler {
 export interface OperationServices {
   database: Database;
   catalog: AdminCatalogService;
+  authoring: CatalogAuthoringService;
   maintenance: ProductMaintenanceService;
   inventory: InventoryService;
   sales: SalesService;
@@ -137,8 +139,6 @@ const rejected = (code: string, message: string): PrepareResult => ({
   code,
   message,
 });
-const categoryLabel = (id: string) =>
-  categories.find((category) => category.id === id)?.label ?? id;
 
 function selection(
   field: string,
@@ -188,15 +188,35 @@ const quantityText = (milli: number) => formatQuantity(milli);
 
 export class AssistantOperations {
   readonly handlers: Record<AssistantOperation, OperationHandler>;
+  readonly catalogOps: CatalogOperations;
 
   constructor(private readonly services: OperationServices) {
-    const built = this.buildHandlers();
+    this.catalogOps = new CatalogOperations({
+      catalog: services.catalog,
+      authoring: services.authoring,
+      attachments: services.attachments,
+      productImages: services.productImages,
+      resolveProduct: (actor, query, scope, field) =>
+        this.resolveProduct(actor, query, scope, field),
+      resolveVariant: (actor, query, field) =>
+        this.resolveVariant(actor, query, field),
+    });
+    const built = {
+      ...this.buildHandlers(),
+      ...this.catalogOps.buildHandlers(async (actor, domainId) => {
+        await services.maintenance.deleteUnreferenced(actor, domainId);
+      }),
+    };
     this.handlers = Object.fromEntries(
       Object.entries(built).map(([name, handler]) => [
         name,
         erase(handler as Handler<unknown>),
       ]),
     ) as Record<AssistantOperation, OperationHandler>;
+  }
+
+  productReferences(actor: AdminActor, domainId: string) {
+    return this.services.maintenance.references(actor, domainId);
   }
 
   async resolveProduct(
@@ -209,11 +229,30 @@ export class AssistantOperations {
     | { ok: false; result: PrepareResult }
   > {
     const products = await this.services.catalog.list(actor);
-    const resolution = resolveCatalogEntity(
+    let resolution = resolveCatalogEntity(
       query,
       catalogEntries(products),
       scope,
     );
+    // A single product whose Arabic name is exactly what was said wins over near matches.
+    if (resolution.status === "ambiguous") {
+      const wanted = query.trim();
+      const exact = resolution.candidates.filter(
+        (candidate) =>
+          products
+            .find((item) => item.id === candidate.productId)
+            ?.nameAr.trim() === wanted,
+      );
+      const exactProducts = new Set(
+        exact.map((candidate) => candidate.productId),
+      );
+      if (
+        exactProducts.size === 1 &&
+        (scope === "product" || exact.length === 1)
+      ) {
+        resolution = { status: "resolved", match: exact[0]! };
+      }
+    }
     if (resolution.status === "not_found") {
       return {
         ok: false,
@@ -343,19 +382,18 @@ export class AssistantOperations {
       }
     }
     if (requested.categoryId !== undefined) {
-      if (
-        !(productCategoryIds as readonly string[]).includes(
-          requested.categoryId,
-        )
-      ) {
-        return rejected("invalid_input", "القسم غير معروف.");
-      }
-      if (requested.categoryId !== product.categoryId) {
-        changes.categoryId = requested.categoryId;
+      const category = await this.catalogOps.resolveCategory(
+        requested.categoryId,
+      );
+      if (!category.ok) return category.result;
+      if (category.category.code !== product.categoryId) {
+        changes.categoryId = category.category.code;
         rows.push({
           label: "القسم",
-          before: categoryLabel(product.categoryId),
-          after: categoryLabel(requested.categoryId),
+          before:
+            category.categories.find((row) => row.code === product.categoryId)
+              ?.nameAr ?? product.categoryId,
+          after: category.category.nameAr,
         });
       }
     }
@@ -490,24 +528,14 @@ export class AssistantOperations {
       product.id,
     );
     if (!references) return rejected("not_found", "المنتج غير موجود.");
-    const referenced =
-      references.orders +
-        references.purchases +
-        references.sales +
-        references.stockMovements >
-      0;
     const reason = input.reason.trim().slice(0, 200) || "منتج غير صحيح";
     return {
       status: "ready",
       operation: "productArchive",
-      args: {
-        domainId: product.id,
-        mode: referenced ? "archive" : "delete",
-        reason,
-      },
-      summary: referenced ? `أرشفة ${product.nameAr}` : `حذف ${product.nameAr}`,
+      args: { domainId: product.id, mode: "archive", reason },
+      summary: `أرشفة ${product.nameAr}`,
       card: {
-        title: referenced ? "أرشفة منتج" : "حذف منتج نهائياً",
+        title: "أرشفة منتج",
         target: { label: product.nameAr, href: productHref(product.id) },
         rows: [
           {
@@ -516,14 +544,13 @@ export class AssistantOperations {
             after: `طلبات ${references.orders} · مشتريات ${references.purchases} · مبيعات ${references.sales} · حركات مخزون ${references.stockMovements}`,
           },
         ],
-        impact: referenced
-          ? [
-              "المنتج له سجلات محاسبية، لذلك سيُؤرشف ولن يُحذف: يختفي من المتجر والقوائم ويبقى تاريخه كما هو.",
-            ]
-          : ["لا توجد أي سجلات مرتبطة، سيُحذف المنتج نهائياً."],
-        warnings: referenced ? [] : ["الحذف النهائي لا يمكن التراجع عنه."],
-        confirmLabel: referenced ? "تأكيد الأرشفة" : "تأكيد الحذف النهائي",
-        destructive: true,
+        impact: [
+          "يختفي المنتج من المتجر والقوائم، ويبقى تاريخه وسجلاته كما هي. يمكن استرجاعه لاحقاً.",
+        ],
+        warnings: [],
+        confirmLabel: "تأكيد الأرشفة",
+        destructive: false,
+        reversible: true,
       },
     };
   }
@@ -1219,7 +1246,7 @@ export class AssistantOperations {
             nameAr: z.string().min(2).max(160).optional(),
             latinName: z.string().max(120).nullable().optional(),
             description: z.string().max(4_000).optional(),
-            categoryId: z.enum(productCategoryIds).optional(),
+            categoryId: categoryCodeSchema.optional(),
             unit: z.string().max(80).optional(),
             priceAgorot: z.number().int().positive().optional(),
             availability: z.enum(["available", "unavailable"]).optional(),

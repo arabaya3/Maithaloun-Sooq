@@ -5,8 +5,13 @@ import {
   productAvailabilityValues,
   productCategoryIds,
   productDetailsStatusValues,
+  productPublicationValues,
   type PlaceholderKind,
 } from "@/features/catalog/domain/product-constants";
+import {
+  categoryCodeSchema,
+  type CategoryIconKey,
+} from "@/features/catalog/domain/category";
 import {
   productSpecificationSchema,
   productVariantSchema,
@@ -18,17 +23,18 @@ export {
   placeholderKinds,
   productAvailabilityValues,
   productDetailsStatusValues,
+  productPublicationValues,
   type PlaceholderKind,
 };
 
-export const categoryIds = ["all", ...productCategoryIds] as const;
+export type ProductPublication = (typeof productPublicationValues)[number];
 
-export type CategoryId = (typeof categoryIds)[number];
+export type CategoryId = string;
 
-export const categorySchema = z.enum(categoryIds);
-export const productCategorySchema = categorySchema.exclude(["all"]);
-export type ProductCategoryId = z.infer<typeof productCategorySchema>;
+export const productCategorySchema = categoryCodeSchema;
+export type ProductCategoryId = string;
 
+// The categories that existed before categories became data; only seeds and fixtures use them.
 export { productCategoryIds };
 
 export const productIdSchema = z.string().regex(/^[a-z0-9-]{1,80}$/);
@@ -56,6 +62,7 @@ export const productSchema = z
       }),
     ]),
     availability: z.enum(productAvailabilityValues),
+    publication: z.enum(productPublicationValues),
     description: z.string().min(1).optional(),
     usageNotes: z.string().min(1).optional(),
     unit: z.string().min(1).optional(),
@@ -89,29 +96,23 @@ export const productSchema = z
 export type Product = z.infer<typeof productSchema>;
 export type { ProductSpecification, ProductVariant };
 
-export const categories: ReadonlyArray<{
-  id: CategoryId;
-  label: string;
+// Initial category rows; the database is the source of truth once migrated.
+export const seedCategories: ReadonlyArray<{
+  code: string;
+  nameAr: string;
+  icon: CategoryIconKey;
 }> = [
-  { id: "all", label: "الكل" },
-  { id: "laundry", label: "منظفات الغسيل" },
-  { id: "kitchen", label: "منظفات المطبخ" },
-  { id: "bathroom", label: "منظفات الحمام" },
-  { id: "tools", label: "أدوات التنظيف" },
-  { id: "home", label: "مستلزمات منزلية" },
+  { code: "laundry", nameAr: "منظفات الغسيل", icon: "washing-machine" },
+  { code: "kitchen", nameAr: "منظفات المطبخ", icon: "cooking-pot" },
+  { code: "bathroom", nameAr: "منظفات الحمام", icon: "bath" },
+  { code: "tools", nameAr: "أدوات التنظيف", icon: "brush" },
+  { code: "home", nameAr: "مستلزمات منزلية", icon: "house" },
 ];
 
 export function getProductDisplayName(product: Product): string {
   return product.latinName
     ? `${product.nameAr} ${product.latinName}`
     : product.nameAr;
-}
-
-export function getCategoryLabel(categoryId: ProductCategoryId): string {
-  return (
-    categories.find((category) => category.id === categoryId)?.label ??
-    categoryId
-  );
 }
 
 export function isProductAvailable(product: Product): boolean {

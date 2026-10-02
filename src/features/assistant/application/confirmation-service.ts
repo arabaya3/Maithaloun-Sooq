@@ -9,6 +9,7 @@ import * as schema from "@/server/db/schema";
 
 import {
   CONFIRMATION_TTL_MS,
+  DESTRUCTIVE_TOKEN_TTL_MS,
   operationRisk,
   operations,
   type AssistantOperation,
@@ -33,6 +34,7 @@ export type ConfirmationStatus =
 export interface ConfirmationView {
   id: string;
   operation: AssistantOperation;
+  riskLevel: 2 | 3 | 4;
   status: ConfirmationStatus;
   card: ConfirmationCard;
   expiresAt: string;
@@ -128,7 +130,7 @@ export class ConfirmationService {
       const issued = issueConfirmationToken();
       await this.database
         .update(schema.adminAssistantConfirmations)
-        .set({ tokenHash: issued.tokenHash })
+        .set({ tokenHash: issued.tokenHash, tokenIssuedAt: new Date() })
         .where(
           and(
             eq(schema.adminAssistantConfirmations.id, row.id),
@@ -145,6 +147,7 @@ export class ConfirmationService {
     return {
       id: row.id,
       operation: operation.data,
+      riskLevel: row.riskLevel as 2 | 3 | 4,
       status,
       card: payload.card,
       expiresAt: row.expiresAt.toISOString(),
@@ -157,7 +160,12 @@ export class ConfirmationService {
 
   async confirm(
     actor: AdminActor,
-    request: { id: string; operation: string; token: string },
+    request: {
+      id: string;
+      operation: string;
+      token: string;
+      acknowledged?: boolean;
+    },
   ): Promise<ConfirmOutcome> {
     const started = Date.now();
     const toolName =
@@ -233,6 +241,24 @@ export class ConfirmationService {
         currentVersion,
         new Date(),
       );
+      // Permanent deletion needs an explicit acknowledgement and a token the card fetched moments ago.
+      const destructiveRejection =
+        !rejection && locked && locked.riskLevel >= 4
+          ? request.acknowledged !== true
+            ? ("not_acknowledged" as const)
+            : !locked.tokenIssuedAt ||
+                Date.now() - locked.tokenIssuedAt.getTime() >
+                  DESTRUCTIVE_TOKEN_TTL_MS
+              ? ("token_stale" as const)
+              : null
+          : null;
+      if (destructiveRejection) {
+        return {
+          ok: false as const,
+          rejection: destructiveRejection,
+          status: locked?.status ?? "pending",
+        };
+      }
       if (rejection) {
         if (rejection === "expired" && locked?.status === "pending") {
           await transaction
@@ -264,7 +290,7 @@ export class ConfirmationService {
         conversationId: row.conversationId,
         adminUserId: actor.id,
         toolName,
-        riskLevel: row.riskLevel as 2 | 3,
+        riskLevel: row.riskLevel as 2 | 3 | 4,
         status: "rejected",
         input: payload.args,
         errorCode: claim.rejection,
@@ -301,7 +327,7 @@ export class ConfirmationService {
         conversationId: row.conversationId,
         adminUserId: actor.id,
         toolName,
-        riskLevel: row.riskLevel as 2 | 3,
+        riskLevel: row.riskLevel as 2 | 3 | 4,
         status: "succeeded",
         input: payload.args,
         resultRef: result.ref,
@@ -329,7 +355,7 @@ export class ConfirmationService {
         conversationId: row.conversationId,
         adminUserId: actor.id,
         toolName,
-        riskLevel: row.riskLevel as 2 | 3,
+        riskLevel: row.riskLevel as 2 | 3 | 4,
         status: "failed",
         input: payload.args,
         errorCode: failure.code,

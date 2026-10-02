@@ -11,6 +11,12 @@ import {
 import type { ProductRepository } from "@/features/catalog/domain/product-repository";
 import * as schema from "@/server/db/schema";
 
+// The storefront only ever sees published, unarchived products.
+const onStorefront = and(
+  eq(schema.products.publication, "published"),
+  isNull(schema.products.archivedAt),
+);
+
 import { mapProductRow } from "./product-row-mapper";
 
 export class PostgresProductRepository implements ProductRepository {
@@ -20,7 +26,7 @@ export class PostgresProductRepository implements ProductRepository {
     const rows = await this.database
       .select()
       .from(schema.products)
-      .where(isNull(schema.products.archivedAt))
+      .where(onStorefront)
       .orderBy(asc(schema.products.sortOrder));
     return this.mapProducts(rows);
   }
@@ -30,12 +36,7 @@ export class PostgresProductRepository implements ProductRepository {
     const [row] = await this.database
       .select()
       .from(schema.products)
-      .where(
-        and(
-          eq(schema.products.domainId, id),
-          isNull(schema.products.archivedAt),
-        ),
-      )
+      .where(and(eq(schema.products.domainId, id), onStorefront))
       .limit(1);
     if (!row) return null;
     const [product] = await this.mapProducts([row]);
@@ -47,9 +48,7 @@ export class PostgresProductRepository implements ProductRepository {
     const [row] = await this.database
       .select()
       .from(schema.products)
-      .where(
-        and(eq(schema.products.slug, slug), isNull(schema.products.archivedAt)),
-      )
+      .where(and(eq(schema.products.slug, slug), onStorefront))
       .limit(1);
     if (!row) return null;
     const [product] = await this.mapProducts([row]);
@@ -65,12 +64,7 @@ export class PostgresProductRepository implements ProductRepository {
     const rows = await this.database
       .select()
       .from(schema.products)
-      .where(
-        and(
-          inArray(schema.products.domainId, validIds),
-          isNull(schema.products.archivedAt),
-        ),
-      );
+      .where(and(inArray(schema.products.domainId, validIds), onStorefront));
     const products = await this.mapProducts(rows);
     const byId = new Map(products.map((product) => [product.id, product]));
     return validIds.flatMap((id) => {

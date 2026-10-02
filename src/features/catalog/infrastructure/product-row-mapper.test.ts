@@ -26,6 +26,7 @@ const row: typeof products.$inferSelect = {
   detailsStatus: "placeholder",
   archivedAt: null,
   mergedIntoProductId: null,
+  publication: "published" as const,
   createdAt: new Date("2026-01-01T00:00:00.000Z"),
   updatedAt: new Date("2026-01-01T00:00:00.000Z"),
 };
@@ -48,6 +49,7 @@ const defaultVariant = {
   barcode: null,
   sortOrder: 0,
   isDefault: true,
+  archivedAt: null,
   createdAt: new Date("2026-01-01T00:00:00.000Z"),
   updatedAt: new Date("2026-01-01T00:00:00.000Z"),
 };
@@ -62,6 +64,7 @@ describe("product database mapping", () => {
       priceAgorot: 700,
       categoryId: "home",
       availability: "available",
+      publication: "published",
       image: { kind: "placeholder", variant: "general-cleaner" },
       detailsStatus: "placeholder",
       defaultVariantId: "general-cleaner--default",
@@ -86,6 +89,23 @@ describe("product database mapping", () => {
     expect(() =>
       mapProductRow(row, [{ ...defaultVariant, placeholderVariant: null }]),
     ).toThrow();
+  });
+
+  it("leaves archived variants out of the catalog", () => {
+    const archived = {
+      ...defaultVariant,
+      id: "variant-2",
+      domainId: "general-cleaner--large",
+      labelAr: "كبير",
+      isDefault: false,
+      sortOrder: 1,
+      archivedAt: new Date("2026-02-01T00:00:00.000Z"),
+    };
+    expect(
+      mapProductRow(row, [defaultVariant, archived]).variants.map(
+        (variant) => variant.id,
+      ),
+    ).toEqual(["general-cleaner--default"]);
   });
 
   it("rejects products without variants", () => {

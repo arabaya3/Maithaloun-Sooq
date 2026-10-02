@@ -23,16 +23,22 @@ import {
   productAvailabilityValues,
   productCategoryIds,
   productDetailsStatusValues,
+  productPublicationValues,
 } from "@/features/catalog/domain/product-constants";
 import { orderStatuses } from "@/features/orders/domain/order-status";
 
+export const productAvailabilityEnum = pgEnum(
+  "product_availability",
+  productAvailabilityValues,
+);
+// No column uses this type since categories became a table; it stays so a rollback can restore the column.
 export const productCategoryEnum = pgEnum(
   "product_category",
   productCategoryIds,
 );
-export const productAvailabilityEnum = pgEnum(
-  "product_availability",
-  productAvailabilityValues,
+export const productPublicationEnum = pgEnum(
+  "product_publication",
+  productPublicationValues,
 );
 export const productDetailsStatusEnum = pgEnum(
   "product_details_status",
@@ -65,6 +71,36 @@ const timestamps = {
     .notNull(),
 };
 
+// Categories are data: the storefront shows visible, unarchived rows; products keep a restricting reference.
+export const productCategories = pgTable(
+  "product_categories",
+  {
+    code: varchar("code", { length: 40 }).primaryKey(),
+    nameAr: varchar("name_ar", { length: 80 }).notNull(),
+    description: text("description"),
+    icon: varchar("icon", { length: 30 }).notNull(),
+    sortOrder: integer("sort_order").notNull(),
+    visible: boolean("visible").default(true).notNull(),
+    archivedAt: timestamp("archived_at", { withTimezone: true, mode: "date" }),
+    mergedIntoCode: varchar("merged_into_code", { length: 40 }).references(
+      (): AnyPgColumn => productCategories.code,
+      { onDelete: "restrict", onUpdate: "cascade" },
+    ),
+    ...timestamps,
+  },
+  (table) => [
+    index("product_categories_merged_into_idx").on(table.mergedIntoCode),
+    uniqueIndex("product_categories_active_name_uidx")
+      .on(sql`lower(${table.nameAr})`)
+      .where(sql`${table.archivedAt} IS NULL`),
+    check(
+      "product_categories_code_format",
+      sql`${table.code} ~ '^[a-z0-9]+(-[a-z0-9]+)*$' AND ${table.code} <> 'all'`,
+    ),
+    check("product_categories_non_negative_sort", sql`${table.sortOrder} >= 0`),
+  ],
+);
+
 export const products = pgTable(
   "products",
   {
@@ -75,8 +111,16 @@ export const products = pgTable(
     latinName: varchar("latin_name", { length: 120 }),
     priceAgorot: integer("price_agorot").notNull(),
     sortOrder: integer("sort_order").notNull(),
-    categoryId: productCategoryEnum("category_id").notNull(),
+    categoryId: varchar("category_id", { length: 40 })
+      .notNull()
+      .references(() => productCategories.code, {
+        onDelete: "restrict",
+        onUpdate: "cascade",
+      }),
     availability: productAvailabilityEnum("availability").notNull(),
+    publication: productPublicationEnum("publication")
+      .default("published")
+      .notNull(),
     imageKind: productImageKindEnum("image_kind").notNull(),
     imageSrc: varchar("image_src", { length: 500 }),
     imageAlt: varchar("image_alt", { length: 250 }),
@@ -96,6 +140,12 @@ export const products = pgTable(
   },
   (table) => [
     index("products_merged_into_idx").on(table.mergedIntoProductId),
+    index("products_category_idx").on(table.categoryId),
+    index("products_storefront_idx")
+      .on(table.sortOrder)
+      .where(
+        sql`${table.publication} = 'published' AND ${table.archivedAt} IS NULL`,
+      ),
     check("products_positive_price", sql`${table.priceAgorot} > 0`),
     check("products_non_negative_sort", sql`${table.sortOrder} >= 0`),
     check(
@@ -147,6 +197,7 @@ export const productVariants = pgTable(
     barcode: varchar("barcode", { length: 64 }),
     sortOrder: integer("sort_order").notNull(),
     isDefault: boolean("is_default").default(false).notNull(),
+    archivedAt: timestamp("archived_at", { withTimezone: true, mode: "date" }),
     ...timestamps,
   },
   (table) => [
@@ -158,6 +209,16 @@ export const productVariants = pgTable(
     uniqueIndex("product_variants_one_default_uidx")
       .on(table.productId)
       .where(sql`${table.isDefault} = true`),
+    index("product_variants_sku_idx")
+      .on(sql`lower(${table.sku})`)
+      .where(sql`${table.sku} IS NOT NULL`),
+    index("product_variants_barcode_idx")
+      .on(table.barcode)
+      .where(sql`${table.barcode} IS NOT NULL`),
+    check(
+      "product_variants_default_not_archived",
+      sql`NOT (${table.isDefault} AND ${table.archivedAt} IS NOT NULL)`,
+    ),
     check(
       "product_variants_non_negative_price",
       sql`${table.priceAgorot} >= 0`,
