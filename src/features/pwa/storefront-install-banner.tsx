@@ -4,6 +4,8 @@ import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 
+import { LOGO_SIZES } from "@/features/storefront/brand-logo-asset";
+
 import { InstallInstructions } from "./install-instructions";
 import { useInstallPrompt } from "./use-install-prompt";
 
@@ -38,7 +40,7 @@ export function StorefrontInstallBanner() {
             alt=""
             width={360}
             height={285}
-            sizes="44px"
+            sizes={LOGO_SIZES}
           />
           <div className="install-banner-copy">
             <p id="install-title" className="install-banner-title">

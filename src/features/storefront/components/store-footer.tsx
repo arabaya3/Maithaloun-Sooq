@@ -1,5 +1,7 @@
 import Image from "next/image";
 
+import { LOGO_SIZES } from "@/features/storefront/brand-logo-asset";
+
 export const MANAGEMENT_ATTRIBUTION = "بإدارة المهندس عايد ربايعة";
 
 export function StoreFooter() {
@@ -13,7 +15,7 @@ export function StoreFooter() {
             alt=""
             width={360}
             height={285}
-            sizes="40px"
+            sizes={LOGO_SIZES}
           />
           <div>
             <p className="store-footer-name">سوق ميثلون</p>

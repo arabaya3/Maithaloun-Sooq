@@ -1,6 +1,8 @@
 import Image from "next/image";
 import Link from "next/link";
 
+import { LOGO_SIZES } from "@/features/storefront/brand-logo-asset";
+
 export function BrandLogo() {
   return (
     <Link className="brand" href="/">
@@ -10,7 +12,7 @@ export function BrandLogo() {
         alt=""
         width={360}
         height={285}
-        sizes="53px"
+        sizes={LOGO_SIZES}
         loading="eager"
       />
       <span className="brand-text">
