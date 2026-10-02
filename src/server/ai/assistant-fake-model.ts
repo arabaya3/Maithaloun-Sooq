@@ -110,6 +110,75 @@ function catalogPlan(
   return null;
 }
 
+function partyPlan(words: string): Plan | null {
+  const tool = (toolName: string, input: Record<string, unknown>): Plan => ({
+    kind: "tool",
+    toolName,
+    input,
+  });
+  let match = /^أضيفي زبون (.+?)(?: رقمه (\S+))?(?: عنوانه (.+))?$/.exec(words);
+  if (match) {
+    return tool("prepareCustomerCreation", {
+      name: match[1]!,
+      ...(match[2] ? { phone: match[2] } : {}),
+      ...(match[3] ? { address: match[3] } : {}),
+    });
+  }
+  match = /^اعملي عرض خصم (\d+) بالمية على (.+)$/.exec(words);
+  if (match) {
+    return tool("prepareOfferCreation", {
+      nameAr: `خصم ${match[1]} على ${match[2]}`,
+      kind: "percentage",
+      value: match[1]!,
+      products: [match[2]!],
+      enabled: true,
+    });
+  }
+  match = /^اعملي عرض سعر (\d+(?:\.\d+)?) على (.+)$/.exec(words);
+  if (match) {
+    return tool("prepareOfferCreation", {
+      nameAr: `سعر خاص على ${match[2]}`,
+      kind: "fixed_price",
+      value: match[1]!,
+      products: [match[2]!],
+      enabled: true,
+    });
+  }
+  match = /^كشف حساب المورد (.+)$/.exec(words);
+  if (match) return tool("getSupplierStatement", { supplier: match[1]! });
+  match = /^كشف حساب (.+)$/.exec(words);
+  if (match) return tool("getCustomerStatement", { customer: match[1]! });
+  match = /^ادمجي الزبون (.+?) مع (.+)$/.exec(words);
+  if (match) {
+    return tool("prepareCustomerMerge", {
+      duplicate: match[1]!,
+      target: match[2]!,
+    });
+  }
+  match = /^زودي دين (.+?) (\d+(?:\.\d+)?) بسبب (.+)$/.exec(words);
+  if (match) {
+    return tool("prepareCustomerBalanceAdjustment", {
+      customer: match[1]!,
+      amountIls: match[2]!,
+      direction: "increase_debt",
+      reason: match[3]!,
+    });
+  }
+  match = /^احذفي الزبون (.+?) نهائي[اًا]*$/.exec(words);
+  if (match)
+    return tool("prepareUnusedCustomerDeletion", { customer: match[1]! });
+  match = /^أضيفي مورد (.+)$/.exec(words);
+  if (match) return tool("prepareSupplierCreation", { nameAr: match[1]! });
+  match = /^دفعة (\d+(?:\.\d+)?) للمورد (.+)$/.exec(words);
+  if (match) {
+    return tool("prepareSupplierPayment", {
+      supplier: match[2]!,
+      amountIls: match[1]!,
+    });
+  }
+  return null;
+}
+
 function planFromUser(
   text: string,
   previous: (toolName: string) => Record<string, unknown> | null = () => null,
@@ -120,6 +189,8 @@ function planFromUser(
     .replace(/[؟?!.]/g, " ")
     .replace(/\s+/g, " ")
     .trim();
+  const party = partyPlan(words);
+  if (party) return party;
   const catalog = catalogPlan(words, attachments, previous);
   if (catalog) return catalog;
   let match = /غي[ّ]?ر اسم (.+?) (?:إلى|الى) (.+)$/.exec(words);
@@ -239,6 +310,12 @@ function describe(toolName: string, value: Record<string, unknown>): string {
       .filter((row) => row.value)
       .map((row) => `${row.label} ${row.value}`)
       .join("، ")}. ما سعر البيع؟`;
+  }
+  if (
+    toolName === "getCustomerStatement" ||
+    toolName === "getSupplierStatement"
+  ) {
+    return `كشف الحساب من ${String(value.from)} إلى ${String(value.to)}: الرصيد الختامي ${String(value.closing)}.`;
   }
   if (toolName === "listCategories") {
     const rows = (value.categories as Array<{ name: string }>) ?? [];

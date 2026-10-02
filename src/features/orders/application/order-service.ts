@@ -16,6 +16,8 @@ import {
 } from "@/features/delivery/delivery-policy";
 import type { CheckoutRequest } from "@/features/orders/domain/checkout-request";
 import type { OrderConfirmation } from "@/features/orders/domain/order-confirmation";
+import { priceForQuantity } from "@/features/catalog/domain/offer-pricing";
+import { liveOffersForVariants } from "@/features/catalog/infrastructure/offer-queries";
 import * as schema from "@/server/db/schema";
 
 import {
@@ -77,20 +79,44 @@ export class OrderService {
           throw new OrderCreationError("unknown_product");
         }
 
+        // Offers are resolved again here so the order is priced by the server at this moment.
+        const offers = await liveOffersForVariants(
+          transaction,
+          variantRows.map((row) => ({
+            variantId: row.variant.id,
+            productId: row.product.id,
+            categoryCode: row.product.categoryId,
+            priceAgorot: row.variant.priceAgorot,
+          })),
+          new Date(),
+        );
+
         const resolvedItems = request.items.map((item) => {
           const row = variantsById.get(item.variantId);
           if (!row) throw new OrderCreationError("unknown_product");
           if (row.product.domainId !== item.productId) {
             throw new OrderCreationError("unknown_product");
           }
-          if (row.variant.availability !== "available") {
+          if (
+            row.variant.availability !== "available" ||
+            row.variant.archivedAt ||
+            row.product.archivedAt ||
+            row.product.publication !== "published"
+          ) {
             throw new OrderCreationError("unavailable_product");
           }
           const attributes = variantAttributesSchema.parse(
             row.variant.attributes ?? {},
           );
+          const priced = priceForQuantity(
+            {
+              priceAgorot: row.variant.priceAgorot,
+              offer: offers.get(row.variant.id),
+            },
+            item.quantity,
+          );
           const lineSubtotalAgorot = calculateLineSubtotal(
-            row.variant.priceAgorot,
+            priced.unitPriceAgorot,
             item.quantity,
           );
           return {
@@ -98,6 +124,7 @@ export class OrderService {
             product: row.product,
             variant: row.variant,
             attributes,
+            priced,
             lineSubtotalAgorot,
           };
         });
@@ -176,7 +203,9 @@ export class OrderService {
               variantAttributesSnapshot: item.attributes,
               variantSkuSnapshot: item.variant.sku,
               variantBarcodeSnapshot: item.variant.barcode,
-              unitPriceAgorot: item.variant.priceAgorot,
+              unitPriceAgorot: item.priced.unitPriceAgorot,
+              listUnitPriceAgorot: item.priced.listUnitPriceAgorot,
+              offerId: item.priced.offerId,
               quantity: item.quantity,
               lineSubtotalAgorot: item.lineSubtotalAgorot,
             };

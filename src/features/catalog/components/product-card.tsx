@@ -5,6 +5,7 @@ import Link from "next/link";
 
 import { useCart } from "@/features/cart/cart-provider";
 import { MAX_CART_QUANTITY } from "@/features/cart/cart-store";
+import { OfferPrice } from "@/features/catalog/components/offer-price";
 import { ProductMedia } from "@/features/catalog/components/product-media";
 import {
   getProductDisplayName,
@@ -12,7 +13,6 @@ import {
   type Product,
 } from "@/features/catalog/domain/product";
 import { useFavorites } from "@/features/favorites/favorites-provider";
-import { formatIls } from "@/shared/lib/format-currency";
 
 export function ProductCard({ product }: { product: Product }) {
   const { lines, addItem, setQuantity, removeItem } = useCart();
@@ -71,12 +71,14 @@ export function ProductCard({ product }: { product: Product }) {
             ) : null}
           </p>
         ) : null}
-        <p
+        <OfferPrice
           className="product-price"
-          aria-label={`السعر ${formatIls(product.priceAgorot)}`}
-        >
-          <bdi dir="ltr">{formatIls(product.priceAgorot)}</bdi>
-        </p>
+          variant={
+            product.variants.find(
+              (row) => row.id === product.defaultVariantId,
+            ) ?? product
+          }
+        />
       </div>
 
       <div className="product-actions">

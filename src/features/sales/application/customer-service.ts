@@ -33,6 +33,8 @@ export const customerInputSchema = z
     name: z.string().trim().min(2).max(100),
     phone: z.string().trim().max(30).optional(),
     notes: z.string().trim().max(500).optional(),
+    address: z.string().trim().max(300).optional(),
+    landmark: z.string().trim().max(160).optional(),
   })
   .strict();
 
@@ -48,6 +50,8 @@ export interface CustomerDetail {
   id: string;
   name: string;
   phoneE164: string | null;
+  address: string | null;
+  landmark: string | null;
   notes: string | null;
   aliases: string[];
   summary: CustomerSummary;
@@ -215,6 +219,8 @@ export class CustomerService {
       id: customer.id,
       name: customer.name,
       phoneE164: customer.phoneE164,
+      address: customer.address,
+      landmark: customer.landmark,
       notes: customer.notes,
       aliases: aliases.map((row) => row.alias),
       summary,
@@ -259,6 +265,8 @@ export class CustomerService {
             normalizedName,
             phoneE164,
             notes: parsed.data.notes || null,
+            address: parsed.data.address || null,
+            landmark: parsed.data.landmark || null,
           })
           .returning({ id: schema.customers.id });
         if (!customer) throw new CustomerError("invalid_input");
@@ -306,6 +314,12 @@ export class CustomerService {
             normalizedName: normalizeArabicText(parsed.data.name),
             phoneE164,
             notes: parsed.data.notes || null,
+            ...(parsed.data.address !== undefined
+              ? { address: parsed.data.address || null }
+              : {}),
+            ...(parsed.data.landmark !== undefined
+              ? { landmark: parsed.data.landmark || null }
+              : {}),
             updatedAt: new Date(),
           })
           .where(eq(schema.customers.id, id));

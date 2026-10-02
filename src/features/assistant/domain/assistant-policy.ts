@@ -18,6 +18,13 @@ export const readToolNames = [
   "searchProductDuplicates",
   "listCategories",
   "checkProductPublication",
+  "searchOffers",
+  "getOfferDetails",
+  "getCustomerDetails",
+  "getCustomerStatement",
+  "searchSuppliers",
+  "getSupplierDetails",
+  "getSupplierStatement",
 ] as const;
 
 export const catalogOperations = [
@@ -47,6 +54,33 @@ export const catalogOperations = [
 ] as const;
 export type CatalogOperation = (typeof catalogOperations)[number];
 
+export const partyOperations = [
+  "offerCreate",
+  "offerUpdate",
+  "offerArchive",
+  "offerRestore",
+  "offerDelete",
+  "customerCreate",
+  "customerUpdate",
+  "customerArchive",
+  "customerRestore",
+  "customerMerge",
+  "customerDelete",
+  "customerPaymentReversal",
+  "customerBalanceAdjustment",
+  "reminderSchedule",
+  "supplierCreate",
+  "supplierUpdate",
+  "supplierArchive",
+  "supplierRestore",
+  "supplierMerge",
+  "supplierDelete",
+  "supplierPayment",
+  "supplierCorrection",
+  "supplierAlias",
+] as const;
+export type PartyOperation = (typeof partyOperations)[number];
+
 export const operations = [
   "productUpdate",
   "productImageReplacement",
@@ -60,6 +94,7 @@ export const operations = [
   "orderCancellation",
   "purchaseInvoiceImport",
   ...catalogOperations,
+  ...partyOperations,
 ] as const;
 export type AssistantOperation = (typeof operations)[number];
 
@@ -101,6 +136,29 @@ export const operationRisk: Record<AssistantOperation, 2 | 3 | 4> = {
   categoryMerge: 3,
   categoryMove: 2,
   categoryDelete: 4,
+  offerCreate: 2,
+  offerUpdate: 2,
+  offerArchive: 2,
+  offerRestore: 2,
+  offerDelete: 4,
+  customerCreate: 2,
+  customerUpdate: 2,
+  customerArchive: 2,
+  customerRestore: 2,
+  customerMerge: 3,
+  customerDelete: 4,
+  customerPaymentReversal: 3,
+  customerBalanceAdjustment: 3,
+  reminderSchedule: 2,
+  supplierCreate: 2,
+  supplierUpdate: 2,
+  supplierArchive: 2,
+  supplierRestore: 2,
+  supplierMerge: 3,
+  supplierDelete: 4,
+  supplierPayment: 3,
+  supplierCorrection: 3,
+  supplierAlias: 2,
 };
 
 // Each prepare tool and the highest risk of the operations it can produce.
@@ -136,6 +194,26 @@ export const prepareToolRisk = {
   prepareCategoryMerge: 3,
   prepareProductsCategoryMove: 2,
   prepareEmptyCategoryDeletion: 4,
+  prepareOfferCreation: 2,
+  prepareOfferUpdate: 2,
+  prepareOfferArchive: 2,
+  prepareUnusedOfferDeletion: 4,
+  prepareCustomerCreation: 2,
+  prepareCustomerUpdate: 2,
+  prepareCustomerArchive: 2,
+  prepareUnusedCustomerDeletion: 4,
+  prepareCustomerMerge: 3,
+  prepareCustomerPaymentReversal: 3,
+  prepareCustomerBalanceAdjustment: 3,
+  prepareCustomerReminder: 2,
+  prepareSupplierCreation: 2,
+  prepareSupplierUpdate: 2,
+  prepareSupplierArchive: 2,
+  prepareUnusedSupplierDeletion: 4,
+  prepareSupplierMerge: 3,
+  prepareSupplierPayment: 3,
+  prepareSupplierCorrection: 3,
+  prepareSupplierProductAlias: 2,
 } as const satisfies Record<string, 2 | 3 | 4>;
 
 export const prepareToolNames = Object.keys(prepareToolRisk) as Array<

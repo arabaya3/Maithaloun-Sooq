@@ -23,6 +23,10 @@ import { OrderService } from "@/features/orders/application/order-service";
 import { ExtractionService } from "@/features/purchasing/application/extraction-service";
 import { PurchaseService } from "@/features/purchasing/application/purchase-service";
 import { ReportService } from "@/features/reports/application/report-service";
+import { SupplierService } from "@/features/purchasing/application/supplier-service";
+import { OfferService } from "@/features/offers/application/offer-service";
+import { SupplierMaintenanceService } from "@/features/purchasing/application/supplier-maintenance-service";
+import { CustomerMaintenanceService } from "@/features/sales/application/customer-maintenance-service";
 import { CustomerService } from "@/features/sales/application/customer-service";
 import { SalesService } from "@/features/sales/application/sales-service";
 import type { ProductImageAnalyzer } from "@/server/ai/product-image-analyzer";
@@ -102,6 +106,10 @@ const operations = new AssistantOperations({
   inventory,
   sales,
   customers,
+  customerMaintenance: new CustomerMaintenanceService(db),
+  suppliers: new SupplierService(db),
+  supplierMaintenance: new SupplierMaintenanceService(db),
+  offers: new OfferService(db),
   orders,
   extraction,
   attachments,
@@ -189,6 +197,10 @@ const tools = () =>
     authoring,
     attachments,
     imageAnalyzer: () => analyzer,
+    offers: new OfferService(db),
+    customerMaintenance: new CustomerMaintenanceService(db),
+    suppliers: new SupplierService(db),
+    supplierMaintenance: new SupplierMaintenanceService(db),
     inventory,
     orders,
     customers,

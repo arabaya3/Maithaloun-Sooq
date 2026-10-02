@@ -15,6 +15,10 @@ import { InventoryService } from "@/features/inventory/application/inventory-ser
 import { ExtractionService } from "@/features/purchasing/application/extraction-service";
 import { PurchaseService } from "@/features/purchasing/application/purchase-service";
 import { ReportService } from "@/features/reports/application/report-service";
+import { SupplierService } from "@/features/purchasing/application/supplier-service";
+import { OfferService } from "@/features/offers/application/offer-service";
+import { SupplierMaintenanceService } from "@/features/purchasing/application/supplier-maintenance-service";
+import { CustomerMaintenanceService } from "@/features/sales/application/customer-maintenance-service";
 import { CustomerService } from "@/features/sales/application/customer-service";
 import { SalesService } from "@/features/sales/application/sales-service";
 import { createAssistantAgent } from "@/server/ai/assistant-agent";
@@ -55,6 +59,10 @@ describe.skipIf(!enabled)("real model smoke (read and prepare only)", () => {
     inventory,
     sales: new SalesService(db),
     customers,
+    customerMaintenance: new CustomerMaintenanceService(db),
+    suppliers: new SupplierService(db),
+    supplierMaintenance: new SupplierMaintenanceService(db),
+    offers: new OfferService(db),
     orders: new AdminOrderService(db),
     extraction: new ExtractionService(db, purchases, unavailable),
     attachments,
@@ -84,6 +92,10 @@ describe.skipIf(!enabled)("real model smoke (read and prepare only)", () => {
       authoring,
       attachments,
       imageAnalyzer: createProductImageAnalyzer,
+      offers: new OfferService(db),
+      customerMaintenance: new CustomerMaintenanceService(db),
+      suppliers: new SupplierService(db),
+      supplierMaintenance: new SupplierMaintenanceService(db),
       inventory,
       orders: new AdminOrderService(db),
       customers,

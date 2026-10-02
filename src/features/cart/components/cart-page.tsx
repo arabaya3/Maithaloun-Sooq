@@ -20,6 +20,7 @@ import {
   isVariantAvailable,
   resolveVariant,
 } from "@/features/catalog/domain/product-variant";
+import { priceForQuantity } from "@/features/catalog/domain/offer-pricing";
 import { calculateDeliveryFeeAgorot } from "@/features/delivery/delivery-policy";
 import { getFreeDeliveryMessage } from "@/features/delivery/delivery-messaging";
 import { formatIls } from "@/shared/lib/format-currency";
@@ -42,7 +43,8 @@ export function CartPage({ products }: { products: readonly Product[] }) {
     resolvedLines
       .filter((line) => isVariantAvailable(line.variant))
       .map((line) => ({
-        unitPriceAgorot: line.variant.priceAgorot,
+        unitPriceAgorot: priceForQuantity(line.variant, line.quantity)
+          .unitPriceAgorot,
         quantity: line.quantity,
       })),
   );
@@ -114,8 +116,9 @@ export function CartPage({ products }: { products: readonly Product[] }) {
           {resolvedLines.map(({ product, variant, quantity, variantId }) => {
             const name = getProductDisplayName(product);
             const available = isVariantAvailable(variant);
+            const priced = priceForQuantity(variant, quantity);
             const lineSubtotal = available
-              ? calculateLineSubtotal(variant.priceAgorot, quantity)
+              ? calculateLineSubtotal(priced.unitPriceAgorot, quantity)
               : null;
             const attributeSummary = formatVariantAttributes(
               variant.attributes,
@@ -150,7 +153,17 @@ export function CartPage({ products }: { products: readonly Product[] }) {
                   </p>
                   <p>
                     سعر الوحدة:{" "}
-                    <bdi dir="ltr">{formatIls(variant.priceAgorot)}</bdi>
+                    <bdi dir="ltr">{formatIls(priced.unitPriceAgorot)}</bdi>
+                    {priced.offerId ? (
+                      <>
+                        {" "}
+                        <del className="price-was">
+                          <bdi dir="ltr">
+                            {formatIls(priced.listUnitPriceAgorot)}
+                          </bdi>
+                        </del>
+                      </>
+                    ) : null}
                   </p>
                   {!available ? (
                     <p className="unavailable-message">

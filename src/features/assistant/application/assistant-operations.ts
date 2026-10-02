@@ -44,6 +44,11 @@ import {
 } from "../domain/entity-match";
 import type { AttachmentService } from "./attachment-service";
 import { CatalogOperations } from "./catalog-operations";
+import { PartyOperations } from "./party-operations";
+import type { OfferService } from "@/features/offers/application/offer-service";
+import type { SupplierMaintenanceService } from "@/features/purchasing/application/supplier-maintenance-service";
+import type { SupplierService } from "@/features/purchasing/application/supplier-service";
+import type { CustomerMaintenanceService } from "@/features/sales/application/customer-maintenance-service";
 
 export interface ConfirmationCard {
   title: string;
@@ -125,6 +130,10 @@ export interface OperationServices {
   inventory: InventoryService;
   sales: SalesService;
   customers: CustomerService;
+  customerMaintenance: CustomerMaintenanceService;
+  suppliers: SupplierService;
+  supplierMaintenance: SupplierMaintenanceService;
+  offers: OfferService;
   orders: AdminOrderService;
   extraction: ExtractionService;
   attachments: AttachmentService;
@@ -189,6 +198,7 @@ const quantityText = (milli: number) => formatQuantity(milli);
 export class AssistantOperations {
   readonly handlers: Record<AssistantOperation, OperationHandler>;
   readonly catalogOps: CatalogOperations;
+  readonly partyOps: PartyOperations;
 
   constructor(private readonly services: OperationServices) {
     this.catalogOps = new CatalogOperations({
@@ -201,8 +211,20 @@ export class AssistantOperations {
       resolveVariant: (actor, query, field) =>
         this.resolveVariant(actor, query, field),
     });
+    this.partyOps = new PartyOperations({
+      customers: services.customers,
+      customerMaintenance: services.customerMaintenance,
+      sales: services.sales,
+      suppliers: services.suppliers,
+      supplierMaintenance: services.supplierMaintenance,
+      offers: services.offers,
+      catalogOps: this.catalogOps,
+      resolveProduct: (actor, query, scope, field) =>
+        this.resolveProduct(actor, query, scope, field),
+    });
     const built = {
       ...this.buildHandlers(),
+      ...this.partyOps.buildHandlers(),
       ...this.catalogOps.buildHandlers(async (actor, domainId) => {
         await services.maintenance.deleteUnreferenced(actor, domainId);
       }),

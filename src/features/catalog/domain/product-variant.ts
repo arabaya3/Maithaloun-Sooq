@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { variantOfferSchema } from "@/features/catalog/domain/offer-pricing";
 import {
   placeholderKinds,
   productAvailabilityValues,
@@ -51,6 +52,7 @@ export const productVariantSchema = z
     barcode: z.string().min(1).max(64).optional(),
     sortOrder: z.number().int().nonnegative(),
     isDefault: z.boolean(),
+    offer: variantOfferSchema.optional(),
   })
   .strict();
 
