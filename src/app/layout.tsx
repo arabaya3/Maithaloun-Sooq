@@ -34,7 +34,12 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="ar" dir="rtl" data-scroll-behavior="smooth">
+    <html
+      lang="ar"
+      dir="rtl"
+      data-scroll-behavior="smooth"
+      suppressHydrationWarning
+    >
       <body className="storefront-font-scope">{children}</body>
     </html>
   );

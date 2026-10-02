@@ -288,10 +288,14 @@ test("admin authentication, operations, and privacy controls", async ({
   await expect(page.locator(".hero-facts")).toContainText("توصيل داخل ميثلون");
   const product = page.locator('[data-product-id="dolphin-bleach"]');
   await expect(product).toBeVisible();
-  await product.getByRole("button", { name: "أضف إلى السلة" }).click();
-  await expect(page.locator(".cart-button")).toHaveAccessibleName(
-    /السلة، عدد المنتجات [1-9]/,
-  );
+  // A tap before hydration is dropped, so retry until the cart reflects it.
+  await expect(async () => {
+    await product.getByRole("button", { name: "أضف إلى السلة" }).click();
+    await expect(page.locator(".cart-button")).toHaveAccessibleName(
+      /السلة، عدد المنتجات [1-9]/,
+      { timeout: 2_000 },
+    );
+  }).toPass();
   await page.locator(".cart-button").click();
   await page.getByRole("link", { name: "متابعة إلى بيانات الطلب" }).click();
   await expect(page).toHaveURL(/\/checkout/);
