@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useRef, useState, type FormEvent } from "react";
 
@@ -34,12 +35,23 @@ const WHATSAPP_PREFIX_LABELS: Record<
   "972": "فلسطين/الداخل +972",
 };
 
+export interface CheckoutPrefill {
+  customerName: string;
+  countryCode: "970" | "972";
+  nationalNumber: string;
+  deliveryAddress: string;
+}
+
 export function CheckoutForm({
   products,
   serviceAreas,
+  prefill = null,
+  signInHint = false,
 }: {
   products: readonly Product[];
   serviceAreas: readonly ServiceArea[];
+  prefill?: CheckoutPrefill | null;
+  signInHint?: boolean;
 }) {
   const router = useRouter();
   const { lines, ready, clearCart } = useCart();
@@ -178,6 +190,17 @@ export function CheckoutForm({
         <div>
           <span className="eyebrow">الدفع عند الاستلام</span>
           <h1>بيانات الطلب</h1>
+          {prefill ? (
+            <p className="checkout-field-help">
+              عبّأنا بياناتك من حسابك، ويمكنك تعديلها لهذا الطلب.
+            </p>
+          ) : signInHint ? (
+            <p className="checkout-field-help">
+              يمكنك الطلب كضيف مباشرة، أو{" "}
+              <Link href="/account?next=/checkout">تسجيل الدخول</Link> لتعبئة
+              بياناتك.
+            </p>
+          ) : null}
         </div>
 
         {generalError ? (
@@ -197,6 +220,7 @@ export function CheckoutForm({
           <input
             name="customerName"
             type="text"
+            defaultValue={prefill?.customerName}
             autoComplete="name"
             maxLength={100}
             aria-invalid={Boolean(fieldErrors.customerName)}
@@ -218,7 +242,7 @@ export function CheckoutForm({
               <span className="sr-only">مفتاح الدولة</span>
               <select
                 name="whatsappCountryCode"
-                defaultValue="970"
+                defaultValue={prefill?.countryCode ?? "970"}
                 aria-invalid={Boolean(fieldErrors.whatsappCountryCode)}
                 aria-describedby={whatsappDescribedBy}
               >
@@ -234,6 +258,7 @@ export function CheckoutForm({
               <input
                 name="whatsappNationalNumber"
                 type="tel"
+                defaultValue={prefill?.nationalNumber}
                 autoComplete="tel"
                 inputMode="tel"
                 maxLength={24}
@@ -263,6 +288,7 @@ export function CheckoutForm({
             id="delivery-address-input"
             name="deliveryAddress"
             autoComplete="street-address"
+            defaultValue={prefill?.deliveryAddress}
             maxLength={500}
             rows={4}
             aria-invalid={Boolean(fieldErrors.deliveryAddress)}

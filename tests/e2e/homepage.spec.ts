@@ -80,13 +80,16 @@ test("brand name is spelled سوق ميثلون everywhere it renders", async ({
 });
 
 test("placeholder navigation routes resolve successfully", async ({ page }) => {
-  for (const route of ["/categories", "/offers", "/account"]) {
+  for (const route of ["/categories", "/offers"]) {
     const response = await page.goto(route);
     expect(response?.status()).toBe(200);
     await expect(
       page.getByRole("link", { name: "العودة إلى الرئيسية" }),
     ).toBeVisible();
   }
+  const account = await page.goto("/account");
+  expect(account?.status()).toBe(200);
+  await expect(page.getByRole("link", { name: "متابعة كضيف" })).toBeVisible();
 });
 
 test("mobile header, hero, RTL categories, and bottom spacing remain usable", async ({

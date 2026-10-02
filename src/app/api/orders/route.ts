@@ -10,6 +10,7 @@ import { createPostgresOrderSubmissionGuard } from "@/features/orders/infrastruc
 import { db } from "@/server/db/db";
 import { getServerEnv } from "@/server/env/env";
 import { adminNotificationService } from "@/features/admin/application/admin-services";
+import { getCustomerSession } from "@/features/accounts/application/customer-session";
 
 export const dynamic = "force-dynamic";
 
@@ -76,7 +77,10 @@ export async function POST(request: Request) {
   }
 
   try {
-    const confirmation = await orderService.create(parsed.data);
+    const customer = await getCustomerSession();
+    const confirmation = await orderService.create(parsed.data, {
+      customerAccountId: customer?.id ?? null,
+    });
     if (!confirmation.duplicate) {
       after(async () => {
         try {

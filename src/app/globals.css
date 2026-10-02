@@ -3195,3 +3195,297 @@ html[data-launch="skip"] .launch-splash {
   height: auto;
   margin-inline: auto;
 }
+
+/* Customer accounts and favourites */
+.account-page,
+.favorites-page {
+  display: grid;
+  gap: var(--space-4);
+  padding-top: var(--space-4);
+}
+
+.account-heading h1,
+.favorites-page h1 {
+  margin: 0.2rem 0 0;
+  color: var(--text);
+  font-size: var(--text-xl);
+}
+
+.account-sections {
+  display: grid;
+  gap: var(--space-4);
+  max-width: 40rem;
+}
+
+.account-card {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+}
+
+.account-card h2 {
+  margin: 0;
+  color: var(--text);
+  font-size: 1.05rem;
+}
+
+.account-suggestion {
+  background: var(--action-tint);
+  border-color: var(--action-tint-strong);
+}
+
+.account-note,
+.account-inline-suggestion {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  line-height: 1.6;
+}
+
+.account-inline-suggestion a,
+.checkout-field-help a {
+  color: var(--action-strong);
+  font-weight: 600;
+}
+
+.account-message {
+  margin: 0;
+  color: var(--error);
+  font-size: 0.9rem;
+}
+
+.account-message[data-tone="ok"] {
+  color: var(--success);
+}
+
+.account-form {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.account-form input,
+.account-form textarea,
+.account-form select {
+  min-height: 2.75rem;
+  font: inherit;
+}
+
+.account-primary,
+.account-secondary,
+.account-danger-button,
+.account-guest-link,
+.account-suggestion > a,
+.account-shortcuts a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.75rem;
+  padding: 0.5rem 1.1rem;
+  border-radius: var(--radius-md);
+  font: inherit;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.account-primary {
+  border: 0;
+  color: var(--white);
+  background: var(--action);
+}
+
+.account-primary:hover {
+  background: var(--action-hover);
+}
+
+.account-secondary,
+.account-guest-link,
+.account-suggestion > a,
+.account-shortcuts a {
+  border: 1px solid var(--border);
+  color: var(--text);
+  background: var(--surface);
+}
+
+.account-guest-link {
+  justify-self: start;
+}
+
+.account-danger-button {
+  border: 0;
+  color: var(--white);
+  background: var(--danger);
+}
+
+.account-primary:disabled,
+.account-secondary:disabled,
+.account-danger-button:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+.account-link-button {
+  min-height: 2.75rem;
+  padding: 0.25rem 0.5rem;
+  border: 0;
+  color: var(--action-strong);
+  background: transparent;
+  font: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.account-row-actions,
+.account-shortcuts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.account-mode-switch {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  padding: 0.25rem;
+  border-radius: var(--radius-md);
+  background: var(--surface-warm);
+}
+
+.account-mode-switch a {
+  display: grid;
+  place-items: center;
+  min-height: 2.75rem;
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.account-mode-switch a[aria-current="page"] {
+  color: var(--text);
+  background: var(--surface);
+  box-shadow: 0 1px 3px rgb(18 50 74 / 12%);
+}
+
+.account-toggle {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 2.75rem;
+  font-weight: 600;
+}
+
+.account-toggle input {
+  width: 1.25rem;
+  height: 1.25rem;
+  flex: none;
+}
+
+.account-badge {
+  display: inline-block;
+  margin-inline-start: var(--space-2);
+  padding: 0.1rem 0.55rem;
+  border-radius: var(--radius-pill);
+  color: var(--action-strong);
+  background: var(--action-tint);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.account-addresses,
+.order-history,
+.order-history-items,
+.reorder-review ul,
+.offline-favorites ul {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.account-addresses li {
+  display: grid;
+  gap: var(--space-2);
+  padding-block: var(--space-3);
+  border-top: 1px solid var(--divider);
+}
+
+.account-addresses p {
+  margin: 0.2rem 0 0;
+  color: var(--text-muted);
+  overflow-wrap: anywhere;
+}
+
+.account-danger summary {
+  min-height: 2.75rem;
+  padding-block: 0.6rem;
+  color: var(--danger);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.order-history-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.order-history-meta {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(7rem, 1fr));
+  gap: var(--space-2);
+  margin: 0;
+}
+
+.order-history-meta dt {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+
+.order-history-meta dd {
+  margin: 0;
+  font-weight: 600;
+}
+
+.order-history-items li {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.reorder-review {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--surface-warm);
+}
+
+.reorder-review li {
+  display: grid;
+  gap: 0.15rem;
+  font-size: 0.9rem;
+}
+
+.reorder-review li[data-status="unavailable"] strong {
+  color: var(--danger);
+}
+
+.offline-favorites {
+  margin-top: var(--space-5);
+  text-align: start;
+}
+
+.offline-favorites h2 {
+  font-size: 1rem;
+}
+
+.offline-favorites p {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}

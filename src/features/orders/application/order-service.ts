@@ -42,7 +42,10 @@ export class OrderCreationError extends Error {
 export class OrderService {
   constructor(private readonly database: PostgresJsDatabase<typeof schema>) {}
 
-  async create(request: CheckoutRequest): Promise<OrderConfirmation> {
+  async create(
+    request: CheckoutRequest,
+    owner: { customerAccountId: string | null } = { customerAccountId: null },
+  ): Promise<OrderConfirmation> {
     const requestFingerprint = createOrderRequestFingerprint(request);
 
     try {
@@ -211,6 +214,14 @@ export class OrderService {
             };
           }),
         );
+
+        if (owner.customerAccountId) {
+          await transaction.insert(schema.customerOrderLinks).values({
+            orderId: createdOrder.id,
+            accountId: owner.customerAccountId,
+            source: "checkout",
+          });
+        }
 
         await transaction.insert(schema.adminNotifications).values({
           type: "order_created",

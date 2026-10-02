@@ -2,6 +2,8 @@ import { WifiOff } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 
+import { OfflineFavorites } from "@/features/favorites/offline-favorites";
+
 export default function OfflinePage() {
   return (
     <main className="placeholder-page page-shell">
@@ -18,6 +20,7 @@ export default function OfflinePage() {
         <h1>أنت غير متصل الآن</h1>
         <p>تحقق من اتصالك بالإنترنت، ثم حاول فتح الصفحة مرة أخرى.</p>
         <Link href="/">إعادة المحاولة</Link>
+        <OfflineFavorites />
       </div>
     </main>
   );

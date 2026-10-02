@@ -4,6 +4,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
 
+import { getCustomerSession } from "@/features/accounts/application/customer-session";
+import { customerAccountsEnabled } from "@/features/accounts/domain/account-config";
 import { orderService } from "@/features/orders/application/order-service-instance";
 import { orderStatusLabels } from "@/features/orders/domain/order-status";
 import { formatIls } from "@/shared/lib/format-currency";
@@ -23,6 +25,8 @@ export default async function OrderConfirmationPage({
     (await params).reference,
   );
   if (!confirmation) notFound();
+  const suggestAccount =
+    customerAccountsEnabled() && !(await getCustomerSession());
 
   return (
     <main className="page-shell order-confirmation-page">
@@ -61,6 +65,17 @@ export default async function OrderConfirmationPage({
         </dl>
         <Link href="/">العودة إلى المتجر</Link>
       </section>
+      {suggestAccount ? (
+        <aside className="account-card account-suggestion">
+          <p className="account-note">
+            أنشئ حساباً لحفظ المفضلة، متابعة الطلبات وإعادة طلب مشترياتك بسهولة.
+            يمكنك إضافة هذا الطلب لحسابك بعد تأكيد رقمك.
+          </p>
+          <Link href="/account?mode=create&next=/account/orders">
+            إنشاء حساب
+          </Link>
+        </aside>
+      ) : null}
     </main>
   );
 }

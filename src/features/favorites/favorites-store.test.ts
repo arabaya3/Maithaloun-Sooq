@@ -20,6 +20,18 @@ describe("favorites persistence", () => {
     ).toEqual({ productIds: ["general-cleaner"] });
   });
 
+  it("drops products no longer in the catalog and keeps the rest", () => {
+    expect(
+      parsePersistedFavorites(
+        JSON.stringify({
+          version: 1,
+          productIds: ["retired-product", "general-cleaner"],
+        }),
+        productIds,
+      ),
+    ).toEqual({ productIds: ["general-cleaner"] });
+  });
+
   it("rejects corrupted, duplicated, unknown, and oversized values", () => {
     expect(parsePersistedFavorites("bad-json", productIds)).toEqual(
       initialFavoritesState,
