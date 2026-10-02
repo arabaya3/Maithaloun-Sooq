@@ -18,6 +18,7 @@ describe("install state", () => {
     ).toBe(false);
     expect(isDismissalActive(null, now)).toBe(false);
     expect(isDismissalActive("not-a-number", now)).toBe(false);
+    expect(isDismissalActive(String(Number.MAX_SAFE_INTEGER), now)).toBe(false);
   });
 
   it("detects iPhone and iPadOS devices", () => {

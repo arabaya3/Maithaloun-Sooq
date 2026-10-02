@@ -1848,42 +1848,73 @@ select:focus-visible {
   bottom: calc(var(--mobile-nav-height) + env(safe-area-inset-bottom) + 0.5rem);
   z-index: 15;
   display: flex;
-  align-items: stretch;
+  align-items: flex-start;
+  gap: 0.75rem;
   max-width: 26rem;
+  padding: 0.75rem 0.875rem;
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  background: var(--white);
-  box-shadow: 0 6px 20px rgb(31 36 33 / 12%);
+  background: var(--surface);
+  box-shadow: 0 6px 20px rgb(18 50 74 / 12%);
+}
+
+.install-banner-logo {
+  flex: none;
+  width: 2.75rem;
+  height: auto;
+  aspect-ratio: 360 / 285;
+}
+
+.install-banner-copy {
+  flex: 1;
+  min-width: 0;
+}
+
+.install-banner-title {
+  margin: 0;
+  color: var(--text);
+  font-weight: 700;
+  font-size: 0.9375rem;
+}
+
+.install-banner-text {
+  margin: 0.125rem 0 0.625rem;
+  color: var(--text-muted);
+  font-size: 0.8125rem;
+  line-height: 1.5;
+}
+
+.install-banner-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.install-banner-action,
+.install-banner-later {
+  min-height: 2.75rem;
+  padding: 0.5rem 1rem;
+  border-radius: var(--radius-md);
+  font: inherit;
+  font-weight: 600;
+  font-size: 0.875rem;
+  cursor: pointer;
 }
 
 .install-banner-action {
-  display: flex;
-  flex: 1;
-  align-items: center;
-  gap: 0.625rem;
-  min-height: 3rem;
-  padding: 0.5rem 0.875rem;
   border: 0;
-  border-radius: var(--radius-lg);
-  color: var(--action);
-  background: transparent;
-  font-weight: 700;
-  font-size: 0.9375rem;
-  text-align: start;
-  cursor: pointer;
+  color: var(--white);
+  background: var(--action);
 }
 
-.install-banner-dismiss {
-  display: inline-flex;
-  flex: none;
-  align-items: center;
-  justify-content: center;
-  width: 3rem;
-  border: 0;
-  border-inline-start: 1px solid var(--border);
-  color: var(--text-muted);
-  background: transparent;
-  cursor: pointer;
+.install-banner-action:hover {
+  background: var(--action-hover);
+}
+
+.install-banner-later {
+  border: 1px solid var(--border);
+  color: var(--text);
+  background: var(--surface);
 }
 
 .install-help-entry {
@@ -2862,4 +2893,64 @@ select:focus-visible {
   color: var(--accent-offer);
   font-size: var(--text-xs);
   font-weight: 600;
+}
+
+/* Storefront footer */
+.store-footer {
+  margin-top: var(--section-space, 2rem);
+  border-top: 1px solid var(--divider);
+  background: var(--surface);
+}
+
+.store-footer-inner {
+  display: grid;
+  gap: 0.75rem;
+  padding-block: 1.25rem;
+}
+
+.store-footer-identity {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.store-footer-logo {
+  flex: none;
+  width: 2.5rem;
+  height: auto;
+  aspect-ratio: 360 / 285;
+}
+
+.store-footer-name,
+.store-footer-note,
+.store-footer-attribution {
+  margin: 0;
+}
+
+.store-footer-name {
+  color: var(--text);
+  font-weight: 700;
+}
+
+.store-footer-note,
+.store-footer-attribution {
+  color: var(--text-muted);
+  font-size: 0.8125rem;
+}
+
+.store-footer-attribution {
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--divider);
+}
+
+@media (min-width: 48rem) {
+  .store-footer-inner {
+    grid-template-columns: 1fr auto;
+    align-items: center;
+  }
+
+  .store-footer-attribution {
+    padding-top: 0;
+    border-top: 0;
+  }
 }

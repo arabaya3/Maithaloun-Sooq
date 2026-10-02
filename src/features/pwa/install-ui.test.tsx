@@ -44,9 +44,7 @@ describe("storefront install banner", () => {
     const Banner = await loadBanner();
     render(<Banner />);
     expect(
-      screen.queryByRole("button", {
-        name: "أضف سوق ميثلون إلى الشاشة الرئيسية",
-      }),
+      screen.queryByRole("button", { name: "تثبيت التطبيق" }),
     ).not.toBeInTheDocument();
   });
 
@@ -57,28 +55,34 @@ describe("storefront install banner", () => {
     expect(event.defaultPrevented).toBe(true);
 
     await userEvent.click(
-      screen.getByRole("button", {
-        name: "أضف سوق ميثلون إلى الشاشة الرئيسية",
-      }),
+      screen.getByRole("button", { name: "تثبيت التطبيق" }),
     );
     expect(prompt).toHaveBeenCalledOnce();
     expect(
-      screen.queryByRole("button", {
-        name: "أضف سوق ميثلون إلى الشاشة الرئيسية",
-      }),
+      screen.queryByRole("button", { name: "تثبيت التطبيق" }),
     ).not.toBeInTheDocument();
+  });
+
+  it("shows the official logo and says installing is optional", async () => {
+    const Banner = await loadBanner();
+    const { container } = render(<Banner />);
+    dispatchInstallPrompt("dismissed");
+    const logo = container.querySelector(".install-banner-logo");
+    expect(decodeURIComponent(logo?.getAttribute("src") ?? "")).toContain(
+      "/brand/maithaloun-symbol.png",
+    );
+    expect(screen.getByText("ثبّت سوق ميثلون")).toBeVisible();
+    expect(screen.getByText(/التثبيت اختياري/)).toBeVisible();
   });
 
   it("persists a dismissal with an expiry", async () => {
     const Banner = await loadBanner();
     render(<Banner />);
     dispatchInstallPrompt("dismissed");
-    await userEvent.click(screen.getByRole("button", { name: "ليس الآن" }));
+    await userEvent.click(screen.getByRole("button", { name: "لاحقاً" }));
 
     expect(
-      screen.queryByRole("button", {
-        name: "أضف سوق ميثلون إلى الشاشة الرئيسية",
-      }),
+      screen.queryByRole("button", { name: "تثبيت التطبيق" }),
     ).not.toBeInTheDocument();
     const stored = Number(
       window.localStorage.getItem(dismissalStorageKey("storefront")),
@@ -94,9 +98,7 @@ describe("storefront install banner", () => {
       window.dispatchEvent(new Event("appinstalled"));
     });
     expect(
-      screen.queryByRole("button", {
-        name: "أضف سوق ميثلون إلى الشاشة الرئيسية",
-      }),
+      screen.queryByRole("button", { name: "تثبيت التطبيق" }),
     ).not.toBeInTheDocument();
   });
 
@@ -105,9 +107,7 @@ describe("storefront install banner", () => {
     const Banner = await loadBanner();
     render(<Banner />);
     await userEvent.click(
-      screen.getByRole("button", {
-        name: "أضف سوق ميثلون إلى الشاشة الرئيسية",
-      }),
+      screen.getByRole("button", { name: "تثبيت التطبيق" }),
     );
     expect(screen.getByText("افتح زر المشاركة في المتصفح.")).toBeVisible();
   });

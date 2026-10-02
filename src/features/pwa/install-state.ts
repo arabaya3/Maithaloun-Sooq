@@ -15,7 +15,11 @@ export function nextDismissalExpiry(now: number): string {
 export function isDismissalActive(raw: string | null, now: number): boolean {
   if (!raw) return false;
   const until = Number(raw);
-  return Number.isFinite(until) && until > now;
+  return (
+    Number.isFinite(until) &&
+    until > now &&
+    until <= now + INSTALL_DISMISS_DAYS * DAY_MS
+  );
 }
 
 export function isIosDevice(input: {

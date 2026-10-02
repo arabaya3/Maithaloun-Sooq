@@ -1,6 +1,6 @@
 "use client";
 
-import { Download, X } from "lucide-react";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 
@@ -31,23 +31,39 @@ export function StorefrontInstallBanner() {
   return (
     <>
       {visible ? (
-        <aside className="install-banner" aria-label="تثبيت التطبيق">
-          <button
-            type="button"
-            className="install-banner-action"
-            onClick={install}
-          >
-            <Download size={18} aria-hidden="true" />
-            <span>أضف سوق ميثلون إلى الشاشة الرئيسية</span>
-          </button>
-          <button
-            type="button"
-            className="install-banner-dismiss"
-            aria-label="ليس الآن"
-            onClick={dismiss}
-          >
-            <X size={18} aria-hidden="true" />
-          </button>
+        <aside className="install-banner" aria-labelledby="install-title">
+          <Image
+            className="install-banner-logo"
+            src="/brand/maithaloun-symbol.png"
+            alt=""
+            width={360}
+            height={285}
+            sizes="44px"
+          />
+          <div className="install-banner-copy">
+            <p id="install-title" className="install-banner-title">
+              ثبّت سوق ميثلون
+            </p>
+            <p className="install-banner-text">
+              أضف المتجر إلى الشاشة الرئيسية للوصول إليه بسرعة. التثبيت اختياري.
+            </p>
+            <div className="install-banner-actions">
+              <button
+                type="button"
+                className="install-banner-action"
+                onClick={install}
+              >
+                تثبيت التطبيق
+              </button>
+              <button
+                type="button"
+                className="install-banner-later"
+                onClick={dismiss}
+              >
+                لاحقاً
+              </button>
+            </div>
+          </div>
         </aside>
       ) : null}
       <InstallInstructions

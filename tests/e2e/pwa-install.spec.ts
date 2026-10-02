@@ -8,7 +8,7 @@ import {
   trackPageIssues,
 } from "./support";
 
-const storefrontAction = "أضف سوق ميثلون إلى الشاشة الرئيسية";
+const storefrontAction = { name: "تثبيت التطبيق", exact: true };
 const adminAction = /ثبّتي تطبيق الإدارة على الجهاز/;
 
 test("storefront install banner appears, installs and remembers dismissal", async ({
@@ -16,14 +16,16 @@ test("storefront install banner appears, installs and remembers dismissal", asyn
 }) => {
   const issues = trackPageIssues(page);
   await page.goto("/");
-  await expect(
-    page.getByRole("button", { name: storefrontAction }),
-  ).toHaveCount(0);
+  await expect(page.getByRole("button", storefrontAction)).toHaveCount(0);
 
   await dispatchInstallPrompt(page);
-  const banner = page.getByRole("complementary", { name: "تثبيت التطبيق" });
+  const banner = page.getByRole("complementary", { name: "ثبّت سوق ميثلون" });
   await expect(banner).toBeVisible();
   await expectNoHorizontalOverflow(page);
+  await expect(banner.locator("img")).toHaveAttribute(
+    "src",
+    /maithaloun-symbol.png/,
+  );
   await page.screenshot({
     path: "artifacts/store-ops/install-storefront-android-390.png",
   });
@@ -33,14 +35,12 @@ test("storefront install banner appears, installs and remembers dismissal", asyn
   const bannerBox = await banner.boundingBox();
   expect(bannerBox!.y + bannerBox!.height).toBeLessThanOrEqual(navBox!.y);
 
-  await page.getByRole("button", { name: "ليس الآن" }).click();
+  await page.getByRole("button", { name: "لاحقاً" }).click();
   await expect(banner).toHaveCount(0);
 
   await page.reload();
   await dispatchInstallPrompt(page);
-  await expect(
-    page.getByRole("button", { name: storefrontAction }),
-  ).toHaveCount(0);
+  await expect(page.getByRole("button", storefrontAction)).toHaveCount(0);
 
   await page.goto("/account");
   await page.getByRole("button", { name: "تثبيت التطبيق على الهاتف" }).click();
@@ -57,9 +57,7 @@ test("storefront install banner appears, installs and remembers dismissal", asyn
 test("checkout is never covered by the install banner", async ({ page }) => {
   await page.goto("/checkout");
   await dispatchInstallPrompt(page);
-  await expect(
-    page.getByRole("button", { name: storefrontAction }),
-  ).toHaveCount(0);
+  await expect(page.getByRole("button", storefrontAction)).toHaveCount(0);
 });
 
 test.describe("iPhone", () => {
@@ -67,7 +65,7 @@ test.describe("iPhone", () => {
 
   test("storefront explains the manual iOS steps", async ({ page }) => {
     await page.goto("/");
-    const action = page.getByRole("button", { name: storefrontAction });
+    const action = page.getByRole("button", storefrontAction);
     await action.click();
     const sheet = page.getByRole("dialog", {
       name: "إضافة سوق ميثلون إلى الشاشة الرئيسية",

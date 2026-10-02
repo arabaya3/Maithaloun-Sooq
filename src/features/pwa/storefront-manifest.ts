@@ -1,9 +1,11 @@
 import type { MetadataRoute } from "next";
 
+import { manifestIcons } from "./app-icons";
+
 export const storefrontManifest: MetadataRoute.Manifest = {
   id: "/",
   name: "سوق ميثلون",
-  short_name: "سوق ميثلون",
+  short_name: "ميثلون",
   description: "احتياجات ومنتجات التنظيف المنزلية في مكان واحد.",
   start_url: "/",
   scope: "/",
@@ -14,24 +16,5 @@ export const storefrontManifest: MetadataRoute.Manifest = {
   lang: "ar",
   dir: "rtl",
   categories: ["shopping", "lifestyle"],
-  icons: [
-    {
-      src: "/icons/icon-192.png",
-      sizes: "192x192",
-      type: "image/png",
-      purpose: "any",
-    },
-    {
-      src: "/icons/icon-512.png",
-      sizes: "512x512",
-      type: "image/png",
-      purpose: "any",
-    },
-    {
-      src: "/icons/icon-512.png",
-      sizes: "512x512",
-      type: "image/png",
-      purpose: "maskable",
-    },
-  ],
+  icons: manifestIcons,
 };

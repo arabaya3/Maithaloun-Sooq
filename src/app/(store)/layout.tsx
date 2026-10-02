@@ -8,6 +8,7 @@ import { DeliveryProvider } from "@/features/delivery/delivery-provider";
 import { serviceAreaRepository } from "@/features/delivery/service-area-repository";
 import { FavoritesProvider } from "@/features/favorites/favorites-provider";
 import { StorefrontInstallBanner } from "@/features/pwa/storefront-install-banner";
+import { StoreFooter } from "@/features/storefront/components/store-footer";
 
 // Catalog-backed providers live here so admin and utility routes never load the catalog.
 export default async function StoreLayout({
@@ -40,6 +41,7 @@ export default async function StoreLayout({
     <DeliveryProvider locations={locations}>
       <FavoritesProvider productIds={productIds}>
         <CartProvider catalog={catalog}>{children}</CartProvider>
+        <StoreFooter />
         <StorefrontInstallBanner />
       </FavoritesProvider>
     </DeliveryProvider>
