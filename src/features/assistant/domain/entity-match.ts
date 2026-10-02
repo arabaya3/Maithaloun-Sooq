@@ -176,3 +176,15 @@ export function resolveCatalogEntity(
     candidates: distinctProducts(fuzzy).slice(0, MAX_CANDIDATES),
   };
 }
+
+// Changes act only on an identifier or an exact name; a lone partial match becomes a one-option choice.
+export function forChanges(resolution: EntityResolution): EntityResolution {
+  if (
+    resolution.status === "resolved" &&
+    (resolution.match.method === "contains" ||
+      resolution.match.method === "fuzzy")
+  ) {
+    return { status: "ambiguous", candidates: [resolution.match] };
+  }
+  return resolution;
+}

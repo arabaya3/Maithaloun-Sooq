@@ -54,8 +54,9 @@ describe("assistant policy", () => {
     ]) {
       expect(toolRisk(name)).toBe(4);
     }
-    expect(toolRisk("prepareProductCreation")).toBe(2);
-    expect(toolRisk("prepareProductCreationWithOpeningStock")).toBe(3);
+    expect(toolRisk("prepareProductFromDraft")).toBe(3);
+    expect(toolRisk("startProductDraft")).toBe(1);
+    expect(toolRisk("updateProductDraft")).toBe(1);
     for (const name of [
       "prepareUnusedOfferDeletion",
       "prepareUnusedCustomerDeletion",

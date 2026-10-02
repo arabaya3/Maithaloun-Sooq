@@ -23,6 +23,7 @@ import { normalizePalestinianPhone } from "@/features/orders/domain/phone";
 import { formatIls } from "@/shared/lib/format-currency";
 import { normalizeArabicText } from "@/shared/lib/normalize-arabic";
 import { parseIlsToAgorot } from "@/shared/lib/parse-ils";
+import { moneyRejection } from "@/features/assistant/domain/money-rejection";
 import {
   addDays,
   startOfStoreDay,
@@ -1006,7 +1007,7 @@ export class PartyOperations {
     const resolved = await this.resolveCustomer(actor, input.customer);
     if (!resolved.ok) return resolved.result;
     const amount = parseIlsToAgorot(input.amountIls);
-    if (!amount) return rejected("invalid_input", "المبلغ غير مفهوم.");
+    if (!amount) return moneyRejection(input.amountIls);
     const reason = input.reason.trim();
     if (reason.length < 2)
       return rejected("invalid_input", "اكتبي سبب التسوية.");
@@ -1452,7 +1453,7 @@ export class PartyOperations {
     const resolved = await this.resolveSupplier(actor, input.supplier);
     if (!resolved.ok) return resolved.result;
     const amount = parseIlsToAgorot(input.amountIls);
-    if (!amount) return rejected("invalid_input", "المبلغ غير مفهوم.");
+    if (!amount) return moneyRejection(input.amountIls);
     const balance = resolved.supplier.balanceAgorot ?? 0;
     if (amount > balance) {
       return rejected(
@@ -1507,7 +1508,7 @@ export class PartyOperations {
     const resolved = await this.resolveSupplier(actor, input.supplier);
     if (!resolved.ok) return resolved.result;
     const amount = parseIlsToAgorot(input.amountIls);
-    if (!amount) return rejected("invalid_input", "المبلغ غير مفهوم.");
+    if (!amount) return moneyRejection(input.amountIls);
     const reason = input.reason.trim();
     if (reason.length < 2)
       return rejected("invalid_input", "اكتبي سبب التصحيح.");

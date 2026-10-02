@@ -187,9 +187,9 @@ async function productByName(nameAr: string) {
   return row ?? null;
 }
 
-const tools = () =>
+const toolsAs = (actor: AdminActor) =>
   createAssistantTools({
-    actor: owner,
+    actor,
     conversationId,
     mode: "full",
     database: db,
@@ -212,6 +212,8 @@ const tools = () =>
     toolRuns,
   });
 
+const tools = () => toolsAs(owner);
+
 beforeAll(async () => {
   await resetTestDatabase();
   owner = await createOwnerActor();
@@ -227,22 +229,28 @@ describe("product creation from photos", () => {
   it("reads candidates as data, then creates a draft only after the confirmation", async () => {
     const attachment = await photo();
     const all = tools();
-    if (!("analyzeProductImages" in all)) throw new Error("missing tool");
-    const analysis = (await all.analyzeProductImages.execute!(
+    if (!("startProductDraft" in all)) throw new Error("missing tool");
+    const analysis = (await all.startProductDraft!.execute!(
       { attachmentIds: [attachment.id] },
       { toolCallId: "a1", messages: [], context: {} } as never,
     )) as {
       status: string;
+      state: string;
       untrustedData: boolean;
-      fields: Array<{ field: string; value: string; confidence: number }>;
-      needsReview: string[];
+      fields: Array<{ field: string; value: string; source: string }>;
+      suggestions: Array<{ label: string }>;
+      missing: string[];
     };
-    expect(analysis.status).toBe("analyzed");
+    expect(analysis.status).toBe("draft");
+    expect(analysis.state).toBe("needs_clarification");
     expect(analysis.untrustedData).toBe(true);
-    expect(analysis.needsReview).toEqual(
+    expect(analysis.suggestions.map((row) => row.label)).toEqual(
       expect.arrayContaining(["الوصف", "القسم", "الحجم"]),
     );
-    expect(JSON.stringify(analysis)).not.toMatch(/price|سعر البيع: \d/);
+    expect(analysis.missing).toEqual(
+      expect.arrayContaining(["سعر البيع", "حالة الظهور"]),
+    );
+    expect(analysis.fields.some((row) => row.field === "price")).toBe(false);
 
     const missingPrice = await ops.prepareProductCreation(owner, {
       attachmentIds: [attachment.id],
@@ -723,5 +731,116 @@ describe("categories", () => {
         .from(productCategories)
         .where(eq(productCategories.code, "to-delete")),
     ).toHaveLength(0);
+  });
+});
+
+describe("server-side product draft", () => {
+  const exec = async (name: string, input: unknown, actor = owner) => {
+    const all = toolsAs(actor) as unknown as Record<
+      string,
+      { execute: (input: unknown, options: unknown) => Promise<unknown> }
+    >;
+    return all[name]!.execute(input, {
+      toolCallId: name,
+      messages: [],
+      context: {},
+    }) as Promise<Record<string, unknown>>;
+  };
+
+  it("builds the card from the draft, keeps valid fields and creates the product exactly once", async () => {
+    const started = await exec("startProductDraft", {
+      fields: {
+        nameAr: "منظف مسودة الخادم",
+        price: "عشرة دولار",
+        category: "مستلزمات منزلية",
+      },
+    });
+    expect(started).toMatchObject({
+      status: "draft",
+      state: "needs_clarification",
+    });
+    expect(started.errors).toEqual([
+      {
+        label: "سعر البيع",
+        message: "ما قدرت أحدد السعر. اكتبه مثلاً: 15 شيكل.",
+      },
+    ]);
+    expect(started.missing).toEqual(["سعر البيع", "حالة الظهور"]);
+
+    const early = await exec("prepareProductFromDraft", {});
+    expect(early).toMatchObject({
+      status: "rejected",
+      code: "missing_required_field",
+    });
+
+    const ready = await exec("updateProductDraft", {
+      price: "خمستعش شيكل",
+      publication: "draft",
+    });
+    expect(ready).toMatchObject({
+      state: "ready_for_confirmation",
+      missing: [],
+    });
+    expect(await productByName("منظف مسودة الخادم")).toBeNull();
+
+    const prepared = (await exec("prepareProductFromDraft", {
+      acceptPlaceholder: true,
+    })) as {
+      status: string;
+      state: string;
+      confirmationId: string;
+    };
+    expect(prepared).toMatchObject({
+      status: "awaiting_confirmation",
+      state: "ready_for_confirmation",
+    });
+    const view = await confirmations.view(owner, prepared.confirmationId);
+    expect(JSON.stringify(view)).toContain("15 ₪");
+    const confirm = () =>
+      confirmations.confirm(owner, {
+        id: prepared.confirmationId,
+        operation: view!.operation,
+        token: view!.token!,
+        acknowledged: true,
+      });
+    const outcomes = await Promise.all([confirm(), confirm()]);
+    expect(outcomes.filter((row) => row.ok)).toHaveLength(1);
+    const rows = await db
+      .select()
+      .from(products)
+      .where(eq(products.nameAr, "منظف مسودة الخادم"));
+    expect(rows).toHaveLength(1);
+    expect(rows[0]!.publication).toBe("draft");
+    const [variant] = await db
+      .select()
+      .from(productVariants)
+      .where(eq(productVariants.productId, rows[0]!.id));
+    expect(variant!.priceAgorot).toBe(1_500);
+  });
+
+  it("keeps drafts private to the admin and conversation", async () => {
+    await exec("startProductDraft", { fields: { nameAr: "مسودة خاصة" } });
+    const other = await exec("getProductDraft", {}, operator);
+    expect(other).toMatchObject({ status: "rejected", code: "missing_draft" });
+    const own = await exec("getProductDraft", {});
+    expect(own).toMatchObject({ status: "draft" });
+    await exec("cancelProductDraft", {});
+    expect(await exec("getProductDraft", {})).toMatchObject({
+      code: "missing_draft",
+    });
+  });
+
+  it("expires an untouched draft", async () => {
+    await exec("startProductDraft", { fields: { nameAr: "مسودة قديمة" } });
+    await client.unsafe(
+      "update admin_assistant_product_drafts set expires_at = now() - interval '1 minute' where status = 'open'",
+    );
+    expect(await exec("getProductDraft", {})).toMatchObject({
+      code: "missing_draft",
+    });
+    const [row] = await client.unsafe(
+      "select status from admin_assistant_product_drafts order by created_at desc limit 1",
+    );
+    expect(row?.status).toBe("expired");
   });
 });

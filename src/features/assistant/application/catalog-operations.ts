@@ -27,6 +27,7 @@ import {
 import { formatIls } from "@/shared/lib/format-currency";
 import { lineTotalAgorot } from "@/shared/lib/money-math";
 import { parseIlsToAgorot } from "@/shared/lib/parse-ils";
+import { moneyRejection } from "@/features/assistant/domain/money-rejection";
 import type { ProductImageStore } from "@/server/storage/product-images";
 
 import type { CatalogOperation } from "../domain/assistant-policy";
@@ -288,10 +289,7 @@ export class CatalogOperations {
     }
     const priceAgorot = parseIlsToAgorot(input.priceIls);
     if (!priceAgorot) {
-      return rejected(
-        "invalid_input",
-        "سعر البيع غير مفهوم. اكتبيه مثل 12 أو 12.50.",
-      );
+      return moneyRejection(input.priceIls);
     }
     const problem =
       identifierProblem(input.sku, "SKU") ??
@@ -848,7 +846,7 @@ export class CatalogOperations {
     if (!resolved.ok) return resolved.result;
     const product = resolved.product;
     const priceAgorot = parseIlsToAgorot(input.priceIls);
-    if (!priceAgorot) return rejected("invalid_input", "سعر الصنف غير مفهوم.");
+    if (!priceAgorot) return moneyRejection(input.priceIls);
     const problem =
       identifierProblem(input.sku, "SKU") ??
       identifierProblem(input.barcode, "الباركود");
@@ -986,7 +984,7 @@ export class CatalogOperations {
     }
     if (requested.priceIls !== undefined) {
       const price = parseIlsToAgorot(requested.priceIls);
-      if (!price) return rejected("invalid_input", "السعر غير مفهوم.");
+      if (!price) return moneyRejection(requested.priceIls);
       if (price !== variant.priceAgorot) {
         changes.priceAgorot = price;
         rows.push({

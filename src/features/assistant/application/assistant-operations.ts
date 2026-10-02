@@ -31,6 +31,7 @@ import type {
 import { orderStatusLabels } from "@/features/orders/domain/order-status";
 import { formatIls } from "@/shared/lib/format-currency";
 import { parseIlsToAgorot } from "@/shared/lib/parse-ils";
+import { moneyRejection } from "@/features/assistant/domain/money-rejection";
 import type { InvoiceExtractor } from "@/server/ai/invoice-extractor";
 import * as schema from "@/server/db/schema";
 import type { ProductImageStore } from "@/server/storage/product-images";
@@ -38,6 +39,7 @@ import type { ProductImageStore } from "@/server/storage/product-images";
 import type { AssistantOperation } from "../domain/assistant-policy";
 import { sha256, canonicalJson } from "../domain/confirmation-token";
 import {
+  forChanges,
   resolveCatalogEntity,
   type CatalogEntry,
   type EntityCandidate,
@@ -275,6 +277,7 @@ export class AssistantOperations {
         resolution = { status: "resolved", match: exact[0]! };
       }
     }
+    resolution = forChanges(resolution);
     if (resolution.status === "not_found") {
       return {
         ok: false,
@@ -434,10 +437,7 @@ export class AssistantOperations {
     if (requested.priceIls !== undefined) {
       const price = parseIlsToAgorot(requested.priceIls);
       if (!price) {
-        return rejected(
-          "invalid_input",
-          "السعر غير مفهوم. اكتبيه بالأرقام مثل 14 أو 14.50.",
-        );
+        return moneyRejection(requested.priceIls);
       }
       if (price !== product.priceAgorot) {
         changes.priceAgorot = price;
@@ -890,7 +890,9 @@ export class AssistantOperations {
     const entries = catalogEntries(products);
     const merged = new Map<string, SaleInput["lines"][number]>();
     for (const [index, item] of input.items.entries()) {
-      const resolution = resolveCatalogEntity(item.product, entries, "variant");
+      const resolution = forChanges(
+        resolveCatalogEntity(item.product, entries, "variant"),
+      );
       if (resolution.status === "not_found") {
         return rejected(
           "not_found",
@@ -1074,7 +1076,7 @@ export class AssistantOperations {
     if (!can(actor, "payments.record"))
       return rejected("forbidden", "لا تملكين صلاحية تسجيل الدفعات.");
     const amount = parseIlsToAgorot(input.amountIls);
-    if (!amount) return rejected("invalid_input", "المبلغ غير مفهوم.");
+    if (!amount) return moneyRejection(input.amountIls);
     let customer: { id: string; name: string } | undefined;
     if (z.uuid().safeParse(input.customer).success) {
       const detail = await this.services.customers.getDetail(

@@ -9,6 +9,7 @@ import {
 } from "@/features/assistant/application/assistant-tools";
 import { MAX_AGENT_STEPS } from "@/features/assistant/domain/assistant-policy";
 import { assistantInstructions } from "@/features/assistant/domain/assistant-instructions";
+import { shouldStopLoop } from "@/features/assistant/domain/loop-guard";
 
 import { createFakeAssistantModel } from "./assistant-fake-model";
 import { isFakeAiEnabled } from "./fake-mode";
@@ -27,6 +28,11 @@ function assistantModel() {
   return createOpenAI({ apiKey })(assistantModelId());
 }
 
+// Reasoning models reject sampling settings; everything else runs deterministically for tool selection.
+function supportsTemperature(modelId: string): boolean {
+  return !/^(o\d|gpt-5)/.test(modelId);
+}
+
 export function createAssistantAgent(context: AssistantToolContext) {
   return new ToolLoopAgent({
     model: assistantModel(),
@@ -34,8 +40,13 @@ export function createAssistantAgent(context: AssistantToolContext) {
       context.mode === "full" ? "full" : "read",
     ),
     tools: createAssistantTools(context),
-    stopWhen: isStepCount(MAX_AGENT_STEPS),
+    stopWhen: [
+      isStepCount(MAX_AGENT_STEPS),
+      ({ steps }) => shouldStopLoop(steps),
+    ],
     maxRetries: 1,
+    maxOutputTokens: 900,
+    ...(supportsTemperature(assistantModelId()) ? { temperature: 0 } : {}),
   });
 }
 

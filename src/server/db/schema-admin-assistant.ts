@@ -198,3 +198,37 @@ export const adminAssistantConfirmations = pgTable(
     ),
   ],
 );
+
+// One open product draft per conversation; the confirmation card is built from this row, not from chat memory.
+export const adminAssistantProductDrafts = pgTable(
+  "admin_assistant_product_drafts",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    adminUserId: owner(),
+    conversationId: uuid("conversation_id")
+      .notNull()
+      .references(() => adminAssistantConversations.id, {
+        onDelete: "cascade",
+      }),
+    status: varchar("status", { length: 16 }).default("open").notNull(),
+    data: jsonb("data").$type<Record<string, unknown>>().notNull(),
+    version: integer("version").default(1).notNull(),
+    confirmationId: uuid("confirmation_id"),
+    expiresAt: timestamp("expires_at", {
+      withTimezone: true,
+      mode: "date",
+    }).notNull(),
+    createdAt,
+    updatedAt,
+  },
+  (table) => [
+    index("admin_assistant_product_drafts_owner_idx").on(table.adminUserId),
+    uniqueIndex("admin_assistant_product_drafts_open_uidx")
+      .on(table.conversationId)
+      .where(sql`${table.status} = 'open'`),
+    check(
+      "admin_assistant_product_drafts_status",
+      sql`${table.status} IN ('open', 'submitted', 'cancelled', 'expired')`,
+    ),
+  ],
+);

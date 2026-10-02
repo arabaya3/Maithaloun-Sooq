@@ -71,13 +71,21 @@ test("mobile: product from a photo, duplicate choice, variant, publication and d
   const attachments = panel.getByRole("list", { name: "المرفقات" });
   await expect(attachments.getByLabel("جارٍ الرفع")).toHaveCount(0);
   await ask(page, "اقرئي صورة المنتج");
-  const analysis = panel
-    .getByRole("group", { name: "بيانات مقترحة من الصور" })
-    .or(panel.getByLabel("بيانات مقترحة من الصور"));
+  const analysis = panel.getByRole("region", { name: "مسودة المنتج" });
   await expect(analysis.first()).toContainText(NAME);
   await expect(analysis.first()).toContainText("تحقّقي");
-  await expect(panel.getByText("ما سعر البيع؟")).toBeVisible();
+  await expect(analysis.first()).toContainText(/ناقص: .*سعر البيع/);
+  await expect(analysis.first()).toContainText("القسم: مستلزمات منزلية");
+  await expect(analysis.first()).toContainText("القسم: مستلزمات منزلية");
   await page.screenshot({ path: `${SHOTS}/assistant-analysis-390.png` });
+
+  await ask(page, "السعر خمستعش شيكل");
+  await expect(analysis.last()).toContainText("15 ₪");
+  await ask(page, "السعر عشرة دولار");
+  await expect(
+    panel.getByText("ما قدرت أحدد السعر. اكتبه مثلاً: 15 شيكل.").last(),
+  ).toBeVisible();
+  await expect(analysis.last()).toContainText(/ناقص: .*سعر البيع/);
 
   await ask(
     page,

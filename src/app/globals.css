@@ -3489,3 +3489,37 @@ html[data-launch="skip"] .launch-splash {
   color: var(--text-muted);
   font-size: 0.85rem;
 }
+
+.assistant-interrupted {
+  display: grid;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+  padding: 0.6rem 0.75rem;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-md);
+  color: var(--text-muted);
+  font-size: 0.875rem;
+}
+
+.assistant-interrupted p {
+  margin: 0;
+}
+
+.assistant-draft {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.assistant-draft-suggestions {
+  margin: 0;
+  padding-inline-start: 1rem;
+  color: var(--warning);
+  font-size: 0.85rem;
+}
+
+.assistant-draft-missing {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
