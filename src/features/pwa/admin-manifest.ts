@@ -1,5 +1,7 @@
 import type { MetadataRoute } from "next";
 
+import { manifestIcons } from "./app-icons";
+
 export const ADMIN_MANIFEST_PATH = "/admin-manifest.webmanifest";
 
 export const adminManifest: MetadataRoute.Manifest = {
@@ -16,24 +18,5 @@ export const adminManifest: MetadataRoute.Manifest = {
   lang: "ar",
   dir: "rtl",
   categories: ["business", "productivity"],
-  icons: [
-    {
-      src: "/icons/icon-192.png",
-      sizes: "192x192",
-      type: "image/png",
-      purpose: "any",
-    },
-    {
-      src: "/icons/icon-512.png",
-      sizes: "512x512",
-      type: "image/png",
-      purpose: "any",
-    },
-    {
-      src: "/icons/icon-512.png",
-      sizes: "512x512",
-      type: "image/png",
-      purpose: "maskable",
-    },
-  ],
+  icons: manifestIcons,
 };

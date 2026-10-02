@@ -10,6 +10,8 @@ import {
   type SerwistGlobalConfig,
 } from "serwist";
 
+import { appIcons } from "@/features/pwa/app-icons";
+
 declare global {
   interface WorkerGlobalScope extends SerwistGlobalConfig {
     __SW_MANIFEST: (PrecacheEntry | string)[] | undefined;
@@ -37,7 +39,7 @@ const serwist = new Serwist({
       matcher: ({ sameOrigin, url }) =>
         sameOrigin &&
         (url.pathname.startsWith("/_next/static/") ||
-          url.pathname.startsWith("/icons/")),
+          url.pathname.startsWith("/brand/")),
       handler: new CacheFirst({
         cacheName: "static-assets-v1",
         plugins: [
@@ -94,8 +96,8 @@ self.addEventListener("push", (event) => {
   event.waitUntil(
     self.registration.showNotification(payload?.title ?? "سوق ميثلون", {
       body: payload?.body ?? "لديك تحديث جديد في الطلبات.",
-      icon: "/icons/icon-192.png",
-      badge: "/icons/icon-192.png",
+      icon: appIcons.icon192,
+      badge: appIcons.icon192,
       data: { href: payload?.href ?? "/admin/orders" },
       tag: payload?.href ?? "admin-update",
     }),

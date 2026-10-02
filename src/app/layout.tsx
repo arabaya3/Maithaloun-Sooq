@@ -1,6 +1,8 @@
 import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
 
+import { appIcons } from "@/features/pwa/app-icons";
+
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -13,11 +15,13 @@ export const metadata: Metadata = {
   manifest: "/manifest.webmanifest",
   icons: {
     icon: [
-      { url: "/icons/icon-192.png", type: "image/png", sizes: "192x192" },
-      { url: "/icons/icon-512.png", type: "image/png", sizes: "512x512" },
+      { url: appIcons.favicon32, type: "image/png", sizes: "32x32" },
+      { url: appIcons.favicon16, type: "image/png", sizes: "16x16" },
+      { url: appIcons.icon192, type: "image/png", sizes: "192x192" },
     ],
-    apple: "/icons/icon-192.png",
+    apple: [{ url: appIcons.appleTouch, sizes: "180x180", type: "image/png" }],
   },
+  appleWebApp: { capable: true, title: "ميثلون", statusBarStyle: "default" },
 };
 
 export const viewport: Viewport = {
