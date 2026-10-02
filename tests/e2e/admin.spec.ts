@@ -180,6 +180,17 @@ test("admin authentication, operations, and privacy controls", async ({
   await expect(
     page.getByRole("heading", { name: "تعديل المنتج" }),
   ).toBeVisible();
+  await expect
+    .poll(() =>
+      withTestDb(
+        (sql) => sql<{ price: number }[]>`
+          select v.price_agorot as price from product_variants v
+          join products p on p.id = v.product_id
+          where p.domain_id = 'general-cleaner'
+        `,
+      ),
+    )
+    .toEqual([{ price: 850 }]);
 
   await page.goto("/products/general-cleaner-secret", {
     waitUntil: "networkidle",

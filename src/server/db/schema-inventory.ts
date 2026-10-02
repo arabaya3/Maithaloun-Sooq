@@ -98,10 +98,15 @@ export const suppliers = pgTable(
     phone: varchar("phone", { length: 20 }),
     notes: varchar("notes", { length: 500 }),
     active: boolean("active").default(true).notNull(),
+    mergedIntoSupplierId: uuid("merged_into_supplier_id").references(
+      (): AnyPgColumn => suppliers.id,
+      { onDelete: "restrict" },
+    ),
     createdAt,
     updatedAt,
   },
   (table) => [
+    index("suppliers_merged_into_idx").on(table.mergedIntoSupplierId),
     check(
       "suppliers_name_not_blank",
       sql`char_length(btrim(${table.nameAr})) >= 2`,

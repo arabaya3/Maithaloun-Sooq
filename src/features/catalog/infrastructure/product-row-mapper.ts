@@ -1,3 +1,4 @@
+import type { VariantOffer } from "@/features/catalog/domain/offer-pricing";
 import { productSchema, type Product } from "@/features/catalog/domain/product";
 import {
   productSpecificationSchema,
@@ -41,6 +42,7 @@ function mapImage(row: {
 export function mapVariantRow(
   row: VariantRow,
   productDomainId: string,
+  offer?: VariantOffer,
 ): ProductVariant {
   return productVariantSchema.parse({
     id: row.domainId,
@@ -54,6 +56,7 @@ export function mapVariantRow(
     barcode: row.barcode ?? undefined,
     sortOrder: row.sortOrder,
     isDefault: row.isDefault,
+    ...(offer ? { offer } : {}),
   });
 }
 
@@ -70,11 +73,14 @@ export function mapProductRow(
   row: ProductRow,
   variants: readonly VariantRow[],
   specifications: readonly SpecRow[] = [],
+  offers: ReadonlyMap<string, VariantOffer> = new Map(),
 ): Product {
   const mappedVariants = variants
     .filter((variant) => !variant.archivedAt)
     .sort((left, right) => left.sortOrder - right.sortOrder)
-    .map((variant) => mapVariantRow(variant, row.domainId));
+    .map((variant) =>
+      mapVariantRow(variant, row.domainId, offers.get(variant.id)),
+    );
 
   if (!mappedVariants.length) {
     throw new Error(`Product ${row.domainId} has no variants`);

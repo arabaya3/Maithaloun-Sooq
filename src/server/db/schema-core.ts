@@ -382,6 +382,78 @@ export const orders = pgTable(
   ],
 );
 
+export const offerKindEnum = pgEnum("offer_kind", [
+  "percentage",
+  "amount_off",
+  "fixed_price",
+]);
+
+// Offers price variants; the list price on the variant is never changed by an offer.
+export const offers = pgTable(
+  "offers",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    nameAr: varchar("name_ar", { length: 80 }).notNull(),
+    displayText: varchar("display_text", { length: 120 }),
+    kind: offerKindEnum("kind").notNull(),
+    value: integer("value").notNull(),
+    minQuantity: integer("min_quantity").default(1).notNull(),
+    startsAt: timestamp("starts_at", { withTimezone: true, mode: "date" }),
+    endsAt: timestamp("ends_at", { withTimezone: true, mode: "date" }),
+    enabled: boolean("enabled").default(false).notNull(),
+    archivedAt: timestamp("archived_at", { withTimezone: true, mode: "date" }),
+    ...timestamps,
+  },
+  (table) => [
+    index("offers_live_idx")
+      .on(table.startsAt, table.endsAt)
+      .where(sql`${table.enabled} AND ${table.archivedAt} IS NULL`),
+    check(
+      "offers_value_range",
+      sql`(${table.kind} = 'percentage' AND ${table.value} BETWEEN 1 AND 90)
+        OR (${table.kind} <> 'percentage' AND ${table.value} BETWEEN 1 AND 10000000)`,
+    ),
+    check("offers_min_quantity", sql`${table.minQuantity} BETWEEN 1 AND 100`),
+    check(
+      "offers_window",
+      sql`${table.startsAt} IS NULL OR ${table.endsAt} IS NULL OR ${table.endsAt} > ${table.startsAt}`,
+    ),
+  ],
+);
+
+export const offerTargets = pgTable(
+  "offer_targets",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    offerId: uuid("offer_id")
+      .notNull()
+      .references(() => offers.id, { onDelete: "cascade" }),
+    productId: uuid("product_id").references(() => products.id, {
+      onDelete: "restrict",
+    }),
+    variantId: uuid("variant_id").references(() => productVariants.id, {
+      onDelete: "restrict",
+    }),
+    categoryCode: varchar("category_code", { length: 40 }).references(
+      () => productCategories.code,
+      { onDelete: "restrict", onUpdate: "cascade" },
+    ),
+    createdAt: timestamp("created_at", { withTimezone: true, mode: "date" })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    index("offer_targets_offer_idx").on(table.offerId),
+    index("offer_targets_product_idx").on(table.productId),
+    index("offer_targets_variant_idx").on(table.variantId),
+    index("offer_targets_category_idx").on(table.categoryCode),
+    check(
+      "offer_targets_exactly_one",
+      sql`num_nonnulls(${table.productId}, ${table.variantId}, ${table.categoryCode}) = 1`,
+    ),
+  ],
+);
+
 export const orderItems = pgTable(
   "order_items",
   {
@@ -408,10 +480,15 @@ export const orderItems = pgTable(
       length: 64,
     }),
     unitPriceAgorot: integer("unit_price_agorot").notNull(),
+    listUnitPriceAgorot: integer("list_unit_price_agorot"),
+    offerId: uuid("offer_id").references(() => offers.id, {
+      onDelete: "restrict",
+    }),
     quantity: integer("quantity").notNull(),
     lineSubtotalAgorot: integer("line_subtotal_agorot").notNull(),
   },
   (table) => [
+    index("order_items_offer_idx").on(table.offerId),
     uniqueIndex("order_items_order_variant_uidx")
       .on(table.orderId, table.variantDomainId)
       .where(sql`${table.variantDomainId} IS NOT NULL`),

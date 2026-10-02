@@ -63,6 +63,13 @@ const toolLabels: Record<string, string> = {
   searchProductDuplicates: "البحث عن منتجات مشابهة",
   listCategories: "قراءة الأقسام",
   checkProductPublication: "فحص جاهزية النشر",
+  searchOffers: "قراءة العروض",
+  getOfferDetails: "حساب أسعار العرض",
+  getCustomerDetails: "قراءة حساب الزبون",
+  getCustomerStatement: "تجهيز كشف الحساب",
+  searchSuppliers: "البحث في الموردين",
+  getSupplierDetails: "قراءة حساب المورد",
+  getSupplierStatement: "تجهيز كشف حساب المورد",
 };
 
 const ATTACHMENT_NOTE = /\n?\[مرفقات: [^\]]*\]$/;
@@ -138,6 +145,27 @@ function ToolPartView({
     }>;
     ready?: boolean;
     problems?: string[];
+    opening?: string;
+    closing?: string;
+    lines?: Array<{
+      date: string;
+      type: string;
+      amount: string;
+      balance: string;
+    }>;
+    offers?: Array<{
+      offerId: string;
+      name: string;
+      value: string;
+      live: boolean;
+      archived: boolean;
+    }>;
+    suppliers?: Array<{
+      supplierId: string;
+      name: string;
+      payable: string | null;
+      active: boolean;
+    }>;
     href?: string;
   };
   if (output.status === "awaiting_confirmation" && output.confirmationId) {
@@ -204,6 +232,83 @@ function ToolPartView({
             );
           })}
       </dl>
+    );
+  }
+  if (
+    (name === "getCustomerStatement" || name === "getSupplierStatement") &&
+    output.lines
+  ) {
+    return (
+      <div className="assistant-statement">
+        <p>
+          الرصيد الافتتاحي <bdi dir="ltr">{output.opening}</bdi> · الختامي{" "}
+          <bdi dir="ltr">{output.closing}</bdi>
+        </p>
+        {output.lines.length ? (
+          <ul className="assistant-results" aria-label="كشف الحساب">
+            {output.lines.map((row, index) => (
+              <li key={`${row.date}-${index}`}>
+                <span>
+                  {row.date} · {row.type}
+                </span>
+                <span>
+                  <bdi dir="ltr">{row.amount}</bdi> ←{" "}
+                  <bdi dir="ltr">{row.balance}</bdi>
+                </span>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p>لا توجد حركات في هذه الفترة.</p>
+        )}
+        {output.href ? (
+          <Link
+            className="assistant-tool-link"
+            href={output.href}
+            prefetch={false}
+          >
+            فتح السجل
+          </Link>
+        ) : null}
+      </div>
+    );
+  }
+  if (name === "searchOffers" && output.offers) {
+    return output.offers.length ? (
+      <ul className="assistant-results" aria-label="العروض">
+        {output.offers.map((row) => (
+          <li key={row.offerId}>
+            <span>{row.name}</span>
+            <span>
+              {row.value} ·{" "}
+              {row.archived
+                ? "مؤرشف"
+                : row.live
+                  ? "فعّال الآن"
+                  : "غير فعّال الآن"}
+            </span>
+          </li>
+        ))}
+      </ul>
+    ) : (
+      <p className="assistant-tool-progress">لا توجد عروض.</p>
+    );
+  }
+  if (name === "searchSuppliers" && output.suppliers?.length) {
+    return (
+      <ul className="assistant-results" aria-label="الموردون">
+        {output.suppliers.map((row) => (
+          <li key={row.supplierId}>
+            <span>
+              {row.name}
+              {row.active ? "" : " (مؤرشف)"}
+            </span>
+            <span>
+              {row.payable ? <bdi dir="ltr">{row.payable}</bdi> : null}
+            </span>
+          </li>
+        ))}
+      </ul>
     );
   }
   if (name === "searchProductDuplicates" && output.matches?.length) {

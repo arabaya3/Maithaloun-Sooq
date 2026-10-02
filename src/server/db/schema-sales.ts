@@ -45,14 +45,21 @@ export const customers = pgTable(
       .notNull()
       .unique(),
     phoneE164: varchar("phone_e164", { length: 20 }),
+    address: varchar("address", { length: 300 }),
+    landmark: varchar("landmark", { length: 160 }),
     notes: varchar("notes", { length: 500 }),
     active: boolean("active").default(true).notNull(),
+    mergedIntoCustomerId: uuid("merged_into_customer_id").references(
+      (): AnyPgColumn => customers.id,
+      { onDelete: "restrict" },
+    ),
     createdAt,
     updatedAt: timestamp("updated_at", { withTimezone: true, mode: "date" })
       .defaultNow()
       .notNull(),
   },
   (table) => [
+    index("customers_merged_into_idx").on(table.mergedIntoCustomerId),
     check(
       "customers_name_not_blank",
       sql`char_length(btrim(${table.name})) >= 2`,

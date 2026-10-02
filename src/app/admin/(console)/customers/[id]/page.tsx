@@ -75,6 +75,11 @@ export default async function CustomerProfilePage({
         }
         back={{ href: "/admin/customers", label: "الزبائن والديون" }}
       />
+      {customer.address || customer.landmark ? (
+        <p className="admin-customer-address">
+          {[customer.address, customer.landmark].filter(Boolean).join(" — ")}
+        </p>
+      ) : null}
 
       <section className="admin-panel" aria-labelledby="balance-title">
         <h2 id="balance-title">الحساب</h2>

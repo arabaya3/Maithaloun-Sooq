@@ -17,6 +17,7 @@ import {
   isVariantAvailable,
   resolveVariant,
 } from "@/features/catalog/domain/product-variant";
+import { priceForQuantity } from "@/features/catalog/domain/offer-pricing";
 import { ACTIVE_SERVICE_AREA_CODE } from "@/features/delivery/delivery-policy";
 import { calculateDeliveryFeeAgorot } from "@/features/delivery/delivery-policy";
 import { getFreeDeliveryMessage } from "@/features/delivery/delivery-messaging";
@@ -68,7 +69,8 @@ export function CheckoutForm({
     resolvedLines
       .filter((line) => isVariantAvailable(line.variant))
       .map((line) => ({
-        unitPriceAgorot: line.variant.priceAgorot,
+        unitPriceAgorot: priceForQuantity(line.variant, line.quantity)
+          .unitPriceAgorot,
         quantity: line.quantity,
       })),
   );
@@ -342,7 +344,8 @@ export function CheckoutForm({
                 <bdi dir="ltr">
                   {formatIls(
                     calculateLineSubtotal(
-                      line.variant.priceAgorot,
+                      priceForQuantity(line.variant, line.quantity)
+                        .unitPriceAgorot,
                       line.quantity,
                     ),
                   )}

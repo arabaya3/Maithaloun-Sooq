@@ -92,6 +92,13 @@
       "when": 1790928676638,
       "tag": "0012_assistant_catalog",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1790932973544,
+      "tag": "0013_assistant_parties",
+      "breakpoints": true
     }
   ]
 }

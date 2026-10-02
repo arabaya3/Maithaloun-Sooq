@@ -37,7 +37,7 @@ describe("0012 assistant catalog migration", () => {
       .filter((name) => name.endsWith(".sql"))
       .sort();
     const before = files.filter((name) => name < "0012");
-    expect(files.at(-1)).toMatch(/^0012_assistant_catalog\.sql$/);
+    expect(files).toContain("0012_assistant_catalog.sql");
     for (const file of before) await apply(file);
 
     const categories = ["laundry", "kitchen", "bathroom", "tools", "home"];

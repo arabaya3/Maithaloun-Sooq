@@ -17,6 +17,7 @@ const onStorefront = and(
   isNull(schema.products.archivedAt),
 );
 
+import { liveOffersForVariants } from "./offer-queries";
 import { mapProductRow } from "./product-row-mapper";
 
 export class PostgresProductRepository implements ProductRepository {
@@ -111,11 +112,28 @@ export class PostgresProductRepository implements ProductRepository {
       specsByProductId.set(spec.productId, list);
     }
 
+    const categoryByProductId = new Map(
+      rows.map((row) => [row.id, row.categoryId]),
+    );
+    const offers = await liveOffersForVariants(
+      this.database,
+      variantRows
+        .filter((variant) => !variant.archivedAt)
+        .map((variant) => ({
+          variantId: variant.id,
+          productId: variant.productId,
+          categoryCode: categoryByProductId.get(variant.productId)!,
+          priceAgorot: variant.priceAgorot,
+        })),
+      new Date(),
+    );
+
     return rows.map((row) =>
       mapProductRow(
         row,
         variantsByProductId.get(row.id) ?? [],
         specsByProductId.get(row.id) ?? [],
+        offers,
       ),
     );
   }

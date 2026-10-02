@@ -6,7 +6,7 @@ Risk levels: 1 read (runs immediately) · 2 reversible content/configuration · 
 
 Test keys: **U** unit, **I** `tests/integration/database-assistant*.test.ts`, **M** `database-catalog-migration.test.ts`, **E** `tests/e2e/admin-assistant*.spec.ts`.
 
-## Catalog — Phase 1 (this release)
+## Catalog — Phase 1 (merged in #32)
 
 | Capability                                                                                | Admin page / action                                  | Domain service                                              | Read tool                             | Prepare tool → operation                                                                | Risk | Audit event                            | Tests   | Status    |
 | ----------------------------------------------------------------------------------------- | ---------------------------------------------------- | ----------------------------------------------------------- | ------------------------------------- | --------------------------------------------------------------------------------------- | ---- | -------------------------------------- | ------- | --------- |
@@ -48,6 +48,39 @@ Test keys: **U** unit, **I** `tests/integration/database-assistant*.test.ts`, **
 | Variant-level cost editing                  | Cost is derived from purchases and stock movements; editing it directly would bypass the stock ledger. Cost changes go through purchases (Phase 3).                                   |
 | Variant merge                               | Rule: move the stock with a stock transfer (`prepareStockTransfer`), then archive the duplicate variant. Duplicate creation is blocked at preparation and re-checked at confirmation. |
 
+## Offers, customers, suppliers and ledgers — Phase 2
+
+| Capability                                                                  | Tools                                                                                                       | Risk | Audit                                                                                                 | Tests   | Status    |
+| --------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- | ---- | ----------------------------------------------------------------------------------------------------- | ------- | --------- |
+| Offer search and details                                                    | `searchOffers`, `getOfferDetails`                                                                           | 1    | —                                                                                                     | I       | Supported |
+| Offer create / edit / schedule / enable–disable (fixed, %, amount, min qty) | `prepareOfferCreation`, `prepareOfferUpdate`                                                                | 2    | `offer_create`, `offer_update`                                                                        | U, I, E | Supported |
+| Offer archive / restore                                                     | `prepareOfferArchive`                                                                                       | 2    | `offer_archive`, `offer_restore`                                                                      | I       | Supported |
+| Offer delete when no order references it                                    | `prepareUnusedOfferDeletion`                                                                                | 4    | `offer_delete`                                                                                        | I       | Supported |
+| Customer create / edit (name, phone, WhatsApp, address, landmark, notes)    | `prepareCustomerCreation`, `prepareCustomerUpdate`                                                          | 2    | `customer_create`, `customer_update`                                                                  | I, E    | Supported |
+| Customer archive / restore                                                  | `prepareCustomerArchive`                                                                                    | 2    | `customer_archive`, `customer_restore`                                                                | I       | Supported |
+| Customer merge (balance transfer, aliases)                                  | `prepareCustomerMerge`                                                                                      | 3    | `customer_merge`                                                                                      | I       | Supported |
+| Customer details, history, balance, statement for a date range              | `getCustomerDetails`, `getCustomerStatement`                                                                | 1    | —                                                                                                     | I, E    | Supported |
+| Customer payment reversal, balance adjustment                               | `prepareCustomerPaymentReversal`, `prepareCustomerBalanceAdjustment`                                        | 3    | `payment_reversal`, `customer_balance_adjustment`                                                     | I, E    | Supported |
+| Debt reminder: date, pause, resume, handled                                 | `prepareCustomerReminder`                                                                                   | 2    | `reminder_state_update`                                                                               | I       | Supported |
+| Customer delete when unreferenced                                           | `prepareUnusedCustomerDeletion`                                                                             | 4    | `customer_delete`                                                                                     | I, E    | Supported |
+| Supplier search, details, purchase history, balance, statement              | `searchSuppliers`, `getSupplierDetails`, `getSupplierStatement`                                             | 1    | —                                                                                                     | I       | Supported |
+| Supplier create / edit / archive / restore / product alias                  | `prepareSupplierCreation`, `prepareSupplierUpdate`, `prepareSupplierArchive`, `prepareSupplierProductAlias` | 2    | `supplier_create`, `supplier_update`, `supplier_archive`, `supplier_restore`, `supplier_alias_create` | I, E    | Supported |
+| Supplier payment, correction entry, merge                                   | `prepareSupplierPayment`, `prepareSupplierCorrection`, `prepareSupplierMerge`                               | 3    | `supplier_payment`, `supplier_balance_correction`, `supplier_merge`                                   | I, E    | Supported |
+| Supplier delete when unreferenced                                           | `prepareUnusedSupplierDeletion`                                                                             | 4    | `supplier_delete`                                                                                     | I       | Supported |
+
+### Phase 2 invariants
+
+- An offer's final price is computed by `offer-pricing.ts` and must stay above zero and below the list price. The list price is never edited; orders snapshot `list_unit_price_agorot` and `offer_id`. Two enabled offers whose windows overlap (start inclusive, end exclusive) may not cover the same variant; the check runs again under an advisory lock at confirmation.
+- Ledgers are append-only (database triggers). Corrections are new adjustment, correction or reversal entries.
+- Merge keeps all history on the archived duplicate (`merged_into_*`); only the open balance moves, as a pair of entries, and aliases move to the target.
+- Checkout refuses hidden, draft or archived products and archived variants.
+
+### Phase 2 limitations
+
+- After a merge the target's invoice aging does not include invoices kept on the duplicate.
+- Offers apply to storefront orders; manual assistant sales use list prices.
+- There is no admin offers page yet, and no basket-total offers.
+
 ## Existing assistant coverage carried forward
 
 | Capability                                               | Admin page / action                   | Tools                                                             | Risk | Status                                         |
@@ -65,10 +98,6 @@ Test keys: **U** unit, **I** `tests/integration/database-assistant*.test.ts`, **
 
 | Capability                                                                                         | Admin page / action                                                                                      | Phase |
 | -------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- | ----- |
-| Offers and discounts (new domain)                                                                  | —                                                                                                        | 2     |
-| Customer create / update / merge / archive, statements, reminder pause                             | `saveCustomerAction`, `snoozeReminderAction`, `setDisputedAction`                                        | 2     |
-| Payment reversal                                                                                   | `reversePaymentAction`                                                                                   | 2     |
-| Suppliers: create / update / aliases / merge / payments / adjustments / statements                 | `createSupplierAction`, `recordSupplierPaymentAction`                                                    | 2     |
 | Order status changes other than cancellation, manual orders, refunds, returns, replacements        | `updateOrderStatusAction`                                                                                | 3     |
 | Purchase posting, invoice line editing, reversal, unmatched lines, product from line               | `postPurchaseAction`, `confirmExtractionAction`, `discardExtractionAction`, `createProductForLineAction` | 3     |
 | Sales invoice cancellation, returns with stock and ledger reversal                                 | `cancelInvoiceAction`                                                                                    | 3     |

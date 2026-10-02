@@ -25,6 +25,9 @@ import { AdminDeliveryService } from "./admin-delivery-service";
 import { AdminOrderService } from "./admin-order-service";
 import { AdminNotificationService } from "../notifications/notification-service";
 import { AdminStaffService } from "./admin-staff-service";
+import { OfferService } from "@/features/offers/application/offer-service";
+import { SupplierMaintenanceService } from "@/features/purchasing/application/supplier-maintenance-service";
+import { CustomerMaintenanceService } from "@/features/sales/application/customer-maintenance-service";
 import { CatalogAuthoringService } from "@/features/admin/application/catalog-authoring-service";
 import { ProductMaintenanceService } from "./product-maintenance-service";
 import { InventoryService } from "@/features/inventory/application/inventory-service";
@@ -87,6 +90,9 @@ export const voiceService = new VoiceService(
 );
 export const productMaintenanceService = new ProductMaintenanceService(db);
 export const catalogAuthoringService = new CatalogAuthoringService(db);
+export const offerService = new OfferService(db);
+export const customerMaintenanceService = new CustomerMaintenanceService(db);
+export const supplierMaintenanceService = new SupplierMaintenanceService(db);
 export const assistantAttachments = new AttachmentService(
   db,
   getPrivateDocumentStore,
@@ -101,6 +107,10 @@ export const assistantOperations = new AssistantOperations({
   inventory: inventoryService,
   sales: salesService,
   customers: customerService,
+  customerMaintenance: customerMaintenanceService,
+  suppliers: supplierService,
+  supplierMaintenance: supplierMaintenanceService,
+  offers: offerService,
   orders: adminOrderService,
   extraction: extractionService,
   attachments: assistantAttachments,

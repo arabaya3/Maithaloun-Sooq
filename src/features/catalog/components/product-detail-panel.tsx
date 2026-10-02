@@ -2,6 +2,7 @@
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
+import { OfferPrice } from "@/features/catalog/components/offer-price";
 import { ProductDetailActions } from "@/features/catalog/components/product-detail-actions";
 import { ProductMedia } from "@/features/catalog/components/product-media";
 import { ProductSpecifications } from "@/features/catalog/components/product-specifications";
@@ -15,7 +16,6 @@ import {
   isVariantAvailable,
   resolveVariant,
 } from "@/features/catalog/domain/product-variant";
-import { formatIls } from "@/shared/lib/format-currency";
 
 export function ProductDetailPanel({
   product,
@@ -65,12 +65,10 @@ export function ProductDetailPanel({
         <h1>
           <bdi dir="auto">{name}</bdi>
         </h1>
-        <p
+        <OfferPrice
           className="product-detail-price"
-          aria-label={`السعر ${formatIls(selectedVariant.priceAgorot)}`}
-        >
-          <bdi dir="ltr">{formatIls(selectedVariant.priceAgorot)}</bdi>
-        </p>
+          variant={selectedVariant}
+        />
         <p className="availability-status" data-available={available}>
           {available ? "متاح للإضافة إلى السلة" : "غير متاح حالياً"}
         </p>

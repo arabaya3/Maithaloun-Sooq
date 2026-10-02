@@ -7,6 +7,11 @@ import {
 } from "@/features/admin/application/admin-action-errors";
 import { AdminOrderError } from "@/features/admin/application/admin-order-service";
 import { ProductMaintenanceError } from "@/features/admin/application/product-maintenance-service";
+import { OfferError } from "@/features/offers/application/offer-service";
+import { SupplierMaintenanceError } from "@/features/purchasing/application/supplier-maintenance-service";
+import { SupplierError } from "@/features/purchasing/application/supplier-service";
+import { CustomerMaintenanceError } from "@/features/sales/application/customer-maintenance-service";
+import { CustomerError } from "@/features/sales/application/customer-service";
 import { CatalogAuthoringError } from "@/features/admin/application/catalog-authoring-service";
 import { AuthorizationError } from "@/features/admin/domain/admin-actor";
 import {
@@ -56,6 +61,55 @@ export function assistantFailure(error: unknown): {
   }
   if (error instanceof ProductMaintenanceError) {
     return { code, message: maintenanceMessages[error.code] };
+  }
+  if (error instanceof OfferError) {
+    const offerMessages: Record<OfferError["code"], string> = {
+      not_found: "العرض غير موجود.",
+      invalid_input: "بيانات العرض غير صالحة.",
+      invalid_price: "العرض يجعل سعر أحد الأصناف صفراً أو لا يخفّضه.",
+      conflict: "يتعارض مع عرض مفعّل آخر على نفس الأصناف في نفس الفترة.",
+      in_use: "العرض مستخدم في طلبات، لذلك لا يُحذف.",
+      empty_target: "العرض لا يشمل أي صنف.",
+    };
+    return { code, message: offerMessages[error.code] };
+  }
+  if (
+    error instanceof CustomerMaintenanceError ||
+    error instanceof CustomerError
+  ) {
+    const customerMessages: Record<string, string> = {
+      not_found: "الزبون غير موجود.",
+      invalid_input: "بيانات الزبون غير صالحة.",
+      invalid_phone: "رقم الواتساب غير صحيح.",
+      duplicate: "يوجد زبون بنفس الاسم.",
+      same_customer: "الزبونان نفس الشخص.",
+      in_use: "الزبون مرتبط بسجلات، لذلك لا يُحذف.",
+      merged: "أحد الزبونين مدموج أو مؤرشف.",
+    };
+    return {
+      code,
+      message:
+        customerMessages[error.code] ?? "تعذّر تنفيذ العملية على الزبون.",
+    };
+  }
+  if (
+    error instanceof SupplierMaintenanceError ||
+    error instanceof SupplierError
+  ) {
+    const supplierMessages: Record<string, string> = {
+      not_found: "المورد غير موجود.",
+      invalid_input: "بيانات المورد غير صالحة.",
+      duplicate: "الاسم مستخدم مسبقاً.",
+      same_supplier: "المورّدان نفس المورد.",
+      in_use: "المورد مرتبط بسجلات، لذلك لا يُحذف.",
+      merged: "أحد الموردين مدموج أو مؤرشف.",
+      payment_exceeds_balance: "الدفعة أكبر من المستحق للمورد.",
+    };
+    return {
+      code,
+      message:
+        supplierMessages[error.code] ?? "تعذّر تنفيذ العملية على المورد.",
+    };
   }
   if (error instanceof CatalogAuthoringError) {
     return { code, message: authoringMessage(error) };
