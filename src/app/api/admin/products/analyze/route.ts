@@ -10,6 +10,7 @@ import {
   normalizeProductPhoto,
   uploadProductPhoto,
 } from "@/features/admin/product-capture/product-capture-service";
+import { listAssignableCategories } from "@/features/catalog/infrastructure/category-queries";
 import { db } from "@/server/db/db";
 import { getServerEnv } from "@/server/env/env";
 
@@ -47,7 +48,7 @@ export async function POST(request: Request) {
     if (!(file instanceof File)) throw new Error("INVALID_IMAGE");
     const normalized = await normalizeProductPhoto(file);
     const [draft, cleaned] = await Promise.all([
-      analyzeProductPhoto(normalized),
+      analyzeProductPhoto(normalized, await listAssignableCategories(db)),
       formData.get("clean") === "true"
         ? cleanProductPhotoWithAi(normalized)
         : normalized,

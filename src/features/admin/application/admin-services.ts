@@ -25,6 +25,7 @@ import { AdminDeliveryService } from "./admin-delivery-service";
 import { AdminOrderService } from "./admin-order-service";
 import { AdminNotificationService } from "../notifications/notification-service";
 import { AdminStaffService } from "./admin-staff-service";
+import { CatalogAuthoringService } from "@/features/admin/application/catalog-authoring-service";
 import { ProductMaintenanceService } from "./product-maintenance-service";
 import { InventoryService } from "@/features/inventory/application/inventory-service";
 import { PriceReviewService } from "@/features/inventory/application/price-review-service";
@@ -85,6 +86,7 @@ export const voiceService = new VoiceService(
   reportService,
 );
 export const productMaintenanceService = new ProductMaintenanceService(db);
+export const catalogAuthoringService = new CatalogAuthoringService(db);
 export const assistantAttachments = new AttachmentService(
   db,
   getPrivateDocumentStore,
@@ -94,6 +96,7 @@ export const assistantToolRuns = new ToolRunLog(db);
 export const assistantOperations = new AssistantOperations({
   database: db,
   catalog: adminCatalogService,
+  authoring: catalogAuthoringService,
   maintenance: productMaintenanceService,
   inventory: inventoryService,
   sales: salesService,

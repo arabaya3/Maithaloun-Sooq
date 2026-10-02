@@ -7,7 +7,6 @@ import { ProductMedia } from "@/features/catalog/components/product-media";
 import { ProductSpecifications } from "@/features/catalog/components/product-specifications";
 import { VariantSelector } from "@/features/catalog/components/variant-selector";
 import {
-  getCategoryLabel,
   getProductDisplayName,
   type Product,
 } from "@/features/catalog/domain/product";
@@ -20,9 +19,11 @@ import { formatIls } from "@/shared/lib/format-currency";
 
 export function ProductDetailPanel({
   product,
+  categoryLabel,
   initialVariantId,
 }: {
   product: Product;
+  categoryLabel: string;
   initialVariantId?: string | null;
 }) {
   const router = useRouter();
@@ -60,7 +61,7 @@ export function ProductDetailPanel({
         enableZoom
       />
       <div className="product-detail-content">
-        <span className="eyebrow">{getCategoryLabel(product.categoryId)}</span>
+        <span className="eyebrow">{categoryLabel}</span>
         <h1>
           <bdi dir="auto">{name}</bdi>
         </h1>

@@ -18,7 +18,10 @@ import {
   upsertProductVariantAction,
 } from "@/features/admin/application/admin-actions";
 import {
-  categories,
+  CategoryOptions,
+  useAdminCategories,
+} from "@/features/admin/ui/admin-categories";
+import {
   placeholderKinds,
   type Product,
 } from "@/features/catalog/domain/product";
@@ -96,20 +99,6 @@ function FieldError({ message }: { message?: string }) {
     <p className="admin-form-error" role="alert">
       {message}
     </p>
-  );
-}
-
-function CategoryOptions() {
-  return (
-    <>
-      {categories
-        .filter((category) => category.id !== "all")
-        .map((category) => (
-          <option key={category.id} value={category.id}>
-            {category.label}
-          </option>
-        ))}
-    </>
   );
 }
 
@@ -663,6 +652,7 @@ function CreateWizardForm({
   setDirty: (value: boolean) => void;
 }) {
   const [state, formAction, pending] = useAdminFormAction(createProductAction);
+  const categories = useAdminCategories();
   const [step, setStep] = useState(1);
   const [nameAr, setNameAr] = useState("");
   const [latinName, setLatinName] = useState("");
@@ -672,7 +662,9 @@ function CreateWizardForm({
   const [domainId, setDomainId] = useState(fallbackId);
   const [slug, setSlug] = useState(fallbackId);
   const [idManual, setIdManual] = useState(false);
-  const [categoryId, setCategoryId] = useState("home");
+  const [categoryId, setCategoryId] = useState(
+    () => categories[0]?.code ?? "home",
+  );
   const [priceIls, setPriceIls] = useState("");
   const [description, setDescription] = useState("");
   const [usageNotes, setUsageNotes] = useState("");
@@ -902,8 +894,8 @@ function CreateWizardForm({
               <div>
                 <dt>الفئة</dt>
                 <dd>
-                  {categories.find((category) => category.id === categoryId)
-                    ?.label ?? categoryId}
+                  {categories.find((category) => category.code === categoryId)
+                    ?.nameAr ?? categoryId}
                 </dd>
               </div>
               <div>

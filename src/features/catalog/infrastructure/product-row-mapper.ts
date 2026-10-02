@@ -71,7 +71,8 @@ export function mapProductRow(
   variants: readonly VariantRow[],
   specifications: readonly SpecRow[] = [],
 ): Product {
-  const mappedVariants = [...variants]
+  const mappedVariants = variants
+    .filter((variant) => !variant.archivedAt)
     .sort((left, right) => left.sortOrder - right.sortOrder)
     .map((variant) => mapVariantRow(variant, row.domainId));
 
@@ -95,6 +96,7 @@ export function mapProductRow(
     categoryId: row.categoryId,
     image: defaultVariant.image,
     availability: defaultVariant.availability,
+    publication: row.publication,
     description: row.description ?? undefined,
     usageNotes: row.usageNotes ?? undefined,
     unit: row.unit ?? undefined,

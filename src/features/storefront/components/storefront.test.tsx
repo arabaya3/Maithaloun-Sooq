@@ -2,7 +2,10 @@ import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 
-import type { Product } from "@/features/catalog/domain/product";
+import {
+  seedCategories,
+  type Product,
+} from "@/features/catalog/domain/product";
 import { withDefaultVariant } from "@/test/mock-product-repository";
 import { renderWithProviders } from "@/test/render-with-providers";
 
@@ -43,10 +46,18 @@ const products: Product[] = [
   }),
 ];
 
+const categories = seedCategories.map((category, sortOrder) => ({
+  ...category,
+  description: null,
+  sortOrder,
+  visible: true,
+}));
+
 function renderStorefront() {
-  return renderWithProviders(<Storefront products={products} />, {
-    products,
-  });
+  return renderWithProviders(
+    <Storefront products={products} categories={categories} />,
+    { products },
+  );
 }
 
 describe("storefront", () => {

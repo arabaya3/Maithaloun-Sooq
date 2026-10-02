@@ -6,8 +6,6 @@ import { createClient } from "@supabase/supabase-js";
 import sharp from "sharp";
 import { z } from "zod";
 
-import { categories } from "@/features/catalog/domain/product";
-
 const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
 const ACCEPTED_IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 
@@ -16,7 +14,7 @@ const productDraftSchema = z.object({
   latinName: z.string().trim().max(120),
   description: z.string().trim().max(600),
   unit: z.string().trim().max(80),
-  categoryId: z.enum(["laundry", "kitchen", "bathroom", "tools", "home"]),
+  categoryId: z.string().max(40),
   brand: z.string().trim().max(80),
   sizeValue: z.string().trim().max(40),
   sizeUnit: z.string().trim().max(30),
@@ -26,7 +24,7 @@ const productDraftSchema = z.object({
 
 export type ProductCaptureDraft = z.infer<typeof productDraftSchema>;
 
-function productSchema() {
+function productSchema(categoryCodes: readonly string[]) {
   return {
     type: "object",
     additionalProperties: false,
@@ -49,7 +47,7 @@ function productSchema() {
       unit: { type: "string" },
       categoryId: {
         type: "string",
-        enum: ["laundry", "kitchen", "bathroom", "tools", "home"],
+        enum: [...categoryCodes],
       },
       brand: { type: "string" },
       sizeValue: { type: "string" },
@@ -106,6 +104,7 @@ export async function normalizeProductPhoto(file: File): Promise<Buffer> {
 
 export async function analyzeProductPhoto(
   image: Buffer,
+  categories: ReadonlyArray<{ code: string; nameAr: string }>,
 ): Promise<ProductCaptureDraft> {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) throw new Error("AI_NOT_CONFIGURED");
@@ -125,8 +124,7 @@ export async function analyzeProductPhoto(
             {
               type: "input_text",
               text: `اقرأ عبوة منتج تنظيف من صورة حقيقية. اقترح بيانات عربية قصيرة ومحايدة دون اختراع مكونات أو ادعاءات. استخدم categoryId من: ${categories
-                .filter((category) => category.id !== "all")
-                .map((category) => `${category.id}=${category.label}`)
+                .map((category) => `${category.code}=${category.nameAr}`)
                 .join(
                   ", ",
                 )}. إذا لم يظهر حقل بوضوح أعد نصاً فارغاً وخفّض confidence.`,
@@ -144,7 +142,7 @@ export async function analyzeProductPhoto(
           type: "json_schema",
           name: "cleaning_product_draft",
           strict: true,
-          schema: productSchema(),
+          schema: productSchema(categories.map((category) => category.code)),
         },
       },
     }),

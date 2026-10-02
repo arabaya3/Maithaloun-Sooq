@@ -4,11 +4,17 @@ import sharp from "sharp";
 import { beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 import { AdminCatalogService } from "@/features/admin/application/admin-catalog-service";
+import { CatalogAuthoringService } from "@/features/admin/application/catalog-authoring-service";
 import { AdminOrderService } from "@/features/admin/application/admin-order-service";
 import { ProductMaintenanceService } from "@/features/admin/application/product-maintenance-service";
 import type { AdminActor } from "@/features/admin/domain/admin-actor";
 import { AssistantOperations } from "@/features/assistant/application/assistant-operations";
 import { createAssistantTools } from "@/features/assistant/application/assistant-tools";
+import {
+  prepareToolNames,
+  readToolNames,
+} from "@/features/assistant/domain/assistant-policy";
+import { createProductImageAnalyzer } from "@/server/ai/product-image-analyzer";
 import { AttachmentService } from "@/features/assistant/application/attachment-service";
 import { ConfirmationService } from "@/features/assistant/application/confirmation-service";
 import { ConversationRepository } from "@/features/assistant/application/conversation-repository";
@@ -89,9 +95,11 @@ const extraction = new ExtractionService(db, purchases, () => store);
 const attachments = new AttachmentService(db, () => store);
 const conversations = new ConversationRepository(db);
 const toolRuns = new ToolRunLog(db);
+const authoring = new CatalogAuthoringService(db);
 const operations = new AssistantOperations({
   database: db,
   catalog,
+  authoring,
   maintenance,
   inventory,
   sales,
@@ -356,7 +364,7 @@ describe("confirmation workflow", () => {
 });
 
 describe("product lifecycle", () => {
-  it("archives a referenced product and deletes an unreferenced one", async () => {
+  it("archives a referenced product and deletes an unreferenced one only from a risk 4 card", async () => {
     await stockIn("lilac-floor-cleaner--default", 2_000);
     const archive = await prepared(
       await operations.prepareProductArchive(owner, {
@@ -385,16 +393,31 @@ describe("product lifecycle", () => {
       detailsStatus: "placeholder",
       placeholderVariant: "general-cleaner",
     });
+    const archiveOnly = await operations.prepareProductArchive(owner, {
+      product: "منتج تجريبي",
+      reason: "تجربة",
+    });
+    expect(archiveOnly).toMatchObject({
+      status: "ready",
+      operation: "productArchive",
+      args: { mode: "archive" },
+    });
     const remove = await prepared(
-      await operations.prepareProductArchive(owner, {
-        product: "منتج تجريبي",
-        reason: "تجربة",
-      }),
+      await operations.catalogOps.prepareUnusedProductDeletion(
+        owner,
+        { product: "منتج تجريبي", reason: "تجربة" },
+        (domainId) => operations.productReferences(owner, domainId),
+      ),
     );
+    expect(remove.view.riskLevel).toBe(4);
     expect(remove.view.card.title).toBe("حذف منتج نهائياً");
     expect(await confirmations.confirm(owner, remove)).toMatchObject({
-      ok: true,
+      ok: false,
+      code: "not_acknowledged",
     });
+    expect(
+      await confirmations.confirm(owner, { ...remove, acknowledged: true }),
+    ).toMatchObject({ ok: true });
     const [gone] = await db
       .select()
       .from(products)
@@ -615,6 +638,9 @@ describe("tool surface", () => {
     mode,
     database: db,
     catalog,
+    authoring,
+    attachments,
+    imageAnalyzer: createProductImageAnalyzer,
     inventory,
     orders,
     customers,
@@ -633,7 +659,10 @@ describe("tool surface", () => {
       false,
     );
     expect(read.some((name) => name.startsWith("prepare"))).toBe(false);
-    expect(full.filter((name) => name.startsWith("prepare"))).toHaveLength(11);
+    expect(full.filter((name) => name.startsWith("prepare")).sort()).toEqual(
+      [...prepareToolNames].sort(),
+    );
+    expect(read.sort()).toEqual([...readToolNames].sort());
   });
 
   it("a prepare tool leaves data untouched and returns no secret token", async () => {

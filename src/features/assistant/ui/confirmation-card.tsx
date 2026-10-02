@@ -36,6 +36,7 @@ export function ConfirmationCard({
   onSettled?: () => void;
 }) {
   const [phase, setPhase] = useState<Phase>({ name: "loading" });
+  const [acknowledged, setAcknowledged] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -111,6 +112,7 @@ export function ConfirmationCard({
             action,
             operation: view.operation,
             token: view.token,
+            ...(view.riskLevel >= 4 ? { acknowledged } : {}),
           }),
         },
       );
@@ -165,11 +167,19 @@ export function ConfirmationCard({
   }
   const view = "view" in phase ? phase.view : null;
   const card = view?.card;
+  const permanent = Boolean(view && view.riskLevel >= 4);
+  const expiresAt = view
+    ? new Date(view.expiresAt).toLocaleTimeString("ar", {
+        hour: "2-digit",
+        minute: "2-digit",
+      })
+    : null;
 
   return (
     <section
       className="assistant-card"
       data-destructive={card?.destructive || undefined}
+      data-permanent={permanent || undefined}
       aria-label={card ? `${card.title}: ${card.target.label}` : "بطاقة تأكيد"}
     >
       {card ? (
@@ -184,6 +194,12 @@ export function ConfirmationCard({
                     ? "جارٍ التنفيذ"
                     : "بانتظار تأكيدك"}
             </span>
+            {permanent ? (
+              <p className="assistant-card-permanent" role="note">
+                <AlertTriangle size={16} aria-hidden="true" /> حذف نهائي — لا
+                يمكن التراجع
+              </p>
+            ) : null}
             <h3>{card.title}</h3>
             {card.target.href ? (
               <Link href={card.target.href} prefetch={false}>
@@ -237,6 +253,16 @@ export function ConfirmationCard({
               ))}
             </ul>
           ) : null}
+          {card.dependencies?.length ? (
+            <div className="assistant-card-dependencies">
+              <p>السجلات المرتبطة التي تم فحصها:</p>
+              <ul>
+                {card.dependencies.map((item) => (
+                  <li key={item}>{item}</li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
           {card.warnings.length ? (
             <ul className="assistant-card-warnings">
               {card.warnings.map((item) => (
@@ -249,6 +275,26 @@ export function ConfirmationCard({
         </>
       ) : null}
 
+      {card && (phase.name === "ready" || phase.name === "executing") ? (
+        <p className="assistant-card-meta">
+          {card.reversible === false
+            ? "لا يمكن التراجع عن هذه العملية."
+            : card.reversible
+              ? "يمكن التراجع عن هذه العملية لاحقاً."
+              : null}{" "}
+          {expiresAt ? `تنتهي صلاحية البطاقة الساعة ${expiresAt}.` : null}
+        </p>
+      ) : null}
+      {permanent && phase.name === "ready" ? (
+        <label className="assistant-card-acknowledge">
+          <input
+            type="checkbox"
+            checked={acknowledged}
+            onChange={(event) => setAcknowledged(event.target.checked)}
+          />
+          فهمت أن «{card?.target.label}» سيُحذف نهائياً ولا يمكن استرجاعه.
+        </label>
+      ) : null}
       {phase.name === "ready" || phase.name === "executing" ? (
         <div className="assistant-card-actions">
           <button
@@ -258,7 +304,9 @@ export function ConfirmationCard({
                 ? "admin-btn admin-btn-danger"
                 : "admin-btn admin-btn-primary"
             }
-            disabled={phase.name === "executing"}
+            disabled={
+              phase.name === "executing" || (permanent && !acknowledged)
+            }
             onClick={() => void act("confirm")}
           >
             {phase.name === "executing" ? (

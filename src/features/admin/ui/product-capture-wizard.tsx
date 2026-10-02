@@ -6,7 +6,7 @@ import { Camera, ImagePlus, LoaderCircle, Sparkles } from "lucide-react";
 import { useActionState, useEffect, useRef, useState } from "react";
 
 import { createCapturedProductAction } from "@/features/admin/application/admin-actions";
-import { categories } from "@/features/catalog/domain/product";
+import { CategoryOptions } from "@/features/admin/ui/admin-categories";
 
 type Analysis = {
   draft: {
@@ -257,13 +257,7 @@ export function ProductCaptureWizard() {
           <label>
             الفئة
             <select name="categoryId" defaultValue={analysis.draft.categoryId}>
-              {categories
-                .filter((item) => item.id !== "all")
-                .map((item) => (
-                  <option key={item.id} value={item.id}>
-                    {item.label}
-                  </option>
-                ))}
+              <CategoryOptions />
             </select>
           </label>
         </div>

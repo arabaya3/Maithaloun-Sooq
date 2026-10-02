@@ -118,7 +118,7 @@ export async function POST(request: Request) {
   await assistantConversations.save(conversationId, [userMessage]);
 
   const requestId = randomUUID();
-  const usage = { steps: 0, inputTokens: 0, outputTokens: 0 };
+  const usage = { steps: 0, inputTokens: 0, outputTokens: 0, cachedTokens: 0 };
   let firstTokenMs: number | null = null;
   const measureFirstToken: StreamTextTransform<AssistantAgent["tools"]> = () =>
     new TransformStream({
@@ -143,6 +143,7 @@ export async function POST(request: Request) {
       usage.steps += 1;
       usage.inputTokens += step.inputTokens ?? 0;
       usage.outputTokens += step.outputTokens ?? 0;
+      usage.cachedTokens += step.inputTokenDetails?.cacheReadTokens ?? 0;
     },
     messageMetadata: ({ part }) =>
       part.type === "start" ? { conversationId } : undefined,
@@ -177,6 +178,7 @@ export async function POST(request: Request) {
         steps: usage.steps,
         inputTokens: usage.inputTokens,
         outputTokens: usage.outputTokens,
+        cachedTokens: usage.cachedTokens,
         totalTokens: usage.inputTokens + usage.outputTokens,
         firstTokenMs,
         aborted: Boolean(isAborted),

@@ -2,6 +2,8 @@ import "server-only";
 
 import {
   adminCatalogService,
+  assistantAttachments,
+  catalogAuthoringService,
   adminOrderService,
   assistantConfirmations,
   assistantOperations,
@@ -19,6 +21,7 @@ import {
 import { allowAdminRequest } from "@/features/admin/auth/admin-rate-limit";
 import { authorizeAdminApi } from "@/features/admin/auth/authorize-admin-api";
 import type { AdminActor } from "@/features/admin/domain/admin-actor";
+import { createProductImageAnalyzer } from "@/server/ai/product-image-analyzer";
 import { db } from "@/server/db/db";
 
 import {
@@ -78,6 +81,9 @@ export function assistantToolContext(
     mode,
     database: db,
     catalog: adminCatalogService,
+    authoring: catalogAuthoringService,
+    attachments: assistantAttachments,
+    imageAnalyzer: createProductImageAnalyzer,
     inventory: inventoryService,
     orders: adminOrderService,
     customers: customerService,

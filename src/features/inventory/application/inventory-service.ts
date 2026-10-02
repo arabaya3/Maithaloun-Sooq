@@ -276,6 +276,126 @@ export interface InventoryOverview {
 
 const DEFAULT_LABEL = "الافتراضي";
 
+// Runs inside the caller's transaction so a stock adjustment can commit together with other changes.
+export async function postStockAdjustment(
+  transaction: Database,
+  actor: AdminActor,
+  input: StockAdjustmentInput,
+): Promise<{ onHandMilli: number; replayed: boolean }> {
+  assertPermission(actor, "stock.adjust");
+  const parsed = stockAdjustmentSchema.safeParse(input);
+  if (!parsed.success) throw new InventoryError("invalid_input");
+  const data = parsed.data;
+  const [existing] = await transaction
+    .select({
+      itemId: schema.inventoryAdjustments.inventoryItemId,
+    })
+    .from(schema.inventoryAdjustments)
+    .where(eq(schema.inventoryAdjustments.idempotencyKey, data.idempotencyKey))
+    .limit(1);
+  if (existing) {
+    const [current] = await transaction
+      .select({ onHandMilli: schema.inventoryItems.onHandMilli })
+      .from(schema.inventoryItems)
+      .where(eq(schema.inventoryItems.id, existing.itemId));
+    return { onHandMilli: current?.onHandMilli ?? 0, replayed: true };
+  }
+
+  const [variant] = await transaction
+    .select({ id: schema.productVariants.id })
+    .from(schema.productVariants)
+    .where(eq(schema.productVariants.domainId, data.variantId))
+    .limit(1);
+  if (!variant) throw new InventoryError("not_found");
+
+  const locationId = await getDefaultLocationId(transaction);
+  const item = await ensureInventoryItem(
+    transaction,
+    variant.id,
+    locationId,
+    data.unit ?? "piece",
+  );
+
+  const isCount = data.reason === "correction";
+  const stockIn =
+    data.reason === "opening_balance" || data.reason === "customer_return";
+  const deltaMilli = isCount
+    ? data.quantityMilli - item.onHandMilli
+    : stockIn
+      ? data.quantityMilli
+      : -data.quantityMilli;
+  if (deltaMilli === 0) throw new InventoryError("invalid_input", "no_change");
+
+  let unitCostAgorot: number | null = null;
+  if (deltaMilli > 0) {
+    // Stock-in always carries a cost so inventory value and later profit stay real.
+    unitCostAgorot =
+      data.unitCostAgorot ??
+      (data.reason === "opening_balance" ? null : item.avgCostAgorot);
+    if (unitCostAgorot === null) throw new InventoryError("cost_required");
+  }
+
+  const now = new Date();
+  const [adjustment] = await transaction
+    .insert(schema.inventoryAdjustments)
+    .values({
+      inventoryItemId: item.id,
+      reason: data.reason,
+      quantityDeltaMilli: deltaMilli,
+      unitCostAgorot,
+      note: data.note || null,
+      idempotencyKey: data.idempotencyKey,
+      createdBy: actor.id,
+      createdAt: now,
+    })
+    .returning({ id: schema.inventoryAdjustments.id });
+  if (!adjustment) throw new InventoryError("invalid_input");
+
+  const context = {
+    item,
+    references: { adjustmentId: adjustment.id },
+    idempotencyKey: `adjustment:${adjustment.id}`,
+    actorId: actor.id,
+    at: now,
+  };
+  const movement =
+    deltaMilli > 0
+      ? await postStockIn(transaction, {
+          ...context,
+          reason: data.reason as
+            "opening_balance" | "customer_return" | "correction",
+          quantityMilli: deltaMilli,
+          costAgorot: lineTotalAgorot(deltaMilli, unitCostAgorot ?? 0),
+        })
+      : (
+          await postStockOut(transaction, {
+            ...context,
+            reason: data.reason as
+              "damaged" | "expired" | "supplier_return" | "correction",
+            quantityMilli: -deltaMilli,
+          })
+        ).movement;
+
+  const afterState = {
+    variantId: data.variantId,
+    reason: data.reason,
+    quantityDeltaMilli: deltaMilli,
+    onHandAfterMilli: movement.onHandAfterMilli,
+  };
+  assertSafeAuditState(afterState);
+  await transaction.insert(schema.adminAuditEvents).values({
+    adminUserId: actor.id,
+    actionType: "stock_adjustment",
+    entityType: "inventory_item",
+    entityId: data.variantId,
+    beforeState: { onHandMilli: item.onHandMilli },
+    afterState,
+    createdAt: now,
+  });
+
+  return { onHandMilli: movement.onHandAfterMilli, replayed: false };
+}
+
 export class InventoryService {
   constructor(private readonly database: Database) {}
 
@@ -491,123 +611,9 @@ export class InventoryService {
     input: StockAdjustmentInput,
   ): Promise<{ onHandMilli: number; replayed: boolean }> {
     assertPermission(actor, "stock.adjust");
-    const parsed = stockAdjustmentSchema.safeParse(input);
-    if (!parsed.success) throw new InventoryError("invalid_input");
-    const data = parsed.data;
-
-    return this.database.transaction(async (transaction) => {
-      const [existing] = await transaction
-        .select({
-          itemId: schema.inventoryAdjustments.inventoryItemId,
-        })
-        .from(schema.inventoryAdjustments)
-        .where(
-          eq(schema.inventoryAdjustments.idempotencyKey, data.idempotencyKey),
-        )
-        .limit(1);
-      if (existing) {
-        const [current] = await transaction
-          .select({ onHandMilli: schema.inventoryItems.onHandMilli })
-          .from(schema.inventoryItems)
-          .where(eq(schema.inventoryItems.id, existing.itemId));
-        return { onHandMilli: current?.onHandMilli ?? 0, replayed: true };
-      }
-
-      const [variant] = await transaction
-        .select({ id: schema.productVariants.id })
-        .from(schema.productVariants)
-        .where(eq(schema.productVariants.domainId, data.variantId))
-        .limit(1);
-      if (!variant) throw new InventoryError("not_found");
-
-      const locationId = await getDefaultLocationId(transaction);
-      const item = await ensureInventoryItem(
-        transaction,
-        variant.id,
-        locationId,
-        data.unit ?? "piece",
-      );
-
-      const isCount = data.reason === "correction";
-      const stockIn =
-        data.reason === "opening_balance" || data.reason === "customer_return";
-      const deltaMilli = isCount
-        ? data.quantityMilli - item.onHandMilli
-        : stockIn
-          ? data.quantityMilli
-          : -data.quantityMilli;
-      if (deltaMilli === 0)
-        throw new InventoryError("invalid_input", "no_change");
-
-      let unitCostAgorot: number | null = null;
-      if (deltaMilli > 0) {
-        // Stock-in always carries a cost so inventory value and later profit stay real.
-        unitCostAgorot =
-          data.unitCostAgorot ??
-          (data.reason === "opening_balance" ? null : item.avgCostAgorot);
-        if (unitCostAgorot === null) throw new InventoryError("cost_required");
-      }
-
-      const now = new Date();
-      const [adjustment] = await transaction
-        .insert(schema.inventoryAdjustments)
-        .values({
-          inventoryItemId: item.id,
-          reason: data.reason,
-          quantityDeltaMilli: deltaMilli,
-          unitCostAgorot,
-          note: data.note || null,
-          idempotencyKey: data.idempotencyKey,
-          createdBy: actor.id,
-          createdAt: now,
-        })
-        .returning({ id: schema.inventoryAdjustments.id });
-      if (!adjustment) throw new InventoryError("invalid_input");
-
-      const context = {
-        item,
-        references: { adjustmentId: adjustment.id },
-        idempotencyKey: `adjustment:${adjustment.id}`,
-        actorId: actor.id,
-        at: now,
-      };
-      const movement =
-        deltaMilli > 0
-          ? await postStockIn(transaction, {
-              ...context,
-              reason: data.reason as
-                "opening_balance" | "customer_return" | "correction",
-              quantityMilli: deltaMilli,
-              costAgorot: lineTotalAgorot(deltaMilli, unitCostAgorot ?? 0),
-            })
-          : (
-              await postStockOut(transaction, {
-                ...context,
-                reason: data.reason as
-                  "damaged" | "expired" | "supplier_return" | "correction",
-                quantityMilli: -deltaMilli,
-              })
-            ).movement;
-
-      const afterState = {
-        variantId: data.variantId,
-        reason: data.reason,
-        quantityDeltaMilli: deltaMilli,
-        onHandAfterMilli: movement.onHandAfterMilli,
-      };
-      assertSafeAuditState(afterState);
-      await transaction.insert(schema.adminAuditEvents).values({
-        adminUserId: actor.id,
-        actionType: "stock_adjustment",
-        entityType: "inventory_item",
-        entityId: data.variantId,
-        beforeState: { onHandMilli: item.onHandMilli },
-        afterState,
-        createdAt: now,
-      });
-
-      return { onHandMilli: movement.onHandAfterMilli, replayed: false };
-    });
+    return this.database.transaction((transaction) =>
+      postStockAdjustment(transaction, actor, input),
+    );
   }
 
   async setReorderThreshold(

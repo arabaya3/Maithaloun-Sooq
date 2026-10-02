@@ -7,12 +7,17 @@ import {
 import type { ProductRepository } from "@/features/catalog/domain/product-repository";
 
 export function withDefaultVariant(
-  product: Omit<Product, "defaultVariantId" | "variants" | "specifications"> & {
+  product: Omit<
+    Product,
+    "defaultVariantId" | "variants" | "specifications" | "publication"
+  > & {
     specifications?: Product["specifications"];
+    publication?: Product["publication"];
   },
 ): Product {
   const defaultVariantId = `${product.id}--default`;
   return productSchema.parse({
+    publication: "published",
     ...product,
     defaultVariantId,
     variants: [
@@ -139,6 +144,7 @@ const catalog = productSchema.array().parse([
     categoryId: "home",
     image: { kind: "placeholder", variant: "general-cleaner" },
     availability: "available",
+    publication: "published",
     detailsStatus: "verified",
     description: "منتج اختباري متعدد الأوزان فقط.",
     defaultVariantId: "test-multi-weight--1kg",

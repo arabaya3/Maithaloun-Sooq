@@ -59,6 +59,10 @@ const toolLabels: Record<string, string> = {
   getPurchaseInvoice: "قراءة فواتير الشراء",
   getSalesSummary: "حساب المبيعات",
   getProfitSummary: "حساب الربح",
+  analyzeProductImages: "قراءة صور المنتج",
+  searchProductDuplicates: "البحث عن منتجات مشابهة",
+  listCategories: "قراءة الأقسام",
+  checkProductPublication: "فحص جاهزية النشر",
 };
 
 const ATTACHMENT_NOTE = /\n?\[مرفقات: [^\]]*\]$/;
@@ -111,6 +115,29 @@ function ToolPartView({
       stock: string;
       href: string;
     }>;
+    fields?: Array<{
+      field: string;
+      label: string;
+      value: string;
+      confidence: number;
+      source: string;
+      image: number;
+    }>;
+    matches?: Array<{
+      productId: string;
+      label: string;
+      reasons: string[];
+      href: string;
+    }>;
+    categories?: Array<{
+      code: string;
+      name: string;
+      visible: boolean;
+      archived: boolean;
+      products: number;
+    }>;
+    ready?: boolean;
+    problems?: string[];
     href?: string;
   };
   if (output.status === "awaiting_confirmation" && output.confirmationId) {
@@ -146,6 +173,78 @@ function ToolPartView({
     output.status === "forbidden"
   ) {
     return <p className="assistant-tool-error">{output.message}</p>;
+  }
+  if (name === "analyzeProductImages" && output.fields?.length) {
+    return (
+      <dl className="assistant-analysis" aria-label="بيانات مقترحة من الصور">
+        {output.fields
+          .filter((row) => row.value)
+          .map((row) => {
+            const level =
+              row.confidence >= 0.8
+                ? "high"
+                : row.confidence < 0.7
+                  ? "low"
+                  : "mid";
+            return (
+              <div key={row.field}>
+                <dt>{row.label}</dt>
+                <dd>
+                  <bdi dir="auto">{row.value}</bdi>
+                </dd>
+                <span
+                  className="assistant-confidence"
+                  data-level={level}
+                  title={`${row.source} · صورة ${row.image}`}
+                >
+                  {level === "low" ? "تحقّقي · " : ""}
+                  {Math.round(row.confidence * 100)}٪
+                </span>
+              </div>
+            );
+          })}
+      </dl>
+    );
+  }
+  if (name === "searchProductDuplicates" && output.matches?.length) {
+    return (
+      <ul className="assistant-results" aria-label="منتجات مشابهة">
+        {output.matches.map((row) => (
+          <li key={row.productId}>
+            <Link href={row.href} prefetch={false}>
+              {row.label}
+            </Link>
+            <span>{row.reasons.join("، ")}</span>
+          </li>
+        ))}
+      </ul>
+    );
+  }
+  if (name === "listCategories" && output.categories?.length) {
+    return (
+      <ul className="assistant-results" aria-label="الأقسام">
+        {output.categories.map((row) => (
+          <li key={row.code}>
+            <span>{row.name}</span>
+            <span>
+              {row.products} منتج
+              {row.archived ? " · مؤرشف" : row.visible ? "" : " · مخفي"}
+            </span>
+          </li>
+        ))}
+      </ul>
+    );
+  }
+  if (name === "checkProductPublication" && output.problems) {
+    return output.ready ? (
+      <p className="assistant-tool-progress">جاهز للنشر.</p>
+    ) : (
+      <ul className="assistant-card-warnings">
+        {output.problems.map((item) => (
+          <li key={item}>{item}</li>
+        ))}
+      </ul>
+    );
   }
   if (name === "searchProducts" && output.results?.length) {
     return (

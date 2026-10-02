@@ -7,6 +7,7 @@ import {
 } from "@/features/admin/application/admin-action-errors";
 import { AdminOrderError } from "@/features/admin/application/admin-order-service";
 import { ProductMaintenanceError } from "@/features/admin/application/product-maintenance-service";
+import { CatalogAuthoringError } from "@/features/admin/application/catalog-authoring-service";
 import { AuthorizationError } from "@/features/admin/domain/admin-actor";
 import {
   mapExtractionError,
@@ -19,6 +20,7 @@ import { SalesError } from "@/features/sales/application/sales-service";
 import { errorCode } from "@/server/log/ops-log";
 
 import type { ConfirmationRejection } from "../domain/confirmation-token";
+import { authoringMessage } from "./catalog-operations";
 
 const maintenanceMessages: Record<ProductMaintenanceError["code"], string> = {
   not_found: "المنتج غير موجود.",
@@ -39,6 +41,9 @@ export const rejectionMessages: Record<ConfirmationRejection, string> = {
   tampered: "تغيّرت بيانات العملية، لذلك أُلغيت.",
   stale:
     "تغيّرت البيانات منذ تجهيز البطاقة (سعر أو كمية أو حالة). اطلبي العملية من جديد لتري القيم الحالية.",
+  not_acknowledged:
+    "الحذف النهائي يحتاج تأكيد أنك فهمتِ أنه لا يمكن التراجع عنه.",
+  token_stale: "مرّ وقت على فتح بطاقة الحذف. حدّثي البطاقة ثم أكّدي من جديد.",
 };
 
 export function assistantFailure(error: unknown): {
@@ -51,6 +56,12 @@ export function assistantFailure(error: unknown): {
   }
   if (error instanceof ProductMaintenanceError) {
     return { code, message: maintenanceMessages[error.code] };
+  }
+  if (error instanceof CatalogAuthoringError) {
+    return { code, message: authoringMessage(error) };
+  }
+  if (error instanceof Error && error.message === "attachment_missing") {
+    return { code, message: "الصورة المرفقة لم تعد متاحة. أعيدي إرفاقها." };
   }
   if (error instanceof AdminCatalogError) {
     return { code, message: mapProductAdminError(error) };
