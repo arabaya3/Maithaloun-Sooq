@@ -3,7 +3,6 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import { InstallHelpEntry } from "@/features/pwa/install-help-entry";
 import { MobileNavigation } from "@/features/storefront/components/mobile-navigation";
 import { SiteHeader } from "@/features/storefront/components/site-header";
 
@@ -15,11 +14,6 @@ const sections = {
   offers: {
     title: "العروض",
     description: "لا توجد عروض منشورة حالياً. عد لاحقاً للاطلاع على الجديد.",
-  },
-  account: {
-    title: "حسابي",
-    description: "تسجيل الحسابات غير متاح في النسخة الحالية من المتجر.",
-    installHelp: true,
   },
 } as const;
 
@@ -54,7 +48,6 @@ export default async function PlaceholderPage({
           <span className="eyebrow">سوق ميثلون</span>
           <h1>{section.title}</h1>
           <p>{section.description}</p>
-          {"installHelp" in section ? <InstallHelpEntry /> : null}
           <Link href="/">
             <ArrowRight aria-hidden="true" />
             العودة إلى الرئيسية

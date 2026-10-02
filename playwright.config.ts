@@ -49,6 +49,9 @@ export default defineConfig({
       OPENAI_API_KEY: "",
       SUPABASE_URL: "",
       SUPABASE_SECRET_KEY: "",
+      CUSTOMER_ACCOUNTS: "on",
+      CUSTOMER_OTP_PROVIDER: "development",
+      CUSTOMER_OTP_DEV_CODE: "246810",
     },
   },
 });

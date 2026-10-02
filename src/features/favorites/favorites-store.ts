@@ -29,16 +29,16 @@ export function parsePersistedFavorites(
     if (!parsed.success) return initialFavoritesState;
 
     const uniqueIds = new Set(parsed.data.productIds);
-    if (
-      uniqueIds.size !== parsed.data.productIds.length ||
-      parsed.data.productIds.some(
-        (productId) => !allowedProductIds.has(productId),
-      )
-    ) {
+    if (uniqueIds.size !== parsed.data.productIds.length) {
       return initialFavoritesState;
     }
 
-    return { productIds: parsed.data.productIds };
+    // A product hidden since it was saved drops out alone instead of wiping the list.
+    return {
+      productIds: parsed.data.productIds.filter((productId) =>
+        allowedProductIds.has(productId),
+      ),
+    };
   } catch {
     return initialFavoritesState;
   }
