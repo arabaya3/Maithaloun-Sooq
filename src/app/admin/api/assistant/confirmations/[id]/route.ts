@@ -59,7 +59,11 @@ export async function POST(
   if (body.data.action === "cancel") {
     const cancelled = await assistantConfirmations.cancel(access.actor, id);
     return jsonNoStore(
-      { ok: cancelled, status: "cancelled" },
+      {
+        ok: cancelled,
+        status: "cancelled",
+        state: cancelled ? "cancelled" : "confirmation_failed",
+      },
       cancelled ? 200 : 409,
     );
   }
@@ -74,7 +78,10 @@ export async function POST(
     revalidatePath("/", "layout");
   }
   return jsonNoStore(
-    outcome,
+    {
+      ...outcome,
+      state: outcome.ok ? "confirmed_and_completed" : "confirmation_failed",
+    },
     outcome.ok ? 200 : outcome.status === "failed" ? 422 : 409,
   );
 }

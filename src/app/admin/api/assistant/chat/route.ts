@@ -26,6 +26,11 @@ import {
   type AssistantAgent,
   type AssistantUIMessage,
 } from "@/server/ai/assistant-agent";
+import { groundingTransform } from "@/features/assistant/application/grounding-transform";
+import {
+  chatFailureMessages,
+  classifyChatFailure,
+} from "@/features/assistant/domain/result-state";
 import { errorCode, logEvent } from "@/server/log/ops-log";
 
 export const dynamic = "force-dynamic";
@@ -138,7 +143,17 @@ export async function POST(request: Request) {
     timeout: { totalMs: 55_000 },
     originalMessages: uiMessages,
     generateMessageId: () => `a-${randomUUID()}`,
-    experimental_transform: measureFirstToken,
+    experimental_transform: [
+      groundingTransform<AssistantAgent["tools"]>(
+        message.parts.map((part) => part.text).join("\n"),
+        (violation) =>
+          logEvent("warn", "assistant.grounding.blocked", {
+            requestId,
+            violation,
+          }),
+      ),
+      measureFirstToken,
+    ],
     onStepEnd: ({ usage: step }) => {
       usage.steps += 1;
       usage.inputTokens += step.inputTokens ?? 0;
@@ -152,12 +167,14 @@ export async function POST(request: Request) {
       "X-Request-Id": requestId,
     },
     onError: (error) => {
+      const failure = classifyChatFailure(error);
       logEvent("error", "assistant.chat.failed", {
         requestId,
         code: errorCode(error),
+        failure,
         durationMs: Date.now() - started,
       });
-      return "تعذّر الرد الآن. رسالتك محفوظة، أعيدي المحاولة.";
+      return `${chatFailureMessages[failure]} (المرجع ${requestId.slice(0, 8)})`;
     },
     onEnd: async ({ messages, isAborted }) => {
       const fresh = messages.filter(
@@ -169,6 +186,10 @@ export async function POST(request: Request) {
           id: item.id,
           role: "assistant" as const,
           parts: item.parts,
+          metadata: {
+            ...((item.metadata as Record<string, unknown> | undefined) ?? {}),
+            status: isAborted ? "interrupted" : "completed",
+          },
         })),
       );
       logEvent("info", "assistant.chat.completed", {

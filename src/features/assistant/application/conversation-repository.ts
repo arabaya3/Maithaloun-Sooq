@@ -7,6 +7,8 @@ import type { AdminActor } from "@/features/admin/domain/admin-actor";
 import type { Database } from "@/features/inventory/application/stock-ledger";
 import * as schema from "@/server/db/schema";
 
+import { settleMessageParts } from "../domain/message-state";
+
 import {
   CONVERSATION_RETENTION_DAYS,
   MAX_HISTORY_MESSAGES,
@@ -87,12 +89,18 @@ export class ConversationRepository {
       .where(eq(schema.adminAssistantMessages.conversationId, conversationId))
       .orderBy(desc(schema.adminAssistantMessages.createdAt))
       .limit(limit);
-    return rows.reverse().map((row) => ({
-      id: row.messageId,
-      role: row.role as "user" | "assistant",
-      parts: row.parts,
-      ...(row.metadata ? { metadata: row.metadata } : {}),
-    }));
+    return rows.reverse().map((row) => {
+      const settled = settleMessageParts(row.parts);
+      const metadata = settled.interrupted
+        ? { ...(row.metadata ?? {}), status: "interrupted" }
+        : row.metadata;
+      return {
+        id: row.messageId,
+        role: row.role as "user" | "assistant",
+        parts: settled.parts,
+        ...(metadata ? { metadata } : {}),
+      };
+    });
   }
 
   // Only parts a person can see are stored: text, tool inputs/outputs and file references.
@@ -101,10 +109,16 @@ export class ConversationRepository {
     const now = Date.now();
     await this.database.transaction(async (transaction) => {
       for (const [index, message] of messages.entries()) {
-        const parts = message.parts.filter((part) => {
+        const visible = message.parts.filter((part) => {
           const type = (part as { type?: string }).type ?? "";
           return type === "text" || type.startsWith("tool-") || type === "file";
         });
+        const settled = settleMessageParts(visible);
+        const parts = settled.parts;
+        const metadata =
+          settled.interrupted && message.role === "assistant"
+            ? { ...(message.metadata ?? {}), status: "interrupted" }
+            : (message.metadata ?? null);
         await transaction
           .insert(schema.adminAssistantMessages)
           .values({
@@ -112,7 +126,7 @@ export class ConversationRepository {
             messageId: message.id.slice(0, 80),
             role: message.role,
             parts,
-            metadata: message.metadata ?? null,
+            metadata,
             createdAt: new Date(now + index),
           })
           .onConflictDoUpdate({
@@ -120,7 +134,7 @@ export class ConversationRepository {
               schema.adminAssistantMessages.conversationId,
               schema.adminAssistantMessages.messageId,
             ],
-            set: { parts, metadata: message.metadata ?? null },
+            set: { parts, metadata },
           });
       }
       await transaction

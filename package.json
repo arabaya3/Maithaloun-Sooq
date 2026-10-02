@@ -31,7 +31,8 @@
     "admin:owner": "tsx tools/create-owner.ts",
     "admin:owner:production": "tsx tools/create-production-owner.ts",
     "push:keys": "tsx tools/generate-vapid-keys.ts",
-    "verify": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm test:db && pnpm test:e2e && pnpm build"
+    "verify": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm test:db && pnpm test:e2e && pnpm build",
+    "test:assistant:model": "vitest run --config vitest.model-eval.config.ts"
   },
   "dependencies": {
     "@ai-sdk/openai": "^4.0.82",

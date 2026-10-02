@@ -16,6 +16,10 @@ import {
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import type { AssistantUIMessage } from "@/server/ai/assistant-agent";
+import {
+  INTERRUPTED_TOOL_ERROR,
+  messageStatus,
+} from "@/features/assistant/domain/message-state";
 
 import { voiceStatusLabels } from "../domain/voice-state";
 import { ConfirmationCard } from "./confirmation-card";
@@ -59,7 +63,10 @@ const toolLabels: Record<string, string> = {
   getPurchaseInvoice: "قراءة فواتير الشراء",
   getSalesSummary: "حساب المبيعات",
   getProfitSummary: "حساب الربح",
-  analyzeProductImages: "قراءة صور المنتج",
+  startProductDraft: "تجهيز مسودة المنتج",
+  updateProductDraft: "تحديث مسودة المنتج",
+  getProductDraft: "قراءة مسودة المنتج",
+  cancelProductDraft: "إلغاء مسودة المنتج",
   searchProductDuplicates: "البحث عن منتجات مشابهة",
   listCategories: "قراءة الأقسام",
   checkProductPublication: "فحص جاهزية النشر",
@@ -107,7 +114,13 @@ function ToolPartView({
     );
   }
   if (part.state === "output-error") {
-    return <p className="assistant-tool-error">تعذّر تنفيذ الخطوة.</p>;
+    return (
+      <p className="assistant-tool-error">
+        {part.errorText === INTERRUPTED_TOOL_ERROR
+          ? "توقفت هذه الخطوة قبل اكتمالها."
+          : "تعذّر تنفيذ الخطوة."}
+      </p>
+    );
   }
   const output = (part.output ?? {}) as {
     status?: string;
@@ -126,10 +139,12 @@ function ToolPartView({
       field: string;
       label: string;
       value: string;
-      confidence: number;
       source: string;
-      image: number;
     }>;
+    missing?: string[];
+    suggestions?: Array<{ label: string; value: string; confidence: number }>;
+    errors?: Array<{ label: string; message: string }>;
+    submitted?: boolean;
     matches?: Array<{
       productId: string;
       label: string;
@@ -202,36 +217,49 @@ function ToolPartView({
   ) {
     return <p className="assistant-tool-error">{output.message}</p>;
   }
-  if (name === "analyzeProductImages" && output.fields?.length) {
+  if (output.status === "draft") {
     return (
-      <dl className="assistant-analysis" aria-label="بيانات مقترحة من الصور">
-        {output.fields
-          .filter((row) => row.value)
-          .map((row) => {
-            const level =
-              row.confidence >= 0.8
-                ? "high"
-                : row.confidence < 0.7
-                  ? "low"
-                  : "mid";
-            return (
-              <div key={row.field}>
-                <dt>{row.label}</dt>
-                <dd>
-                  <bdi dir="auto">{row.value}</bdi>
-                </dd>
-                <span
-                  className="assistant-confidence"
-                  data-level={level}
-                  title={`${row.source} · صورة ${row.image}`}
-                >
-                  {level === "low" ? "تحقّقي · " : ""}
-                  {Math.round(row.confidence * 100)}٪
+      <section className="assistant-draft" aria-label="مسودة المنتج">
+        <dl className="assistant-analysis">
+          {(output.fields ?? []).map((row) => (
+            <div key={row.field}>
+              <dt>{row.label}</dt>
+              <dd>
+                <bdi dir="auto">{row.value}</bdi>
+              </dd>
+              {row.source === "image" ? (
+                <span className="assistant-confidence" data-level="mid">
+                  من الصورة
                 </span>
-              </div>
-            );
-          })}
-      </dl>
+              ) : null}
+            </div>
+          ))}
+        </dl>
+        {output.suggestions?.length ? (
+          <ul
+            className="assistant-draft-suggestions"
+            aria-label="قراءات تحتاج تأكيداً"
+          >
+            {output.suggestions.map((row) => (
+              <li key={row.label}>
+                تحقّقي · {row.label}: <bdi dir="auto">{row.value}</bdi>
+              </li>
+            ))}
+          </ul>
+        ) : null}
+        {output.errors?.map((row) => (
+          <p key={row.label} className="assistant-tool-error">
+            {row.message}
+          </p>
+        ))}
+        {output.missing?.length ? (
+          <p className="assistant-draft-missing">
+            ناقص: {output.missing.join("، ")}
+          </p>
+        ) : output.submitted ? (
+          <p className="assistant-draft-missing">بانتظار تأكيد البطاقة.</p>
+        ) : null}
+      </section>
     );
   }
   if (
@@ -555,6 +583,26 @@ export function AssistantPanel({
     });
   }
 
+  // Resends the request that produced an interrupted reply; read and prepare tools are safe to repeat.
+  function retryFrom(index: number) {
+    const original = messages
+      .slice(0, index)
+      .reverse()
+      .find((item) => item.role === "user");
+    if (!original || busy) return;
+    const value = original.parts
+      .map((part) => (part.type === "text" ? part.text : ""))
+      .join("\n")
+      .trim();
+    void sendMessage(
+      {
+        text: value || "أرفقت ملفات.",
+        metadata: original.metadata,
+      } as Parameters<typeof sendMessage>[0],
+      { body: { conversationId: conversationRef.current } },
+    );
+  }
+
   function send(text: string) {
     const ready = attachments.filter(
       (item) => item.status === "ready" && item.id,
@@ -699,6 +747,20 @@ export function AssistantPanel({
                 }
                 return null;
               })}
+              {message.role === "assistant" &&
+              messageStatus(message.metadata) === "interrupted" ? (
+                <div className="assistant-interrupted" role="status">
+                  <p>انقطع هذا الرد قبل اكتماله، ولم يُنفَّذ أي تعديل.</p>
+                  <button
+                    type="button"
+                    className="admin-btn admin-btn-secondary"
+                    disabled={busy}
+                    onClick={() => retryFrom(messages.indexOf(message))}
+                  >
+                    <RotateCcw size={16} aria-hidden="true" /> إعادة المحاولة
+                  </button>
+                </div>
+              ) : null}
               {message.role === "user" &&
               (message.metadata as { attachmentIds?: string[] } | undefined)
                 ?.attachmentIds?.length ? (

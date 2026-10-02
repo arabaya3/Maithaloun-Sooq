@@ -3,6 +3,11 @@ import "server-only";
 import { tool } from "ai";
 import { z } from "zod";
 
+import {
+  prepareState,
+  type MutationState,
+} from "@/features/assistant/domain/result-state";
+
 import type { AdminOrderService } from "@/features/admin/application/admin-order-service";
 import type { AdminActor } from "@/features/admin/domain/admin-actor";
 import { can } from "@/features/admin/domain/permissions";
@@ -82,7 +87,7 @@ const ownerOnly = {
   message: "هذه المعلومة للمالك فقط.",
 };
 
-export type PrepareToolOutput =
+export type PrepareToolOutput = (
   | {
       status: "awaiting_confirmation";
       confirmationId: string;
@@ -90,7 +95,8 @@ export type PrepareToolOutput =
       expiresAt: string;
     }
   | Exclude<PrepareResult, { status: "ready" }>
-  | { status: "error"; message: string };
+  | { status: "error"; code: string; message: string }
+) & { state?: MutationState };
 
 export function createAssistantTools(context: AssistantToolContext) {
   const { actor } = context;
@@ -100,7 +106,7 @@ export function createAssistantTools(context: AssistantToolContext) {
     input: unknown,
     action: () => Promise<T>,
     reference?: (result: T) => string | null,
-  ): Promise<T | { status: "error"; message: string }> {
+  ): Promise<T | { status: "error"; code: string; message: string }> {
     const started = Date.now();
     try {
       const result = await action();
@@ -127,7 +133,7 @@ export function createAssistantTools(context: AssistantToolContext) {
         errorCode: failure.code,
         durationMs: Date.now() - started,
       });
-      return { status: "error", message: failure.message };
+      return { status: "error", code: failure.code, message: failure.message };
     }
   }
 
@@ -142,7 +148,9 @@ export function createAssistantTools(context: AssistantToolContext) {
       input,
       async () => {
         const prepared = await build();
-        if (prepared.status !== "ready") return prepared;
+        if (prepared.status !== "ready") {
+          return { ...prepared, state: prepareState(prepared) };
+        }
         const created = await context.confirmations.create(
           actor,
           context.conversationId,
@@ -151,7 +159,9 @@ export function createAssistantTools(context: AssistantToolContext) {
         if (!created) {
           return {
             status: "error",
+            code: "database_conflict",
             message: "تغيّرت البيانات أثناء التجهيز، حاولي مرة أخرى.",
+            state: "confirmation_failed",
           };
         }
         return {
@@ -159,6 +169,7 @@ export function createAssistantTools(context: AssistantToolContext) {
           confirmationId: created.confirmationId,
           summary: prepared.summary,
           expiresAt: created.expiresAt,
+          state: "ready_for_confirmation",
         };
       },
       (result) =>
@@ -602,8 +613,10 @@ export function createAssistantTools(context: AssistantToolContext) {
     .string()
     .trim()
     .min(1)
-    .max(12)
-    .describe('المبلغ بالشيكل كنص مثل "14" أو "14.50"');
+    .max(40)
+    .describe(
+      'المبلغ كما كتبته المستخدمة حرفياً، مثل "15" أو "15 شيكل" أو "خمستعش". لا تحوّله ولا تحسبه؛ الخادم يقرؤه.',
+    );
 
   return {
     ...read,

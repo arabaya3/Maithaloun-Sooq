@@ -14,7 +14,6 @@ export const readToolNames = [
   "getPurchaseInvoice",
   "getSalesSummary",
   "getProfitSummary",
-  "analyzeProductImages",
   "searchProductDuplicates",
   "listCategories",
   "checkProductPublication",
@@ -174,8 +173,7 @@ export const prepareToolRisk = {
   prepareCustomerPayment: 3,
   prepareOrderCancellation: 3,
   preparePurchaseInvoiceImport: 2,
-  prepareProductCreation: 2,
-  prepareProductCreationWithOpeningStock: 3,
+  prepareProductFromDraft: 3,
   prepareProductDetailsUpdate: 2,
   prepareProductPublication: 2,
   prepareProductRestore: 2,
@@ -220,8 +218,17 @@ export const prepareToolNames = Object.keys(prepareToolRisk) as Array<
   keyof typeof prepareToolRisk
 >;
 
+// Draft tools only edit the owner's server-side draft; nothing in the store changes until a card is confirmed.
+export const draftToolNames = [
+  "startProductDraft",
+  "updateProductDraft",
+  "getProductDraft",
+  "cancelProductDraft",
+] as const;
+
 export function toolRisk(toolName: string): RiskLevel {
   if ((readToolNames as readonly string[]).includes(toolName)) return 1;
+  if ((draftToolNames as readonly string[]).includes(toolName)) return 1;
   if (toolName in prepareToolRisk) {
     return prepareToolRisk[toolName as keyof typeof prepareToolRisk];
   }

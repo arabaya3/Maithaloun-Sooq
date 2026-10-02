@@ -30,43 +30,52 @@ function catalogPlan(
   attachments: string[],
   previous: (toolName: string) => Record<string, unknown> | null,
 ): Plan | null {
-  if (/المعرّف create_new/.test(words)) {
-    const input = previous("prepareProductCreation");
-    if (input) {
-      return {
-        kind: "tool",
-        toolName: "prepareProductCreation",
-        input: { ...input, duplicateDecision: "create_new" },
-      };
-    }
+  if (/المعرّف create_new/.test(words) && previous("prepareProductFromDraft")) {
+    return {
+      kind: "tool",
+      toolName: "prepareProductFromDraft",
+      input: { duplicateDecision: "create_new", acceptPlaceholder: true },
+    };
   }
   if (/(?:اقرئي|حللي) (?:صورة|صور) المنتج/.test(words) && attachments.length) {
     return {
       kind: "tool",
-      toolName: "analyzeProductImages",
+      toolName: "startProductDraft",
       input: { attachmentIds: attachments.slice(0, 4) },
     };
   }
+  const priced = /^(?:السعر|سعره) (.+)$/.exec(words);
+  if (priced && previous("startProductDraft")) {
+    return {
+      kind: "tool",
+      toolName: "updateProductDraft",
+      input: { price: priced[1]! },
+    };
+  }
   let match =
-    /أضيفي منتج (.+?)(?: ماركة (\S+))? بسعر (\d+(?:\.\d+)?) (?:في|قسم) (.+?) (مسودة|منشور)$/.exec(
+    /أضيفي منتج (.+?)(?: ماركة (\S+))? بسعر (.+?) (?:في|قسم) (.+?) (مسودة|منشور)$/.exec(
       words,
     );
   if (match) {
-    return {
-      kind: "tool",
-      toolName: "prepareProductCreation",
-      input: {
-        ...(attachments.length
-          ? { attachmentIds: attachments.slice(0, 4) }
-          : {}),
-        nameAr: match[1]!,
-        ...(match[2] ? { latinName: match[2] } : {}),
-        priceIls: match[3]!,
-        category: match[4]!,
-        state: match[5] === "منشور" ? "published" : "draft",
-        acceptPlaceholder: true,
-      },
+    const fields = {
+      nameAr: match[1]!,
+      ...(match[2] ? { latinName: match[2] } : {}),
+      price: match[3]!,
+      category: match[4]!,
+      publication: match[5] === "منشور" ? "published" : "draft",
     };
+    return previous("startProductDraft") && !attachments.length
+      ? { kind: "tool", toolName: "updateProductDraft", input: fields }
+      : {
+          kind: "tool",
+          toolName: "startProductDraft",
+          input: {
+            ...(attachments.length
+              ? { attachmentIds: attachments.slice(0, 4) }
+              : {}),
+            fields,
+          },
+        };
   }
   match = /^(انشري|اخفي) (.+)$/.exec(words);
   if (match) {
@@ -186,9 +195,17 @@ function planFromUser(
   const attachments = text.match(ATTACHMENT) ?? [];
   const words = text
     .replace(/\[مرفقات:[^\]]*\]/g, " ")
+    .replace(/رد بطيء/g, " ")
     .replace(/[؟?!.]/g, " ")
     .replace(/\s+/g, " ")
     .trim();
+  // Misbehaving replies a real model could produce, used to prove the grounding guard.
+  if (words === "اخترعي سعر") {
+    return { kind: "text", text: "سعر المنظف 37 شيكل." };
+  }
+  if (words === "ادعي النجاح") {
+    return { kind: "text", text: "تم الحذف بنجاح." };
+  }
   const party = partyPlan(words);
   if (party) return party;
   const catalog = catalogPlan(words, attachments, previous);
@@ -303,13 +320,19 @@ function describe(toolName: string, value: Record<string, unknown>): string {
       ? `عليهم ديون بمجموع ${String(value.total)}.`
       : "ما حدا عليه ديون.";
   }
-  if (toolName === "analyzeProductImages") {
+  if (value.status === "draft") {
     const fields =
       (value.fields as Array<{ label: string; value: string }>) ?? [];
-    return `قرأت من الصورة: ${fields
-      .filter((row) => row.value)
-      .map((row) => `${row.label} ${row.value}`)
-      .join("، ")}. ما سعر البيع؟`;
+    const missing = (value.missing as string[]) ?? [];
+    const errors =
+      (value.errors as Array<{ label: string; message: string }>) ?? [];
+    return [
+      `المسودة: ${fields.map((row) => `${row.label} ${row.value}`).join("، ")}.`,
+      ...errors.map((row) => row.message),
+      missing.length ? `ناقص: ${missing.join("، ")}.` : "",
+    ]
+      .filter(Boolean)
+      .join(" ");
   }
   if (
     toolName === "getCustomerStatement" ||
@@ -408,12 +431,22 @@ export function createFakeAssistantModel(): LanguageModelV4 {
   const respond = (options: LanguageModelV4CallOptions) => {
     calls += 1;
     const result = lastToolResult(options.prompt);
-    const plan: Plan = result
-      ? { kind: "text", text: describe(result.toolName, result.value) }
-      : planFromUser(
-          lastUserText(options.prompt),
-          previousToolInput(options.prompt),
-        );
+    const draftReady =
+      result?.value.status === "draft" &&
+      result.value.state === "ready_for_confirmation" &&
+      !result.value.submitted;
+    const plan: Plan = draftReady
+      ? {
+          kind: "tool",
+          toolName: "prepareProductFromDraft",
+          input: { acceptPlaceholder: true },
+        }
+      : result
+        ? { kind: "text", text: describe(result.toolName, result.value) }
+        : planFromUser(
+            lastUserText(options.prompt),
+            previousToolInput(options.prompt),
+          );
     return chunks(plan, `fake-call-${calls}`);
   };
   return {
@@ -425,10 +458,12 @@ export function createFakeAssistantModel(): LanguageModelV4 {
       throw new Error("FAKE_MODEL_STREAM_ONLY");
     },
     async doStream(options) {
+      // "رد بطيء" streams slowly so tests can drop the connection mid-reply.
+      const slow = /رد بطيء/.test(lastUserText(options.prompt));
       return {
         stream: simulateReadableStream({
           chunks: respond(options),
-          chunkDelayInMs: 5,
+          chunkDelayInMs: slow ? 400 : 5,
         }),
       };
     },
