@@ -246,3 +246,27 @@ export async function uploadProductPhoto(image: Buffer): Promise<{
     height: metadata.height ?? 1_024,
   };
 }
+
+const PUBLIC_PRODUCT_PATH =
+  /\/storage\/v1\/object\/public\/product-images\/(products\/[0-9a-f-]{36}\.webp)$/;
+
+// Only files this store created can be removed; any other URL is ignored.
+export async function removeProductPhoto(src: string): Promise<boolean> {
+  const url = process.env.SUPABASE_URL;
+  const secret = process.env.SUPABASE_SECRET_KEY;
+  if (!url || !secret) return false;
+  let path: string | undefined;
+  try {
+    const parsed = new URL(src);
+    if (parsed.origin !== new URL(url).origin) return false;
+    path = PUBLIC_PRODUCT_PATH.exec(parsed.pathname)?.[1];
+  } catch {
+    return false;
+  }
+  if (!path) return false;
+  const client = createClient(url, secret, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+  const removed = await client.storage.from("product-images").remove([path]);
+  return !removed.error;
+}

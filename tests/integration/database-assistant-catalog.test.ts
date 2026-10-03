@@ -146,6 +146,7 @@ const analyzer: ProductImageAnalyzer = {
       unit: field("", 0),
       barcode: field("", 0),
       fragrance: field("ياسمين", 0.85),
+      color: field("", 0),
       packageCount: field("", 0),
     };
   },

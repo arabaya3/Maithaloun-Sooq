@@ -198,10 +198,25 @@ export const productVariants = pgTable(
     sortOrder: integer("sort_order").notNull(),
     isDefault: boolean("is_default").default(false).notNull(),
     archivedAt: timestamp("archived_at", { withTimezone: true, mode: "date" }),
+    packCount: integer("pack_count"),
+    combinationKey: varchar("combination_key", { length: 400 }),
     ...timestamps,
   },
   (table) => [
     index("product_variants_product_id_idx").on(table.productId),
+    uniqueIndex("product_variants_id_product_uidx").on(
+      table.id,
+      table.productId,
+    ),
+    uniqueIndex("product_variants_active_combination_uidx")
+      .on(table.productId, table.combinationKey)
+      .where(
+        sql`${table.archivedAt} IS NULL AND ${table.combinationKey} IS NOT NULL`,
+      ),
+    check(
+      "product_variants_pack_count",
+      sql`${table.packCount} IS NULL OR ${table.packCount} BETWEEN 1 AND 1000`,
+    ),
     uniqueIndex("product_variants_product_sort_uidx").on(
       table.productId,
       table.sortOrder,

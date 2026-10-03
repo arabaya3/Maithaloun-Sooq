@@ -19,6 +19,12 @@ import {
   type DraftPatch,
   type ProductDraftData,
 } from "../domain/product-draft";
+import {
+  variantDraftMissing,
+  variantKey,
+  variantTitle,
+} from "../domain/product-draft-variants";
+import { formatIls } from "@/shared/lib/format-currency";
 
 export interface DraftRecord {
   id: string;
@@ -44,6 +50,22 @@ export interface DraftView {
   images: number;
   expiresAt: string;
   untrustedData: boolean;
+  options?: Array<{ name: string; values: string[] }>;
+  variants?: Array<{
+    choices: string;
+    price: string | null;
+    packCount: number | null;
+    sku: string | null;
+    barcode: string | null;
+    openingStock: string | null;
+  }>;
+  imageMap?: Array<{
+    number: number;
+    primary: boolean;
+    variant: string | null;
+    suggestion: { value: string; confidence: number } | null;
+  }>;
+  messages?: string[];
 }
 
 export class ProductDraftService {
@@ -162,6 +184,27 @@ export class ProductDraftService {
     return { data: result.data, errors: result.errors };
   }
 
+  async replaceData(
+    actor: AdminActor,
+    conversationId: string,
+    data: ProductDraftData,
+    now = new Date(),
+  ): Promise<boolean> {
+    const draft = await this.current(actor, conversationId, now);
+    if (!draft) return false;
+    await this.database
+      .update(schema.adminAssistantProductDrafts)
+      .set({
+        data: data as unknown as Record<string, unknown>,
+        status: "open",
+        version: sql`${schema.adminAssistantProductDrafts.version} + 1`,
+        expiresAt: new Date(now.getTime() + DRAFT_TTL_MS),
+        updatedAt: now,
+      })
+      .where(eq(schema.adminAssistantProductDrafts.id, draft.id));
+    return true;
+  }
+
   async setStatus(
     actor: AdminActor,
     conversationId: string,
@@ -184,26 +227,53 @@ export class ProductDraftService {
       errors?: Array<{ field: DraftFieldName; message: string }>;
       submitted?: boolean;
       expiresAt: Date;
+      messages?: string[];
     },
   ): DraftView {
     const missing = draftMissing(data);
-    const fields = Object.entries(data.fields).map(([field, entry]) => ({
-      field: field as DraftFieldName,
-      label: draftLabels[field as DraftFieldName],
-      value: draftDisplayValue(
-        field as DraftFieldName,
-        entry!.value,
-        categories,
-      ),
-      source: entry!.source,
-    }));
+    const variantDraft = data.variantDraft;
+    const fallbackPrice =
+      typeof data.fields.price?.value === "number"
+        ? data.fields.price.value
+        : undefined;
+    const variantMissing = variantDraft
+      ? variantDraftMissing(variantDraft, fallbackPrice)
+      : [];
+    const keys =
+      variantDraft?.variants.map((variant) => variantKey(variant.values)) ?? [];
+    // Once scents or colours are options, a single product-wide reading of them no longer applies.
+    const optionKinds = new Set(
+      variantDraft?.options.map((option) => option.kind) ?? [],
+    );
+    const replaced = new Set<string>([
+      ...(optionKinds.has("fragrance") ? ["fragrance"] : []),
+      ...(optionKinds.has("color") ? ["color"] : []),
+    ]);
+    const fields = Object.entries(data.fields)
+      .filter(([field]) => !replaced.has(field))
+      .map(([field, entry]) => ({
+        field: field as DraftFieldName,
+        label: draftLabels[field as DraftFieldName],
+        value: draftDisplayValue(
+          field as DraftFieldName,
+          entry!.value,
+          categories,
+        ),
+        source: entry!.source,
+      }));
     return {
       status: "draft",
-      state: missing.length ? "needs_clarification" : "ready_for_confirmation",
+      state:
+        missing.length || variantMissing.length
+          ? "needs_clarification"
+          : "ready_for_confirmation",
       stage: draftStage(data),
       submitted: Boolean(extra.submitted),
       fields,
-      missing: missing.map((field) => draftLabels[field]),
+      missing: [
+        ...missing.map((field) => draftLabels[field]),
+        ...variantMissing,
+      ],
       suggestions: data.suggestions.map((item) => ({
         label: draftLabels[item.field],
         value: item.value,
@@ -215,7 +285,50 @@ export class ProductDraftService {
       })),
       images: data.attachmentIds.length,
       expiresAt: extra.expiresAt.toISOString(),
-      untrustedData: fields.some((field) => field.source === "image"),
+      untrustedData:
+        fields.some((field) => field.source === "image") ||
+        Boolean(variantDraft?.images.some((image) => image.suggestion)),
+      ...(variantDraft?.options.length
+        ? {
+            options: variantDraft.options.map((option) => ({
+              name: option.nameAr,
+              values: option.values,
+            })),
+            variants: variantDraft.variants.map((variant) => {
+              const price = variant.price ?? fallbackPrice;
+              return {
+                choices: variantTitle(variant.values),
+                price: price === undefined ? null : formatIls(price),
+                packCount: variant.packCount ?? null,
+                sku: variant.sku ?? null,
+                barcode: variant.barcode ?? null,
+                openingStock:
+                  variant.openingQuantity && variant.openingUnitCost
+                    ? `${variant.openingQuantity} × ${formatIls(variant.openingUnitCost)}`
+                    : null,
+              };
+            }),
+          }
+        : {}),
+      ...(variantDraft?.images.length
+        ? {
+            imageMap: variantDraft.images.map((image, index) => ({
+              number: index + 1,
+              primary: image.primary,
+              variant:
+                image.assignment === "shared"
+                  ? "للمنتج كله"
+                  : image.assignment
+                    ? variantTitle(
+                        variantDraft.variants[keys.indexOf(image.assignment)]
+                          ?.values ?? {},
+                      )
+                    : null,
+              suggestion: image.suggestion,
+            })),
+          }
+        : {}),
+      ...(extra.messages?.length ? { messages: extra.messages } : {}),
     };
   }
 }

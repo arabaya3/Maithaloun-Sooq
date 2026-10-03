@@ -229,8 +229,8 @@ export function ConfirmationCard({
           ) : null}
           {card.rows.length ? (
             <dl className="assistant-card-rows">
-              {card.rows.map((row) => (
-                <div key={row.label}>
+              {card.rows.map((row, index) => (
+                <div key={`${index}-${row.label}`}>
                   <dt>{row.label}</dt>
                   <dd>
                     {row.before !== null ? (

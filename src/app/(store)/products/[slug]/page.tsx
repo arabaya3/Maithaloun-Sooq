@@ -47,9 +47,10 @@ export default async function ProductPage({
     ? variantParam[0]
     : variantParam;
 
-  const [products, categories] = await Promise.all([
+  const [products, categories, presentation] = await Promise.all([
     productRepository.list(),
     assignableCategories(),
+    productRepository.presentation(product.id),
   ]);
   const relatedProducts = products
     .filter(
@@ -82,6 +83,7 @@ export default async function ProductPage({
             product={product}
             categoryLabel={categoryLabel(categories, product.categoryId)}
             initialVariantId={initialVariantId}
+            presentation={presentation}
           />
         </Suspense>
 

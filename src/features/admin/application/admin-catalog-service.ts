@@ -30,6 +30,8 @@ import {
 import { mapProductRow } from "@/features/catalog/infrastructure/product-row-mapper";
 import * as schema from "@/server/db/schema";
 
+import { addGalleryImage, syncImageMirrors } from "./gallery-store";
+
 export class AdminCatalogError extends Error {
   constructor(
     readonly code:
@@ -933,24 +935,31 @@ export class AdminCatalogService {
         imageWidth: input.image.width,
         imageHeight: input.image.height,
       };
-      const [row] = await transaction
-        .update(schema.products)
-        .set({ ...image, updatedAt: now })
-        .where(eq(schema.products.id, existing.id))
-        .returning();
-      if (!row) throw new AdminCatalogError("not_found");
-      await this.syncDefaultVariantFromProduct(transaction, row, {
-        priceAgorot: row.priceAgorot,
-        availability: row.availability,
-        ...image,
+      // Replacing the main image archives the previous primary and adds the new photo as primary.
+      await transaction
+        .update(schema.productImages)
+        .set({ isPrimary: false, archivedAt: now, updatedAt: now })
+        .where(
+          and(
+            eq(schema.productImages.productId, existing.id),
+            eq(schema.productImages.isPrimary, true),
+          ),
+        );
+      await addGalleryImage(transaction, existing.id, {
+        src: image.imageSrc,
+        alt: image.imageAlt,
+        width: image.imageWidth,
+        height: image.imageHeight,
+        primary: true,
       });
+      await syncImageMirrors(transaction, existing.id);
       await transaction.insert(schema.adminAuditEvents).values({
         adminUserId: actor.id,
         actionType: "product_image_update",
         entityType: "product",
-        entityId: row.domainId,
+        entityId: existing.domainId,
         beforeState: { imageSrc: existing.imageSrc },
-        afterState: { imageSrc: row.imageSrc },
+        afterState: { imageSrc: image.imageSrc },
         createdAt: now,
       });
       return { previousSrc: existing.imageSrc };

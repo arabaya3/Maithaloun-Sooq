@@ -141,6 +141,20 @@ Test keys: **U** unit, **I** `tests/integration/database-assistant*.test.ts`, **
 - Opening stock always carries a unit cost and is written as an `opening_balance` movement in the same transaction as the product.
 - Prices, costs and stock values are integer agorot / milli-units computed by services; the model never supplies a total.
 
+## Galleries, options and variants (owner only)
+
+| Capability                                                                        | Tools                                                                            | Risk                | Tests   |
+| --------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- | ------------------- | ------- |
+| Read gallery, options, variant matrix                                             | getProductGallery, getProductOptions, getVariantMatrix                           | 0                   | C       |
+| Add images, reorder, primary, alt text, assign to a variant, archive/restore      | prepareGalleryImagesAdd, prepareGalleryReorder, prepareGalleryImageChange        | 2                   | I, C, E |
+| Permanently delete an archived image                                              | prepareGalleryImageDeletion                                                      | 4 (acknowledgement) | I, C    |
+| Add, rename, re-kind, reorder, archive/restore options and values                 | prepareProductOptionCreate, prepareProductOptionChange, prepareOptionValueChange | 2                   | I, C    |
+| Permanently delete an unused option or value                                      | prepareProductOptionDeletion, prepareOptionValueDeletion                         | 4 (acknowledgement) | I, C    |
+| Generate missing or listed combinations; change a variant's choices or pack count | prepareVariantGeneration, prepareVariantChoices                                  | 2                   | I, C    |
+| New product with several variants and images over several messages                | setDraftOptions, setDraftVariants, assignDraftImages, prepareProductFromDraft    | 3                   | U, I, E |
+
+Invariants: one active primary image; at most 8 images; images only from the same product; one active variant per combination; values in use cannot be archived or deleted; renaming a value never changes order or invoice snapshots; a product with variants, images and opening stock is created in one transaction, and stored files are removed if it fails; a pack is one stock unit. Unclear image matches (below 0.8 confidence) are asked about, never guessed.
+
 ## Reliability layer (applies to every row)
 
 | Concern                   | Mechanism                                                                                                                                                                                           | Tests                                                          |
@@ -164,5 +178,4 @@ Test keys: **U** unit, **I** `tests/integration/database-assistant*.test.ts`, **
 | Store settings, delivery fees, service areas, staff, notifications, scheduled jobs | Scheduled (assistant phase 4)                                                     |
 | Bulk imports, data-quality fixes, report exports                                   | Scheduled (assistant phase 5)                                                     |
 | Customer accounts (storefront)                                                     | Missing — no assistant tools; accounts are behind `CUSTOMER_ACCOUNTS`             |
-| Product galleries and multi-image variants                                         | Scheduled (catalog galleries PR)                                                  |
 | Brand as its own product field                                                     | Missing — a draft's brand is stored as the Latin name when no Latin name is given |

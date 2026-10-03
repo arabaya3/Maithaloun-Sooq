@@ -47,6 +47,7 @@ import type { ProductImageAnalyzer } from "@/server/ai/product-image-analyzer";
 import type { AttachmentService } from "./attachment-service";
 import { createCatalogTools } from "./catalog-tools";
 import { createPartyTools } from "./party-tools";
+import { createMediaTools } from "./media-tools";
 import type { OfferService } from "@/features/offers/application/offer-service";
 import type { SupplierMaintenanceService } from "@/features/purchasing/application/supplier-maintenance-service";
 import type { SupplierService } from "@/features/purchasing/application/supplier-service";
@@ -180,10 +181,12 @@ export function createAssistantTools(context: AssistantToolContext) {
 
   const catalogTools = createCatalogTools(context, run, prepare);
   const partyTools = createPartyTools(context, run, prepare);
+  const mediaTools = createMediaTools(context, run, prepare);
 
   const read = {
     ...catalogTools.read,
     ...partyTools.read,
+    ...mediaTools.read,
     searchProducts: tool({
       description:
         "ابحث عن منتج بالاسم العربي أو اللاتيني أو الباركود أو SKU. يعيد منتجاً محدداً أو خيارات قريبة للاختيار.",
@@ -622,6 +625,7 @@ export function createAssistantTools(context: AssistantToolContext) {
     ...read,
     ...catalogTools.mutate,
     ...partyTools.mutate,
+    ...mediaTools.mutate,
     prepareProductUpdate: tool({
       description:
         "جهّز بطاقة تأكيد لتعديل بيانات منتج (الاسم، الاسم اللاتيني، الوصف، القسم، الوحدة، سعر البيع، التوفر). لا ينفّذ شيئاً.",
