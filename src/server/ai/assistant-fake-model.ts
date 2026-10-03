@@ -25,6 +25,120 @@ type Plan =
 const ATTACHMENT =
   /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/g;
 
+type DraftView = Record<string, unknown> | null;
+
+function unassignedImage(draft: DraftView) {
+  const map =
+    (draft?.imageMap as Array<{
+      number: number;
+      variant: string | null;
+      suggestion: { value: string } | null;
+    }>) ?? [];
+  return map.find((image) => !image.variant) ?? null;
+}
+
+function variantPlan(words: string, draft: DraftView): Plan | null {
+  const scents = /^الروائح (.+?)(?:، ?كلهم .+?)? والسعر .+$/.exec(words);
+  if (scents && draft) {
+    return {
+      kind: "tool",
+      toolName: "setDraftOptions",
+      input: {
+        options: [
+          {
+            nameAr: "الرائحة",
+            kind: "fragrance",
+            values: scents[1]!
+              .split(/،\s*|\s+و(?=\S)/)
+              .map((value) => value.trim())
+              .filter(Boolean),
+          },
+        ],
+      },
+    };
+  }
+  const image = /^(?:هاي|هذه) الصورة (?:لل|ل)(.+)$/.exec(words);
+  // Older tool results can fall out of the history; read the saved draft first.
+  if (image && !draft) {
+    return { kind: "tool", toolName: "getProductDraft", input: {} };
+  }
+  const pending = unassignedImage(draft);
+  if (image && pending) {
+    const option =
+      (draft?.options as Array<{ name: string }> | undefined)?.[0]?.name ??
+      "الرائحة";
+    return {
+      kind: "tool",
+      toolName: "assignDraftImages",
+      input: {
+        assignments: [
+          {
+            image: pending.number,
+            variant: [{ option, value: image[1]!.trim() }],
+          },
+        ],
+      },
+    };
+  }
+  const name = /^الاسم (.+)$/.exec(words);
+  if (name && draft) {
+    return {
+      kind: "tool",
+      toolName: "updateProductDraft",
+      input: { nameAr: name[1]! },
+    };
+  }
+  const category = /^القسم (.+)$/.exec(words);
+  if (category && draft) {
+    return {
+      kind: "tool",
+      toolName: "updateProductDraft",
+      input: { category: category[1]! },
+    };
+  }
+  const state = /^خليه (منشور|مسودة)$/.exec(words);
+  if (state && draft) {
+    return {
+      kind: "tool",
+      toolName: "updateProductDraft",
+      input: { publication: state[1] === "منشور" ? "published" : "draft" },
+    };
+  }
+  return null;
+}
+
+// The later steps of «الروائح … كلهم 450 مل والسعر 10 شيكل»: one price for every scent, then the shared size.
+function followUp(
+  toolName: string,
+  words: string,
+  value: Record<string, unknown>,
+): Plan | null {
+  if (toolName === "getProductDraft" && value.status === "draft") {
+    return variantPlan(words, value);
+  }
+  if (toolName === "setDraftOptions") {
+    const price = /والسعر (.+)$/.exec(words);
+    if (price) {
+      return {
+        kind: "tool",
+        toolName: "setDraftVariants",
+        input: { changes: [{ match: [], price: price[1]!.trim() }] },
+      };
+    }
+  }
+  if (toolName === "setDraftVariants") {
+    const size = /كلهم (\d+(?:\.\d+)? ?(?:مل|لتر|غرام))/.exec(words);
+    if (size) {
+      return {
+        kind: "tool",
+        toolName: "updateProductDraft",
+        input: { size: size[1]! },
+      };
+    }
+  }
+  return null;
+}
+
 function catalogPlan(
   words: string,
   attachments: string[],
@@ -188,17 +302,22 @@ function partyPlan(words: string): Plan | null {
   return null;
 }
 
-function planFromUser(
-  text: string,
-  previous: (toolName: string) => Record<string, unknown> | null = () => null,
-): Plan {
-  const attachments = text.match(ATTACHMENT) ?? [];
-  const words = text
+function normalizeWords(text: string) {
+  return text
     .replace(/\[مرفقات:[^\]]*\]/g, " ")
     .replace(/رد بطيء/g, " ")
     .replace(/[؟?!.]/g, " ")
     .replace(/\s+/g, " ")
     .trim();
+}
+
+function planFromUser(
+  text: string,
+  previous: (toolName: string) => Record<string, unknown> | null = () => null,
+  draft: DraftView = null,
+): Plan {
+  const attachments = text.match(ATTACHMENT) ?? [];
+  const words = normalizeWords(text);
   // Misbehaving replies a real model could produce, used to prove the grounding guard.
   if (words === "اخترعي سعر") {
     return { kind: "text", text: "سعر المنظف 37 شيكل." };
@@ -208,6 +327,8 @@ function planFromUser(
   }
   const party = partyPlan(words);
   if (party) return party;
+  const variants = variantPlan(words, draft);
+  if (variants) return variants;
   const catalog = catalogPlan(words, attachments, previous);
   if (catalog) return catalog;
   let match = /غي[ّ]?ر اسم (.+?) (?:إلى|الى) (.+)$/.exec(words);
@@ -321,6 +442,14 @@ function describe(toolName: string, value: Record<string, unknown>): string {
       : "ما حدا عليه ديون.";
   }
   if (value.status === "draft") {
+    const pending = unassignedImage(value);
+    const options = (value.options as Array<{ name: string }>) ?? [];
+    if (pending && options.length) {
+      const guess = pending.suggestion
+        ? ` (يمكن ${pending.suggestion.value})`
+        : "";
+      return `ما قدرت أتأكد من الصورة ${pending.number}${guess}. لأي ${options[0]!.name} هي؟`;
+    }
     const fields =
       (value.fields as Array<{ label: string; value: string }>) ?? [];
     const missing = (value.missing as string[]) ?? [];
@@ -380,6 +509,19 @@ function previousToolInput(prompt: LanguageModelV4Prompt) {
   };
 }
 
+function lastDraftView(prompt: LanguageModelV4Prompt): DraftView {
+  for (let index = prompt.length - 1; index >= 0; index -= 1) {
+    const message = prompt[index]!;
+    if (message.role !== "tool") continue;
+    for (const part of message.content) {
+      if (part.type !== "tool-result" || part.output.type !== "json") continue;
+      const value = part.output.value as Record<string, unknown> | null;
+      if (value && value.status === "draft") return value;
+    }
+  }
+  return null;
+}
+
 function lastUserText(prompt: LanguageModelV4Prompt): string {
   for (let index = prompt.length - 1; index >= 0; index -= 1) {
     const message = prompt[index]!;
@@ -435,18 +577,24 @@ export function createFakeAssistantModel(): LanguageModelV4 {
       result?.value.status === "draft" &&
       result.value.state === "ready_for_confirmation" &&
       !result.value.submitted;
+    const userText = lastUserText(options.prompt);
+    const next = result
+      ? followUp(result.toolName, normalizeWords(userText), result.value)
+      : null;
     const plan: Plan = draftReady
       ? {
           kind: "tool",
           toolName: "prepareProductFromDraft",
           input: { acceptPlaceholder: true },
         }
-      : result
-        ? { kind: "text", text: describe(result.toolName, result.value) }
-        : planFromUser(
-            lastUserText(options.prompt),
-            previousToolInput(options.prompt),
-          );
+      : (next ??
+        (result
+          ? { kind: "text", text: describe(result.toolName, result.value) }
+          : planFromUser(
+              userText,
+              previousToolInput(options.prompt),
+              lastDraftView(options.prompt),
+            )));
     return chunks(plan, `fake-call-${calls}`);
   };
   return {

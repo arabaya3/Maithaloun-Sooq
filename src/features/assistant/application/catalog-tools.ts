@@ -13,6 +13,21 @@ import {
   type ProductDraftData,
 } from "@/features/assistant/domain/product-draft";
 
+import {
+  assignDraftImage,
+  choicePairsSchema,
+  choicesToRecord,
+  draftOptionsSchema,
+  draftVariantPatchSchema,
+  emptyVariantDraft,
+  patchDraftVariants,
+  resolveImageSuggestions,
+  setDraftOptions,
+  variantDraftMissing,
+  variantDraftToSet,
+  type VariantDraftData,
+} from "@/features/assistant/domain/product-draft-variants";
+
 import { ProductDraftService } from "./product-draft-service";
 
 import { can } from "@/features/admin/domain/permissions";
@@ -176,6 +191,60 @@ export function createCatalogTools(
     };
   }
 
+  // One photo at a time, so each image gets its own scent or colour reading with a confidence.
+  async function readEachImage(attachmentIds: string[]) {
+    const categories = await context.authoring.listCategories();
+    const images = [];
+    for (const [index, id] of attachmentIds.entries()) {
+      const file = await context.attachments.read(actor, id);
+      let suggestion: { value: string; confidence: number } | null = null;
+      if (file && file.mimeType === "image/jpeg") {
+        try {
+          const read = await context
+            .imageAnalyzer()
+            .analyze({ images: [file.bytes], categories });
+          const best = [read.fragrance, read.color]
+            .filter(
+              (field) => field && field.value.trim() && field.source !== "none",
+            )
+            .sort((left, right) => right.confidence - left.confidence)[0];
+          if (best) {
+            suggestion = {
+              value: best.value.trim().slice(0, 60),
+              confidence: Math.round(best.confidence * 100) / 100,
+            };
+          }
+        } catch {
+          suggestion = null;
+        }
+      }
+      images.push({
+        attachmentId: id,
+        primary: index === 0,
+        assignment: null,
+        suggestion,
+      });
+    }
+    return images;
+  }
+
+  async function withVariantDraft(
+    change: (draft: VariantDraftData) => {
+      variantDraft: VariantDraftData;
+      messages: string[];
+    },
+  ) {
+    const draft = await drafts.current(actor, context.conversationId);
+    if (!draft) return noDraft;
+    const result = change(draft.data.variantDraft ?? emptyVariantDraft());
+    const data = { ...draft.data, variantDraft: result.variantDraft };
+    await drafts.replaceData(actor, context.conversationId, data);
+    return drafts.view(data, await draftCategories(), {
+      expiresAt: draft.expiresAt,
+      messages: result.messages,
+    });
+  }
+
   const read = {
     searchProductDuplicates: tool({
       description:
@@ -293,8 +362,19 @@ export function createCatalogTools(
               },
               categories,
             );
+            let data = started.data;
+            if ((input.attachmentIds?.length ?? 0) > 1) {
+              data = {
+                ...data,
+                variantDraft: {
+                  ...emptyVariantDraft(),
+                  images: await readEachImage(input.attachmentIds!),
+                },
+              };
+              await drafts.replaceData(actor, context.conversationId, data);
+            }
             const draft = await drafts.current(actor, context.conversationId);
-            return drafts.view(started.data, categories, {
+            return drafts.view(data, categories, {
               errors: started.errors,
               expiresAt: draft!.expiresAt,
             });
@@ -321,6 +401,84 @@ export function createCatalogTools(
             expiresAt: draft!.expiresAt,
           });
         }),
+    }),
+    setDraftOptions: tool({
+      description:
+        "حدّد خيارات المنتج في المسودة (مثل الرائحة: لافندر، ورد أبيض، مسك) كما قالتها المستخدمة. ينشئ صنفاً لكل تركيبة ويحتفظ بالتفاصيل السابقة للتركيبات الباقية. لا تخترع قيماً.",
+      inputSchema: z.object({ options: draftOptionsSchema.min(1) }).strict(),
+      execute: (input) =>
+        run("setDraftOptions", { options: input.options.length }, () =>
+          withVariantDraft((variantDraft) => {
+            const result = setDraftOptions(variantDraft, input.options);
+            return {
+              variantDraft: resolveImageSuggestions(result.draft),
+              messages: result.error ? [result.error] : [],
+            };
+          }),
+        ),
+    }),
+    setDraftVariants: tool({
+      description:
+        "عدّل أصناف المسودة بما قالته المستخدمة: match يحدد الأصناف (فارغ = كل الأصناف، أو { الخيار: القيمة } لمجموعة)، مع price كما كُتب، packCount (عدد القطع في وحدة البيع)، sku وbarcode لصنف واحد، والرصيد الافتتاحي وتكلفته. «الأزرق 12 والزهري 10» = تغييران.",
+      inputSchema: z
+        .object({ changes: z.array(draftVariantPatchSchema).min(1).max(20) })
+        .strict(),
+      execute: (input) =>
+        run("setDraftVariants", { changes: input.changes.length }, () =>
+          withVariantDraft((variantDraft) => {
+            if (!variantDraft.options.length) {
+              return {
+                variantDraft,
+                messages: ["حددي خيارات المنتج أولاً (مثل الروائح)."],
+              };
+            }
+            const result = patchDraftVariants(variantDraft, input.changes);
+            return { variantDraft: result.draft, messages: result.errors };
+          }),
+        ),
+    }),
+    assignDraftImages: tool({
+      description:
+        "اربط صور المسودة بالأصناف حسب كلام المستخدمة: image رقم الصورة، variant { الخيار: القيمة } أو shared=true لصورة المنتج كله، وprimary لجعلها الرئيسية. لا تربط صورة بقيمة لم تقلها المستخدمة أو لم تظهر بثقة.",
+      inputSchema: z
+        .object({
+          assignments: z
+            .array(
+              z
+                .object({
+                  image: z.number().int().min(1).max(8),
+                  variant: choicePairsSchema.optional(),
+                  shared: z.boolean().optional(),
+                  primary: z.boolean().optional(),
+                })
+                .strict(),
+            )
+            .min(1)
+            .max(8),
+        })
+        .strict(),
+      execute: (input) =>
+        run("assignDraftImages", { images: input.assignments.length }, () =>
+          withVariantDraft((variantDraft) => {
+            const messages: string[] = [];
+            let next = variantDraft;
+            for (const item of input.assignments) {
+              const target =
+                item.shared || !item.variant?.length
+                  ? "shared"
+                  : choicesToRecord(item.variant);
+              const result = assignDraftImage(
+                next,
+                item.image - 1,
+                target,
+                item.primary,
+              );
+              if (result.error) messages.push(result.error);
+              else next = result.draft;
+            }
+            return { variantDraft: next, messages };
+          }),
+        ),
     }),
     getProductDraft: tool({
       description: "اعرض مسودة المنتج الحالية في هذه المحادثة وما ينقصها.",
@@ -370,12 +528,82 @@ export function createCatalogTools(
             };
           }
           const missing = draftMissing(draft.data);
-          if (missing.length) {
+          const variantDraft = draft.data.variantDraft;
+          const fallbackPrice =
+            typeof draft.data.fields.price?.value === "number"
+              ? draft.data.fields.price.value
+              : undefined;
+          const variantMissing = variantDraft?.options.length
+            ? variantDraftMissing(variantDraft, fallbackPrice)
+            : [];
+          if (missing.length || variantMissing.length) {
             return {
               status: "rejected",
               code: "missing_required_field",
-              message: `ناقص قبل التجهيز: ${missing.map((field) => draftLabels[field]).join("، ")}.`,
+              message: `ناقص قبل التجهيز: ${[...missing.map((field) => draftLabels[field]), ...variantMissing].join("، ")}.`,
             };
+          }
+          if (variantDraft?.options.length) {
+            const base = draftToCreationInput(draft.data);
+            const duplicates = await context.authoring.findDuplicates({
+              nameAr: base.nameAr,
+              latinName: base.latinName ?? null,
+            });
+            if (duplicates.length && input.duplicateDecision !== "create_new") {
+              return {
+                status: "needs_selection",
+                field: "duplicateDecision",
+                question: "لقيت منتجات مشابهة. هل هو واحد منها أم منتج جديد؟",
+                options: [
+                  ...duplicates.map((row) => ({
+                    id: row.productId,
+                    label: `الموجود: ${row.label} (${row.reasons.join("، ")})`,
+                  })),
+                  { id: "create_new", label: "منتج جديد مختلف" },
+                ],
+              };
+            }
+            const converted = variantDraftToSet(variantDraft, fallbackPrice);
+            const categories = await draftCategories();
+            const prepared = context.operations.mediaOps.prepareProductSet(
+              actor,
+              {
+                set: {
+                  product: {
+                    nameAr: base.nameAr,
+                    latinName: base.latinName ?? null,
+                    categoryCode: base.category,
+                    description: base.description ?? null,
+                    unit: base.unit ?? null,
+                    publication:
+                      base.state === "published_unavailable"
+                        ? "published"
+                        : base.state,
+                    availability:
+                      base.state === "published_unavailable"
+                        ? "unavailable"
+                        : "available",
+                  },
+                  options: converted.options,
+                  variants: converted.variants.map((row) => ({
+                    ...row,
+                    available: base.state !== "published_unavailable",
+                  })),
+                },
+                attachments: converted.attachments,
+                categoryName:
+                  categories.find((row) => row.code === base.category)
+                    ?.nameAr ?? base.category,
+              },
+            );
+            if (prepared.status === "ready") {
+              await drafts.setStatus(
+                actor,
+                context.conversationId,
+                "submitted",
+              );
+            }
+            return prepared;
           }
           const prepared = await ops.prepareProductCreation(actor, {
             ...draftToCreationInput(draft.data),

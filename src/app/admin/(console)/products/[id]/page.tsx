@@ -3,9 +3,13 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
 
-import { adminCatalogService } from "@/features/admin/application/admin-services";
+import {
+  adminCatalogService,
+  productOptionsService,
+} from "@/features/admin/application/admin-services";
 import { requireAdminSession } from "@/features/admin/auth/admin-session";
 import { ProductForm } from "@/features/admin/ui/product-form";
+import { ProductMediaEditor } from "@/features/admin/ui/product-media-editor";
 
 export const metadata: Metadata = {
   title: "تعديل المنتج",
@@ -23,6 +27,7 @@ export default async function AdminProductEditPage({
     (await params).id,
   );
   if (!product) notFound();
+  const matrix = await productOptionsService.matrix(product.id);
 
   return (
     <main className="admin-page">
@@ -38,6 +43,12 @@ export default async function AdminProductEditPage({
         sortOrder={product.sortOrder}
         mode="edit"
       />
+      {matrix ? (
+        <ProductMediaEditor
+          matrix={matrix}
+          storefrontHref={`/products/${product.slug}`}
+        />
+      ) : null}
     </main>
   );
 }

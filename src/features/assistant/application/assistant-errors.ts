@@ -8,6 +8,7 @@ import {
 import { AdminOrderError } from "@/features/admin/application/admin-order-service";
 import { ProductMaintenanceError } from "@/features/admin/application/product-maintenance-service";
 import { OfferError } from "@/features/offers/application/offer-service";
+import { ProductOptionsError } from "@/features/admin/application/product-options-service";
 import { SupplierMaintenanceError } from "@/features/purchasing/application/supplier-maintenance-service";
 import { SupplierError } from "@/features/purchasing/application/supplier-service";
 import { CustomerMaintenanceError } from "@/features/sales/application/customer-maintenance-service";
@@ -26,6 +27,7 @@ import { errorCode } from "@/server/log/ops-log";
 
 import type { ConfirmationRejection } from "../domain/confirmation-token";
 import { authoringMessage } from "./catalog-operations";
+import { optionErrorMessages } from "./media-operations";
 
 const maintenanceMessages: Record<ProductMaintenanceError["code"], string> = {
   not_found: "المنتج غير موجود.",
@@ -56,6 +58,9 @@ export function assistantFailure(error: unknown): {
   message: string;
 } {
   const code = errorCode(error);
+  if (error instanceof ProductOptionsError) {
+    return { code: error.code, message: optionErrorMessages[error.code] };
+  }
   if (error instanceof AuthorizationError) {
     return { code, message: "ليست لديك صلاحية لهذا الإجراء." };
   }

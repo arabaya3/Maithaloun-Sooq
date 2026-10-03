@@ -1,0 +1,316 @@
+"use server";
+
+import { revalidatePath } from "next/cache";
+import { z } from "zod";
+
+import { requireTrustedAdminMutation } from "@/features/admin/auth/admin-session";
+import { AuthorizationError } from "@/features/admin/domain/admin-actor";
+import { optionKinds } from "@/features/catalog/domain/product-options";
+import { parseMoneyInput } from "@/shared/lib/money-input";
+import {
+  GalleryUploadError,
+  getProductImageStore,
+  prepareGalleryImage,
+} from "@/server/storage/product-images";
+
+import { ProductOptionsError } from "./product-options-service";
+import { productOptionsService } from "./admin-services";
+
+export type MediaActionResult = { ok: true } | { ok: false; message: string };
+
+const messages: Record<ProductOptionsError["code"], string> = {
+  not_found: "العنصر غير موجود. حدّث الصفحة.",
+  invalid_input: "البيانات غير صالحة.",
+  duplicate_option: "يوجد خيار بنفس الاسم لهذا المنتج.",
+  duplicate_value: "هذه القيمة موجودة في الخيار نفسه.",
+  duplicate_combination: "يوجد صنف فعّال بنفس الاختيارات.",
+  incomplete_combination: "اختر قيمة لكل خيار.",
+  in_use: "مستخدم في أصناف حالية، لذلك لا يمكن إزالته الآن.",
+  archived: "هذا العنصر مؤرشف.",
+  too_many: "وصلت للحد الأقصى المسموح.",
+  gallery_full: "المعرض ممتلئ (8 صور كحد أقصى).",
+  primary_required: "يجب أن تبقى صورة رئيسية.",
+  default_variant: "لا يمكن تطبيق ذلك على الصنف الافتراضي.",
+};
+
+async function run(
+  productDomainId: string,
+  action: () => Promise<unknown>,
+): Promise<MediaActionResult> {
+  try {
+    await action();
+  } catch (error) {
+    if (error instanceof ProductOptionsError) {
+      return { ok: false, message: messages[error.code] };
+    }
+    if (error instanceof AuthorizationError) {
+      return { ok: false, message: "هذا الإجراء للمالك فقط." };
+    }
+    if (error instanceof z.ZodError) {
+      return { ok: false, message: "تحقق من الحقول المكتوبة." };
+    }
+    return { ok: false, message: "تعذّر الحفظ. حاول مرة أخرى." };
+  }
+  revalidatePath(`/admin/products/${productDomainId}`);
+  revalidatePath("/", "layout");
+  return { ok: true };
+}
+
+const productId = z.string().regex(/^[a-z0-9-]{1,80}$/);
+const variantId = z.string().regex(/^[a-z0-9-]{1,100}$/);
+const uuid = z.uuid();
+
+// Files are published only after validation; if saving fails they are removed again.
+export async function uploadGalleryImagesAction(
+  formData: FormData,
+): Promise<MediaActionResult> {
+  const actor = await requireTrustedAdminMutation();
+  const domainId = productId.safeParse(formData.get("productDomainId"));
+  if (!domainId.success) return { ok: false, message: messages.invalid_input };
+  const files = formData
+    .getAll("images")
+    .filter((item): item is File => item instanceof File && item.size > 0)
+    .slice(0, 8);
+  if (!files.length)
+    return { ok: false, message: "اختر صورة واحدة على الأقل." };
+  const store = getProductImageStore();
+  const stored: Array<{ src: string; width: number; height: number }> = [];
+  try {
+    for (const file of files) {
+      const webp = await prepareGalleryImage(
+        Buffer.from(await file.arrayBuffer()),
+      );
+      stored.push(await store.put(webp));
+    }
+  } catch (error) {
+    await Promise.all(stored.map((item) => store.remove?.(item.src)));
+    if (error instanceof GalleryUploadError) {
+      return {
+        ok: false,
+        message:
+          error.code === "too_large"
+            ? "الصورة أكبر من 8 ميغابايت."
+            : "الملف ليس صورة JPEG أو PNG أو WebP صالحة.",
+      };
+    }
+    return { ok: false, message: "تعذّر رفع الصور. حاول مرة أخرى." };
+  }
+  const alt =
+    String(formData.get("alt") ?? "")
+      .trim()
+      .slice(0, 250) || "صورة المنتج";
+  const result = await run(domainId.data, () =>
+    productOptionsService.addImages(
+      actor,
+      domainId.data,
+      stored.map((item) => ({ ...item, alt })),
+    ),
+  );
+  if (!result.ok)
+    await Promise.all(stored.map((item) => store.remove?.(item.src)));
+  return result;
+}
+
+export async function galleryImageAction(input: {
+  productDomainId: string;
+  imageId: string;
+  action: "primary" | "archive" | "restore" | "delete" | "assign" | "alt";
+  variantDomainId?: string | null;
+  alt?: string;
+}): Promise<MediaActionResult> {
+  const actor = await requireTrustedAdminMutation();
+  const domainId = productId.parse(input.productDomainId);
+  const imageId = uuid.parse(input.imageId);
+  return run(domainId, async () => {
+    if (input.action === "primary")
+      await productOptionsService.setPrimaryImage(actor, imageId);
+    if (input.action === "archive")
+      await productOptionsService.setImageArchived(actor, imageId, true);
+    if (input.action === "restore")
+      await productOptionsService.setImageArchived(actor, imageId, false);
+    if (input.action === "alt")
+      await productOptionsService.updateImageAlt(
+        actor,
+        imageId,
+        input.alt ?? "",
+      );
+    if (input.action === "assign") {
+      await productOptionsService.assignImage(
+        actor,
+        imageId,
+        input.variantDomainId ? variantId.parse(input.variantDomainId) : null,
+      );
+    }
+    if (input.action === "delete") {
+      const removed = await productOptionsService.deleteImage(actor, imageId);
+      if (!removed.fileStillUsed)
+        await getProductImageStore().remove?.(removed.src);
+    }
+  });
+}
+
+export async function reorderGalleryAction(
+  productDomainId: string,
+  imageIds: string[],
+): Promise<MediaActionResult> {
+  const actor = await requireTrustedAdminMutation();
+  const domainId = productId.parse(productDomainId);
+  return run(domainId, () =>
+    productOptionsService.reorderImages(
+      actor,
+      domainId,
+      z.array(uuid).max(8).parse(imageIds),
+    ),
+  );
+}
+
+export async function createOptionAction(input: {
+  productDomainId: string;
+  nameAr: string;
+  kind: string;
+  values: string;
+}): Promise<MediaActionResult> {
+  const actor = await requireTrustedAdminMutation();
+  const domainId = productId.parse(input.productDomainId);
+  const values = input.values
+    .split(/[،,\n]/)
+    .map((value) => value.trim())
+    .filter(Boolean);
+  return run(domainId, () =>
+    productOptionsService.createOption(actor, domainId, {
+      nameAr: input.nameAr,
+      kind: z.enum(optionKinds).parse(input.kind),
+      values,
+    }),
+  );
+}
+
+export async function optionAction(input: {
+  productDomainId: string;
+  optionId: string;
+  action:
+    | "rename"
+    | "kind"
+    | "archive"
+    | "restore"
+    | "delete"
+    | "addValue"
+    | "up"
+    | "down";
+  text?: string;
+  orderedIds?: string[];
+}): Promise<MediaActionResult> {
+  const actor = await requireTrustedAdminMutation();
+  const domainId = productId.parse(input.productDomainId);
+  const optionId = uuid.parse(input.optionId);
+  return run(domainId, async () => {
+    if (input.action === "rename")
+      await productOptionsService.updateOption(actor, optionId, {
+        nameAr: input.text ?? "",
+      });
+    if (input.action === "kind")
+      await productOptionsService.updateOption(actor, optionId, {
+        kind: z.enum(optionKinds).parse(input.text),
+      });
+    if (input.action === "archive")
+      await productOptionsService.setOptionArchived(actor, optionId, true);
+    if (input.action === "restore")
+      await productOptionsService.setOptionArchived(actor, optionId, false);
+    if (input.action === "delete")
+      await productOptionsService.deleteOption(actor, optionId);
+    if (input.action === "addValue")
+      await productOptionsService.addValue(actor, optionId, input.text ?? "");
+    if (input.action === "up" || input.action === "down") {
+      await productOptionsService.reorderOptions(
+        actor,
+        domainId,
+        z.array(uuid).max(10).parse(input.orderedIds),
+      );
+    }
+  });
+}
+
+export async function optionValueAction(input: {
+  productDomainId: string;
+  valueId: string;
+  action: "rename" | "archive" | "restore" | "delete" | "reorder";
+  text?: string;
+  optionId?: string;
+  orderedIds?: string[];
+}): Promise<MediaActionResult> {
+  const actor = await requireTrustedAdminMutation();
+  const domainId = productId.parse(input.productDomainId);
+  const valueId = uuid.parse(input.valueId);
+  return run(domainId, async () => {
+    if (input.action === "rename")
+      await productOptionsService.updateValue(actor, valueId, input.text ?? "");
+    if (input.action === "archive")
+      await productOptionsService.setValueArchived(actor, valueId, true);
+    if (input.action === "restore")
+      await productOptionsService.setValueArchived(actor, valueId, false);
+    if (input.action === "delete")
+      await productOptionsService.deleteValue(actor, valueId);
+    if (input.action === "reorder") {
+      await productOptionsService.reorderValues(
+        actor,
+        uuid.parse(input.optionId),
+        z.array(uuid).max(30).parse(input.orderedIds),
+      );
+    }
+  });
+}
+
+export async function variantOptionsAction(input: {
+  productDomainId: string;
+  variantDomainId: string;
+  selection: Record<string, string>;
+  packCount: string;
+}): Promise<MediaActionResult> {
+  const actor = await requireTrustedAdminMutation();
+  const domainId = productId.parse(input.productDomainId);
+  const pack = input.packCount.trim() ? Number(input.packCount) : null;
+  if (
+    pack !== null &&
+    !(Number.isInteger(pack) && pack >= 1 && pack <= 1_000)
+  ) {
+    return {
+      ok: false,
+      message: "عدد القطع في العبوة رقم صحيح من 1 إلى 1000.",
+    };
+  }
+  return run(domainId, () =>
+    productOptionsService.setVariantSelection(
+      actor,
+      variantId.parse(input.variantDomainId),
+      {
+        selection: z.record(uuid, uuid).parse(input.selection),
+        packCount: pack,
+      },
+    ),
+  );
+}
+
+export async function generateMissingVariantsAction(input: {
+  productDomainId: string;
+  combinations: Array<Record<string, string>>;
+  priceIls: string;
+}): Promise<MediaActionResult> {
+  const actor = await requireTrustedAdminMutation();
+  const domainId = productId.parse(input.productDomainId);
+  const price = parseMoneyInput(input.priceIls);
+  if (!price.ok)
+    return { ok: false, message: "اكتب سعر الأصناف الجديدة، مثلاً 15 شيكل." };
+  return run(domainId, () =>
+    productOptionsService.generateVariants(
+      actor,
+      domainId,
+      z
+        .array(z.record(uuid, uuid))
+        .min(1)
+        .max(60)
+        .parse(input.combinations)
+        .map((selection) => ({ selection, priceAgorot: price.agorot })),
+      crypto.randomUUID(),
+    ),
+  );
+}

@@ -34,6 +34,7 @@ import { parseIlsToAgorot } from "@/shared/lib/parse-ils";
 import { moneyRejection } from "@/features/assistant/domain/money-rejection";
 import type { InvoiceExtractor } from "@/server/ai/invoice-extractor";
 import * as schema from "@/server/db/schema";
+import { ProductOptionsService } from "@/features/admin/application/product-options-service";
 import type { ProductImageStore } from "@/server/storage/product-images";
 
 import type { AssistantOperation } from "../domain/assistant-policy";
@@ -47,6 +48,7 @@ import {
 import type { AttachmentService } from "./attachment-service";
 import { CatalogOperations } from "./catalog-operations";
 import { PartyOperations } from "./party-operations";
+import { MediaOperations } from "./media-operations";
 import type { OfferService } from "@/features/offers/application/offer-service";
 import type { SupplierMaintenanceService } from "@/features/purchasing/application/supplier-maintenance-service";
 import type { SupplierService } from "@/features/purchasing/application/supplier-service";
@@ -201,8 +203,14 @@ export class AssistantOperations {
   readonly handlers: Record<AssistantOperation, OperationHandler>;
   readonly catalogOps: CatalogOperations;
   readonly partyOps: PartyOperations;
+  readonly mediaOps: MediaOperations;
+  readonly productOptions: ProductOptionsService;
 
   constructor(private readonly services: OperationServices) {
+    this.productOptions = new ProductOptionsService(
+      services.database,
+      services.authoring,
+    );
     this.catalogOps = new CatalogOperations({
       catalog: services.catalog,
       authoring: services.authoring,
@@ -224,9 +232,17 @@ export class AssistantOperations {
       resolveProduct: (actor, query, scope, field) =>
         this.resolveProduct(actor, query, scope, field),
     });
+    this.mediaOps = new MediaOperations({
+      options: this.productOptions,
+      attachments: services.attachments,
+      productImages: services.productImages,
+      resolveProduct: (actor, query, scope, field) =>
+        this.resolveProduct(actor, query, scope, field),
+    });
     const built = {
       ...this.buildHandlers(),
       ...this.partyOps.buildHandlers(),
+      ...this.mediaOps.buildHandlers(),
       ...this.catalogOps.buildHandlers(async (actor, domainId) => {
         await services.maintenance.deleteUnreferenced(actor, domainId);
       }),

@@ -29,6 +29,13 @@ import { postStockAdjustment } from "@/features/inventory/application/inventory-
 import type { Database } from "@/features/inventory/application/stock-ledger";
 import * as schema from "@/server/db/schema";
 
+import {
+  activeGallery,
+  addGalleryImage,
+  renumber,
+  syncImageMirrors,
+} from "./gallery-store";
+
 export type CatalogAuthoringErrorCode =
   | "not_found"
   | "invalid_input"
@@ -214,13 +221,13 @@ export class CatalogAuthoringService {
   constructor(private readonly database: Database) {}
 
   // SKU and barcode uniqueness is checked again under this lock so two confirmations cannot race.
-  private async lockIdentifiers(transaction: Transaction) {
+  async lockIdentifiers(transaction: Transaction) {
     await transaction.execute(
       sql`select pg_advisory_xact_lock(hashtext('catalog-identifiers'))`,
     );
   }
 
-  private async assertIdentifiersFree(
+  async assertIdentifiersFree(
     executor: Database | Transaction,
     input: { sku: string | null; barcode: string | null },
     exceptVariantId?: string,
@@ -390,128 +397,153 @@ export class CatalogAuthoringService {
       .digest("hex")
       .slice(0, 32);
     try {
-      return await this.database.transaction(async (transaction) => {
-        const [replay] = await transaction
-          .select({ entityId: schema.adminAuditEvents.entityId })
-          .from(schema.adminAuditEvents)
-          .where(
-            and(
-              eq(schema.adminAuditEvents.actionType, "product_create"),
-              sql`${schema.adminAuditEvents.afterState}->>'replayRef' = ${replayRef}`,
-            ),
-          )
-          .limit(1);
-        if (replay) {
-          return {
-            domainId: replay.entityId,
-            variantId: `${replay.entityId}--default`,
-            replayed: true,
-          };
-        }
-        await this.lockIdentifiers(transaction);
-        await this.assertIdentifiersFree(transaction, draft);
-        await this.assertCategoryUsable(transaction, draft.categoryCode);
-
-        const domainId = `p-${randomUUID().replace(/-/g, "").slice(0, 10)}`;
-        const slug = slugFrom(draft.latinName, domainId);
-        const image = draft.image
-          ? {
-              imageKind: "image" as const,
-              placeholderVariant: null,
-              imageSrc: draft.image.src,
-              imageAlt: draft.image.alt,
-              imageWidth: draft.image.width,
-              imageHeight: draft.image.height,
-            }
-          : {
-              imageKind: "placeholder" as const,
-              placeholderVariant: placeholderKinds[0],
-              imageSrc: null,
-              imageAlt: null,
-              imageWidth: null,
-              imageHeight: null,
-            };
-        const [product] = await transaction
-          .insert(schema.products)
-          .values({
-            domainId,
-            slug,
-            nameAr: draft.nameAr,
-            latinName: draft.latinName,
-            priceAgorot: draft.priceAgorot,
-            sortOrder: 100,
-            categoryId: draft.categoryCode,
-            availability: draft.availability,
-            publication: draft.publication,
-            description: draft.description || null,
-            unit: draft.unit || null,
-            detailsStatus: "placeholder",
-            ...image,
-          })
-          .returning();
-        if (!product) throw new CatalogAuthoringError("invalid_input");
-        const [variant] = await transaction
-          .insert(schema.productVariants)
-          .values({
-            productId: product.id,
-            domainId: `${domainId}--default`,
-            labelAr: draft.variantLabel,
-            attributes,
-            priceAgorot: draft.priceAgorot,
-            availability: draft.availability,
-            sku: draft.sku,
-            barcode: draft.barcode,
-            sortOrder: 0,
-            isDefault: true,
-            ...image,
-          })
-          .returning();
-        if (!variant) throw new CatalogAuthoringError("invalid_input");
-        if (draft.specifications.length) {
-          await transaction.insert(schema.productSpecifications).values(
-            draft.specifications.map((item, sortOrder) => ({
-              productId: product.id,
-              ...item,
-              sortOrder,
-            })),
-          );
-        }
-        const afterState = {
+      return await this.database.transaction((transaction) =>
+        this.createProductIn(
+          transaction,
+          actor,
+          draft,
+          attributes,
           replayRef,
-          nameAr: product.nameAr,
-          categoryId: product.categoryId,
-          publication: product.publication,
-          availability: product.availability,
-          priceAgorot: product.priceAgorot,
-          source: "assistant",
-        };
-        assertSafeAuditState(afterState);
-        await transaction.insert(schema.adminAuditEvents).values({
-          adminUserId: actor.id,
-          actionType: "product_create",
-          entityType: "product",
-          entityId: domainId,
-          beforeState: null,
-          afterState,
-        });
-        if (draft.openingStock) {
-          await postStockAdjustment(transaction, actor, {
-            idempotencyKey: derivedUuid(`opening:${idempotencyKey}`),
-            variantId: variant.domainId,
-            reason: "opening_balance",
-            quantityMilli: draft.openingStock.quantityMilli,
-            unitCostAgorot: draft.openingStock.unitCostAgorot,
-            note: "رصيد افتتاحي عند إضافة المنتج",
-          });
-        }
-        return { domainId, variantId: variant.domainId, replayed: false };
-      });
+          idempotencyKey,
+        ),
+      );
     } catch (error) {
       if (error instanceof CatalogAuthoringError) throw error;
       if (isUniqueViolation(error))
         throw new CatalogAuthoringError("duplicate_slug");
       throw error;
     }
+  }
+
+  // Runs inside the caller's transaction so a product can be created together with its options and variants.
+  async createProductIn(
+    transaction: Transaction,
+    actor: AdminActor,
+    draft: ProductDraft,
+    attributes: Record<string, string>,
+    replayRef: string,
+    idempotencyKey: string,
+  ): Promise<{ domainId: string; variantId: string; replayed: boolean }> {
+    const [replay] = await transaction
+      .select({ entityId: schema.adminAuditEvents.entityId })
+      .from(schema.adminAuditEvents)
+      .where(
+        and(
+          eq(schema.adminAuditEvents.actionType, "product_create"),
+          sql`${schema.adminAuditEvents.afterState}->>'replayRef' = ${replayRef}`,
+        ),
+      )
+      .limit(1);
+    if (replay) {
+      return {
+        domainId: replay.entityId,
+        variantId: `${replay.entityId}--default`,
+        replayed: true,
+      };
+    }
+    await this.lockIdentifiers(transaction);
+    await this.assertIdentifiersFree(transaction, draft);
+    await this.assertCategoryUsable(transaction, draft.categoryCode);
+
+    const domainId = `p-${randomUUID().replace(/-/g, "").slice(0, 10)}`;
+    const slug = slugFrom(draft.latinName, domainId);
+    const image = draft.image
+      ? {
+          imageKind: "image" as const,
+          placeholderVariant: null,
+          imageSrc: draft.image.src,
+          imageAlt: draft.image.alt,
+          imageWidth: draft.image.width,
+          imageHeight: draft.image.height,
+        }
+      : {
+          imageKind: "placeholder" as const,
+          placeholderVariant: placeholderKinds[0],
+          imageSrc: null,
+          imageAlt: null,
+          imageWidth: null,
+          imageHeight: null,
+        };
+    const [product] = await transaction
+      .insert(schema.products)
+      .values({
+        domainId,
+        slug,
+        nameAr: draft.nameAr,
+        latinName: draft.latinName,
+        priceAgorot: draft.priceAgorot,
+        sortOrder: 100,
+        categoryId: draft.categoryCode,
+        availability: draft.availability,
+        publication: draft.publication,
+        description: draft.description || null,
+        unit: draft.unit || null,
+        detailsStatus: "placeholder",
+        ...image,
+      })
+      .returning();
+    if (!product) throw new CatalogAuthoringError("invalid_input");
+    const [variant] = await transaction
+      .insert(schema.productVariants)
+      .values({
+        productId: product.id,
+        domainId: `${domainId}--default`,
+        labelAr: draft.variantLabel,
+        attributes,
+        priceAgorot: draft.priceAgorot,
+        availability: draft.availability,
+        sku: draft.sku,
+        barcode: draft.barcode,
+        sortOrder: 0,
+        isDefault: true,
+        ...image,
+      })
+      .returning();
+    if (!variant) throw new CatalogAuthoringError("invalid_input");
+    if (draft.image) {
+      await addGalleryImage(transaction, product.id, {
+        ...draft.image,
+        primary: true,
+      });
+    }
+    if (draft.specifications.length) {
+      await transaction.insert(schema.productSpecifications).values(
+        draft.specifications.map((item, sortOrder) => ({
+          productId: product.id,
+          ...item,
+          sortOrder,
+        })),
+      );
+    }
+    const afterState = {
+      replayRef,
+      nameAr: product.nameAr,
+      categoryId: product.categoryId,
+      publication: product.publication,
+      availability: product.availability,
+      priceAgorot: product.priceAgorot,
+      source: "assistant",
+    };
+    assertSafeAuditState(afterState);
+    await transaction.insert(schema.adminAuditEvents).values({
+      adminUserId: actor.id,
+      actionType: "product_create",
+      entityType: "product",
+      entityId: domainId,
+      beforeState: null,
+      afterState,
+    });
+    if (draft.openingStock) {
+      await postStockAdjustment(transaction, actor, {
+        idempotencyKey: derivedUuid(`opening:${idempotencyKey}`),
+        variantId: variant.domainId,
+        reason: "opening_balance",
+        quantityMilli: draft.openingStock.quantityMilli,
+        unitCostAgorot: draft.openingStock.unitCostAgorot,
+        note: "رصيد افتتاحي عند إضافة المنتج",
+      });
+    }
+    return { domainId, variantId: variant.domainId, replayed: false };
   }
 
   private async lockProduct(transaction: Transaction, domainId: string) {
@@ -737,28 +769,29 @@ export class CatalogAuthoringService {
     await this.database.transaction(async (transaction) => {
       const product = await this.lockProduct(transaction, domainId);
       if (product.imageKind !== "image") return;
-      const placeholder = {
-        imageKind: "placeholder" as const,
-        placeholderVariant: placeholderKinds[0],
-        imageSrc: null,
-        imageAlt: null,
-        imageWidth: null,
-        imageHeight: null,
-      };
-      const now = new Date();
+      // Removing the main image archives it in the gallery; the next image, if any, becomes primary.
       await transaction
-        .update(schema.products)
-        .set({ ...placeholder, updatedAt: now })
-        .where(eq(schema.products.id, product.id));
-      await transaction
-        .update(schema.productVariants)
-        .set({ ...placeholder, updatedAt: now })
+        .update(schema.productImages)
+        .set({
+          isPrimary: false,
+          archivedAt: new Date(),
+          updatedAt: new Date(),
+        })
         .where(
           and(
-            eq(schema.productVariants.productId, product.id),
-            eq(schema.productVariants.imageSrc, product.imageSrc!),
+            eq(schema.productImages.productId, product.id),
+            eq(schema.productImages.isPrimary, true),
           ),
         );
+      const [next] = await activeGallery(transaction, product.id);
+      if (next) {
+        await transaction
+          .update(schema.productImages)
+          .set({ isPrimary: true })
+          .where(eq(schema.productImages.id, next.id));
+      }
+      await renumber(transaction, product.id);
+      await syncImageMirrors(transaction, product.id);
       await this.audit(transaction, actor, {
         actionType: "product_image_update",
         entityType: "product",
@@ -1091,26 +1124,17 @@ export class CatalogAuthoringService {
         transaction,
         variantDomainId,
       );
-      const fields = {
-        imageKind: "image" as const,
-        placeholderVariant: null,
-        imageSrc: image.src,
-        imageAlt: image.alt.slice(0, 250),
-        imageWidth: image.width,
-        imageHeight: image.height,
-      };
+      // The new photo becomes the variant's own gallery image; earlier own images stay in the gallery, unassigned.
       await transaction
-        .update(schema.productVariants)
-        .set({ ...fields, updatedAt: new Date() })
-        .where(eq(schema.productVariants.id, variant.id));
-      await transaction
-        .update(schema.products)
-        .set(
-          variant.isDefault
-            ? { ...fields, updatedAt: new Date() }
-            : { updatedAt: new Date() },
-        )
-        .where(eq(schema.products.id, product.id));
+        .update(schema.productImages)
+        .set({ variantId: null, updatedAt: new Date() })
+        .where(eq(schema.productImages.variantId, variant.id));
+      await addGalleryImage(transaction, product.id, {
+        ...image,
+        variantId: variant.id,
+        primary: variant.isDefault,
+      });
+      await syncImageMirrors(transaction, product.id);
       await this.audit(transaction, actor, {
         actionType: "product_variant_image",
         entityType: "product_variant",
@@ -1224,6 +1248,10 @@ export class CatalogAuthoringService {
         );
         if (variant.isDefault)
           throw new CatalogAuthoringError("default_variant");
+        await transaction
+          .update(schema.productImages)
+          .set({ variantId: null })
+          .where(eq(schema.productImages.variantId, variant.id));
         await transaction
           .delete(schema.inventoryItems)
           .where(

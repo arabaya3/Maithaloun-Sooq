@@ -1273,3 +1273,177 @@
   gap: 0.5rem;
   min-height: var(--admin-touch);
 }
+
+/* Product images, options and variants */
+.admin-media-editor {
+  display: grid;
+  gap: 1rem;
+  margin-top: 1.5rem;
+}
+
+.admin-media-section {
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--admin-border);
+  border-radius: 12px;
+  background: var(--admin-surface);
+}
+
+.admin-media-section > summary {
+  min-height: 2.75rem;
+  padding-block: 0.6rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.admin-media-message {
+  margin: 0;
+  padding: 0.6rem 0.8rem;
+  border-radius: 8px;
+  background: var(--admin-nav-selected);
+}
+
+.admin-media-message[data-tone="error"] {
+  color: var(--admin-danger);
+  background: var(--admin-danger-bg);
+}
+
+.admin-gallery-list,
+.admin-option-list,
+.admin-variant-cards,
+.admin-chip-list {
+  display: grid;
+  gap: 0.75rem;
+  margin: 0.5rem 0;
+  padding: 0;
+  list-style: none;
+}
+
+.admin-gallery-item {
+  display: grid;
+  grid-template-columns: 4.5rem minmax(0, 1fr);
+  gap: 0.75rem;
+  align-items: start;
+  padding-block: 0.75rem;
+  border-top: 1px solid var(--admin-divider);
+}
+
+.admin-gallery-item img {
+  width: 4.5rem;
+  height: 4.5rem;
+  border-radius: 8px;
+  object-fit: contain;
+  background: var(--admin-bg);
+}
+
+.admin-gallery-fields,
+.admin-variant-card form,
+.admin-media-form {
+  display: grid;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.admin-gallery-fields label,
+.admin-variant-card label,
+.admin-media-form label {
+  display: grid;
+  gap: 0.25rem;
+  font-size: 0.875rem;
+}
+
+.admin-media-editor input,
+.admin-media-editor select,
+.admin-media-editor button {
+  min-height: 2.75rem;
+  max-width: 100%;
+  font: inherit;
+}
+
+.admin-row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.admin-row-actions button,
+.admin-inline-form button,
+.admin-variant-card button {
+  padding: 0.4rem 0.8rem;
+  border: 1px solid var(--admin-border);
+  border-radius: 8px;
+  background: var(--admin-surface);
+  cursor: pointer;
+}
+
+.admin-danger-link {
+  color: var(--admin-danger);
+}
+
+.admin-badge {
+  display: inline-block;
+  margin-inline-start: 0.4rem;
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+  color: var(--admin-forest);
+  background: var(--admin-nav-selected);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.admin-option-card,
+.admin-variant-card {
+  display: grid;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  border: 1px solid var(--admin-divider);
+  border-radius: 10px;
+}
+
+.admin-option-card[data-archived="true"] {
+  opacity: 0.7;
+}
+
+.admin-option-head,
+.admin-variant-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0;
+}
+
+.admin-chip-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.admin-chip-list li {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding-inline-start: 0.6rem;
+  border: 1px solid var(--admin-border);
+  border-radius: 999px;
+}
+
+.admin-chip-list button {
+  min-width: 2.75rem;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.admin-inline-form {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.admin-inline-form label {
+  flex: 1;
+  min-width: 0;
+}
+
+.admin-inline-form input {
+  width: 100%;
+}

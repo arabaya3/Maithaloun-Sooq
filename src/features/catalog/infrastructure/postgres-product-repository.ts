@@ -18,6 +18,7 @@ const onStorefront = and(
 );
 
 import { liveOffersForVariants } from "./offer-queries";
+import { loadProductPresentation } from "./product-presentation";
 import { mapProductRow } from "./product-row-mapper";
 
 export class PostgresProductRepository implements ProductRepository {
@@ -72,6 +73,10 @@ export class PostgresProductRepository implements ProductRepository {
       const product = byId.get(id);
       return product ? [product] : [];
     });
+  }
+
+  presentation(productId: string) {
+    return loadProductPresentation(this.database, productId);
   }
 
   private async mapProducts(

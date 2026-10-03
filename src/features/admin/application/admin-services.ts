@@ -1,4 +1,5 @@
 import "server-only";
+import { ProductOptionsService } from "./product-options-service";
 
 import { ReminderService } from "@/features/reminders/application/reminder-service";
 import { ScheduledJobs } from "@/features/reminders/application/scheduled-jobs";
@@ -90,6 +91,10 @@ export const voiceService = new VoiceService(
 );
 export const productMaintenanceService = new ProductMaintenanceService(db);
 export const catalogAuthoringService = new CatalogAuthoringService(db);
+export const productOptionsService = new ProductOptionsService(
+  db,
+  catalogAuthoringService,
+);
 export const offerService = new OfferService(db);
 export const customerMaintenanceService = new CustomerMaintenanceService(db);
 export const supplierMaintenanceService = new SupplierMaintenanceService(db);

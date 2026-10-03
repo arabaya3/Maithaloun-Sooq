@@ -81,6 +81,7 @@ const analyzer: ProductImageAnalyzer = {
       unit: field("", 0),
       barcode: field("", 0),
       fragrance: field("", 0),
+      color: field("", 0),
       packageCount: field("", 0),
     };
   },
@@ -314,6 +315,59 @@ const fixtures = (): Record<string, Record<string, unknown>> => ({
     reason: "تجربة العقود",
   },
   preparePurchaseInvoiceImport: { attachmentIds: [attachmentId] },
+  getProductGallery: { product: PRODUCT },
+  getProductOptions: { product: PRODUCT },
+  getVariantMatrix: { product: PRODUCT },
+  setDraftOptions: {
+    options: [
+      { nameAr: "الرائحة", kind: "fragrance", values: ["لافندر", "مسك"] },
+    ],
+  },
+  setDraftVariants: { changes: [{ match: [], price: "عشرة شيكل" }] },
+  assignDraftImages: { assignments: [{ image: 1, shared: true }] },
+  prepareGalleryImagesAdd: { product: PRODUCT, attachmentIds: [attachmentId] },
+  prepareGalleryReorder: { product: PRODUCT, order: [1] },
+  prepareGalleryImageChange: {
+    product: PRODUCT,
+    image: 1,
+    change: "alt",
+    alt: "وصف",
+  },
+  prepareGalleryImageDeletion: { product: PRODUCT, image: 1 },
+  prepareProductOptionCreate: {
+    product: PRODUCT,
+    nameAr: "الرائحة",
+    kind: "fragrance",
+    values: ["لافندر"],
+  },
+  prepareProductOptionChange: {
+    product: PRODUCT,
+    option: "الرائحة",
+    change: "rename",
+    newName: "العطر",
+  },
+  prepareProductOptionDeletion: { product: PRODUCT, option: "الرائحة" },
+  prepareOptionValueChange: {
+    product: PRODUCT,
+    option: "الرائحة",
+    change: "add",
+    values: ["مسك"],
+  },
+  prepareOptionValueDeletion: {
+    product: PRODUCT,
+    option: "الرائحة",
+    value: "لافندر",
+  },
+  prepareVariantGeneration: {
+    product: PRODUCT,
+    mode: "missing",
+    priceIls: "10",
+  },
+  prepareVariantChoices: {
+    product: PRODUCT,
+    variant: "لافندر",
+    values: [{ option: "الرائحة", value: "لافندر" }],
+  },
 });
 
 const BUSINESS_TABLES = [
@@ -337,6 +391,10 @@ const BUSINESS_TABLES = [
   "orders",
   "order_items",
   "order_status_history",
+  "product_images",
+  "product_options",
+  "product_option_values",
+  "product_variant_option_values",
 ];
 
 async function businessFingerprint(): Promise<Record<string, string>> {

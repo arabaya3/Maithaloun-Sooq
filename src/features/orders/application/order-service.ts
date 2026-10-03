@@ -9,7 +9,6 @@ import {
   formatVariantAttributes,
   variantAttributesSchema,
 } from "@/features/catalog/domain/product-variant";
-import { mapProductRow } from "@/features/catalog/infrastructure/product-row-mapper";
 import {
   ACTIVE_SERVICE_AREA_CODE,
   calculateDeliveryFeeAgorot,
@@ -190,9 +189,11 @@ export class OrderService {
         await transaction.insert(schema.orderItems).values(
           resolvedItems.map((item) => {
             const attributeText = formatVariantAttributes(item.attributes);
-            const displayName = getProductDisplayName(
-              mapProductRow(item.product, [item.variant], []),
-            );
+            // Only the name is needed; a single non-default variant is not a whole product view.
+            const displayName = getProductDisplayName({
+              nameAr: item.product.nameAr,
+              latinName: item.product.latinName ?? undefined,
+            });
             const productNameSnapshot = attributeText
               ? `${displayName} — ${item.variant.labelAr}`
               : `${displayName} — ${item.variant.labelAr}`;

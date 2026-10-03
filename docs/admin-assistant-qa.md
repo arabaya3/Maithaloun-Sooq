@@ -41,6 +41,10 @@ ASSISTANT_MODEL_EVAL=1 OPENAI_API_KEY=… pnpm test:assistant:model
 - Scores tool selection, forbidden tools avoided, clarification, invented figures and premature success. Fails on any critical grounding violation or any executed confirmation. Pending cards are cancelled at the end.
 - Token budget `ASSISTANT_EVAL_TOKEN_BUDGET` (default 400,000). Report: `artifacts/assistant-eval/report.json` with case ids, tool names and scores only — no prompts, replies or attachment content.
 
+## Galleries and variants (scripted model)
+
+Tested Palestinian Arabic flow: three photos → «الاسم …» → «خليه منشور» → «القسم مستلزمات منزلية» → «الروائح لافندر وورد أبيض ومسك، كلهم 450 مل والسعر 10 شيكل» → the assistant asks «ما قدرت أتأكد من الصورة 3 (يمكن مسك). لأي الرائحة هي؟» → reload → «هاي الصورة للمسك» → one card. «نعم» does not confirm; a double tap creates the product, three variants and three images once. Real-model cases for variants, galleries and packaging injection are in `tests/model-eval/assistant-cases.ts` (category `variants`); they were not run for this change (no local OpenAI key).
+
 ## Production-safe verification (owner, on the phone)
 
 Do not confirm any card during this script.

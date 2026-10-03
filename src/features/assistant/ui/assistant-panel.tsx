@@ -67,6 +67,12 @@ const toolLabels: Record<string, string> = {
   updateProductDraft: "تحديث مسودة المنتج",
   getProductDraft: "قراءة مسودة المنتج",
   cancelProductDraft: "إلغاء مسودة المنتج",
+  setDraftOptions: "تحديد خيارات المسودة",
+  setDraftVariants: "تعديل أصناف المسودة",
+  assignDraftImages: "ربط صور المسودة",
+  getProductGallery: "قراءة صور المنتج",
+  getProductOptions: "قراءة خيارات المنتج",
+  getVariantMatrix: "قراءة أصناف المنتج",
   searchProductDuplicates: "البحث عن منتجات مشابهة",
   listCategories: "قراءة الأقسام",
   checkProductPublication: "فحص جاهزية النشر",
@@ -145,6 +151,18 @@ function ToolPartView({
     suggestions?: Array<{ label: string; value: string; confidence: number }>;
     errors?: Array<{ label: string; message: string }>;
     submitted?: boolean;
+    variants?: Array<{
+      choices: string;
+      price: string | null;
+      packCount: number | null;
+    }>;
+    imageMap?: Array<{
+      number: number;
+      primary: boolean;
+      variant: string | null;
+      suggestion: { value: string; confidence: number } | null;
+    }>;
+    messages?: string[];
     matches?: Array<{
       productId: string;
       label: string;
@@ -250,6 +268,40 @@ function ToolPartView({
         {output.errors?.map((row) => (
           <p key={row.label} className="assistant-tool-error">
             {row.message}
+          </p>
+        ))}
+        {output.variants?.length ? (
+          <ul className="assistant-draft-variants" aria-label="أصناف المسودة">
+            {output.variants.map((row) => (
+              <li key={row.choices}>
+                <bdi dir="auto">{row.choices}</bdi>
+                <span>{row.price ?? "بدون سعر"}</span>
+                {row.packCount ? <span>{row.packCount} قطع</span> : null}
+              </li>
+            ))}
+          </ul>
+        ) : null}
+        {output.imageMap?.length ? (
+          <ul className="assistant-draft-variants" aria-label="صور المسودة">
+            {output.imageMap.map((row) => (
+              <li key={row.number}>
+                <span>
+                  الصورة {row.number}
+                  {row.primary ? " (رئيسية)" : ""}
+                </span>
+                <span>
+                  {row.variant ??
+                    (row.suggestion
+                      ? `غير مؤكدة · قد تكون ${row.suggestion.value} (${Math.round(row.suggestion.confidence * 100)}٪)`
+                      : "غير مربوطة")}
+                </span>
+              </li>
+            ))}
+          </ul>
+        ) : null}
+        {output.messages?.map((message) => (
+          <p key={message} className="assistant-tool-error">
+            {message}
           </p>
         ))}
         {output.missing?.length ? (

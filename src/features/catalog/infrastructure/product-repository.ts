@@ -22,4 +22,5 @@ export const productRepository: ProductRepository = {
   getById: (id) => repository.getById(id),
   getBySlug: bySlugOnce,
   getByIds: (ids) => repository.getByIds(ids),
+  presentation: (id) => repository.presentation(id),
 };

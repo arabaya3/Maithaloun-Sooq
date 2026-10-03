@@ -10,7 +10,7 @@ import { parseTestAdminEnv } from "@/test/test-admin";
 const { db } = testDatabaseConnection;
 
 export function checkoutRequest(
-  items: { productId: string; quantity: number }[],
+  items: { productId: string; quantity: number; variantId?: string }[],
 ) {
   return checkoutRequestSchema.parse({
     idempotencyKey: crypto.randomUUID(),
@@ -23,7 +23,7 @@ export function checkoutRequest(
     honeypot: "",
     items: items.map((item) => ({
       productId: item.productId,
-      variantId: `${item.productId}--default`,
+      variantId: item.variantId ?? `${item.productId}--default`,
       quantity: item.quantity,
     })),
   });

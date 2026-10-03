@@ -24,6 +24,9 @@ export const readToolNames = [
   "searchSuppliers",
   "getSupplierDetails",
   "getSupplierStatement",
+  "getProductGallery",
+  "getProductOptions",
+  "getVariantMatrix",
 ] as const;
 
 export const catalogOperations = [
@@ -80,6 +83,33 @@ export const partyOperations = [
 ] as const;
 export type PartyOperation = (typeof partyOperations)[number];
 
+export const mediaOperations = [
+  "galleryAdd",
+  "galleryReorder",
+  "galleryPrimary",
+  "galleryAlt",
+  "galleryAssign",
+  "galleryArchive",
+  "galleryRestore",
+  "galleryDelete",
+  "optionCreate",
+  "optionUpdate",
+  "optionReorder",
+  "optionArchive",
+  "optionRestore",
+  "optionDelete",
+  "valueAdd",
+  "valueUpdate",
+  "valueReorder",
+  "valueArchive",
+  "valueRestore",
+  "valueDelete",
+  "variantsGenerate",
+  "variantOptions",
+  "productSetCreate",
+] as const;
+export type MediaOperation = (typeof mediaOperations)[number];
+
 export const operations = [
   "productUpdate",
   "productImageReplacement",
@@ -94,6 +124,7 @@ export const operations = [
   "purchaseInvoiceImport",
   ...catalogOperations,
   ...partyOperations,
+  ...mediaOperations,
 ] as const;
 export type AssistantOperation = (typeof operations)[number];
 
@@ -101,6 +132,29 @@ export type RiskLevel = 1 | 2 | 3 | 4;
 
 // 2: reversible content/configuration. 3: financial, stock or wide-reaching. 4: permanent deletion or access control.
 export const operationRisk: Record<AssistantOperation, 2 | 3 | 4> = {
+  galleryAdd: 2,
+  galleryReorder: 2,
+  galleryPrimary: 2,
+  galleryAlt: 2,
+  galleryAssign: 2,
+  galleryArchive: 2,
+  galleryRestore: 2,
+  galleryDelete: 4,
+  optionCreate: 2,
+  optionUpdate: 2,
+  optionReorder: 2,
+  optionArchive: 2,
+  optionRestore: 2,
+  optionDelete: 4,
+  valueAdd: 2,
+  valueUpdate: 2,
+  valueReorder: 2,
+  valueArchive: 2,
+  valueRestore: 2,
+  valueDelete: 4,
+  variantsGenerate: 2,
+  variantOptions: 2,
+  productSetCreate: 3,
   productUpdate: 2,
   productImageReplacement: 2,
   reorderThreshold: 2,
@@ -174,6 +228,17 @@ export const prepareToolRisk = {
   prepareOrderCancellation: 3,
   preparePurchaseInvoiceImport: 2,
   prepareProductFromDraft: 3,
+  prepareGalleryImagesAdd: 2,
+  prepareGalleryReorder: 2,
+  prepareGalleryImageChange: 2,
+  prepareGalleryImageDeletion: 4,
+  prepareProductOptionCreate: 2,
+  prepareProductOptionChange: 2,
+  prepareProductOptionDeletion: 4,
+  prepareOptionValueChange: 2,
+  prepareOptionValueDeletion: 4,
+  prepareVariantGeneration: 2,
+  prepareVariantChoices: 2,
   prepareProductDetailsUpdate: 2,
   prepareProductPublication: 2,
   prepareProductRestore: 2,
@@ -224,6 +289,9 @@ export const draftToolNames = [
   "updateProductDraft",
   "getProductDraft",
   "cancelProductDraft",
+  "setDraftOptions",
+  "setDraftVariants",
+  "assignDraftImages",
 ] as const;
 
 export function toolRisk(toolName: string): RiskLevel {

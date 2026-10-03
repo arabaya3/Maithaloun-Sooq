@@ -109,7 +109,9 @@ export const seedCategories: ReadonlyArray<{
   { code: "home", nameAr: "مستلزمات منزلية", icon: "house" },
 ];
 
-export function getProductDisplayName(product: Product): string {
+export function getProductDisplayName(
+  product: Pick<Product, "nameAr" | "latinName">,
+): string {
   return product.latinName
     ? `${product.nameAr} ${product.latinName}`
     : product.nameAr;

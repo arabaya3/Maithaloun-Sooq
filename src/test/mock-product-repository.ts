@@ -5,6 +5,10 @@ import {
   type Product,
 } from "@/features/catalog/domain/product";
 import type { ProductRepository } from "@/features/catalog/domain/product-repository";
+import {
+  emptyPresentation,
+  type ProductPresentation,
+} from "@/features/catalog/domain/product-presentation";
 
 export function withDefaultVariant(
   product: Omit<
@@ -186,6 +190,10 @@ const catalog = productSchema.array().parse([
 const productsById = new Map(catalog.map((product) => [product.id, product]));
 
 export class MockProductRepository implements ProductRepository {
+  async presentation(): Promise<ProductPresentation> {
+    return emptyPresentation;
+  }
+
   async list(): Promise<readonly Product[]> {
     return catalog;
   }

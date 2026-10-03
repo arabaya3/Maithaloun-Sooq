@@ -4,6 +4,8 @@ import { formatIls } from "@/shared/lib/format-currency";
 import { moneyInputMessages, parseMoneyInput } from "@/shared/lib/money-input";
 import { normalizeArabicText } from "@/shared/lib/normalize-arabic";
 
+import type { VariantDraftData } from "./product-draft-variants";
+
 export const DRAFT_TTL_MS = 24 * 60 * 60 * 1_000;
 
 export const publicationStates = [
@@ -84,6 +86,7 @@ export interface DraftValue {
 export interface ProductDraftData {
   attachmentIds: string[];
   fields: Partial<Record<DraftFieldName, DraftValue>>;
+  variantDraft?: VariantDraftData;
   suggestions: Array<{
     field: DraftFieldName;
     value: string;
@@ -202,7 +205,11 @@ const requiredOrder: DraftFieldName[] = [
 ];
 
 export function draftMissing(data: ProductDraftData): DraftFieldName[] {
-  const missing = requiredOrder.filter((field) => !(field in data.fields));
+  // With options, each variant carries its own price; a single price then only fills the gaps.
+  const required = data.variantDraft?.options.length
+    ? requiredOrder.filter((field) => field !== "price")
+    : requiredOrder;
+  const missing = required.filter((field) => !(field in data.fields));
   const quantity = "openingQuantity" in data.fields;
   const cost = "openingUnitCost" in data.fields;
   if (quantity && !cost) missing.push("openingUnitCost");
