@@ -309,7 +309,9 @@ function ToolPartView({
             ناقص: {output.missing.join("، ")}
           </p>
         ) : output.submitted ? (
-          <p className="assistant-draft-missing">بانتظار تأكيد البطاقة.</p>
+          <p className="assistant-draft-missing">
+            أُرسلت المسودة كبطاقة؛ حالتها النهائية تظهر على البطاقة.
+          </p>
         ) : null}
       </section>
     );

@@ -37,6 +37,7 @@ import {
 import { isOrderStatus } from "@/features/orders/domain/order-status";
 import { parseIlsToAgorot } from "@/shared/lib/parse-ils";
 import { db } from "@/server/db/db";
+import type { ProductSaveKind } from "@/features/admin/domain/product-save-feedback";
 import { adminAuditEvents } from "@/server/db/schema";
 
 export async function loginAction(
@@ -190,7 +191,7 @@ export async function updateProductAction(
   revalidatePath(`/products/${slug}`);
   revalidatePath("/admin/products");
   revalidatePath(`/admin/products/${domainId}`);
-  redirect(`/admin/products/${domainId}`);
+  redirect(savedProductPath(domainId, "product"));
 }
 
 export async function createProductAction(
@@ -227,7 +228,7 @@ export async function createProductAction(
 
   revalidatePath("/");
   revalidatePath("/admin/products");
-  redirect(`/admin/products/${domainId}`);
+  redirect(savedProductPath(domainId, "created"));
 }
 
 export async function createCapturedProductAction(
@@ -265,7 +266,7 @@ export async function createCapturedProductAction(
 
   revalidatePath("/");
   revalidatePath("/admin/products");
-  redirect(`/admin/products/${domainId}`);
+  redirect(savedProductPath(domainId, "created"));
 }
 
 export async function updateServiceAreaAction(
@@ -365,7 +366,7 @@ export async function upsertProductVariantAction(
   revalidatePath("/checkout");
   revalidatePath("/admin/products");
   revalidatePath(`/admin/products/${productDomainId}`);
-  redirect(`/admin/products/${productDomainId}`);
+  redirect(savedProductPath(productDomainId, "variant"));
 }
 
 export async function deactivateProductVariantAction(
@@ -388,7 +389,7 @@ export async function deactivateProductVariantAction(
   revalidatePath("/checkout");
   revalidatePath("/admin/products");
   revalidatePath(`/admin/products/${productDomainId}`);
-  redirect(`/admin/products/${productDomainId}`);
+  redirect(savedProductPath(productDomainId, "variant_off"));
 }
 
 export async function upsertProductSpecificationAction(
@@ -412,7 +413,7 @@ export async function upsertProductSpecificationAction(
 
   revalidatePath("/");
   revalidatePath(`/admin/products/${productDomainId}`);
-  redirect(`/admin/products/${productDomainId}`);
+  redirect(savedProductPath(productDomainId, "spec"));
 }
 
 export async function removeProductSpecificationAction(
@@ -432,7 +433,12 @@ export async function removeProductSpecificationAction(
 
   revalidatePath("/");
   revalidatePath(`/admin/products/${productDomainId}`);
-  redirect(`/admin/products/${productDomainId}`);
+  redirect(savedProductPath(productDomainId, "spec_removed"));
+}
+
+// The timestamp remounts the edit form so a completed save clears its unsaved-changes guard.
+function savedProductPath(domainId: string, saved: ProductSaveKind): string {
+  return `/admin/products/${domainId}?saved=${saved}&at=${Date.now()}`;
 }
 
 function optional(value: FormDataEntryValue | null): string | undefined {

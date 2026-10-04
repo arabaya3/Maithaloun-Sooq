@@ -58,7 +58,12 @@ export class CustomerOrdersService {
         schema.orders,
         eq(schema.customerOrderLinks.orderId, schema.orders.id),
       )
-      .where(eq(schema.customerOrderLinks.accountId, accountId))
+      .where(
+        and(
+          eq(schema.customerOrderLinks.accountId, accountId),
+          eq(schema.orders.isTest, false),
+        ),
+      )
       .orderBy(desc(schema.orders.createdAt))
       .limit(HISTORY_LIMIT);
     if (!rows.length) return [];
@@ -92,6 +97,7 @@ export class CustomerOrdersService {
   private claimableWhere(phoneE164: string) {
     return and(
       eq(schema.orders.normalizedPhone, phoneE164),
+      eq(schema.orders.isTest, false),
       isNull(schema.customerOrderLinks.orderId),
     );
   }
@@ -169,6 +175,7 @@ export class CustomerOrdersService {
         and(
           eq(schema.customerOrderLinks.accountId, accountId),
           eq(schema.orders.publicReference, publicReference),
+          eq(schema.orders.isTest, false),
         ),
       );
     if (!order) return null;

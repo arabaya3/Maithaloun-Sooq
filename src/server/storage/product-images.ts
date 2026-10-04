@@ -6,6 +6,8 @@ import path from "node:path";
 
 import sharp from "sharp";
 
+import { MAX_GALLERY_UPLOAD_BYTES } from "@/features/admin/domain/gallery-upload-limits";
+
 import {
   removeProductPhoto,
   uploadProductPhoto,
@@ -73,7 +75,6 @@ export function getProductImageStore(): ProductImageStore {
   };
 }
 
-export const MAX_GALLERY_UPLOAD_BYTES = 8 * 1024 * 1024;
 const MAX_GALLERY_PIXELS = 40_000_000;
 const ALLOWED_FORMATS = new Set(["jpeg", "png", "webp"]);
 

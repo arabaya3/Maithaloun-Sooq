@@ -607,6 +607,62 @@ describe("publication and variants", () => {
   });
 });
 
+describe("archived variant restore", () => {
+  it("restores an archived variant by its spoken name, and lists it for the manual control", async () => {
+    await confirmations.confirm(
+      owner,
+      await card(
+        await ops.prepareVariantCreation(owner, {
+          product: "منظف عام",
+          label: "5 لتر",
+          attributes: { volume: "5 لتر" },
+          priceIls: "25",
+        }),
+      ),
+    );
+    const [created] = await db
+      .select()
+      .from(productVariants)
+      .where(eq(productVariants.labelAr, "5 لتر"));
+    await confirmations.confirm(
+      owner,
+      await card(
+        await ops.prepareVariantArchive(owner, {
+          variant: created!.domainId,
+          mode: "archive",
+        }),
+      ),
+    );
+    expect(
+      (await authoring.archivedVariants("general-cleaner")).map(
+        (row) => row.variantId,
+      ),
+    ).toEqual([created!.domainId]);
+
+    expect(
+      await ops.prepareVariantArchive(owner, {
+        variant: "مزيل غير موجود",
+        mode: "restore",
+      }),
+    ).toMatchObject({ status: "rejected", code: "not_found" });
+
+    const restore = await card(
+      await ops.prepareVariantArchive(owner, {
+        variant: "منظف عام 5 لتر",
+        mode: "restore",
+      }),
+    );
+    expect(restore.view.card.title).toBe("استرجاع صنف مؤرشف");
+    await confirmations.confirm(owner, restore);
+    expect(
+      (await storefront.getById("general-cleaner"))!.variants.map(
+        (row) => row.id,
+      ),
+    ).toContain(created!.domainId);
+    expect(await authoring.archivedVariants("general-cleaner")).toEqual([]);
+  });
+});
+
 describe("categories", () => {
   it("creates, moves, merges and deletes only empty categories", async () => {
     const create = await card(

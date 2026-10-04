@@ -19,7 +19,8 @@ export class SupplierMaintenanceError extends Error {
       | "same_supplier"
       | "in_use"
       | "merged"
-      | "duplicate",
+      | "duplicate"
+      | "exceeds_balance",
   ) {
     super(code);
     this.name = "SupplierMaintenanceError";
@@ -335,6 +336,78 @@ export class SupplierMaintenanceService {
     });
   }
 
+  // A supplier credit note (e.g. for returned goods) lowers what we owe; it is recorded, never edited.
+  async creditNote(
+    actor: AdminActor,
+    input: {
+      supplierId: string;
+      amountAgorot: number;
+      reference: string;
+      reason: string;
+      idempotencyKey: string;
+    },
+  ): Promise<{ balanceAgorot: number; replayed: boolean }> {
+    assertPermission(actor, "suppliers.balances");
+    const reference = input.reference.trim();
+    const reason = input.reason.trim();
+    if (
+      !Number.isSafeInteger(input.amountAgorot) ||
+      input.amountAgorot <= 0 ||
+      input.amountAgorot > 100_000_000 ||
+      reference.length < 1 ||
+      reference.length > 80 ||
+      reason.length < 2 ||
+      reason.length > 240 ||
+      !z.uuid().safeParse(input.idempotencyKey).success
+    ) {
+      throw new SupplierMaintenanceError("invalid_input");
+    }
+    const key = `credit-note:${input.idempotencyKey}`;
+    return this.database.transaction(async (transaction) => {
+      const [supplier] = await transaction
+        .select({ id: schema.suppliers.id })
+        .from(schema.suppliers)
+        .where(eq(schema.suppliers.id, input.supplierId))
+        .for("update");
+      if (!supplier) throw new SupplierMaintenanceError("not_found");
+      const [existing] = await transaction
+        .select({ id: schema.supplierLedgerEntries.id })
+        .from(schema.supplierLedgerEntries)
+        .where(eq(schema.supplierLedgerEntries.idempotencyKey, key))
+        .limit(1);
+      if (existing) {
+        return {
+          balanceAgorot: await this.balance(transaction, input.supplierId),
+          replayed: true,
+        };
+      }
+      const before = await this.balance(transaction, input.supplierId);
+      // A credit larger than the payable would turn the supplier into a debtor; record that as a correction instead.
+      if (input.amountAgorot > before) {
+        throw new SupplierMaintenanceError("exceeds_balance");
+      }
+      await transaction.insert(schema.supplierLedgerEntries).values({
+        supplierId: input.supplierId,
+        type: "correction",
+        amountAgorot: -input.amountAgorot,
+        note: reason,
+        documentKind: "credit_note",
+        documentReference: reference,
+        idempotencyKey: key,
+        createdBy: actor.id,
+      });
+      await this.audit(
+        transaction,
+        actor,
+        "supplier_credit_note",
+        input.supplierId,
+        { balanceAgorot: before - input.amountAgorot },
+        { balanceAgorot: before },
+      );
+      return { balanceAgorot: before - input.amountAgorot, replayed: false };
+    });
+  }
+
   async statement(supplierId: string, from: string, to: string) {
     const fromStart = startOfStoreDay(from);
     const toEnd = startOfStoreDay(addDays(to, 1));
@@ -374,7 +447,10 @@ export class SupplierMaintenanceService {
       return {
         date: row.createdAt.toISOString(),
         type: row.type,
-        label: supplierLedgerLabels[row.type] ?? row.type,
+        label:
+          row.documentKind === "credit_note"
+            ? `إشعار دائن ${row.documentReference ?? ""}`.trim()
+            : (supplierLedgerLabels[row.type] ?? row.type),
         amountAgorot: row.amountAgorot,
         balanceAgorot: running,
         note: row.note,

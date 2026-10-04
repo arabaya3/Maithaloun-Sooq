@@ -274,6 +274,58 @@ describe("offers", () => {
     ).toMatchObject({ status: "rejected", code: "conflict" });
   });
 
+  it("scopes an offer named after one variant to that variant, and states the scope on the card", async () => {
+    const authoring = new CatalogAuthoringService(db);
+    const added: string[] = [];
+    for (const label of ["لافندر", "ورد", "ليمون"]) {
+      const { variantId } = await authoring.createVariant(
+        owner,
+        "general-cleaner",
+        {
+          labelAr: label,
+          attributes: { scent: label },
+          priceAgorot: 900,
+          availability: "available",
+          sku: null,
+          barcode: null,
+        },
+      );
+      added.push(variantId);
+    }
+    try {
+      const single = await party.prepareOfferCreation(owner, {
+        nameAr: "خصم على منظف عام لافندر",
+        kind: "percentage",
+        value: "10",
+        products: ["منظف عام لافندر"],
+        enabled: false,
+      });
+      if (single.status !== "ready") throw new Error(JSON.stringify(single));
+      const singleScope = single.card.rows.find((row) => row.label === "يشمل");
+      expect(singleScope?.after).toContain("صنف محدد فقط");
+      expect(singleScope?.after).toContain("المجموع 1 صنف");
+      expect(
+        single.card.rows.filter((row) => row.before?.includes("₪")),
+      ).toHaveLength(1);
+      expect(single.summary).toContain("لافندر");
+
+      const whole = await party.prepareOfferCreation(owner, {
+        nameAr: "خصم على كل المنظف العام",
+        kind: "percentage",
+        value: "10",
+        products: ["منظف عام"],
+        enabled: false,
+      });
+      if (whole.status !== "ready") throw new Error(JSON.stringify(whole));
+      const wholeScope = whole.card.rows.find((row) => row.label === "يشمل");
+      expect(wholeScope?.after).toContain("بكل أصنافه");
+      expect(wholeScope?.after).toContain("المجموع 4 أصناف");
+      expect(whole.summary).toContain("المجموع 4 أصناف");
+    } finally {
+      for (const id of added) await authoring.deleteUnusedVariant(owner, id);
+    }
+  });
+
   it("respects start and end dates and stops applying once archived", async () => {
     const tomorrow = new Date(Date.now() + 86_400_000).toLocaleDateString(
       "en-CA",

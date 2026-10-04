@@ -470,6 +470,9 @@ export const supplierLedgerEntries = pgTable(
       { onDelete: "restrict" },
     ),
     note: varchar("note", { length: 240 }),
+    // A supplier credit note is a payable-reducing correction with the supplier's document number.
+    documentKind: varchar("document_kind", { length: 20 }),
+    documentReference: varchar("document_reference", { length: 80 }),
     idempotencyKey: varchar("idempotency_key", { length: 80 })
       .notNull()
       .unique(),
@@ -493,6 +496,14 @@ export const supplierLedgerEntries = pgTable(
       sql`(${table.type} = 'purchase' AND ${table.amountAgorot} > 0)
         OR (${table.type} = 'payment' AND ${table.amountAgorot} < 0)
         OR (${table.type} = 'correction' AND ${table.amountAgorot} <> 0)`,
+    ),
+    check(
+      "supplier_ledger_entries_credit_note",
+      sql`${table.documentKind} IS NULL
+        OR (${table.documentKind} = 'credit_note'
+          AND ${table.type} = 'correction'
+          AND ${table.amountAgorot} < 0
+          AND char_length(btrim(${table.documentReference})) BETWEEN 1 AND 80)`,
     ),
   ],
 );

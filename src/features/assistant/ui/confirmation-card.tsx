@@ -11,6 +11,9 @@ import { useCallback, useEffect, useState } from "react";
 
 import type { ConfirmationView } from "../application/confirmation-service";
 
+// Any card that runs may change the records other open cards were prepared against.
+const SETTLED_EVENT = "assistant:confirmation-settled";
+
 type Phase =
   | { name: "loading" }
   | { name: "ready"; view: ConfirmationView }
@@ -75,11 +78,13 @@ export function ConfirmationCard({
           message:
             view.status === "expired"
               ? "انتهت مدة هذه البطاقة. اطلبي العملية من جديد."
-              : view.status === "cancelled"
-                ? "أُلغيت هذه العملية."
-                : view.status === "executing"
-                  ? "نتيجة هذه العملية غير مؤكدة. تحققي من السجل."
-                  : "لم تتم هذه العملية.",
+              : view.status === "cancelled" && view.reason === "stale"
+                ? "تغيّرت البيانات بعد تجهيز هذه البطاقة (غالباً بتنفيذ بطاقة أخرى)، فلم تعد صالحة. اطلبي العملية من جديد لتجهيز بطاقة محدّثة."
+                : view.status === "cancelled"
+                  ? "أُلغيت هذه العملية."
+                  : view.status === "executing"
+                    ? "نتيجة هذه العملية غير مؤكدة. تحققي من السجل."
+                    : "لم تتم هذه العملية.",
           href: view.card.target.href,
         });
       }
@@ -97,6 +102,23 @@ export function ConfirmationCard({
     const timer = window.setTimeout(() => void load(), 0);
     return () => window.clearTimeout(timer);
   }, [load]);
+
+  // Re-read the server state when another card runs or the tab comes back, so status never lingers.
+  const waiting = phase.name === "ready";
+  useEffect(() => {
+    if (!waiting) return;
+    // The acting card has already left "ready"; copies of the same card elsewhere refresh too.
+    const refresh = () => void load();
+    const onVisible = () => {
+      if (document.visibilityState === "visible") void load();
+    };
+    window.addEventListener(SETTLED_EVENT, refresh);
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      window.removeEventListener(SETTLED_EVENT, refresh);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [waiting, load]);
 
   async function act(action: "confirm" | "cancel") {
     if (phase.name !== "ready" || !phase.view.token) return;
@@ -154,6 +176,9 @@ export function ConfirmationCard({
         href: view.card.target.href,
       });
     }
+    window.dispatchEvent(
+      new CustomEvent(SETTLED_EVENT, { detail: confirmationId }),
+    );
     onSettled?.();
   }
 

@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, eq, lt } from "drizzle-orm";
+import { and, desc, eq, gt, lt } from "drizzle-orm";
 import { z } from "zod";
 
 import type { AdminActor } from "@/features/admin/domain/admin-actor";
@@ -40,6 +40,8 @@ export interface ConfirmationView {
   expiresAt: string;
   token: string | null;
   result: { message: string; href: string | null } | null;
+  // Why a card ended without running, e.g. "stale" when its record changed after it was prepared.
+  reason: string | null;
 }
 
 export type ConfirmOutcome =
@@ -113,6 +115,15 @@ export class ConfirmationService {
     const operation = operationSchema.safeParse(row.operation);
     if (!operation.success) return null;
     let status = row.status as ConfirmationStatus;
+    let reason = row.errorCode ?? null;
+    if (
+      status === "pending" &&
+      row.expiresAt.getTime() > Date.now() &&
+      (await this.retireIfStale(actor, row))
+    ) {
+      status = "cancelled";
+      reason = "stale";
+    }
     if (status === "pending" && row.expiresAt.getTime() <= Date.now()) {
       await this.database
         .update(schema.adminAssistantConfirmations)
@@ -155,7 +166,74 @@ export class ConfirmationService {
       result: result?.message
         ? { message: result.message, href: result.href ?? null }
         : null,
+      reason,
     };
+  }
+
+  // Same optimistic check as confirm(): a card whose record changed must not keep looking actionable.
+  private async retireIfStale(
+    actor: AdminActor,
+    row: {
+      id: string;
+      operation: string;
+      payload: unknown;
+      recordVersion: string;
+    },
+  ): Promise<boolean> {
+    const operation = operationSchema.safeParse(row.operation);
+    if (!operation.success) return false;
+    let current: string | null = null;
+    try {
+      current = await this.operations.handlers[operation.data].version(
+        actor,
+        (row.payload as { args: Record<string, unknown> }).args,
+      );
+    } catch {
+      current = null;
+    }
+    if (current === row.recordVersion) return false;
+    const updated = await this.database
+      .update(schema.adminAssistantConfirmations)
+      .set({ status: "cancelled", errorCode: "stale" })
+      .where(
+        and(
+          eq(schema.adminAssistantConfirmations.id, row.id),
+          eq(schema.adminAssistantConfirmations.status, "pending"),
+        ),
+      )
+      .returning({ id: schema.adminAssistantConfirmations.id });
+    return updated.length > 0;
+  }
+
+  // The newest card in this conversation that can still be confirmed, if any.
+  async pendingInConversation(
+    actor: AdminActor,
+    conversationId: string,
+  ): Promise<{ id: string; confirmLabel: string; title: string } | null> {
+    const rows = await this.database
+      .select({
+        id: schema.adminAssistantConfirmations.id,
+        operation: schema.adminAssistantConfirmations.operation,
+        payload: schema.adminAssistantConfirmations.payload,
+        recordVersion: schema.adminAssistantConfirmations.recordVersion,
+      })
+      .from(schema.adminAssistantConfirmations)
+      .where(
+        and(
+          eq(schema.adminAssistantConfirmations.conversationId, conversationId),
+          eq(schema.adminAssistantConfirmations.adminUserId, actor.id),
+          eq(schema.adminAssistantConfirmations.status, "pending"),
+          gt(schema.adminAssistantConfirmations.expiresAt, new Date()),
+        ),
+      )
+      .orderBy(desc(schema.adminAssistantConfirmations.createdAt))
+      .limit(5);
+    for (const row of rows) {
+      if (await this.retireIfStale(actor, row)) continue;
+      const card = (row.payload as { card: ConfirmationCard }).card;
+      return { id: row.id, confirmLabel: card.confirmLabel, title: card.title };
+    }
+    return null;
   }
 
   async confirm(

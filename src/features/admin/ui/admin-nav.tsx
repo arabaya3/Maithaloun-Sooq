@@ -20,6 +20,7 @@ import {
   Settings,
   ShoppingBag,
   Store,
+  Tags,
   Truck,
   Users,
   type LucideIcon,
@@ -55,6 +56,13 @@ const secondaryLinks: NavLink[] = [
     label: "المنتجات",
     match: "prefix",
     Icon: Package,
+  },
+  {
+    href: "/admin/categories",
+    label: "الأقسام",
+    match: "prefix",
+    Icon: Tags,
+    ownerOnly: true,
   },
   {
     href: "/admin/sales",

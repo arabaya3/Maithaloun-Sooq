@@ -147,7 +147,12 @@ export class AdminNotificationService {
         schema.orders,
         eq(schema.adminNotifications.orderId, schema.orders.id),
       )
-      .where(eq(schema.orders.publicReference, publicReference))
+      .where(
+        and(
+          eq(schema.orders.publicReference, publicReference),
+          eq(schema.orders.isTest, false),
+        ),
+      )
       .limit(1);
     if (!notification) return;
     await this.pushToAll(notification);

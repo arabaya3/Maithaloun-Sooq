@@ -33,6 +33,10 @@ import {
 import type { PartyOperation } from "../domain/assistant-policy";
 import { canonicalJson, sha256 } from "../domain/confirmation-token";
 import type { EntityCandidate } from "../domain/entity-match";
+import {
+  describeOfferScope,
+  specificVariantNamed,
+} from "../domain/offer-scope";
 import type {
   ConfirmationCard,
   ExecutionResult,
@@ -176,13 +180,15 @@ export class PartyOperations {
     actor: AdminActor,
     changes: Pick<OfferChanges, "products" | "variants" | "categories">,
   ): Promise<
-    { ok: true; targets: OfferTargets } | { ok: false; result: PrepareResult }
+    | { ok: true; targets: OfferTargets; names: string[] }
+    | { ok: false; result: PrepareResult }
   > {
     const targets: OfferTargets = {
       productIds: [],
       variantIds: [],
       categoryCodes: [],
     };
+    const names: string[] = [];
     for (const query of changes.products ?? []) {
       const resolved = await this.services.resolveProduct(
         actor,
@@ -191,7 +197,20 @@ export class PartyOperations {
         "products",
       );
       if (!resolved.ok) return resolved;
-      targets.productIds.push(resolved.product.id);
+      const { product } = resolved;
+      const named = specificVariantNamed(query, product.variants);
+      if (named) {
+        targets.variantIds.push(named);
+        const label = product.variants.find((row) => row.id === named)!.labelAr;
+        names.push(`«${product.nameAr} — ${label}» فقط`);
+      } else {
+        targets.productIds.push(product.id);
+        names.push(
+          product.variants.length > 1
+            ? `«${product.nameAr}» بكل أصنافه`
+            : `«${product.nameAr}»`,
+        );
+      }
     }
     for (const query of changes.variants ?? []) {
       const resolved = await this.services.resolveProduct(
@@ -202,6 +221,7 @@ export class PartyOperations {
       );
       if (!resolved.ok) return resolved;
       targets.variantIds.push(resolved.match.variantId);
+      names.push(`«${resolved.match.label}» فقط`);
     }
     for (const query of changes.categories ?? []) {
       const resolved = await this.services.catalogOps.resolveCategory(query, {
@@ -209,8 +229,9 @@ export class PartyOperations {
       });
       if (!resolved.ok) return resolved;
       targets.categoryCodes.push(resolved.category.code);
+      names.push(`قسم «${resolved.category.nameAr}»`);
     }
-    return { ok: true, targets };
+    return { ok: true, targets, names };
   }
 
   private parseValue(kind: OfferKind, value: string): number | null {
@@ -228,8 +249,10 @@ export class PartyOperations {
     before: OfferInput | null,
     title: string,
     offerId: string | null,
+    names: readonly string[] = [],
   ): Promise<
-    { ok: true; card: ConfirmationCard } | { ok: false; result: PrepareResult }
+    | { ok: true; card: ConfirmationCard; scope: string }
+    | { ok: false; result: PrepareResult }
   > {
     const rows = await this.services.offers.preview(input);
     if (!rows.length) {
@@ -284,10 +307,12 @@ export class PartyOperations {
       value
         ? `${offerValueLabel(value.kind, value.value)}${value.minQuantity > 1 ? ` عند ${value.minQuantity}+` : ""}`
         : null;
+    const scope = describeOfferScope(input.targets, rows.length, names);
     const card: ConfirmationCard = {
       title,
       target: { label: input.nameAr, href: offersHref },
       rows: [
+        { label: "يشمل", before: null, after: scope },
         { label: "العرض", before: summary(before), after: summary(input)! },
         {
           label: "المدة",
@@ -319,7 +344,7 @@ export class PartyOperations {
       destructive: false,
       reversible: true,
     };
-    return { ok: true, card };
+    return { ok: true, card, scope };
   }
 
   private toOfferInput(
@@ -407,13 +432,19 @@ export class PartyOperations {
     if (!targets.ok) return targets.result;
     const built = this.toOfferInput(null, changes, targets.targets);
     if (!built.ok) return built.result;
-    const card = await this.offerCard(built.input, null, "إضافة عرض", null);
+    const card = await this.offerCard(
+      built.input,
+      null,
+      "إضافة عرض",
+      null,
+      targets.names,
+    );
     if (!card.ok) return card.result;
     return {
       status: "ready",
       operation: "offerCreate",
       args: { input: serializeOffer(built.input) },
-      summary: `إضافة عرض ${built.input.nameAr}`,
+      summary: `إضافة عرض ${built.input.nameAr} — يشمل ${card.scope}`,
       card: card.card,
     };
   }
@@ -460,13 +491,14 @@ export class PartyOperations {
       base,
       title,
       resolved.offer.id,
+      targets?.names ?? [],
     );
     if (!card.ok) return card.result;
     return {
       status: "ready",
       operation: "offerUpdate",
       args: { offerId: resolved.offer.id, input: serializeOffer(built.input) },
-      summary: `${title}: ${built.input.nameAr}`,
+      summary: `${title}: ${built.input.nameAr} — يشمل ${card.scope}`,
       card: card.card,
     };
   }

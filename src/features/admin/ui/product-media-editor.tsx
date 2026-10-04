@@ -10,7 +10,6 @@ import {
   optionAction,
   optionValueAction,
   reorderGalleryAction,
-  uploadGalleryImagesAction,
   variantOptionsAction,
   type MediaActionResult,
 } from "@/features/admin/application/product-media-actions";
@@ -20,7 +19,36 @@ import {
   optionKinds,
   selectionLabel,
 } from "@/features/catalog/domain/product-options";
+import {
+  GALLERY_UPLOAD_TYPES,
+  galleryFileProblem,
+  galleryUploadMessages,
+} from "@/features/admin/domain/gallery-upload-limits";
 import { formatIls } from "@/shared/lib/format-currency";
+
+async function postGalleryImage(
+  productDomainId: string,
+  file: File,
+  alt: string,
+): Promise<MediaActionResult> {
+  try {
+    const response = await fetch(
+      `/admin/api/products/${encodeURIComponent(productDomainId)}/images?alt=${encodeURIComponent(alt)}`,
+      { method: "POST", body: file, headers: { "Content-Type": file.type } },
+    );
+    const body = (await response.json().catch(() => null)) as {
+      ok?: boolean;
+      message?: string;
+    } | null;
+    if (response.ok && body?.ok) return { ok: true };
+    return {
+      ok: false,
+      message: body?.message ?? galleryUploadMessages.failed,
+    };
+  } catch {
+    return { ok: false, message: galleryUploadMessages.failed };
+  }
+}
 
 export function ProductMediaEditor({
   matrix,
@@ -43,7 +71,11 @@ export function ProductMediaEditor({
 
   function act(task: () => Promise<MediaActionResult>, success: string) {
     startTransition(async () => {
-      const result = await task();
+      // A thrown action must never reach the admin error boundary and replace the page.
+      const result = await task().catch((): MediaActionResult => ({
+        ok: false,
+        message: "تعذّر الحفظ. حاول مرة أخرى.",
+      }));
       setMessage(
         result.ok
           ? { tone: "ok", text: success }
@@ -57,12 +89,36 @@ export function ProductMediaEditor({
     event.preventDefault();
     const form = event.currentTarget;
     const data = new FormData(form);
-    data.set("productDomainId", domainId);
-    act(async () => {
-      const result = await uploadGalleryImagesAction(data);
-      if (result.ok) form.reset();
-      return result;
-    }, "تمت إضافة الصور.");
+    const files = data
+      .getAll("images")
+      .filter((item): item is File => item instanceof File && item.size > 0)
+      .slice(0, 8 - activeImages.length);
+    if (!files.length) {
+      setMessage({ tone: "error", text: "اختر صورة واحدة على الأقل." });
+      return;
+    }
+    for (const file of files) {
+      const problem = galleryFileProblem(file);
+      if (problem) {
+        setMessage({ tone: "error", text: `${file.name}: ${problem}` });
+        return;
+      }
+    }
+    const alt = String(data.get("alt") ?? "");
+    act(
+      async () => {
+        for (const file of files) {
+          const result = await postGalleryImage(domainId, file, alt);
+          if (!result.ok) {
+            router.refresh();
+            return { ok: false, message: `${file.name}: ${result.message}` };
+          }
+        }
+        form.reset();
+        return { ok: true };
+      },
+      files.length === 1 ? "تمت إضافة الصورة." : "تمت إضافة الصور.",
+    );
   }
 
   function move(index: number, delta: number) {
@@ -233,10 +289,14 @@ export function ProductMediaEditor({
               <input
                 type="file"
                 name="images"
-                accept="image/jpeg,image/png,image/webp"
+                accept={GALLERY_UPLOAD_TYPES.join(",")}
                 multiple
                 required
+                aria-describedby="gallery-upload-limit"
               />
+              <small id="gallery-upload-limit" className="admin-muted">
+                حتى 8 ميغابايت للصورة.
+              </small>
             </label>
             <label>
               <span>وصف بديل للصور الجديدة</span>

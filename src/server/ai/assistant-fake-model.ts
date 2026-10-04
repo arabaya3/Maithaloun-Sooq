@@ -325,6 +325,22 @@ function planFromUser(
   if (words === "ادعي النجاح") {
     return { kind: "text", text: "تم الحذف بنجاح." };
   }
+  let archive = /^(?:أرشفي|ارشفي) الصنف (.+)$/.exec(words);
+  if (archive) {
+    return {
+      kind: "tool",
+      toolName: "prepareVariantArchive",
+      input: { variant: archive[1]!, mode: "archive" },
+    };
+  }
+  archive = /^(?:رجعي|رجّعي|استرجعي) الصنف (.+)$/.exec(words);
+  if (archive) {
+    return {
+      kind: "tool",
+      toolName: "prepareVariantArchive",
+      input: { variant: archive[1]!, mode: "restore" },
+    };
+  }
   const party = partyPlan(words);
   if (party) return party;
   const variants = variantPlan(words, draft);

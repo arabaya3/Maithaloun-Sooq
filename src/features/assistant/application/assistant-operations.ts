@@ -42,6 +42,8 @@ import { sha256, canonicalJson } from "../domain/confirmation-token";
 import {
   forChanges,
   resolveCatalogEntity,
+  scopedCandidates,
+  selectionQuestion,
   type CatalogEntry,
   type EntityCandidate,
 } from "../domain/entity-match";
@@ -163,7 +165,7 @@ function selection(
     status: "needs_selection",
     field,
     question,
-    options: candidates.map((item) => ({
+    options: scopedCandidates(candidates, scope).map((item) => ({
       id: scope === "product" ? item.productId : item.variantId,
       label: item.label,
     })),
@@ -308,9 +310,7 @@ export class AssistantOperations {
         ok: false,
         result: selection(
           field,
-          scope === "product"
-            ? "لقيت أكثر من منتج قريب من الاسم، أي واحد تقصدين؟"
-            : "أي صنف بالضبط؟",
+          selectionQuestion(resolution.candidates, query, scope),
           resolution.candidates,
           scope,
         ),
@@ -918,7 +918,7 @@ export class AssistantOperations {
       if (resolution.status === "ambiguous") {
         return selection(
           `items.${index}`,
-          `أي منتج تقصدين بـ «${item.product.slice(0, 60)}»؟`,
+          selectionQuestion(resolution.candidates, item.product, "variant"),
           resolution.candidates,
           "variant",
         );

@@ -2,7 +2,10 @@ import { describe, expect, it } from "vitest";
 
 import {
   forChanges,
+  forSearch,
   resolveCatalogEntity,
+  scopedCandidates,
+  selectionQuestion,
   type CatalogEntry,
 } from "./entity-match";
 import { shouldStopLoop } from "./loop-guard";
@@ -166,6 +169,63 @@ describe("ambiguity for changes", () => {
     ).toBe("resolved");
     expect(forChanges(resolveCatalogEntity("فرشاة سجاد", catalog)).status).toBe(
       "resolved",
+    );
+  });
+
+  it("asks to confirm a unique partial match instead of calling it ambiguous", () => {
+    const partial = forChanges(resolveCatalogEntity("فرشاة", catalog));
+    if (partial.status !== "ambiguous") throw new Error("expected a choice");
+    const question = selectionQuestion(partial.candidates, "فرشاة", "product");
+    expect(question).toContain("نتيجة واحدة");
+    expect(question).toContain("فرشاة سجاد");
+    expect(question).not.toContain("أكثر من");
+    expect(
+      selectionQuestion(
+        [...partial.candidates, { ...partial.candidates[0]!, productId: "x" }],
+        "فرشاة",
+        "product",
+      ),
+    ).toContain("أكثر من منتج");
+  });
+
+  it("names the product, not one of its variants, in a product-level choice", () => {
+    const variants = [
+      {
+        productId: "musk",
+        variantId: "musk--a",
+        label: "مسك — لافندر",
+        confidence: 85,
+        method: "contains" as const,
+      },
+      {
+        productId: "musk",
+        variantId: "musk--b",
+        label: "مسك — ورد",
+        confidence: 85,
+        method: "contains" as const,
+      },
+    ];
+    expect(scopedCandidates(variants, "product")).toEqual([
+      expect.objectContaining({ productId: "musk", label: "مسك" }),
+    ]);
+    expect(scopedCandidates(variants, "variant")).toHaveLength(2);
+    expect(selectionQuestion(variants, "مس", "product")).toContain(
+      "«مس»: مسك.",
+    );
+  });
+
+  it("reports a unique partial search result as found and approximate", () => {
+    expect(forSearch(resolveCatalogEntity("فرشاة", catalog))).toMatchObject({
+      status: "resolved",
+      approximate: true,
+      match: { productId: "carpet-brush" },
+    });
+    expect(forSearch(resolveCatalogEntity("BR-1", catalog))).toMatchObject({
+      status: "resolved",
+      approximate: false,
+    });
+    expect(forSearch(resolveCatalogEntity("مزيل دهون", catalog)).status).toBe(
+      "ambiguous",
     );
   });
 });

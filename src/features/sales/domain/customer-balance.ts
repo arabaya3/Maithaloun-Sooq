@@ -137,12 +137,15 @@ export function summarizeCustomer(input: {
     totalPurchasesAgorot: input.invoices
       .filter((invoice) => invoice.status === "posted")
       .reduce((sum, invoice) => sum + invoice.totalAgorot, 0),
-    totalPaidAgorot: -input.entries
-      .filter(
-        (entry) =>
-          entry.type === "payment" || entry.type === "payment_reversal",
-      )
-      .reduce((sum, entry) => sum + entry.amountAgorot, 0),
+    // Payments are stored negative; subtract from 0 so an empty sum stays +0, never -0.
+    totalPaidAgorot:
+      0 -
+      input.entries
+        .filter(
+          (entry) =>
+            entry.type === "payment" || entry.type === "payment_reversal",
+        )
+        .reduce((sum, entry) => sum + entry.amountAgorot, 0),
     oldestUnpaid: oldest
       ? {
           amountAgorot: oldest.allocation.remainingAgorot,

@@ -90,6 +90,15 @@ const {
   updateServiceAreaAction,
 } = await import("./admin-actions");
 
+// Product saves return to the edit page with a saved marker so the page can confirm the save.
+function expectSavedRedirect(path: string, saved: string, error: unknown) {
+  expect(error).toBeInstanceOf(Error);
+  const url = String(redirectMock.mock.calls.at(-1)?.[0] ?? "");
+  expect(url.startsWith(`${path}?saved=${saved}&at=`)).toBe(true);
+  expect(url).toMatch(/&at=\d+$/);
+  expect(String(error)).toContain(`NEXT_REDIRECT:${url}`);
+}
+
 function expectRedirect(url: string, error: unknown) {
   expect(error).toBeInstanceOf(Error);
   expect(String(error)).toContain(`NEXT_REDIRECT:${url}`);
@@ -141,7 +150,11 @@ describe("admin mutation actions", () => {
 
     await expect(updateProductAction(formData)).rejects.toSatisfy(
       (error: unknown) => {
-        expectRedirect("/admin/products/general-cleaner", error);
+        expectSavedRedirect(
+          "/admin/products/general-cleaner",
+          "product",
+          error,
+        );
         return true;
       },
     );
@@ -162,7 +175,7 @@ describe("admin mutation actions", () => {
 
     await expect(createProductAction(formData)).rejects.toSatisfy(
       (error: unknown) => {
-        expectRedirect("/admin/products/new-cleaner", error);
+        expectSavedRedirect("/admin/products/new-cleaner", "created", error);
         return true;
       },
     );

@@ -84,6 +84,11 @@ export default async function AdminOrdersPage({
               : ` · ${totalAll} إجمالي`}
           </p>
         </div>
+        {actor.role === "owner" ? (
+          <Link href="/admin/orders/qa" prefetch={false} className="admin-btn">
+            طلبات الاختبار
+          </Link>
+        ) : null}
       </header>
 
       <nav className="admin-status-tabs" aria-label="تصفية الحالة">

@@ -31,7 +31,7 @@ import { todayInStoreZone } from "@/shared/lib/store-time";
 import type { Database } from "@/features/inventory/application/stock-ledger";
 
 import { toolRisk, type AssistantMode } from "../domain/assistant-policy";
-import { resolveCatalogEntity } from "../domain/entity-match";
+import { forSearch, resolveCatalogEntity } from "../domain/entity-match";
 import { assistantFailure } from "./assistant-errors";
 import {
   catalogEntries,
@@ -194,10 +194,8 @@ export function createAssistantTools(context: AssistantToolContext) {
       execute: ({ query }) =>
         run("searchProducts", { query }, async () => {
           const products = await context.catalog.list(actor);
-          const resolution = resolveCatalogEntity(
-            query,
-            catalogEntries(products),
-            "product",
+          const resolution = forSearch(
+            resolveCatalogEntity(query, catalogEntries(products), "product"),
           );
           const list =
             resolution.status === "resolved"
@@ -206,6 +204,7 @@ export function createAssistantTools(context: AssistantToolContext) {
           const stock = await context.inventory.listStock(actor);
           return {
             status: resolution.status,
+            approximate: resolution.approximate,
             results: list.map((item) => {
               const product = products.find(
                 (row) => row.id === item.productId,
