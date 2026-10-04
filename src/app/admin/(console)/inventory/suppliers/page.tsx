@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Truck } from "lucide-react";
+import Link from "next/link";
 import { connection } from "next/server";
 
 import { supplierService } from "@/features/admin/application/admin-services";
@@ -32,7 +33,15 @@ export default async function SuppliersPage() {
             <li key={supplier.id} className="admin-panel">
               <div className="admin-line admin-line--static">
                 <span className="admin-line-main">
-                  <strong>{supplier.nameAr}</strong>
+                  <Link
+                    href={`/admin/inventory/suppliers/${supplier.id}`}
+                    prefetch={false}
+                  >
+                    <strong>{supplier.nameAr}</strong>
+                  </Link>
+                  {supplier.active ? null : (
+                    <small className="admin-muted"> · مؤرشف</small>
+                  )}
                   <small>
                     {supplier.invoiceCount} فاتورة
                     {supplier.phone ? (

@@ -102,10 +102,14 @@ test("sign-in rejects a wrong code, then issues an HttpOnly session and claims p
     fullPage: true,
   });
 
-  const session = (await context.cookies()).find(
-    (cookie) => cookie.name === "souq_customer_session",
+  // Development uses a plain name; a production build uses a Secure __Host- cookie.
+  const session = (await context.cookies()).find((cookie) =>
+    ["souq_customer_session", "__Host-souq-customer"].includes(cookie.name),
   );
   expect(session).toMatchObject({ httpOnly: true, sameSite: "Lax" });
+  if (session!.name.startsWith("__Host-")) {
+    expect(session).toMatchObject({ secure: true, path: "/" });
+  }
   expect(
     await page.evaluate(() => JSON.stringify(window.localStorage)),
   ).not.toContain(session!.value);

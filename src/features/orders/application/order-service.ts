@@ -38,13 +38,21 @@ export class OrderCreationError extends Error {
   }
 }
 
+// Stored instead of a phone on owner QA orders; the database allows it only when is_test is set.
+export const QA_ORDER_PHONE = "qa-test";
+
 export class OrderService {
   constructor(private readonly database: PostgresJsDatabase<typeof schema>) {}
 
   async create(
     request: CheckoutRequest,
     owner: { customerAccountId: string | null } = { customerAccountId: null },
+    // Internal only: the public checkout route never passes these.
+    options: { test?: boolean; allowQaProbe?: boolean } = {},
   ): Promise<OrderConfirmation> {
+    const test = options.test === true;
+    // The QA probe variant is orderable only by the owner stock simulation, never by checkout.
+    const allowQaProbe = test && options.allowQaProbe === true;
     const requestFingerprint = createOrderRequestFingerprint(request);
 
     try {
@@ -99,11 +107,13 @@ export class OrderService {
           if (row.product.domainId !== item.productId) {
             throw new OrderCreationError("unknown_product");
           }
+          const qaProbe = allowQaProbe && row.variant.qaOwned;
           if (
+            (row.variant.qaOwned && !qaProbe) ||
             row.variant.availability !== "available" ||
             row.variant.archivedAt ||
             row.product.archivedAt ||
-            row.product.publication !== "published"
+            (row.product.publication !== "published" && !qaProbe)
           ) {
             throw new OrderCreationError("unavailable_product");
           }
@@ -159,8 +169,9 @@ export class OrderService {
             publicReference: generatePublicOrderReference(),
             customerName: request.customerName,
             customerFullName: request.customerName,
-            normalizedPhone: request.whatsappPhoneE164,
-            whatsappPhoneE164: request.whatsappPhoneE164,
+            normalizedPhone: test ? QA_ORDER_PHONE : request.whatsappPhoneE164,
+            whatsappPhoneE164: test ? null : request.whatsappPhoneE164,
+            isTest: test,
             serviceAreaId: serviceArea.id,
             serviceAreaCodeSnapshot: serviceArea.code,
             serviceAreaNameSnapshot: serviceArea.nameAr,
@@ -216,7 +227,7 @@ export class OrderService {
           }),
         );
 
-        if (owner.customerAccountId) {
+        if (owner.customerAccountId && !test) {
           await transaction.insert(schema.customerOrderLinks).values({
             orderId: createdOrder.id,
             accountId: owner.customerAccountId,
@@ -224,13 +235,15 @@ export class OrderService {
           });
         }
 
-        await transaction.insert(schema.adminNotifications).values({
-          type: "order_created",
-          orderId: createdOrder.id,
-          title: "طلب جديد",
-          body: `وصل طلب جديد بقيمة ${(finalTotalAgorot / 100).toFixed(2)} ₪`,
-          href: `/admin/orders/${createdOrder.publicReference}`,
-        });
+        // QA orders must never reach the owner or staff as a real order.
+        if (!test)
+          await transaction.insert(schema.adminNotifications).values({
+            type: "order_created",
+            orderId: createdOrder.id,
+            title: "طلب جديد",
+            body: `وصل طلب جديد بقيمة ${(finalTotalAgorot / 100).toFixed(2)} ₪`,
+            href: `/admin/orders/${createdOrder.publicReference}`,
+          });
 
         return this.toConfirmation(createdOrder, false);
       });

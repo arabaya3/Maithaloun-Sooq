@@ -111,6 +111,24 @@ describe("customer balance", () => {
       oldestUnpaid: { amountAgorot: 2_500, date: "2026-09-10", ageDays: 10 },
     });
   });
+
+  it("reports zero paid as positive zero for a customer with no payments", () => {
+    const unpaid = summarizeCustomer({
+      invoices: [invoice("a", "2026-09-01", 2_000)],
+      entries: [{ type: "invoice", amountAgorot: 2_000 }],
+      today: "2026-09-20",
+    });
+    const reversed = summarizeCustomer({
+      invoices: [],
+      entries: [
+        { type: "payment", amountAgorot: -1_000 },
+        { type: "payment_reversal", amountAgorot: 1_000 },
+      ],
+      today: "2026-09-20",
+    });
+    expect(Object.is(unpaid.totalPaidAgorot, 0)).toBe(true);
+    expect(Object.is(reversed.totalPaidAgorot, 0)).toBe(true);
+  });
 });
 
 describe("sale calculation", () => {

@@ -40,6 +40,7 @@ export class AdminDashboardService {
             total: count(),
           })
           .from(schema.orders)
+          .where(eq(schema.orders.isTest, false))
           .groupBy(schema.orders.status),
         this.database
           .select({
@@ -54,6 +55,7 @@ export class AdminDashboardService {
           .where(
             and(
               eq(schema.orders.status, "delivered"),
+              eq(schema.orders.isTest, false),
               gte(schema.orders.updatedAt, startOfUtcDay),
             ),
           ),

@@ -2,6 +2,8 @@ import { randomUUID } from "node:crypto";
 
 import {
   createAgentUIStreamResponse,
+  createUIMessageStream,
+  createUIMessageStreamResponse,
   safeValidateUIMessages,
   type StreamTextTransform,
   type ToolSet,
@@ -9,6 +11,7 @@ import {
 
 import {
   assistantAttachments,
+  assistantConfirmations,
   assistantConversations,
 } from "@/features/admin/application/admin-services";
 import { jsonNoStore } from "@/features/admin/auth/admin-api-response";
@@ -16,6 +19,10 @@ import {
   assistantToolContext,
   authorizeAssistant,
 } from "@/features/assistant/application/assistant-access";
+import {
+  confirmationButtonHint,
+  isBareAffirmation,
+} from "@/features/assistant/domain/affirmation";
 import {
   assistantRequestSchema,
   toModelUserText,
@@ -98,6 +105,47 @@ export async function POST(request: Request) {
     ],
     metadata: { attachmentIds },
   };
+
+  // "نعم" while a card is open: point at the button instead of letting the model improvise.
+  const typed = message.parts.map((part) => part.text).join("\n");
+  if (!attachments.length && isBareAffirmation(typed)) {
+    const pending = await assistantConfirmations.pendingInConversation(
+      actor,
+      conversationId,
+    );
+    if (pending) {
+      const replyId = `a-${randomUUID()}`;
+      const text = confirmationButtonHint(pending.confirmLabel);
+      await assistantConversations.save(conversationId, [
+        userMessage,
+        {
+          id: replyId,
+          role: "assistant" as const,
+          parts: [{ type: "text" as const, text }],
+          metadata: { status: "completed", conversationId },
+        },
+      ]);
+      logEvent("info", "assistant.chat.affirmation_redirected", {
+        durationMs: Date.now() - started,
+      });
+      return createUIMessageStreamResponse({
+        headers: { "Cache-Control": "no-store, max-age=0" },
+        stream: createUIMessageStream({
+          execute({ writer }) {
+            writer.write({
+              type: "start",
+              messageId: replyId,
+              messageMetadata: { conversationId },
+            });
+            writer.write({ type: "text-start", id: "hint" });
+            writer.write({ type: "text-delta", id: "hint", delta: text });
+            writer.write({ type: "text-end", id: "hint" });
+            writer.write({ type: "finish" });
+          },
+        }),
+      });
+    }
+  }
 
   let agent;
   try {

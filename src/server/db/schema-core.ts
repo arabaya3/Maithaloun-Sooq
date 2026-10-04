@@ -197,6 +197,8 @@ export const productVariants = pgTable(
     barcode: varchar("barcode", { length: 64 }),
     sortOrder: integer("sort_order").notNull(),
     isDefault: boolean("is_default").default(false).notNull(),
+    // Set only on the dedicated QA probe; the stock-path simulation refuses any other variant.
+    qaOwned: boolean("qa_owned").default(false).notNull(),
     archivedAt: timestamp("archived_at", { withTimezone: true, mode: "date" }),
     packCount: integer("pack_count"),
     combinationKey: varchar("combination_key", { length: 400 }),
@@ -351,10 +353,20 @@ export const orders = pgTable(
     requestFingerprint: varchar("request_fingerprint", {
       length: 64,
     }).notNull(),
+    // Owner-made QA orders: never notified, queued, delivered or reported.
+    isTest: boolean("is_test").default(false).notNull(),
     ...timestamps,
   },
   (table) => [
     index("orders_status_created_at_idx").on(table.status, table.createdAt),
+    index("orders_test_created_at_idx")
+      .on(table.createdAt)
+      .where(sql`${table.isTest}`),
+    check(
+      "orders_test_contact",
+      sql`(${table.isTest} AND ${table.normalizedPhone} = 'qa-test' AND ${table.whatsappPhoneE164} IS NULL)
+        OR (NOT ${table.isTest} AND ${table.normalizedPhone} <> 'qa-test')`,
+    ),
     index("orders_created_at_idx").on(table.createdAt),
     index("orders_normalized_phone_idx").on(table.normalizedPhone),
     index("orders_whatsapp_phone_e164_idx").on(table.whatsappPhoneE164),

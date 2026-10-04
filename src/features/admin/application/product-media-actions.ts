@@ -7,11 +7,7 @@ import { requireTrustedAdminMutation } from "@/features/admin/auth/admin-session
 import { AuthorizationError } from "@/features/admin/domain/admin-actor";
 import { optionKinds } from "@/features/catalog/domain/product-options";
 import { parseMoneyInput } from "@/shared/lib/money-input";
-import {
-  GalleryUploadError,
-  getProductImageStore,
-  prepareGalleryImage,
-} from "@/server/storage/product-images";
+import { getProductImageStore } from "@/server/storage/product-images";
 
 import { ProductOptionsError } from "./product-options-service";
 import { productOptionsService } from "./admin-services";
@@ -59,57 +55,6 @@ async function run(
 const productId = z.string().regex(/^[a-z0-9-]{1,80}$/);
 const variantId = z.string().regex(/^[a-z0-9-]{1,100}$/);
 const uuid = z.uuid();
-
-// Files are published only after validation; if saving fails they are removed again.
-export async function uploadGalleryImagesAction(
-  formData: FormData,
-): Promise<MediaActionResult> {
-  const actor = await requireTrustedAdminMutation();
-  const domainId = productId.safeParse(formData.get("productDomainId"));
-  if (!domainId.success) return { ok: false, message: messages.invalid_input };
-  const files = formData
-    .getAll("images")
-    .filter((item): item is File => item instanceof File && item.size > 0)
-    .slice(0, 8);
-  if (!files.length)
-    return { ok: false, message: "اختر صورة واحدة على الأقل." };
-  const store = getProductImageStore();
-  const stored: Array<{ src: string; width: number; height: number }> = [];
-  try {
-    for (const file of files) {
-      const webp = await prepareGalleryImage(
-        Buffer.from(await file.arrayBuffer()),
-      );
-      stored.push(await store.put(webp));
-    }
-  } catch (error) {
-    await Promise.all(stored.map((item) => store.remove?.(item.src)));
-    if (error instanceof GalleryUploadError) {
-      return {
-        ok: false,
-        message:
-          error.code === "too_large"
-            ? "الصورة أكبر من 8 ميغابايت."
-            : "الملف ليس صورة JPEG أو PNG أو WebP صالحة.",
-      };
-    }
-    return { ok: false, message: "تعذّر رفع الصور. حاول مرة أخرى." };
-  }
-  const alt =
-    String(formData.get("alt") ?? "")
-      .trim()
-      .slice(0, 250) || "صورة المنتج";
-  const result = await run(domainId.data, () =>
-    productOptionsService.addImages(
-      actor,
-      domainId.data,
-      stored.map((item) => ({ ...item, alt })),
-    ),
-  );
-  if (!result.ok)
-    await Promise.all(stored.map((item) => store.remove?.(item.src)));
-  return result;
-}
 
 export async function galleryImageAction(input: {
   productDomainId: string;

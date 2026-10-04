@@ -11,6 +11,7 @@ import {
   lte,
   or,
   sql,
+  type SQL,
 } from "drizzle-orm";
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 
@@ -65,6 +66,8 @@ export interface AdminOrderListQuery {
   customerName?: string;
   sort?: "newest" | "oldest";
   page: number;
+  // Owner QA orders are listed only when asked for, never mixed into the operational queue.
+  test?: boolean;
 }
 
 export interface AdminOrderListItem {
@@ -81,6 +84,7 @@ export interface AdminOrderListItem {
 
 export interface AdminOrderDetail {
   publicReference: string;
+  isTest: boolean;
   status: OrderStatus;
   version: number;
   customerName: string;
@@ -155,7 +159,11 @@ function mapListItem(row: {
 }
 
 export class AdminOrderService {
-  constructor(private readonly database: PostgresJsDatabase<typeof schema>) {}
+  constructor(
+    private readonly database: PostgresJsDatabase<typeof schema>,
+    // Set only by the owner stock simulation, whose transaction is always rolled back.
+    private readonly options: { qaStockSimulation?: boolean } = {},
+  ) {}
 
   async list(
     actor: AdminActor,
@@ -211,6 +219,7 @@ export class AdminOrderService {
         total: count(),
       })
       .from(schema.orders)
+      .where(eq(schema.orders.isTest, false))
       .groupBy(schema.orders.status);
 
     const result = {
@@ -247,11 +256,14 @@ export class AdminOrderService {
       })
       .from(schema.orders)
       .where(
-        or(
-          eq(schema.orders.status, "pending"),
-          eq(schema.orders.status, "confirmed"),
-          eq(schema.orders.status, "preparing"),
-          eq(schema.orders.status, "out_for_delivery"),
+        and(
+          eq(schema.orders.isTest, false),
+          or(
+            eq(schema.orders.status, "pending"),
+            eq(schema.orders.status, "confirmed"),
+            eq(schema.orders.status, "preparing"),
+            eq(schema.orders.status, "out_for_delivery"),
+          ),
         ),
       )
       .orderBy(
@@ -314,6 +326,7 @@ export class AdminOrderService {
 
     return {
       publicReference: order.publicReference,
+      isTest: order.isTest,
       status: order.status,
       version: order.version,
       customerName,
@@ -416,6 +429,14 @@ export class AdminOrderService {
       if (!canTransitionOrderStatus(order.status, input.nextStatus)) {
         throw new AdminOrderError("invalid_transition");
       }
+      // A QA order can only be closed; confirming would reserve stock and enter delivery.
+      if (
+        order.isTest &&
+        input.nextStatus !== "cancelled" &&
+        !this.options.qaStockSimulation
+      ) {
+        throw new AdminOrderError("invalid_transition");
+      }
 
       const now = new Date();
       const [updated] = await transaction
@@ -514,7 +535,9 @@ export class AdminOrderService {
   }
 
   private buildFilters(query: AdminOrderListQuery) {
-    const conditions = [];
+    const conditions: Array<SQL | undefined> = [
+      eq(schema.orders.isTest, query.test === true),
+    ];
     if (query.status && isOrderStatus(query.status)) {
       conditions.push(eq(schema.orders.status, query.status));
     }
@@ -559,6 +582,6 @@ export class AdminOrderService {
         conditions.push(sql`false`);
       }
     }
-    return conditions.length ? and(...conditions) : undefined;
+    return and(...conditions);
   }
 }

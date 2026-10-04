@@ -32,7 +32,12 @@ import type { ProductImageStore } from "@/server/storage/product-images";
 
 import type { CatalogOperation } from "../domain/assistant-policy";
 import { canonicalJson, sha256 } from "../domain/confirmation-token";
-import type { EntityCandidate } from "../domain/entity-match";
+import {
+  forChanges,
+  resolveCatalogEntity,
+  selectionQuestion,
+  type EntityCandidate,
+} from "../domain/entity-match";
 import type {
   ConfirmationCard,
   ExecutionResult,
@@ -1161,11 +1166,51 @@ export class CatalogOperations {
     const denied = this.ownerOnly(actor);
     if (denied) return denied;
     if (input.mode === "restore") {
-      const target = await this.services.authoring.archivedVariant(
-        input.variant,
-      );
+      let target = await this.services.authoring.archivedVariant(input.variant);
+      if (!target) {
+        // Not an id: resolve the spoken name against archived variants only.
+        const archived = await this.services.authoring.allArchivedVariants();
+        const resolution = forChanges(
+          resolveCatalogEntity(
+            input.variant,
+            archived.map((row) => ({
+              productId: row.productId,
+              variantId: row.variantId,
+              nameAr: row.nameAr,
+              latinName: row.latinName,
+              variantLabel: row.labelAr,
+              sku: row.sku,
+              barcode: row.barcode,
+            })),
+            "variant",
+          ),
+        );
+        if (resolution.status === "ambiguous") {
+          return {
+            status: "needs_selection",
+            field: "variant",
+            question: selectionQuestion(
+              resolution.candidates,
+              input.variant,
+              "variant",
+            ),
+            options: resolution.candidates.map((item) => ({
+              id: item.variantId,
+              label: item.label,
+            })),
+          };
+        }
+        if (resolution.status === "resolved") {
+          target = await this.services.authoring.archivedVariant(
+            resolution.match.variantId,
+          );
+        }
+      }
       if (!target)
-        return rejected("not_found", "ما لقيت صنفاً مؤرشفاً بهذا المعرّف.");
+        return rejected(
+          "not_found",
+          `ما لقيت صنفاً مؤرشفاً باسم «${input.variant.slice(0, 60)}».`,
+        );
       return {
         status: "ready",
         operation: "variantRestore",

@@ -4,5 +4,6 @@ const numberFormatter = new Intl.NumberFormat("ar-PS-u-nu-latn", {
 });
 
 export function formatIls(agorot: number): string {
-  return `${numberFormatter.format(agorot / 100)} ₪`;
+  // Adding 0 turns -0 into +0 so a zero amount never renders as "-0 ₪".
+  return `${numberFormatter.format(agorot / 100 + 0)} ₪`;
 }

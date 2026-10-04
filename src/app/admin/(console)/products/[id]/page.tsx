@@ -5,9 +5,12 @@ import { connection } from "next/server";
 
 import {
   adminCatalogService,
+  catalogAuthoringService,
   productOptionsService,
 } from "@/features/admin/application/admin-services";
 import { requireAdminSession } from "@/features/admin/auth/admin-session";
+import { productSaveMessage } from "@/features/admin/domain/product-save-feedback";
+import { ProductCatalogControls } from "@/features/admin/ui/product-catalog-controls";
 import { ProductForm } from "@/features/admin/ui/product-form";
 import { ProductMediaEditor } from "@/features/admin/ui/product-media-editor";
 
@@ -17,8 +20,10 @@ export const metadata: Metadata = {
 
 export default async function AdminProductEditPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ saved?: string | string[]; at?: string | string[] }>;
 }) {
   await connection();
   const actor = await requireAdminSession();
@@ -27,7 +32,13 @@ export default async function AdminProductEditPage({
     (await params).id,
   );
   if (!product) notFound();
-  const matrix = await productOptionsService.matrix(product.id);
+  const [matrix, archivedVariants, publicationCheck] = await Promise.all([
+    productOptionsService.matrix(product.id),
+    catalogAuthoringService.archivedVariants(product.id),
+    catalogAuthoringService.publicationCheck(product.id),
+  ]);
+  const { saved, at } = await searchParams;
+  const savedMessage = productSaveMessage(saved);
 
   return (
     <main className="admin-page">
@@ -38,10 +49,29 @@ export default async function AdminProductEditPage({
       </p>
       <h1>تعديل المنتج</h1>
       <p className="admin-muted">{product.nameAr}</p>
+      {savedMessage ? (
+        <p className="admin-media-message" data-tone="ok" role="status">
+          {savedMessage}
+        </p>
+      ) : null}
       <ProductForm
+        key={typeof at === "string" ? at : "initial"}
         product={product}
         sortOrder={product.sortOrder}
         mode="edit"
+      />
+      <ProductCatalogControls
+        domainId={product.id}
+        publication={product.publication}
+        problems={publicationCheck?.problems ?? []}
+        placeholderImage={publicationCheck?.acceptedPlaceholder ?? false}
+        variants={product.variants.map((variant) => ({
+          id: variant.id,
+          labelAr: variant.labelAr,
+          sku: variant.sku,
+          barcode: variant.barcode,
+        }))}
+        archivedVariants={archivedVariants}
       />
       {matrix ? (
         <ProductMediaEditor

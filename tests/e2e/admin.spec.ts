@@ -223,8 +223,9 @@ test("admin authentication, operations, and privacy controls", async ({
   await maythalunForm.getByLabel("مبلغ معروف").check();
   await maythalunForm.getByLabel("المبلغ بالشيكل").fill("3.00");
   await maythalunForm.getByRole("button", { name: "حفظ المنطقة" }).click();
+  // The heading was already visible; wait for the save itself to finish.
   await expect(
-    page.getByRole("heading", { name: "إعدادات المتجر" }),
+    page.getByRole("status").filter({ hasText: "تم حفظ منطقة التوصيل." }),
   ).toBeVisible();
 
   await goAdminSection(page, "المنتجات");
@@ -409,10 +410,22 @@ test("admin authentication, operations, and privacy controls", async ({
   );
   expect(overflow).toBeLessThanOrEqual(1);
   await page.keyboard.press("Tab");
-  const controller = await page.evaluate(
-    () => navigator.serviceWorker.controller?.scriptURL ?? null,
-  );
-  expect(controller).toBeNull();
+  // A production build registers the PWA worker (admin push needs it), so the privacy
+  // property checked is that no admin page or API response is ever cached by it.
+  const cachedPrivate = await page.evaluate(async () => {
+    if (!("caches" in window)) return [];
+    const paths: string[] = [];
+    for (const name of await caches.keys()) {
+      const cache = await caches.open(name);
+      for (const request of await cache.keys()) {
+        paths.push(new URL(request.url).pathname);
+      }
+    }
+    return paths.filter(
+      (path) => path.startsWith("/admin") || path.startsWith("/api/"),
+    );
+  });
+  expect(cachedPrivate).toEqual([]);
   expect(issues.consoleErrors).toEqual([]);
   expect(issues.failedRequests).toEqual([]);
 });

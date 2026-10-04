@@ -2,6 +2,7 @@ import { config as loadEnvironment } from "dotenv";
 import { defineConfig, devices } from "@playwright/test";
 
 import { parseTestEnv } from "./src/server/env/env-schema";
+import { e2eServerEnvironment } from "./tests/e2e/server-env";
 
 loadEnvironment({ path: ".env.local", quiet: true });
 const testEnvironment = parseTestEnv({
@@ -13,6 +14,8 @@ const testEnvironment = parseTestEnv({
 
 const port = Number(process.env.E2E_PORT ?? 3000);
 const origin = `http://localhost:${port}`;
+// tools/e2e-production.ts starts a production build itself and points the suite at it.
+const external = process.env.E2E_EXTERNAL_SERVER === "1";
 
 export default defineConfig({
   testDir: "./tests/e2e",
@@ -34,24 +37,16 @@ export default defineConfig({
       use: { ...devices["Pixel 5"], viewport: { width: 390, height: 844 } },
     },
   ],
-  webServer: {
-    command: `node ./node_modules/next/dist/bin/next dev --webpack -p ${port}`,
-    url: origin,
-    reuseExistingServer: false,
-    timeout: 180_000,
-    env: {
-      DATABASE_URL: testEnvironment.TEST_DATABASE_URL,
-      ORDER_RATE_LIMIT_PEPPER: testEnvironment.ORDER_RATE_LIMIT_PEPPER,
-      APP_ORIGIN: process.env.E2E_PORT ? origin : testEnvironment.APP_ORIGIN,
-      AI_FAKE_MODE: "1",
-      ADMIN_ASSISTANT: "full",
-      CRON_SECRET: "e2e-cron-secret-0123456789abcdef0123456789",
-      OPENAI_API_KEY: "",
-      SUPABASE_URL: "",
-      SUPABASE_SECRET_KEY: "",
-      CUSTOMER_ACCOUNTS: "on",
-      CUSTOMER_OTP_PROVIDER: "development",
-      CUSTOMER_OTP_DEV_CODE: "246810",
-    },
-  },
+  webServer: external
+    ? undefined
+    : {
+        command: `node ./node_modules/next/dist/bin/next dev --webpack -p ${port}`,
+        url: origin,
+        reuseExistingServer: false,
+        timeout: 180_000,
+        env: e2eServerEnvironment(
+          testEnvironment,
+          process.env.E2E_PORT ? origin : testEnvironment.APP_ORIGIN,
+        ),
+      },
 });

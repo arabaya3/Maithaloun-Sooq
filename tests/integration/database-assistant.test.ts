@@ -340,6 +340,69 @@ describe("confirmation workflow", () => {
     ).toBe(550);
   });
 
+  it("reports a card made stale by another card as stale, not as awaiting confirmation", async () => {
+    const first = await prepared(
+      await operations.prepareProductUpdate(owner, {
+        product: "carpet-brush",
+        changes: { priceIls: "6" },
+      }),
+    );
+    const second = await prepared(
+      await operations.prepareProductUpdate(owner, {
+        product: "carpet-brush",
+        changes: { priceIls: "7" },
+      }),
+    );
+    expect(
+      await confirmations.pendingInConversation(owner, conversationId),
+    ).toMatchObject({ id: second.id, confirmLabel: expect.any(String) });
+
+    expect(await confirmations.confirm(owner, first)).toMatchObject({
+      ok: true,
+    });
+    // Optimistic concurrency is correct: the second card may not run on changed data.
+    const view = await confirmations.view(owner, second.id);
+    expect(view).toMatchObject({
+      status: "cancelled",
+      reason: "stale",
+      token: null,
+    });
+    expect(await confirmations.confirm(owner, second)).toMatchObject({
+      ok: false,
+    });
+    expect(
+      await confirmations.pendingInConversation(owner, conversationId),
+    ).toBeNull();
+    expect((await confirmations.view(owner, first.id))!.status).toBe(
+      "completed",
+    );
+  });
+
+  it("does not offer a stale card as the one to confirm", async () => {
+    const stale = await prepared(
+      await operations.prepareProductUpdate(owner, {
+        product: "carpet-brush",
+        changes: { priceIls: "8" },
+      }),
+    );
+    const current = (await catalog.getByDomainId(owner, "carpet-brush"))!;
+    await catalog.update(owner, {
+      domainId: current.id,
+      nameAr: current.nameAr,
+      priceAgorot: 560,
+      categoryId: current.categoryId,
+      availability: current.availability,
+      sortOrder: current.sortOrder,
+      detailsStatus: current.detailsStatus,
+      placeholderVariant:
+        current.image.kind === "placeholder" ? current.image.variant : "brush",
+    });
+    expect(
+      await confirmations.pendingInConversation(owner, conversationId),
+    ).toBeNull();
+    expect((await confirmations.view(owner, stale.id))!.reason).toBe("stale");
+  });
+
   it("asks which product when a name matches several", async () => {
     const result = await operations.prepareProductUpdate(owner, {
       product: "مزيل دهون",

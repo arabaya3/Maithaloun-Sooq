@@ -1,8 +1,8 @@
 import "server-only";
 
-// Test doubles for AI calls are opt-in and can never be switched on in production.
+import { testDoublesAllowed } from "@/server/env/isolated-test-server";
+
+// Test doubles for AI calls are opt-in and can never be switched on in a deployed production server.
 export function isFakeAiEnabled(): boolean {
-  return (
-    process.env.NODE_ENV !== "production" && process.env.AI_FAKE_MODE === "1"
-  );
+  return testDoublesAllowed() && process.env.AI_FAKE_MODE === "1";
 }

@@ -19,8 +19,10 @@ export const metadata: Metadata = {
 
 export default async function AdminOrderDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ qa?: string | string[] }>;
 }) {
   await connection();
   const actor = await requireAdminSession();
@@ -31,6 +33,7 @@ export default async function AdminOrderDetailPage({
   if (!order) notFound();
 
   const isFreeDelivery = order.deliveryFeeAgorot === 0;
+  const qaCreated = (await searchParams).qa === "created";
 
   return (
     <main className="admin-page admin-order-detail">
@@ -41,6 +44,19 @@ export default async function AdminOrderDetailPage({
         <span aria-hidden="true"> / </span>
         <bdi dir="ltr">{order.publicReference}</bdi>
       </p>
+
+      {order.isTest ? (
+        <p
+          className="admin-media-message"
+          data-tone="ok"
+          role="status"
+          data-testid="qa-order-banner"
+        >
+          {qaCreated ? "تم إنشاء طلب الاختبار. " : ""}
+          طلب اختبار داخلي: لا يُرسل له إشعار، ولا يدخل قائمة التوصيل، ولا
+          يُحتسب في التقارير، ولا يحجز المخزون. يمكن إلغاؤه فقط.
+        </p>
+      ) : null}
 
       <div className="admin-detail-layout">
         <div className="admin-detail-main">
@@ -229,6 +245,7 @@ export default async function AdminOrderDetailPage({
               publicReference={order.publicReference}
               status={order.status}
               version={order.version}
+              cancelOnly={order.isTest}
             />
           </section>
         </aside>

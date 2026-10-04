@@ -6,6 +6,9 @@ import path from "node:path";
 
 import sharp from "sharp";
 
+import { testDoublesAllowed } from "@/server/env/isolated-test-server";
+import { MAX_GALLERY_UPLOAD_BYTES } from "@/features/admin/domain/gallery-upload-limits";
+
 import {
   removeProductPhoto,
   uploadProductPhoto,
@@ -32,7 +35,7 @@ function localRoot() {
 export async function readDevProductImage(
   file: string,
 ): Promise<Buffer | null> {
-  if (process.env.NODE_ENV === "production" || !DEV_FILE.test(file)) {
+  if (!testDoublesAllowed() || !DEV_FILE.test(file)) {
     return null;
   }
   try {
@@ -47,7 +50,7 @@ export function getProductImageStore(): ProductImageStore {
   if (process.env.SUPABASE_URL && process.env.SUPABASE_SECRET_KEY) {
     return { put: uploadProductPhoto, remove: removeProductPhoto };
   }
-  if (process.env.NODE_ENV === "production") {
+  if (!testDoublesAllowed()) {
     throw new Error("STORAGE_NOT_CONFIGURED");
   }
   return {
@@ -73,7 +76,6 @@ export function getProductImageStore(): ProductImageStore {
   };
 }
 
-export const MAX_GALLERY_UPLOAD_BYTES = 8 * 1024 * 1024;
 const MAX_GALLERY_PIXELS = 40_000_000;
 const ALLOWED_FORMATS = new Set(["jpeg", "png", "webp"]);
 

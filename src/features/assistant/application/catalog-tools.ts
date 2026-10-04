@@ -734,7 +734,7 @@ export function createCatalogTools(
     }),
     prepareVariantArchive: tool({
       description:
-        "جهّز بطاقة أرشفة صنف (mode=archive) أو استرجاع صنف مؤرشف بمعرّفه variantId (mode=restore).",
+        "جهّز بطاقة أرشفة صنف (mode=archive) أو استرجاع صنف مؤرشف (mode=restore) بمعرّفه أو باسم المنتج والصنف.",
       inputSchema: z
         .object({ variant, mode: z.enum(["archive", "restore"]) })
         .strict(),

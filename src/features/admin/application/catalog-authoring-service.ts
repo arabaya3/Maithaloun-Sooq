@@ -2,7 +2,18 @@ import "server-only";
 
 import { createHash, randomUUID } from "node:crypto";
 
-import { and, asc, count, eq, inArray, isNull, ne, or, sql } from "drizzle-orm";
+import {
+  and,
+  asc,
+  count,
+  desc,
+  eq,
+  inArray,
+  isNull,
+  ne,
+  or,
+  sql,
+} from "drizzle-orm";
 import { z } from "zod";
 
 import { assertPermission, can } from "@/features/admin/domain/permissions";
@@ -1311,6 +1322,33 @@ export class CatalogAuthoringService {
       label: `${row.nameAr} — ${row.labelAr}`,
       availability: row.availability,
     };
+  }
+
+  // Archived variants of live products, for restoring one by name; bounded like other assistant lookups.
+  async allArchivedVariants(limit = 200) {
+    return this.database
+      .select({
+        productId: schema.products.domainId,
+        variantId: schema.productVariants.domainId,
+        nameAr: schema.products.nameAr,
+        latinName: schema.products.latinName,
+        labelAr: schema.productVariants.labelAr,
+        sku: schema.productVariants.sku,
+        barcode: schema.productVariants.barcode,
+      })
+      .from(schema.productVariants)
+      .innerJoin(
+        schema.products,
+        eq(schema.products.id, schema.productVariants.productId),
+      )
+      .where(
+        and(
+          sql`${schema.productVariants.archivedAt} is not null`,
+          sql`${schema.products.archivedAt} is null`,
+        ),
+      )
+      .orderBy(desc(schema.productVariants.archivedAt))
+      .limit(limit);
   }
 
   async archivedVariants(productDomainId: string) {

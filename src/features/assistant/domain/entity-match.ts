@@ -188,3 +188,54 @@ export function forChanges(resolution: EntityResolution): EntityResolution {
   }
   return resolution;
 }
+
+// A lone candidate is a "did you mean" confirmation, never presented as several matches.
+export function selectionQuestion(
+  candidates: readonly EntityCandidate[],
+  query: string,
+  scope: "product" | "variant",
+): string {
+  const wanted = query.trim().slice(0, 60);
+  const shown = scopedCandidates(candidates, scope);
+  if (shown.length === 1 && shown[0]) {
+    return `لقيت نتيجة واحدة قريبة من «${wanted}»: ${shown[0].label}. هل هي المقصودة؟ اضغطي عليها للمتابعة.`;
+  }
+  return scope === "product"
+    ? `لقيت أكثر من منتج قريب من «${wanted}»، أي واحد تقصدين؟`
+    : `أي صنف بالضبط تقصدين بـ «${wanted}»؟`;
+}
+
+// Read-only search: one distinct partial match is a found result, flagged as approximate.
+export function forSearch(
+  resolution: EntityResolution,
+): EntityResolution & { approximate: boolean } {
+  if (resolution.status === "ambiguous") {
+    const products = new Set(resolution.candidates.map((c) => c.productId));
+    if (products.size === 1 && resolution.candidates[0]) {
+      return {
+        status: "resolved",
+        match: resolution.candidates[0],
+        approximate: true,
+      };
+    }
+  }
+  return {
+    ...resolution,
+    approximate:
+      resolution.status === "resolved" &&
+      (resolution.match.method === "contains" ||
+        resolution.match.method === "fuzzy"),
+  };
+}
+
+// A product-level choice names the product, never one of its variants, and lists each product once.
+export function scopedCandidates(
+  candidates: readonly EntityCandidate[],
+  scope: "product" | "variant",
+): EntityCandidate[] {
+  if (scope === "variant") return [...candidates];
+  const seen = new Set<string>();
+  return candidates
+    .filter((item) => !seen.has(item.productId) && seen.add(item.productId))
+    .map((item) => ({ ...item, label: item.label.split(" — ")[0]! }));
+}

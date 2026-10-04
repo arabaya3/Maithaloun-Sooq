@@ -14,12 +14,17 @@ export function OrderStatusForm({
   publicReference,
   status,
   version,
+  cancelOnly = false,
 }: {
   publicReference: string;
   status: OrderStatus;
   version: number;
+  // QA orders can only be closed; the server enforces the same rule.
+  cancelOnly?: boolean;
 }) {
-  const transitions = getAllowedTransitions(status);
+  const transitions = getAllowedTransitions(status).filter(
+    (value) => !cancelOnly || value === "cancelled",
+  );
   const [confirmCancel, setConfirmCancel] = useState(false);
   const [state, formAction, pending] = useActionState(
     async (

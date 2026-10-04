@@ -104,6 +104,7 @@ export class ReportService {
           join orders o on o.id = h.order_id
           join order_items oi on oi.order_id = o.id
           where h.new_status = 'delivered'
+            and not o.is_test
             and h.created_at >= ${fromIso}::timestamptz and h.created_at < ${toIso}::timestamptz
         `),
         this.database.execute<Row>(sql`
@@ -125,10 +126,12 @@ export class ReportService {
             (select coalesce(sum(o.final_total_agorot), 0)
                from order_status_history h join orders o on o.id = h.order_id
               where h.new_status = 'delivered'
+                and not o.is_test
                 and h.created_at >= ${fromIso}::timestamptz and h.created_at < ${toIso}::timestamptz) as order_cash,
             (select coalesce(sum(o.delivery_fee_agorot), 0)
                from order_status_history h join orders o on o.id = h.order_id
               where h.new_status = 'delivered'
+                and not o.is_test
                 and h.created_at >= ${fromIso}::timestamptz and h.created_at < ${toIso}::timestamptz) as delivery_fees,
             (select coalesce(sum(total_agorot - paid_at_sale_agorot), 0)
                from customer_invoices
