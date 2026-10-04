@@ -662,7 +662,8 @@ export function AssistantPanel({
       (item) => item.status === "ready" && item.id,
     );
     const value = text.trim();
-    if ((!value && !ready.length) || busy || uploading) return;
+    // Until the saved conversation arrives, a send would be overwritten by it.
+    if ((!value && !ready.length) || busy || uploading || !loaded) return;
     void sendMessage(
       {
         text: value || "أرفقت ملفات.",
@@ -713,6 +714,7 @@ export function AssistantPanel({
       role="dialog"
       aria-modal="false"
       aria-labelledby="assistant-title"
+      aria-busy={!loaded}
       data-conversation={conversationId ?? undefined}
     >
       <header className="assistant-head">
@@ -1002,6 +1004,7 @@ export function AssistantPanel({
               aria-label="إرسال"
               disabled={
                 uploading ||
+                !loaded ||
                 (!input.trim() &&
                   !attachments.some((item) => item.status === "ready"))
               }

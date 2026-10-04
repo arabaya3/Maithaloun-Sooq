@@ -29,6 +29,7 @@ import { AdminStaffService } from "./admin-staff-service";
 import { OfferService } from "@/features/offers/application/offer-service";
 import { SupplierMaintenanceService } from "@/features/purchasing/application/supplier-maintenance-service";
 import { CustomerMaintenanceService } from "@/features/sales/application/customer-maintenance-service";
+import { QaStockSimulationService } from "@/features/admin/application/qa-stock-simulation";
 import { CatalogAuthoringService } from "@/features/admin/application/catalog-authoring-service";
 import { ProductMaintenanceService } from "./product-maintenance-service";
 import { InventoryService } from "@/features/inventory/application/inventory-service";
@@ -128,3 +129,8 @@ export const assistantConfirmations = new ConfirmationService(
   assistantConversations,
   assistantToolRuns,
 );
+
+// Off unless QA_STOCK_SIMULATION=on; owner-only even when on.
+export const qaStockSimulation = new QaStockSimulationService(db, {
+  enabled: () => process.env.QA_STOCK_SIMULATION === "on",
+});

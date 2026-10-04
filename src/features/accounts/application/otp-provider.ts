@@ -2,6 +2,8 @@ import "server-only";
 
 import { createClient } from "@supabase/supabase-js";
 
+import { testDoublesAllowed } from "@/server/env/isolated-test-server";
+
 export interface PhoneOtpProvider {
   send(phoneE164: string): Promise<boolean>;
   verify(phoneE164: string, code: string): Promise<boolean>;
@@ -45,9 +47,7 @@ export function createPhoneOtpProvider(): PhoneOtpProvider | null {
   }
   if (kind === "development") {
     const code = process.env.CUSTOMER_OTP_DEV_CODE;
-    const production =
-      process.env.NODE_ENV === "production" || Boolean(process.env.VERCEL);
-    return !production && code && /^\d{6}$/.test(code)
+    return testDoublesAllowed() && code && /^\d{6}$/.test(code)
       ? developmentPhoneOtp(code)
       : null;
   }

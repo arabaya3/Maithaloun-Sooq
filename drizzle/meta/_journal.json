@@ -127,6 +127,13 @@
       "when": 1791123663676,
       "tag": "0017_qa_orders_and_supplier_credit_notes",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1791129894842,
+      "tag": "0018_qa_stock_simulation",
+      "breakpoints": true
     }
   ]
 }

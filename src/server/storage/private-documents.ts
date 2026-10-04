@@ -5,6 +5,8 @@ import path from "node:path";
 
 import { createClient } from "@supabase/supabase-js";
 
+import { testDoublesAllowed } from "@/server/env/isolated-test-server";
+
 export interface StoredDocumentLocation {
   provider: "supabase" | "local";
   bucket: string;
@@ -118,7 +120,7 @@ export function getPrivateDocumentStore(): PrivateDocumentStore {
   const secret = process.env.SUPABASE_SECRET_KEY;
   if (url && secret) {
     cached = supabaseStore(url, secret);
-  } else if (process.env.NODE_ENV !== "production") {
+  } else if (testDoublesAllowed()) {
     // Development and tests keep documents on disk, outside the repository and the public folder.
     cached = localStore(path.join(process.cwd(), ".local-documents"));
   } else {

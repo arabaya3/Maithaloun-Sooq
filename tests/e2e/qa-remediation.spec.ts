@@ -412,3 +412,50 @@ test("P3: a customer with no payments shows 0 ₪ paid, never -0 ₪", async ({
   await expect(paid).toHaveText("0 ₪");
   await expect(page.getByText("-0 ₪")).toHaveCount(0);
 });
+
+test("owner stock-path simulation shows each verified checkpoint and leaves business tables untouched", async ({
+  page,
+  browser,
+}) => {
+  const anonymous = await browser.newContext();
+  const guest = await anonymous.newPage();
+  await guest.goto("/admin/orders/qa");
+  await expect(guest).toHaveURL(/\/admin\/login/);
+  await anonymous.close();
+
+  const snapshot = () =>
+    withTestDb(
+      (sql) => sql<{ value: string }[]>`
+        select json_build_object(
+          'orders', (select count(*) from orders),
+          'order_items', (select count(*) from order_items),
+          'stock_movements', (select count(*) from stock_movements),
+          'stock_reservations', (select count(*) from stock_reservations),
+          'inventory_items', (select coalesce(json_agg(row_to_json(i) order by i.id), '[]'::json) from inventory_items i),
+          'admin_notifications', (select count(*) from admin_notifications),
+          'customer_ledger_entries', (select count(*) from customer_ledger_entries)
+        )::text as value`,
+    );
+
+  await login(page);
+  await page.goto("/admin/orders/qa");
+  const section = page.getByRole("region", { name: "محاكاة مسار المخزون" });
+  const create = section.getByRole("button", { name: "إنشاء صنف فحص QA" });
+  if (await create.isVisible()) await create.click();
+  const form = section.getByRole("form", { name: "محاكاة مسار المخزون" });
+  await expect(form).toBeVisible();
+
+  const before = await snapshot();
+  await form.getByRole("button", { name: "تشغيل محاكاة المخزون" }).click();
+  const result = form.getByRole("status", { name: "نتيجة المحاكاة" });
+  await expect(result).toContainText("نجحت المحاكاة", { timeout: 30_000 });
+  await expect(result).toContainText("التراجع الكامل: تم التحقق");
+  const value = (label: string) =>
+    result.locator("dt", { hasText: label }).locator("+ dd");
+  await expect(value("المتوفر بعد تأكيد الطلب")).toHaveText("1");
+  await expect(value("المتوفر بعد الإلغاء")).toHaveText("2");
+  await expect(value("الكمية في المحل بعد التسليم")).toHaveText("1");
+  await expect(value("الصنف المطلوب نفسه")).toHaveText("نعم");
+  await expect(value("رُفض الإلغاء المكرر")).toHaveText("نعم");
+  expect(await snapshot()).toEqual(before);
+});

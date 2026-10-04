@@ -49,6 +49,7 @@ const defaultVariant = {
   barcode: null,
   sortOrder: 0,
   isDefault: true,
+  qaOwned: false,
   archivedAt: null,
   packCount: null,
   combinationKey: null,

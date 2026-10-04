@@ -196,7 +196,7 @@ describe("admin mutation actions", () => {
 
     await expect(updateServiceAreaAction(formData)).rejects.toSatisfy(
       (error: unknown) => {
-        expectRedirect("/admin/delivery-areas", error);
+        expectRedirect("/admin/settings?saved=delivery-area", error);
         return true;
       },
     );

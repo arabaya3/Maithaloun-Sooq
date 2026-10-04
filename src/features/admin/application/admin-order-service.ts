@@ -159,7 +159,11 @@ function mapListItem(row: {
 }
 
 export class AdminOrderService {
-  constructor(private readonly database: PostgresJsDatabase<typeof schema>) {}
+  constructor(
+    private readonly database: PostgresJsDatabase<typeof schema>,
+    // Set only by the owner stock simulation, whose transaction is always rolled back.
+    private readonly options: { qaStockSimulation?: boolean } = {},
+  ) {}
 
   async list(
     actor: AdminActor,
@@ -426,7 +430,11 @@ export class AdminOrderService {
         throw new AdminOrderError("invalid_transition");
       }
       // A QA order can only be closed; confirming would reserve stock and enter delivery.
-      if (order.isTest && input.nextStatus !== "cancelled") {
+      if (
+        order.isTest &&
+        input.nextStatus !== "cancelled" &&
+        !this.options.qaStockSimulation
+      ) {
         throw new AdminOrderError("invalid_transition");
       }
 

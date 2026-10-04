@@ -125,6 +125,8 @@ test("cards and statements fit at 360x800", async ({ page }) => {
   await page.setViewportSize({ width: 360, height: 800 });
   await login(page);
   const panel = await openAssistant(page);
+  // Count only after the saved conversation has been restored into the panel.
+  await expect(panel).toHaveAttribute("aria-busy", "false");
   const statements = panel.getByRole("list", { name: "كشف الحساب" });
   const before = await statements.count();
   await ask(page, `كشف حساب ${CUSTOMER}`);

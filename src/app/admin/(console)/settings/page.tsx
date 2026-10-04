@@ -22,13 +22,18 @@ export const metadata: Metadata = {
   title: "إعدادات المتجر",
 };
 
-export default async function AdminSettingsPage() {
+export default async function AdminSettingsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ saved?: string | string[] }>;
+}) {
   await connection();
   const actor = await requireAdminSession();
   if (actor.role !== "owner") redirect("/admin");
   const areas = await adminDeliveryService.list(actor);
   const summaryFrequency = await summaryService.getFrequency();
   const active = areas.find((area) => area.code === ACTIVE_SERVICE_AREA_CODE);
+  const savedArea = (await searchParams).saved === "delivery-area";
   const historical = areas.filter(
     (area) => area.code !== ACTIVE_SERVICE_AREA_CODE,
   );
@@ -43,6 +48,11 @@ export default async function AdminSettingsPage() {
           </p>
         </div>
       </header>
+      {savedArea ? (
+        <p className="admin-media-message" data-tone="ok" role="status">
+          تم حفظ منطقة التوصيل.
+        </p>
+      ) : null}
 
       <section className="admin-panel" aria-labelledby="delivery-policy-title">
         <h2 id="delivery-policy-title">سياسة التوصيل</h2>

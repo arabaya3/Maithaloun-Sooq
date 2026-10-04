@@ -47,10 +47,12 @@ export class OrderService {
   async create(
     request: CheckoutRequest,
     owner: { customerAccountId: string | null } = { customerAccountId: null },
-    // Internal only: the public checkout route never passes this.
-    options: { test?: boolean } = {},
+    // Internal only: the public checkout route never passes these.
+    options: { test?: boolean; allowQaProbe?: boolean } = {},
   ): Promise<OrderConfirmation> {
     const test = options.test === true;
+    // The QA probe variant is orderable only by the owner stock simulation, never by checkout.
+    const allowQaProbe = test && options.allowQaProbe === true;
     const requestFingerprint = createOrderRequestFingerprint(request);
 
     try {
@@ -105,11 +107,13 @@ export class OrderService {
           if (row.product.domainId !== item.productId) {
             throw new OrderCreationError("unknown_product");
           }
+          const qaProbe = allowQaProbe && row.variant.qaOwned;
           if (
+            (row.variant.qaOwned && !qaProbe) ||
             row.variant.availability !== "available" ||
             row.variant.archivedAt ||
             row.product.archivedAt ||
-            row.product.publication !== "published"
+            (row.product.publication !== "published" && !qaProbe)
           ) {
             throw new OrderCreationError("unavailable_product");
           }

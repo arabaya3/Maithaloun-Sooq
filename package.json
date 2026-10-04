@@ -20,6 +20,7 @@
     "test:watch": "vitest",
     "test:db": "pnpm db:test:up && pnpm db:test:prepare && vitest run --config vitest.integration.config.ts",
     "test:e2e": "pnpm db:test:up && pnpm db:test:prepare && playwright test",
+    "test:e2e:production": "tsx tools/e2e-production.ts",
     "db:up": "docker compose --env-file .env.local up -d postgres",
     "db:test:up": "docker compose --env-file .env.local up -d postgres-test",
     "db:stop": "docker compose --env-file .env.local stop",

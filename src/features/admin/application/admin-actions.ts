@@ -303,7 +303,9 @@ export async function updateServiceAreaAction(
   revalidatePath("/");
   revalidatePath("/checkout");
   revalidatePath("/admin/delivery-areas");
-  redirect("/admin/delivery-areas");
+  revalidatePath("/admin/settings");
+  // Straight to settings with a saved marker, so the owner sees the save completed.
+  redirect("/admin/settings?saved=delivery-area");
 }
 
 export async function upsertProductVariantAction(

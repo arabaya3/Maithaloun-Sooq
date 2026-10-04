@@ -25,11 +25,22 @@ import {
   Users,
   type LucideIcon,
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 
 import { logoutAction } from "@/features/admin/application/admin-actions";
 import type { AdminRole } from "@/features/admin/domain/admin-actor";
 import { Sheet } from "@/shared/ui/sheet";
+
+const noSubscription = () => () => {};
+
+// Sheet buttons only work once React has attached their handlers; until then they say so instead of swallowing a tap.
+function useHydrated(): boolean {
+  return useSyncExternalStore(
+    noSubscription,
+    () => true,
+    () => false,
+  );
+}
 
 interface NavLink {
   href: string;
@@ -250,6 +261,7 @@ export function AdminBottomNav({
 }) {
   const pathname = usePathname();
   const [sheet, setSheet] = useState<"add" | "more" | null>(null);
+  const hydrated = useHydrated();
   const [sheetPath, setSheetPath] = useState(pathname);
   if (sheetPath !== pathname) {
     setSheetPath(pathname);
@@ -269,6 +281,7 @@ export function AdminBottomNav({
           type="button"
           className="admin-bottom-nav-item admin-bottom-nav-add"
           aria-haspopup="dialog"
+          disabled={!hydrated}
           onClick={() => setSheet("add")}
         >
           <span className="admin-bottom-nav-add-mark" aria-hidden="true">
@@ -281,6 +294,7 @@ export function AdminBottomNav({
           className="admin-bottom-nav-item"
           aria-haspopup="dialog"
           data-active={moreActive || undefined}
+          disabled={!hydrated}
           onClick={() => setSheet("more")}
         >
           <MoreHorizontal size={22} aria-hidden="true" />
