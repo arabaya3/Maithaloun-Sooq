@@ -38,6 +38,33 @@ export function isBareAffirmation(text: string): boolean {
   return words.every((word) => AFFIRMATIONS.has(word));
 }
 
+// "قلتلك نعم، نفذي هلق": a demand to go ahead that adds nothing new. Longer than a bare yes, still not a new request.
+const DEMAND = new Set(
+  [
+    "نفذ",
+    "نفذي",
+    "نفذيها",
+    "نفذيه",
+    "أكدي",
+    "اكدي",
+    "أكد",
+    "اكد",
+    "اعتمدي",
+    "نعم",
+    "ايوه",
+    "موافقة",
+    "موافق",
+  ].map((word) => normalizeArabicText(word)),
+);
+
+export function isExecutionDemand(text: string): boolean {
+  const words = normalizeArabicText(text.replace(/[؟?!.,،:؛]/gu, " "))
+    .split(" ")
+    .filter(Boolean);
+  if (!words.length || words.length > 12 || /[\d٠-٩]/.test(text)) return false;
+  return words.some((word) => DEMAND.has(word));
+}
+
 export function confirmationButtonHint(confirmLabel: string): string {
   return `الكتابة في المحادثة لا تنفّذ العملية. للتنفيذ اضغطي زر «${confirmLabel}» في البطاقة أعلاه بعد مراجعتها.`;
 }

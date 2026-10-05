@@ -72,7 +72,7 @@ export function createMediaTools(
   const locate = async (query: string) => {
     if (!can(actor, "settings.manage"))
       return { ok: false as const, output: ownerOnly };
-    const located = await ops.locate(actor, query);
+    const located = await ops.locate(actor, query, "read");
     return located.ok
       ? located
       : { ok: false as const, output: located.result };
@@ -81,7 +81,7 @@ export function createMediaTools(
   const read = {
     getProductGallery: tool({
       description:
-        "اقرأ صور منتج بالترتيب: الرئيسية، وصف كل صورة، والصنف الذي تخصه، والصور المؤرشفة. استخدم أرقام الصور منها فقط.",
+        "اقرأ صور منتج موجود محفوظة في المتجر بالترتيب: الرئيسية، وصف كل صورة، والصنف الذي تخصه، والصور المؤرشفة. استخدم أرقام الصور منها فقط. لا تقرأ صورة مرفقة في المحادثة؛ لقراءة صورة مرفقة لمنتج جديد استعمل startProductDraft.",
       inputSchema: z.object({ product }).strict(),
       execute: (input) =>
         run("getProductGallery", input, async () => {
@@ -91,7 +91,7 @@ export function createMediaTools(
     }),
     getProductImageMapping: tool({
       description:
-        "اقرأ ربط صور منتج بالخيارات والأصناف: لكل صورة ما تخصه (صورة عامة، قيمة مثل «اللون: أزرق»، صنف محدد، أو غير مربوطة)، والصور غير المربوطة، والقيم التي بلا صورة، وما يمنع النشر.",
+        "لمنتج موجود فقط (ليس لصورة مرفقة في المحادثة): اقرأ ربط صور منتج بالخيارات والأصناف: لكل صورة ما تخصه (صورة عامة، قيمة مثل «اللون: أزرق»، صنف محدد، أو غير مربوطة)، والصور غير المربوطة، والقيم التي بلا صورة، وما يمنع النشر.",
       inputSchema: z.object({ product }).strict(),
       execute: (input) =>
         run("getProductImageMapping", input, async () => {

@@ -8,6 +8,30 @@ const card = JSON.stringify({
 });
 
 describe("checkGrounding", () => {
+  it("does not treat a negated or conditional completion word as a claim", () => {
+    for (const text of [
+      "ما بقدر أقول إنه انحذف إذا ما صار حذف فعلي.",
+      "ما بقدر أقول إنه انحذف أو تم الحذف إذا ما صار تنفيذ فعلي.",
+      "إذا انحذف المنتج رح يختفي من المتجر.",
+      "لا، ما انضاف شي لسا.",
+      "قبل ما تعدّل البطاقة راجعيها.",
+      "بدّي منك مبلغ الدفعة لأم محمد كما اندفع بالضبط.",
+    ]) {
+      expect(checkGrounding({ text, evidence: [] })).toBeNull();
+    }
+  });
+
+  it("still blocks a claim in its own clause after a negation elsewhere", () => {
+    for (const text of [
+      "ما في مشكلة، تم الحذف.",
+      "تم تعديل السعر.",
+      "خلص انحذف المنتج",
+      "لا تقلقي. انضاف الصنف",
+    ]) {
+      expect(checkGrounding({ text, evidence: [] })).toBe("premature_success");
+    }
+  });
+
   it("allows figures that come from this request's tool results or the owner's message", () => {
     expect(
       checkGrounding({

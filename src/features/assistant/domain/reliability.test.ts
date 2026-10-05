@@ -8,7 +8,7 @@ import {
   selectionQuestion,
   type CatalogEntry,
 } from "./entity-match";
-import { shouldStopLoop } from "./loop-guard";
+import { mustAnswerNow, shouldStopLoop } from "./loop-guard";
 import {
   INTERRUPTED_TOOL_ERROR,
   messageStatus,
@@ -314,5 +314,55 @@ describe("draft corrections", () => {
     data = applyDraftPatch(data, { price: "عشرة دولار" }, categories).data;
     expect(data.fields.price).toBeUndefined();
     expect(draftStage(data)).toBe("price_missing");
+  });
+});
+
+describe("mustAnswerNow", () => {
+  const call = (
+    toolName: string,
+    input: unknown,
+    output: unknown = { status: "ok" },
+  ) => ({
+    toolCalls: [{ toolName, input }],
+    toolResults: [{ output }],
+  });
+
+  it("forces a text answer after a repeated call or on the last allowed step", () => {
+    const once = [call("searchProducts", { query: "منظف" })];
+    expect(mustAnswerNow(once, 1, 8)).toBe(false);
+    expect(mustAnswerNow([...once, ...once], 2, 8)).toBe(true);
+    expect(mustAnswerNow(once, 7, 8)).toBe(true);
+  });
+});
+
+describe("id lookup with a copied label", () => {
+  const catalog = [
+    {
+      productId: "general-cleaner",
+      variantId: "general-cleaner--default",
+      nameAr: "منظف عام",
+      latinName: "Secret",
+      variantLabel: null,
+      sku: null,
+      barcode: null,
+    },
+  ];
+
+  it("resolves an id followed by a label to that id", () => {
+    expect(
+      resolveCatalogEntity("منظف عام — general-cleaner--default", catalog),
+    ).toMatchObject({
+      status: "resolved",
+      match: { variantId: "general-cleaner--default", method: "id" },
+    });
+    const found = resolveCatalogEntity("general-cleaner — Secret", catalog);
+    expect(found).toMatchObject({
+      status: "resolved",
+      match: { productId: "general-cleaner", method: "id" },
+    });
+    const named = resolveCatalogEntity("منظف — عام", catalog);
+    expect(named.status === "resolved" ? named.match.method : null).not.toBe(
+      "id",
+    );
   });
 });

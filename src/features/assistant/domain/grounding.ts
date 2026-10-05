@@ -18,6 +18,21 @@ export const GROUNDING_REPLIES: Record<
 const SUCCESS_CLAIM =
   /(?:^|[\s،.!؟:])(?:تم|تمت|تمّ|تمّت)\s+(?:ال)?(?:إضافة|اضافة|تعديل|حذف|تسجيل|دفع|تنفيذ|حفظ|بيع|أرشفة|ارشفة|إلغاء|الغاء|نشر|دمج|استرجاع|تحويل)|(?:^|[\s،.!؟:])(?:انضاف|انضافت|انحذف|انحذفت|تعدّل|تعدل|تعدّلت|تعدلت|اتسجل|انسجل|اندفع|اتنفذ|انتشر|اندمج)(?=$|[\s،.!؟:])/u;
 
+const SUCCESS_CLAIMS = new RegExp(SUCCESS_CLAIM.source, "gu");
+// "ما بقدر أقول إنه انحذف", "إذا انحذف" or "المبلغ كما اندفع" is not a claim; the particle must sit in the same clause, at most six words before.
+const NEGATION_OR_CONDITION =
+  /(?:^|\s)(?:ما|مش|مو|لم|لن|لا|ولا|إذا|اذا|لو|قبل|بدون|دون|كما|زي|مثل|متل)(?=\s|$)/u;
+
+function isClaimed(text: string, index: number): boolean {
+  const clause =
+    text
+      .slice(0, index)
+      .split(/[،,.!؟?:\n]/u)
+      .at(-1) ?? "";
+  const nearby = clause.trim().split(/\s+/u).slice(-6).join(" ");
+  return !NEGATION_OR_CONDITION.test(nearby);
+}
+
 const NUMBER = String.raw`\d{1,3}(?:,\d{3})+(?:\.\d+)?|\d+(?:[.,]\d+)?`;
 const FIGURE = new RegExp(
   String.raw`(?:₪\s*(${NUMBER}))|(?:(${NUMBER})\s*(?:₪|شيكل|شيقل|شواكل|ش(?=$|[\s،.!؟])|حبة|حبات|قطعة|قطع|كرتونة|كراتين))`,
@@ -47,7 +62,9 @@ export function checkGrounding(input: {
   evidence: readonly string[];
 }): GroundingViolation | null {
   const text = toLatinDigits(input.text);
-  if (SUCCESS_CLAIM.test(text)) return "premature_success";
+  for (const match of text.matchAll(SUCCESS_CLAIMS)) {
+    if (isClaimed(text, match.index ?? 0)) return "premature_success";
+  }
   const known = numbersIn(input.evidence.join(" "));
   for (const match of text.matchAll(FIGURE)) {
     const value = toNumber(match[1] ?? match[2] ?? "");

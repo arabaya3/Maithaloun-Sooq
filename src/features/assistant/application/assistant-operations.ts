@@ -83,7 +83,7 @@ export type PrepareResult =
       question: string;
       options: Array<{ id: string; label: string }>;
     }
-  | { status: "rejected"; code: string; message: string };
+  | { status: "rejected"; code: string; message: string; values?: string[] };
 
 export interface ExecutionResult {
   message: string;
@@ -218,6 +218,8 @@ export class AssistantOperations {
       authoring: services.authoring,
       attachments: services.attachments,
       productImages: services.productImages,
+      hasOptions: async (domainId) =>
+        Boolean((await this.productOptions.matrix(domainId))?.options.length),
       resolveProduct: (actor, query, scope, field) =>
         this.resolveProduct(actor, query, scope, field),
       resolveVariant: (actor, query, field) =>
@@ -238,8 +240,8 @@ export class AssistantOperations {
       options: this.productOptions,
       attachments: services.attachments,
       productImages: services.productImages,
-      resolveProduct: (actor, query, scope, field) =>
-        this.resolveProduct(actor, query, scope, field),
+      resolveProduct: (actor, query, scope, field, purpose) =>
+        this.resolveProduct(actor, query, scope, field, purpose),
     });
     const built = {
       ...this.buildHandlers(),
@@ -266,6 +268,7 @@ export class AssistantOperations {
     query: string,
     scope: "product" | "variant",
     field: string,
+    purpose: "change" | "read" = "change",
   ): Promise<
     | { ok: true; match: EntityCandidate; product: Product }
     | { ok: false; result: PrepareResult }
@@ -295,7 +298,8 @@ export class AssistantOperations {
         resolution = { status: "resolved", match: exact[0]! };
       }
     }
-    resolution = forChanges(resolution);
+    // Only a change waits for the owner to confirm a near match; a read answers about the one match it found.
+    if (purpose === "change") resolution = forChanges(resolution);
     if (resolution.status === "not_found") {
       return {
         ok: false,

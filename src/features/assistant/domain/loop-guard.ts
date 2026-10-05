@@ -25,3 +25,12 @@ export function shouldStopLoop(steps: readonly StepLike[]): boolean {
     )
   );
 }
+
+// The step that must answer in text: after a repeated or twice-failed call, or the last step allowed.
+export function mustAnswerNow(
+  steps: readonly StepLike[],
+  stepNumber: number,
+  maxSteps: number,
+): boolean {
+  return shouldStopLoop(steps) || stepNumber >= maxSteps - 1;
+}

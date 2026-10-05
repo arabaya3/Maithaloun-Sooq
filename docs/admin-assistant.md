@@ -49,6 +49,8 @@ Retention (daily cron): temporary attachments are deleted from storage after 24 
 
 `ADMIN_ASSISTANT` (`off` | `read` | `full`), `OPENAI_API_KEY`, optional `OPENAI_ASSISTANT_MODEL` (default `gpt-4.1-mini`). Product photos use the existing public `product-images` bucket; attachments use the private `private-documents` bucket.
 
+`ASSISTANT_SMOKE_TEST=on` (separate from `ADMIN_ASSISTANT`, off by default) opens `/admin/assistant-smoke`: owner only, same-origin, 6 runs per hour, six fixed questions answered with six read tools (`getLowStockItems`, `getInventorySummary`, `getSalesSummary`, `getProfitSummary`, `getDebtors`, `searchProducts`). No draft, prepare or confirmation tool is reachable, debtor names reach the model masked, phone-like digits are masked in answers, and only counts, durations and tokens are logged and audited (`assistant_smoke_test`). Enable it briefly to check a deployment, then remove it.
+
 ## Known limitations
 
 - Variant label, attributes, SKU and barcode edits are not exposed yet.

@@ -58,6 +58,13 @@ export function assistantFailure(error: unknown): {
   message: string;
 } {
   const code = errorCode(error);
+  if (code === "amount_ambiguous") {
+    return {
+      code,
+      message:
+        "المبلغ في رسالتك غير واضح أو فيه أكثر من قيمة؛ ما جهّزت شي. اكتبي المبلغ الصحيح.",
+    };
+  }
   if (error instanceof ProductOptionsError) {
     return { code: error.code, message: optionErrorMessages[error.code] };
   }

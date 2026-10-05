@@ -118,6 +118,7 @@ function normalizeWords(input: string): string {
 }
 
 const isKnownWord = (token: string) =>
+  token === "صفر" ||
   token in UNITS ||
   token in TEENS ||
   token in TENS ||
@@ -159,6 +160,9 @@ function parseWords(text: string): number | null {
     }
     return true;
   });
+  if (rest.length === 1 && rest[0] === "صفر" && index === 0 && !half) {
+    return 0;
+  }
   if (rest.length === 1) {
     const [word] = rest as [string];
     const value = UNITS[word] ?? TEENS[word] ?? TENS[word];
@@ -210,7 +214,8 @@ export function parseMoneyInput(
     .replace(/\s+/g, " ")
     .trim();
   if (!text) return { ok: false, code: "price_missing" };
-  if (/^(-|سالب|ناقص)/.test(text)) return { ok: false, code: "price_negative" };
+  // "سالب 5", "-5", "ناقص خمسه", "خمسه بالسالب": a sign word anywhere makes the amount negative.
+  if (/^(-|ناقص)|سالب/.test(text)) return { ok: false, code: "price_negative" };
   text = text.replace(/\s*([.,])\s*/g, "$1");
   if ((text.match(/\d+(?:[.,]\d+)?/g) ?? []).length > 1) {
     return { ok: false, code: "price_ambiguous" };
@@ -235,6 +240,15 @@ export function parseMoneyInput(
   }
   return result;
 }
+
+// Normalized word tokens that can be part of a spoken amount ("خمسه", "وعشرين", "ونص").
+export function isAmountWord(token: string): boolean {
+  const word = normalizeWords(token);
+  const bare = isKnownWord(word) ? word : word.replace(/^و(?=.{2,})/, "");
+  return isKnownWord(bare) || bare === "نص" || bare === "نصف";
+}
+
+export { normalizeWords as normalizeAmountText };
 
 export const moneyInputMessages: Record<MoneyInputError, string> = {
   price_missing: PRICE_CLARIFICATION,

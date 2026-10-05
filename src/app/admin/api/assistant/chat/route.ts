@@ -34,6 +34,7 @@ import {
   type AssistantUIMessage,
 } from "@/server/ai/assistant-agent";
 import { groundingTransform } from "@/features/assistant/application/grounding-transform";
+import { conflictingAmountQuestion } from "@/features/assistant/domain/amount-guard";
 import {
   chatFailureMessages,
   classifyChatFailure,
@@ -106,6 +107,45 @@ export async function POST(request: Request) {
     metadata: { attachmentIds },
   };
 
+  // A fixed server reply that never reaches the model.
+  const fixedReply = async (
+    text: string,
+    event: string,
+    clarification?: { code: string; values: string[] },
+  ) => {
+    const replyId = `a-${randomUUID()}`;
+    await assistantConversations.save(conversationId, [
+      userMessage,
+      {
+        id: replyId,
+        role: "assistant" as const,
+        parts: [{ type: "text" as const, text }],
+        metadata: {
+          status: "completed",
+          conversationId,
+          ...(clarification ? { clarification } : {}),
+        },
+      },
+    ]);
+    logEvent("info", event, { durationMs: Date.now() - started });
+    return createUIMessageStreamResponse({
+      headers: { "Cache-Control": "no-store, max-age=0" },
+      stream: createUIMessageStream({
+        execute({ writer }) {
+          writer.write({
+            type: "start",
+            messageId: replyId,
+            messageMetadata: { conversationId },
+          });
+          writer.write({ type: "text-start", id: "hint" });
+          writer.write({ type: "text-delta", id: "hint", delta: text });
+          writer.write({ type: "text-end", id: "hint" });
+          writer.write({ type: "finish" });
+        },
+      }),
+    });
+  };
+
   // "نعم" while a card is open: point at the button instead of letting the model improvise.
   const typed = message.parts.map((part) => part.text).join("\n");
   if (!attachments.length && isBareAffirmation(typed)) {
@@ -114,43 +154,26 @@ export async function POST(request: Request) {
       conversationId,
     );
     if (pending) {
-      const replyId = `a-${randomUUID()}`;
-      const text = confirmationButtonHint(pending.confirmLabel);
-      await assistantConversations.save(conversationId, [
-        userMessage,
-        {
-          id: replyId,
-          role: "assistant" as const,
-          parts: [{ type: "text" as const, text }],
-          metadata: { status: "completed", conversationId },
-        },
-      ]);
-      logEvent("info", "assistant.chat.affirmation_redirected", {
-        durationMs: Date.now() - started,
-      });
-      return createUIMessageStreamResponse({
-        headers: { "Cache-Control": "no-store, max-age=0" },
-        stream: createUIMessageStream({
-          execute({ writer }) {
-            writer.write({
-              type: "start",
-              messageId: replyId,
-              messageMetadata: { conversationId },
-            });
-            writer.write({ type: "text-start", id: "hint" });
-            writer.write({ type: "text-delta", id: "hint", delta: text });
-            writer.write({ type: "text-end", id: "hint" });
-            writer.write({ type: "finish" });
-          },
-        }),
-      });
+      return fixedReply(
+        confirmationButtonHint(pending.confirmLabel),
+        "assistant.chat.affirmation_redirected",
+      );
     }
+  }
+
+  // Two different amounts offered as alternatives: ask which one, whatever the model would have done.
+  const conflict = conflictingAmountQuestion(typed);
+  if (conflict) {
+    return fixedReply(conflict.question, "assistant.chat.amount_conflict", {
+      code: "amount_conflict",
+      values: conflict.values,
+    });
   }
 
   let agent;
   try {
     agent = createAssistantAgent(
-      assistantToolContext(actor, conversationId, mode),
+      assistantToolContext(actor, conversationId, mode, typed),
     );
   } catch (error) {
     logEvent("error", "assistant.chat.unavailable", { code: errorCode(error) });

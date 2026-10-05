@@ -19,6 +19,7 @@ import {
   payloadHash,
   verifyConfirmation,
 } from "../domain/confirmation-token";
+import { isAmbiguousSource } from "../domain/amount-guard";
 import { assistantFailure, rejectionMessages } from "./assistant-errors";
 import type {
   AssistantOperations,
@@ -56,6 +57,22 @@ export type ConfirmOutcome =
 
 const operationSchema = z.enum(operations);
 
+export class AmbiguousAmountRefused extends Error {
+  readonly code = "amount_ambiguous";
+  constructor() {
+    super("AMOUNT_AMBIGUOUS");
+  }
+}
+
+function carriesMoney(value: unknown): boolean {
+  if (Array.isArray(value)) return value.some(carriesMoney);
+  if (!value || typeof value !== "object") return false;
+  return Object.entries(value).some(
+    ([key, inner]) =>
+      (/agorot/i.test(key) && typeof inner === "number") || carriesMoney(inner),
+  );
+}
+
 export class ConfirmationService {
   constructor(
     private readonly database: Database,
@@ -68,11 +85,53 @@ export class ConfirmationService {
     actor: AdminActor,
     conversationId: string | null,
     prepared: Extract<PrepareResult, { status: "ready" }>,
+    ownerText?: string,
   ): Promise<{ confirmationId: string; expiresAt: string } | null> {
+    // Defence in depth: a money card is never stored when the owner's message itself is ambiguous.
+    if (
+      ownerText !== undefined &&
+      carriesMoney(prepared.args) &&
+      isAmbiguousSource(ownerText)
+    ) {
+      throw new AmbiguousAmountRefused();
+    }
     const handler = this.operations.handlers[prepared.operation];
     const version = await handler.version(actor, prepared.args);
     if (version === null) return null;
     const payload = { args: prepared.args, card: prepared.card };
+    const hash = payloadHash(prepared.operation, payload);
+    // Asking again for the same change returns the open card; a second card for one change invites a double execution.
+    if (conversationId) {
+      const [open] = await this.database
+        .select({
+          id: schema.adminAssistantConfirmations.id,
+          expiresAt: schema.adminAssistantConfirmations.expiresAt,
+        })
+        .from(schema.adminAssistantConfirmations)
+        .where(
+          and(
+            eq(
+              schema.adminAssistantConfirmations.conversationId,
+              conversationId,
+            ),
+            eq(schema.adminAssistantConfirmations.adminUserId, actor.id),
+            eq(schema.adminAssistantConfirmations.status, "pending"),
+            eq(schema.adminAssistantConfirmations.payloadHash, hash),
+            eq(
+              schema.adminAssistantConfirmations.recordVersion,
+              version.slice(0, 120),
+            ),
+            gt(schema.adminAssistantConfirmations.expiresAt, new Date()),
+          ),
+        )
+        .limit(1);
+      if (open) {
+        return {
+          confirmationId: open.id,
+          expiresAt: open.expiresAt.toISOString(),
+        };
+      }
+    }
     const expiresAt = new Date(Date.now() + CONFIRMATION_TTL_MS);
     const [row] = await this.database
       .insert(schema.adminAssistantConfirmations)
@@ -82,7 +141,7 @@ export class ConfirmationService {
         operation: prepared.operation,
         riskLevel: operationRisk[prepared.operation],
         payload,
-        payloadHash: payloadHash(prepared.operation, payload),
+        payloadHash: hash,
         recordVersion: version.slice(0, 120),
         // Unusable until the card is opened and a token is issued to the browser.
         tokenHash: issueConfirmationToken().tokenHash,

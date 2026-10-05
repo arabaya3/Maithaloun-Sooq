@@ -78,11 +78,13 @@ export function assistantToolContext(
   actor: AdminActor,
   conversationId: string,
   mode: AssistantMode,
+  ownerText = "",
 ): AssistantToolContext {
   return {
     actor,
     conversationId,
     mode,
+    ownerText: () => ownerText,
     database: db,
     catalog: adminCatalogService,
     authoring: catalogAuthoringService,

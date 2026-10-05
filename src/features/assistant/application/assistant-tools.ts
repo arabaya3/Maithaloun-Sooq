@@ -27,6 +27,7 @@ import {
 import type { CustomerService } from "@/features/sales/application/customer-service";
 import type { SalesService } from "@/features/sales/application/sales-service";
 import { formatIls } from "@/shared/lib/format-currency";
+import { normalizeArabicText } from "@/shared/lib/normalize-arabic";
 import { todayInStoreZone } from "@/shared/lib/store-time";
 import type { Database } from "@/features/inventory/application/stock-ledger";
 
@@ -45,6 +46,11 @@ import type { CatalogAuthoringService } from "@/features/admin/application/catal
 import type { ProductImageAnalyzer } from "@/server/ai/product-image-analyzer";
 
 import type { AttachmentService } from "./attachment-service";
+import {
+  confirmationButtonHint,
+  isExecutionDemand,
+} from "../domain/affirmation";
+import { amountRefusal, missingAmountClarification } from "./amount-refusal";
 import { createCatalogTools } from "./catalog-tools";
 import { createPartyTools } from "./party-tools";
 import { createMediaTools } from "./media-tools";
@@ -55,6 +61,8 @@ import type { CustomerMaintenanceService } from "@/features/sales/application/cu
 
 export interface AssistantToolContext {
   actor: AdminActor;
+  /** The owner's latest message as typed; amount checks read it, never the model's arguments. */
+  ownerText?: () => string;
   conversationId: string;
   mode: AssistantMode;
   database: Database;
@@ -148,6 +156,23 @@ export function createAssistantTools(context: AssistantToolContext) {
       name,
       input,
       async () => {
+        const refused = amountRefusal(context, input);
+        if (refused) return { ...refused, state: prepareState(refused) };
+        // Typing "go ahead" while a card is open points at its button; it never makes another card.
+        if (isExecutionDemand(context.ownerText?.() ?? "")) {
+          const open = await context.confirmations.pendingInConversation(
+            actor,
+            context.conversationId,
+          );
+          if (open) {
+            const pending = {
+              status: "rejected" as const,
+              code: "card_pending",
+              message: confirmationButtonHint(open.confirmLabel),
+            };
+            return { ...pending, state: prepareState(pending) };
+          }
+        }
         const prepared = await build();
         if (prepared.status !== "ready") {
           return { ...prepared, state: prepareState(prepared) };
@@ -156,6 +181,7 @@ export function createAssistantTools(context: AssistantToolContext) {
           actor,
           context.conversationId,
           prepared,
+          context.ownerText?.(),
         );
         if (!created) {
           return {
@@ -179,6 +205,18 @@ export function createAssistantTools(context: AssistantToolContext) {
           : null,
     );
 
+  async function matchingSuppliers(name: string) {
+    if (!can(actor, "suppliers.manage")) return [];
+    const needle = normalizeArabicText(name);
+    return (await context.suppliers.list(actor))
+      .filter((row) => {
+        const supplier = normalizeArabicText(row.nameAr);
+        return supplier.includes(needle) || needle.includes(supplier);
+      })
+      .slice(0, 5)
+      .map((row) => ({ supplierId: row.id, name: row.nameAr }));
+  }
+
   const catalogTools = createCatalogTools(context, run, prepare);
   const partyTools = createPartyTools(context, run, prepare);
   const mediaTools = createMediaTools(context, run, prepare);
@@ -193,7 +231,10 @@ export function createAssistantTools(context: AssistantToolContext) {
       inputSchema: z.object({ query: text(120) }).strict(),
       execute: ({ query }) =>
         run("searchProducts", { query }, async () => {
-          const products = await context.catalog.list(actor);
+          const [products, archivedProducts] = await Promise.all([
+            context.catalog.list(actor),
+            context.catalog.listArchived(actor),
+          ]);
           const resolution = forSearch(
             resolveCatalogEntity(query, catalogEntries(products), "product"),
           );
@@ -202,9 +243,45 @@ export function createAssistantTools(context: AssistantToolContext) {
               ? [resolution.match]
               : resolution.candidates;
           const stock = await context.inventory.listStock(actor);
+          // Archived products are reported apart, only when nothing active matched, so they can be restored by id.
+          const archived =
+            resolution.status === "resolved" && !resolution.approximate
+              ? []
+              : (() => {
+                  const entries = catalogEntries(archivedProducts);
+                  const found = resolveCatalogEntity(query, entries, "product");
+                  const rows =
+                    found.status === "resolved"
+                      ? [found.match]
+                      : found.candidates;
+                  return [
+                    ...new Map(
+                      rows.map((row) => [row.productId, row]),
+                    ).values(),
+                  ]
+                    .slice(0, 5)
+                    .map((row) => ({
+                      productId: row.productId,
+                      label: row.label,
+                      href: `/admin/products/${row.productId}`,
+                    }));
+                })();
           return {
             status: resolution.status,
             approximate: resolution.approximate,
+            // The target is settled; asking "shall I?" before a card only delays the card that already asks.
+            ...(resolution.status === "resolved" && !resolution.approximate
+              ? {
+                  next: "هذا هو المنتج المطلوب. إذا طلبت المستخدمة تعديلاً عليه فجهّز البطاقة الآن بأداة prepare المناسبة، ومرّر القيم كما كتبتها؛ البطاقة نفسها خطوة التأكيد والخادم يرفض القيم غير الصالحة. لا تبحث عن القيمة الجديدة (رمز أو سعر) كمنتج.",
+                }
+              : {}),
+            ...(archived.length
+              ? {
+                  archived,
+                  archivedNote:
+                    "منتجات مؤرشفة غير ظاهرة في المتجر. لاسترجاع أحدها استعمل prepareProductRestore بمعرّفه.",
+                }
+              : {}),
             results: list.map((item) => {
               const product = products.find(
                 (row) => row.id === item.productId,
@@ -217,6 +294,7 @@ export function createAssistantTools(context: AssistantToolContext) {
                 variantId: item.variantId,
                 label: item.label,
                 confidence: item.confidence,
+                variantCount: product.variants.length,
                 price: formatIls(product.priceAgorot),
                 availability:
                   product.availability === "available"
@@ -448,18 +526,33 @@ export function createAssistantTools(context: AssistantToolContext) {
         }),
     }),
     searchCustomers: tool({
-      description: "ابحث عن زبون بالاسم، مع رصيده الحالي.",
+      description:
+        "ابحث عن زبون بالاسم، مع رصيده الحالي. إذا لم يوجد زبون بالاسم وكان هناك مورد بنفس الاسم يعيده في suppliers.",
       inputSchema: z.object({ name: text(80) }).strict(),
       execute: ({ name }) =>
         run("searchCustomers", { name }, async () => {
           const rows = await context.customers.list(actor, { search: name });
+          // A name alone does not say customer or supplier ("كشف حساب شركة النور"); say where it was found.
+          const suppliers = rows.length ? [] : await matchingSuppliers(name);
           return {
+            status:
+              rows.length > 1
+                ? ("ambiguous" as const)
+                : rows.length
+                  ? ("found" as const)
+                  : ("not_found" as const),
             customers: rows.slice(0, 8).map((row) => ({
               customerId: row.id,
               name: row.name,
               balance: formatIls(row.balanceAgorot),
               href: `/admin/customers/${row.id}`,
             })),
+            ...(suppliers.length
+              ? {
+                  suppliers,
+                  note: "لا يوجد زبون بهذا الاسم، لكنه اسم مورد. استعمل أدوات الموردين (getSupplierStatement أو getSupplierDetails).",
+                }
+              : {}),
           };
         }),
     }),
@@ -502,47 +595,80 @@ export function createAssistantTools(context: AssistantToolContext) {
         }),
     }),
     getPurchaseInvoice: tool({
-      description: "آخر فواتير الشراء أو فاتورة محددة بمعرّفها.",
-      inputSchema: z.object({ invoiceId: z.uuid().optional() }).strict(),
-      execute: ({ invoiceId }) =>
-        run("getPurchaseInvoice", { invoiceId }, async () => {
-          if (!invoiceId) {
-            const list = await context.purchases.list(actor, 8);
+      description:
+        "آخر فواتير الشراء، أو فاتورة محددة بمعرّفها (invoiceId) أو برقمها المكتوب عليها (reference مثل INV-7781).",
+      inputSchema: z
+        .object({
+          invoiceId: z.uuid().optional(),
+          reference: text(60).optional(),
+        })
+        .strict(),
+      execute: ({ invoiceId: requestedId, reference }) =>
+        run(
+          "getPurchaseInvoice",
+          { invoiceId: requestedId, reference },
+          async () => {
+            let invoiceId = requestedId;
+            if (!invoiceId && reference) {
+              const normalize = (value: string) =>
+                value.replace(/\s+/g, "").toLowerCase();
+              const wanted = normalize(reference);
+              const matches = (await context.purchases.list(actor, 200)).filter(
+                (row) => row.reference && normalize(row.reference) === wanted,
+              );
+              if (!matches.length) return { status: "not_found" as const };
+              if (matches.length > 1) {
+                return {
+                  status: "needs_selection" as const,
+                  invoices: matches.slice(0, 8).map((row) => ({
+                    invoiceId: row.id,
+                    supplier: row.supplierName,
+                    date: row.invoiceDate,
+                  })),
+                };
+              }
+              invoiceId = matches[0]!.id;
+            }
+            if (!invoiceId) {
+              const list = await context.purchases.list(actor, 8);
+              return {
+                invoices: list.map((row) => ({
+                  invoiceId: row.id,
+                  supplier: row.supplierName,
+                  reference: row.reference,
+                  date: row.invoiceDate,
+                  total:
+                    row.totalAgorot === null
+                      ? null
+                      : formatIls(row.totalAgorot),
+                  href: `/admin/inventory/purchases/${row.id}`,
+                })),
+              };
+            }
+            const detail = await context.purchases.getDetail(actor, invoiceId);
+            if (!detail) return { status: "not_found" as const };
             return {
-              invoices: list.map((row) => ({
-                invoiceId: row.id,
-                supplier: row.supplierName,
-                reference: row.reference,
-                date: row.invoiceDate,
-                total:
-                  row.totalAgorot === null ? null : formatIls(row.totalAgorot),
-                href: `/admin/inventory/purchases/${row.id}`,
-              })),
-            };
-          }
-          const detail = await context.purchases.getDetail(actor, invoiceId);
-          if (!detail) return { status: "not_found" as const };
-          return {
-            status: "found" as const,
-            invoiceId,
-            supplier: detail.supplierName,
-            reference: detail.reference,
-            date: detail.invoiceDate,
-            total:
-              detail.totalAgorot === null
-                ? null
-                : formatIls(detail.totalAgorot),
-            lines: detail.lines.slice(0, 30).map((line) => ({
-              name: line.name,
-              quantity: formatQuantity(line.quantityMilli),
-              lineTotal:
-                line.lineTotalAgorot === null
+              status: "found" as const,
+              invoiceId,
+              supplier: detail.supplierName,
+              reference: detail.reference,
+              date: detail.invoiceDate,
+              total:
+                detail.totalAgorot === null
                   ? null
-                  : formatIls(line.lineTotalAgorot),
-            })),
-            href: `/admin/inventory/purchases/${invoiceId}`,
-          };
-        }),
+                  : formatIls(detail.totalAgorot),
+              lines: detail.lines.slice(0, 30).map((line) => ({
+                name: line.name,
+                quantity: formatQuantity(line.quantityMilli),
+                lineTotal:
+                  line.lineTotalAgorot === null
+                    ? null
+                    : formatIls(line.lineTotalAgorot),
+              })),
+              href: `/admin/inventory/purchases/${invoiceId}`,
+            };
+          },
+        ),
     }),
     getSalesSummary: tool({
       description:
@@ -627,7 +753,7 @@ export function createAssistantTools(context: AssistantToolContext) {
     ...mediaTools.mutate,
     prepareProductUpdate: tool({
       description:
-        "جهّز بطاقة تأكيد لتعديل بيانات منتج (الاسم، الاسم اللاتيني، الوصف، القسم، الوحدة، سعر البيع، التوفر). لا ينفّذ شيئاً.",
+        "جهّز بطاقة تأكيد لتعديل بيانات منتج (الاسم، الاسم اللاتيني، الوصف، القسم، الوحدة، سعر البيع، التوفر). SKU والباركود يتبعان الصنف: استعمل prepareVariantUpdate لهما، حتى لو كان للمنتج صنف واحد. لا ينفّذ شيئاً.",
       inputSchema: z
         .object({
           product,
@@ -655,7 +781,8 @@ export function createAssistantTools(context: AssistantToolContext) {
         ),
     }),
     prepareProductImageReplacement: tool({
-      description: "جهّز بطاقة استبدال صورة منتج بصورة مرفقة (attachmentId).",
+      description:
+        "جهّز بطاقة استبدال صورة منتج موجود بصورة مرفقة (attachmentId)، مثل «حطي هاي الصورة لـ…». لا تبدأ مسودة لمنتج موجود.",
       inputSchema: z.object({ product, attachmentId: z.uuid() }).strict(),
       execute: (input) =>
         prepare("prepareProductImageReplacement", input, () =>
@@ -664,7 +791,7 @@ export function createAssistantTools(context: AssistantToolContext) {
     }),
     prepareProductArchive: tool({
       description:
-        "جهّز بطاقة أرشفة منتج: يختفي من المتجر ويبقى تاريخه ويمكن استرجاعه. للحذف النهائي لمنتج غير مستخدم استعمل prepareUnusedProductDeletion.",
+        "جهّز بطاقة أرشفة منتج فقط عندما تطلب المستخدمة «أرشفي» أو إيقاف المنتج نهائياً عن البيع: يخرج من الكتالوج ويبقى تاريخه ويمكن استرجاعه. «اخفي/أخفي عن المتجر» ليست أرشفة؛ استعمل prepareProductPublication بحالة مخفي. للحذف النهائي لمنتج غير مستخدم استعمل prepareUnusedProductDeletion.",
       inputSchema: z.object({ product, reason: text(200) }).strict(),
       execute: (input) =>
         prepare("prepareProductArchive", input, () =>
@@ -682,7 +809,7 @@ export function createAssistantTools(context: AssistantToolContext) {
     }),
     prepareInventoryCorrection: tool({
       description:
-        "جهّز بطاقة تعديل مخزون. correction = الكمية الصحيحة بعد العد. damaged/expired = الكمية التي ستُخصم.",
+        "جهّز بطاقة تعديل مخزون منتج («صار عندي 20»، «صلحي المخزون»). correction = الكمية الصحيحة بعد العد. damaged/expired = الكمية التي ستُخصم. هي طريقة تعديل المخزون من المساعد.",
       inputSchema: z
         .object({
           product,
@@ -739,11 +866,22 @@ export function createAssistantTools(context: AssistantToolContext) {
         ),
     }),
     prepareCustomerPayment: tool({
-      description: "جهّز بطاقة تسجيل دفعة من زبون على دينه.",
-      inputSchema: z.object({ customer: text(100), amountIls: money }).strict(),
+      description:
+        "جهّز بطاقة تسجيل دفعة من زبون على دينه. إذا لم تذكر المستخدمة المبلغ، أو ذكرت أكثر من مبلغ، أو لم تكن متأكدة، استدعها بدون amountIls؛ الخادم يقرأ رسالتها ويعيد ما يجب السؤال عنه.",
+      inputSchema: z
+        .object({ customer: text(100), amountIls: money.optional() })
+        .strict(),
       execute: (input) =>
-        prepare("prepareCustomerPayment", input, () =>
-          ops.prepareCustomerPayment(actor, input),
+        prepare("prepareCustomerPayment", input, async () =>
+          input.amountIls
+            ? ops.prepareCustomerPayment(actor, {
+                ...input,
+                amountIls: input.amountIls,
+              })
+            : missingAmountClarification(
+                context,
+                "اكتبي مبلغ الدفعة كما دفعته الزبونة.",
+              ),
         ),
     }),
     prepareOrderCancellation: tool({

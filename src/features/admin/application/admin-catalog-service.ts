@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, asc, eq, inArray, isNull } from "drizzle-orm";
+import { and, asc, eq, inArray, isNotNull, isNull } from "drizzle-orm";
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import { z } from "zod";
 
@@ -192,6 +192,16 @@ export class AdminCatalogService {
       .from(schema.products)
       .where(isNull(schema.products.archivedAt))
       .orderBy(asc(schema.products.sortOrder), asc(schema.products.domainId));
+    return this.mapProducts(rows);
+  }
+
+  async listArchived(actor: AdminActor): Promise<readonly Product[]> {
+    assertOperationsActor(actor);
+    const rows = await this.database
+      .select()
+      .from(schema.products)
+      .where(isNotNull(schema.products.archivedAt))
+      .orderBy(asc(schema.products.domainId));
     return this.mapProducts(rows);
   }
 

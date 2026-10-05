@@ -38,6 +38,7 @@ import {
 import { formatIls } from "@/shared/lib/format-currency";
 import { candidateFieldNames } from "@/server/ai/product-image-analyzer";
 
+import { amountRefusal } from "./amount-refusal";
 import type { PrepareResult } from "./assistant-operations";
 import type {
   AssistantToolContext,
@@ -95,6 +96,15 @@ export function createCatalogTools(
   const ops = context.operations.catalogOps;
 
   const drafts = new ProductDraftService(context.database);
+  const draftAmountRefusal = (name: string, input: unknown) => {
+    const refused = amountRefusal(context, input);
+    return refused
+      ? run(name, { refused: refused.code }, async () => ({
+          ...refused,
+          state: "needs_clarification" as const,
+        }))
+      : null;
+  };
   const noDraft = {
     status: "rejected" as const,
     code: "missing_draft",
@@ -325,7 +335,7 @@ export function createCatalogTools(
   const mutate = {
     startProductDraft: tool({
       description:
-        "ابدأ مسودة منتج جديد محفوظة على الخادم. أرسل attachmentIds لقراءة صور المنتج، وأي حقول قالتها المستخدمة صراحة في fields. يعيد ما قُرئ وما ينقص. يلغي أي مسودة سابقة في هذه المحادثة.",
+        "لمنتج جديد فقط: ابدأ مسودة منتج جديد محفوظة على الخادم. إذا قالت المستخدمة إن الصورة لمنتج موجود («حطي هاي الصورة لـ…») فلا تستعملها؛ استعمل prepareProductImageReplacement. أرسل attachmentIds لقراءة صور المنتج، وأي حقول قالتها المستخدمة صراحة في fields. يعيد ما قُرئ وما ينقص. يلغي أي مسودة سابقة في هذه المحادثة.",
       inputSchema: z
         .object({
           attachmentIds: z.array(z.uuid()).max(4).optional(),
@@ -333,6 +343,7 @@ export function createCatalogTools(
         })
         .strict(),
       execute: (input) =>
+        draftAmountRefusal("startProductDraft", input) ??
         run(
           "startProductDraft",
           { images: input.attachmentIds?.length ?? 0 },
@@ -386,6 +397,7 @@ export function createCatalogTools(
         "عدّل حقولاً في مسودة المنتج الحالية بما قالته المستخدمة فقط: الاسم، القسم، السعر كما كُتب، الرائحة، اللون، الحجم، SKU، الباركود، حالة الظهور، والرصيد الافتتاحي وتكلفته. الحقول الصحيحة تُحفظ حتى لو رُفض حقل آخر. clear يمسح حقولاً.",
       inputSchema: draftPatchSchema,
       execute: (input) =>
+        draftAmountRefusal("updateProductDraft", input) ??
         run("updateProductDraft", { fields: Object.keys(input) }, async () => {
           const categories = await draftCategories();
           const updated = await drafts.update(
@@ -424,6 +436,7 @@ export function createCatalogTools(
         .object({ changes: z.array(draftVariantPatchSchema).min(1).max(20) })
         .strict(),
       execute: (input) =>
+        draftAmountRefusal("setDraftVariants", input) ??
         run("setDraftVariants", { changes: input.changes.length }, () =>
           withVariantDraft((variantDraft) => {
             if (!variantDraft.options.length) {
@@ -638,7 +651,7 @@ export function createCatalogTools(
     }),
     prepareProductPublication: tool({
       description:
-        "جهّز بطاقة تغيير ظهور منتج: مسودة، منشور ومتوفر، منشور غير متوفر، أو مخفي. النشر يتحقق من الجاهزية.",
+        "جهّز بطاقة تغيير ظهور منتج: مسودة، منشور ومتوفر، منشور غير متوفر، أو مخفي. «اخفي/أخفي المنتج عن المتجر» = مخفي هنا (وليس أرشفة)، و«انشري/أظهري» = منشور. النشر يتحقق من الجاهزية.",
       inputSchema: z
         .object({ product, state, acceptPlaceholder: z.boolean().optional() })
         .strict(),
@@ -665,7 +678,7 @@ export function createCatalogTools(
     }),
     prepareUnusedProductDeletion: tool({
       description:
-        "جهّز بطاقة حذف نهائي لمنتج غير مستخدم إطلاقاً (بلا طلبات أو مشتريات أو مبيعات أو مخزون). للمنتجات المستخدمة استعمل prepareProductArchive.",
+        "جهّز بطاقة حذف نهائي لمنتج غير مستخدم إطلاقاً (بلا طلبات أو مشتريات أو مبيعات أو مخزون). استدعها مباشرة عند طلب الحذف النهائي؛ الخادم نفسه يفحص الاستخدام ويرفض إن كان المنتج مستخدماً ويقترح الأرشفة، فلا تَعِد بالفحص. للأرشفة استعمل prepareProductArchive.",
       inputSchema: z.object({ product, reason: text(200) }).strict(),
       execute: (input) =>
         prepare("prepareUnusedProductDeletion", input, () =>
@@ -676,7 +689,7 @@ export function createCatalogTools(
     }),
     prepareVariantCreation: tool({
       description:
-        "جهّز بطاقة إضافة صنف (حجم/رائحة/لون) لمنتج موجود. سعر الصنف مطلوب.",
+        "جهّز بطاقة إضافة صنف جديد (حجم/رائحة/لون) لمنتج موجود؛ «ضيفي حجم…» تعني صنفاً جديداً بجانب الأصناف الحالية ولا تغيّرها. سعر الصنف مطلوب.",
       inputSchema: z
         .object({
           product,
@@ -695,7 +708,7 @@ export function createCatalogTools(
     }),
     prepareVariantUpdate: tool({
       description:
-        "جهّز بطاقة تعديل صنف: الاسم، الخصائص، السعر، التوفر، SKU، الباركود.",
+        "جهّز بطاقة تعديل صنف: الاسم، الخصائص، السعر، التوفر، SKU، الباركود. تعدّل صنفاً موجوداً فقط (ومنها SKU والباركود)؛ إضافة حجم أو صنف جديد تتم بـ prepareVariantCreation ولا تغيّر الصنف الحالي.",
       inputSchema: z
         .object({
           variant,
