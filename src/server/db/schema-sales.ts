@@ -19,7 +19,11 @@ import {
   saleSources,
 } from "@/features/sales/domain/customer-balance";
 
-import { adminUsers, productVariants } from "./schema-core";
+import {
+  adminUsers,
+  productSellingUnits,
+  productVariants,
+} from "./schema-core";
 import { stockUnitEnum } from "./schema-inventory";
 
 const createdAt = timestamp("created_at", { withTimezone: true, mode: "date" })
@@ -179,6 +183,17 @@ export const customerInvoiceLines = pgTable(
     lineTotalAgorot: integer("line_total_agorot").notNull(),
     unitCostAgorot: integer("unit_cost_agorot"),
     cogsAgorot: integer("cogs_agorot"),
+    // Set when the line was sold by a selling unit: unit_price is then per pack and
+    // quantity_milli is the base stock taken (packs × units_per_sale).
+    sellingUnitId: uuid("selling_unit_id").references(
+      () => productSellingUnits.id,
+      { onDelete: "restrict" },
+    ),
+    sellingUnitLabelSnapshot: varchar("selling_unit_label_snapshot", {
+      length: 60,
+    }),
+    unitsPerSale: integer("units_per_sale").default(1).notNull(),
+    packQuantity: integer("pack_quantity"),
   },
   (table) => [
     uniqueIndex("customer_invoice_lines_invoice_line_uidx").on(
@@ -186,6 +201,17 @@ export const customerInvoiceLines = pgTable(
       table.lineNo,
     ),
     index("customer_invoice_lines_variant_idx").on(table.variantId),
+    index("customer_invoice_lines_selling_unit_idx").on(table.sellingUnitId),
+    check(
+      "customer_invoice_lines_selling_unit",
+      sql`(${table.sellingUnitId} IS NULL AND ${table.packQuantity} IS NULL AND ${table.unitsPerSale} = 1)
+        OR (${table.sellingUnitId} IS NOT NULL
+          AND ${table.sellingUnitLabelSnapshot} IS NOT NULL
+          AND ${table.unitsPerSale} BETWEEN 1 AND 1000
+          AND ${table.packQuantity} >= 1
+          AND ${table.quantityMilli} = ${table.packQuantity} * ${table.unitsPerSale} * 1000
+          AND ${table.lineTotalAgorot} = ${table.packQuantity} * ${table.unitPriceAgorot})`,
+    ),
     check(
       "customer_invoice_lines_amounts",
       sql`${table.quantityMilli} > 0

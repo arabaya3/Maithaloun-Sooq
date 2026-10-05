@@ -2,10 +2,12 @@ import { fireEvent, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { CART_STORAGE_KEY } from "@/features/cart/cart-store";
 import { ProductDetailPanel } from "@/features/catalog/components/product-detail-panel";
 import { productSchema, type Product } from "@/features/catalog/domain/product";
 import type { GalleryImage } from "@/features/catalog/domain/product-gallery";
 import type { ProductPresentation } from "@/features/catalog/domain/product-presentation";
+import { singleSellingUnit } from "@/test/mock-product-repository";
 import { renderWithProviders } from "@/test/render-with-providers";
 
 vi.mock("next/navigation", () => ({
@@ -49,6 +51,7 @@ function loyal(archived: string[] = []): Product {
       image: { kind: "placeholder", variant: "general-cleaner" },
       sortOrder,
       isDefault: id === "loyal--pink-small",
+      sellingUnits: [singleSellingUnit(id, PRICES[id]!)],
     })),
   });
 }
@@ -212,7 +215,7 @@ describe("product page selection", () => {
     );
     await user.click(screen.getByRole("button", { name: "أضف إلى السلة" }));
     const saved = JSON.parse(
-      window.localStorage.getItem("souq-maythalun:cart:v2") ?? "{}",
+      window.localStorage.getItem(CART_STORAGE_KEY) ?? "{}",
     ) as { lines?: Array<{ variantId: string }> };
     expect(saved.lines?.map((line) => line.variantId)).toEqual([
       "loyal--blue-small",

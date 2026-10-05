@@ -45,7 +45,13 @@ export default async function StoreLayout({
   const catalog = products.map((product) => ({
     productId: product.id,
     defaultVariantId: product.defaultVariantId,
-    variantIds: product.variants.map((variant) => variant.id),
+    variants: product.variants.map((variant) => ({
+      id: variant.id,
+      sellingUnits: variant.sellingUnits.map((unit) => ({
+        id: unit.id,
+        unitsPerSale: unit.unitsPerSale,
+      })),
+    })),
   }));
   const locations = serviceAreas.map((area) => ({
     code: area.code,

@@ -15,8 +15,13 @@ import {
 } from "@/features/delivery/delivery-policy";
 import type { CheckoutRequest } from "@/features/orders/domain/checkout-request";
 import type { OrderConfirmation } from "@/features/orders/domain/order-confirmation";
-import { priceForQuantity } from "@/features/catalog/domain/offer-pricing";
+import { priceSellingUnit } from "@/features/catalog/domain/offer-pricing";
 import { liveOffersForVariants } from "@/features/catalog/infrastructure/offer-queries";
+import {
+  loadVariantCommerce,
+  singlePiecePrice,
+} from "@/features/catalog/infrastructure/variant-commerce";
+import { unitsToMilli } from "@/features/inventory/domain/quantity";
 import * as schema from "@/server/db/schema";
 
 import {
@@ -27,6 +32,8 @@ import {
 export type OrderCreationErrorCode =
   | "unknown_product"
   | "unavailable_product"
+  | "selling_unit_changed"
+  | "insufficient_stock"
   | "invalid_service_area"
   | "idempotency_conflict"
   | "database_error";
@@ -89,14 +96,19 @@ export class OrderService {
           throw new OrderCreationError("unknown_product");
         }
 
-        // Offers are resolved again here so the order is priced by the server at this moment.
+        // Selling units, free stock and offers are all read again here: the client supplies only
+        // identifiers and counts, and the server prices and checks the order at this moment.
+        const commerce = await loadVariantCommerce(
+          transaction,
+          variantRows.map((row) => row.variant.id),
+        );
         const offers = await liveOffersForVariants(
           transaction,
           variantRows.map((row) => ({
             variantId: row.variant.id,
             productId: row.product.id,
             categoryCode: row.product.categoryId,
-            priceAgorot: row.variant.priceAgorot,
+            priceAgorot: singlePiecePrice(row.variant, commerce),
           })),
           new Date(),
         );
@@ -117,14 +129,26 @@ export class OrderService {
           ) {
             throw new OrderCreationError("unavailable_product");
           }
+          const units = (commerce.get(row.variant.id)?.units ?? []).filter(
+            (unit) => !unit.archivedAt,
+          );
+          // A request without a unit comes from a client that bought single pieces only.
+          const unit = item.sellingUnitId
+            ? units.find((entry) => entry.id === item.sellingUnitId)
+            : units.find((entry) => entry.unitsPerSale === 1);
+          if (
+            !unit ||
+            (item.unitsPerSale !== undefined &&
+              item.unitsPerSale !== unit.unitsPerSale)
+          ) {
+            throw new OrderCreationError("selling_unit_changed");
+          }
           const attributes = variantAttributesSchema.parse(
             row.variant.attributes ?? {},
           );
-          const priced = priceForQuantity(
-            {
-              priceAgorot: row.variant.priceAgorot,
-              offer: offers.get(row.variant.id),
-            },
+          const priced = priceSellingUnit(
+            unit,
+            offers.get(row.variant.id),
             item.quantity,
           );
           const lineSubtotalAgorot = calculateLineSubtotal(
@@ -135,11 +159,28 @@ export class OrderService {
             ...item,
             product: row.product,
             variant: row.variant,
+            unit,
             attributes,
             priced,
             lineSubtotalAgorot,
           };
         });
+
+        // Packs and singles of one variant draw on the same base stock, so they are checked together.
+        const requiredMilli = new Map<string, number>();
+        for (const item of resolvedItems) {
+          requiredMilli.set(
+            item.variant.id,
+            (requiredMilli.get(item.variant.id) ?? 0) +
+              unitsToMilli(item.quantity * item.unit.unitsPerSale),
+          );
+        }
+        for (const [variantId, milli] of requiredMilli) {
+          const free = commerce.get(variantId)?.freeBaseMilli ?? null;
+          if (free !== null && milli > free) {
+            throw new OrderCreationError("insufficient_stock");
+          }
+        }
 
         const itemsSubtotalAgorot = resolvedItems.reduce(
           (total, item) => total + item.lineSubtotalAgorot,
@@ -223,6 +264,11 @@ export class OrderService {
               offerId: item.priced.offerId,
               quantity: item.quantity,
               lineSubtotalAgorot: item.lineSubtotalAgorot,
+              sellingUnitId: item.unit.id,
+              sellingUnitLabelSnapshot: item.unit.labelAr,
+              sellingUnitSkuSnapshot: item.unit.sku,
+              sellingUnitBarcodeSnapshot: item.unit.barcode,
+              unitsPerSale: item.unit.unitsPerSale,
             };
           }),
         );

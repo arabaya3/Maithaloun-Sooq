@@ -107,7 +107,13 @@ export interface PurchaseLineImpact {
   name: string;
   tracked: boolean;
   stockUnit: StockUnit;
+  // Supplier packs × pieces per pack = base units received, shown before posting.
+  purchasedQuantityMilli: number;
+  packQuantity: number;
   stockQuantityMilli: number;
+  // Cost after invoice discount and tax, and per base unit (display only; stock value takes the exact total).
+  costAgorot: number | null;
+  stockUnitCostAgorot: number | null;
   onHandBeforeMilli: number;
   onHandAfterMilli: number;
   lineTotalAgorot: number;
@@ -226,7 +232,11 @@ export class PurchaseService {
         name: variant.name,
         tracked: Boolean(item),
         stockUnit: item?.unit ?? (line.packQuantity > 1 ? "piece" : line.unit),
+        purchasedQuantityMilli: line.quantityMilli,
+        packQuantity: line.packQuantity,
         stockQuantityMilli: lineTotals.stockQuantityMilli,
+        costAgorot: showCosts ? lineTotals.costAgorot : null,
+        stockUnitCostAgorot: showCosts ? lineTotals.stockUnitCostAgorot : null,
         onHandBeforeMilli: state.onHand,
         onHandAfterMilli: after,
         lineTotalAgorot: lineTotals.lineTotalAgorot,
@@ -448,7 +458,13 @@ export class PurchaseService {
         name: variant.name,
         tracked: true,
         stockUnit: item.unit,
+        purchasedQuantityMilli: line.quantityMilli,
+        packQuantity: line.packQuantity,
         stockQuantityMilli: lineTotals.stockQuantityMilli,
+        costAgorot: can(actor, "stock.costs") ? lineTotals.costAgorot : null,
+        stockUnitCostAgorot: can(actor, "stock.costs")
+          ? lineTotals.stockUnitCostAgorot
+          : null,
         onHandBeforeMilli: item.onHandMilli,
         onHandAfterMilli: movement.onHandAfterMilli,
         lineTotalAgorot: lineTotals.lineTotalAgorot,

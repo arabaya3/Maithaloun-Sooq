@@ -2,6 +2,7 @@
 
 import {
   getVariantAttributeLabel,
+  isVariantAvailable,
   type ProductVariant,
 } from "@/features/catalog/domain/product-variant";
 
@@ -31,7 +32,8 @@ export function VariantSelector({
       >
         {sorted.map((variant) => {
           const selected = variant.id === selectedVariantId;
-          const unavailable = variant.availability !== "available";
+          // Out of stock in every way of buying counts as unavailable, not just the flag.
+          const unavailable = !isVariantAvailable(variant);
           return (
             <button
               key={variant.id}

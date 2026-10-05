@@ -25,6 +25,8 @@ export const BUSINESS_TABLES = [
   "product_options",
   "product_option_values",
   "product_variant_option_values",
+  "product_selling_units",
+  "customer_invoice_lines",
 ] as const;
 
 // One hash per business table; preparing a card must leave every hash unchanged.

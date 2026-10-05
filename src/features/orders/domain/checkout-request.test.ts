@@ -142,4 +142,46 @@ describe("checkout request validation", () => {
       }).success,
     ).toBe(false);
   });
+
+  it("accepts a selling unit per line and allows a single and a pack of one variant", () => {
+    const single = "11111111-1111-4111-8111-000000000001";
+    const pack = "11111111-1111-4111-8111-000000000003";
+    const parsed = checkoutRequestSchema.parse({
+      ...validRequest,
+      items: [
+        { ...validRequest.items[0], sellingUnitId: single, unitsPerSale: 1 },
+        { ...validRequest.items[0], sellingUnitId: pack, unitsPerSale: 3 },
+      ],
+    });
+    expect(parsed.items.map((item) => item.sellingUnitId)).toEqual([
+      single,
+      pack,
+    ]);
+    expect(
+      checkoutRequestSchema.safeParse({
+        ...validRequest,
+        items: [
+          { ...validRequest.items[0], sellingUnitId: pack },
+          { ...validRequest.items[0], sellingUnitId: pack },
+        ],
+      }).success,
+    ).toBe(false);
+    for (const unitsPerSale of [0, 1.5, 1001]) {
+      expect(
+        checkoutRequestSchema.safeParse({
+          ...validRequest,
+          items: [
+            { ...validRequest.items[0], sellingUnitId: pack, unitsPerSale },
+          ],
+        }).success,
+      ).toBe(false);
+    }
+    // Prices and stock never travel from the client.
+    expect(
+      checkoutRequestSchema.safeParse({
+        ...validRequest,
+        items: [{ ...validRequest.items[0], unitPriceAgorot: 1 }],
+      }).success,
+    ).toBe(false);
+  });
 });

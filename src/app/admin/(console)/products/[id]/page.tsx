@@ -7,12 +7,14 @@ import {
   adminCatalogService,
   catalogAuthoringService,
   productOptionsService,
+  sellingUnitService,
 } from "@/features/admin/application/admin-services";
 import { requireAdminSession } from "@/features/admin/auth/admin-session";
 import { productSaveMessage } from "@/features/admin/domain/product-save-feedback";
 import { ProductCatalogControls } from "@/features/admin/ui/product-catalog-controls";
 import { ProductForm } from "@/features/admin/ui/product-form";
 import { ProductMediaEditor } from "@/features/admin/ui/product-media-editor";
+import { SellingUnitsEditor } from "@/features/admin/ui/selling-units-editor";
 
 export const metadata: Metadata = {
   title: "تعديل المنتج",
@@ -32,11 +34,13 @@ export default async function AdminProductEditPage({
     (await params).id,
   );
   if (!product) notFound();
-  const [matrix, archivedVariants, publicationCheck] = await Promise.all([
-    productOptionsService.matrix(product.id),
-    catalogAuthoringService.archivedVariants(product.id),
-    catalogAuthoringService.publicationCheck(product.id),
-  ]);
+  const [matrix, archivedVariants, publicationCheck, sellingUnits] =
+    await Promise.all([
+      productOptionsService.matrix(product.id),
+      catalogAuthoringService.archivedVariants(product.id),
+      catalogAuthoringService.publicationCheck(product.id),
+      sellingUnitService.listForProduct(product.id),
+    ]);
   const { saved, at } = await searchParams;
   const savedMessage = productSaveMessage(saved);
 
@@ -72,6 +76,10 @@ export default async function AdminProductEditPage({
           barcode: variant.barcode,
         }))}
         archivedVariants={archivedVariants}
+      />
+      <SellingUnitsEditor
+        productDomainId={product.id}
+        variants={sellingUnits}
       />
       {matrix ? (
         <ProductMediaEditor

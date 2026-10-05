@@ -2,6 +2,7 @@ import { AdminOrderService } from "@/features/admin/application/admin-order-serv
 import { CatalogAuthoringService } from "@/features/admin/application/catalog-authoring-service";
 import { ProductMaintenanceService } from "@/features/admin/application/product-maintenance-service";
 import { ProductOptionsService } from "@/features/admin/application/product-options-service";
+import { SellingUnitService } from "@/features/admin/application/selling-unit-service";
 import type { AdminActor } from "@/features/admin/domain/admin-actor";
 import type { SensitiveFixture } from "@/features/assistant/evaluation/eval-report";
 import { InventoryService } from "@/features/inventory/application/inventory-service";
@@ -169,6 +170,68 @@ export async function seedEvaluationData(db: Database, owner: AdminActor) {
     },
     key(4),
   );
+
+  // Selling units: a cloth sold one piece at a time, and a towel with a 3-pack and an archived carton.
+  await options.createProductSet(
+    owner,
+    {
+      product: {
+        nameAr: "ممسحة مايكروفايبر",
+        latinName: null,
+        categoryCode: "tools",
+        description: null,
+        unit: null,
+        publication: "published",
+        availability: "available",
+      },
+      options: [],
+      variants: [
+        {
+          values: {},
+          priceAgorot: 400,
+          openingStock: { quantityMilli: 10_000, unitCostAgorot: 200 },
+        },
+      ],
+      images: [],
+    },
+    key(5),
+  );
+  const towel = await options.createProductSet(
+    owner,
+    {
+      product: {
+        nameAr: "منشفة مطبخ",
+        latinName: null,
+        categoryCode: "tools",
+        description: null,
+        unit: null,
+        publication: "published",
+        availability: "available",
+      },
+      options: [],
+      variants: [
+        {
+          values: {},
+          priceAgorot: 400,
+          openingStock: { quantityMilli: 10_000, unitCostAgorot: 200 },
+        },
+      ],
+      images: [],
+    },
+    key(6),
+  );
+  const sellingUnits = new SellingUnitService(db);
+  await sellingUnits.create(owner, towel.variantIds[0]!, {
+    labelAr: "باكيج 3 حبات",
+    unitsPerSale: 3,
+    priceAgorot: 1_000,
+  });
+  const carton = await sellingUnits.create(owner, towel.variantIds[0]!, {
+    labelAr: "كرتونة 6 حبات",
+    unitsPerSale: 6,
+    priceAgorot: 1_800,
+  });
+  await sellingUnits.setArchived(owner, carton.id, 1, true);
 
   const { id: supplierId } = await suppliers.create(owner, {
     nameAr: "شركة النور",

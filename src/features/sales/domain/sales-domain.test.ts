@@ -239,7 +239,13 @@ describe("sale draft", () => {
     draft.customerMode = "new";
     draft.newCustomerName = " أحمد ";
     draft.lines = [
-      { key: "l1", variantId: "arar--default", quantity: "٢", unitPrice: "12" },
+      {
+        key: "l1",
+        variantId: "arar--default",
+        sellingUnitId: "",
+        quantity: "٢",
+        unitPrice: "12",
+      },
     ];
     draft.payment = "partial";
     draft.paid = "10.50";
@@ -264,8 +270,20 @@ describe("sale draft", () => {
   it("blocks credit for an anonymous cash sale and duplicate products", () => {
     const draft = emptySaleDraft();
     draft.lines = [
-      { key: "l1", variantId: "a", quantity: "1", unitPrice: "5" },
-      { key: "l2", variantId: "a", quantity: "1", unitPrice: "5" },
+      {
+        key: "l1",
+        variantId: "a",
+        sellingUnitId: "",
+        quantity: "1",
+        unitPrice: "5",
+      },
+      {
+        key: "l2",
+        variantId: "a",
+        sellingUnitId: "",
+        quantity: "1",
+        unitPrice: "5",
+      },
     ];
     expect(
       buildSalePayload(draft, { idempotencyKey: "k", source: "manual" }).errors[
@@ -279,6 +297,54 @@ describe("sale draft", () => {
       buildSalePayload(draft, { idempotencyKey: "k", source: "manual" }).errors
         .customer,
     ).toBe("البيع بالدَّين يحتاج اسم الزبون.");
+  });
+
+  it("sells whole packs by selling unit and allows a single and a pack of one variant", () => {
+    const pack = "11111111-1111-4111-8111-000000000003";
+    const single = "11111111-1111-4111-8111-000000000001";
+    const draft = emptySaleDraft();
+    draft.lines = [
+      {
+        key: "l1",
+        variantId: "cloth",
+        sellingUnitId: pack,
+        quantity: "2",
+        unitPrice: "10",
+      },
+      {
+        key: "l2",
+        variantId: "cloth",
+        sellingUnitId: single,
+        quantity: "1",
+        unitPrice: "4",
+      },
+    ];
+    const { payload, errors } = buildSalePayload(draft, {
+      idempotencyKey: "00000000-0000-4000-8000-000000000000",
+      source: "manual",
+    });
+    expect(errors).toEqual({});
+    expect(payload?.lines).toEqual([
+      {
+        variantId: "cloth",
+        sellingUnitId: pack,
+        quantityMilli: 2_000,
+        unitPriceAgorot: 1_000,
+      },
+      {
+        variantId: "cloth",
+        sellingUnitId: single,
+        quantityMilli: 1_000,
+        unitPriceAgorot: 400,
+      },
+    ]);
+
+    draft.lines = [{ ...draft.lines[0]!, quantity: "1.5" }];
+    expect(
+      buildSalePayload(draft, { idempotencyKey: "k", source: "manual" }).errors[
+        "l1.quantity"
+      ],
+    ).toBe("عدد الحبات أو الباكيجات يجب أن يكون رقماً صحيحاً.");
   });
 });
 
@@ -296,6 +362,25 @@ describe("invoice sharing", () => {
       paidAtSaleAgorot: 1_000,
     });
     expect(text).toContain("فاتورة رقم 1001");
+    expect(
+      buildInvoiceShareText({
+        invoiceNumber: 1002,
+        customerName: null,
+        date: "2026-09-30",
+        lines: [
+          {
+            name: "ممسحة",
+            quantityMilli: 6_000,
+            sellingUnitLabel: "باكيج 3 حبات",
+            packQuantity: 2,
+            lineTotalAgorot: 2_000,
+          },
+        ],
+        discountAgorot: 0,
+        totalAgorot: 2_000,
+        paidAtSaleAgorot: 2_000,
+      }),
+    ).toContain("• ممسحة — باكيج 3 حبات × 2 = 20 ₪");
     expect(text).toContain("الباقي: 14 ₪");
     const url = buildWhatsAppShareUrl(text, "+970591234567");
     expect(url.startsWith("https://wa.me/970591234567?text=")).toBe(true);

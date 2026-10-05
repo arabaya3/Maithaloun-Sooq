@@ -4,6 +4,7 @@ import { connection } from "next/server";
 import {
   customerService,
   inventoryService,
+  sellingUnitService,
 } from "@/features/admin/application/admin-services";
 import { requireAdminSession } from "@/features/admin/auth/admin-session";
 import { PageHeader } from "@/features/admin/ui/kit";
@@ -21,9 +22,10 @@ export default async function ManualSalePage({
 }) {
   await connection();
   const actor = await requireAdminSession();
-  const [stock, customers] = await Promise.all([
+  const [stock, customers, sellingUnits] = await Promise.all([
     inventoryService.listStock(actor),
     customerService.list(actor),
+    sellingUnitService.activeByVariant(),
   ]);
   const requested = (await searchParams).customer;
   const preselected = customers.find((customer) => customer.id === requested);
@@ -48,6 +50,7 @@ export default async function ManualSalePage({
           sku: item.sku,
           barcode: item.barcode,
           priceAgorot: item.salePriceAgorot,
+          sellingUnits: sellingUnits.get(item.variantId) ?? [],
           hint: `${formatIls(item.salePriceAgorot)} · ${
             item.tracked
               ? `المتوفر ${formatQuantity(item.availableMilli)}`

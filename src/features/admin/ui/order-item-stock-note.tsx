@@ -14,10 +14,11 @@ const reservationLabels = {
 
 export function OrderItemStockNote({
   stock,
-  quantity,
+  baseUnits,
 }: {
   stock: Stock;
-  quantity: number;
+  // Pieces the line needs from stock, so a 3-pack is compared as three pieces.
+  baseUnits: number;
 }) {
   if (!stock.tracked) {
     return <small className="admin-stock-note">غير متتبَّع في المخزون</small>;
@@ -30,7 +31,7 @@ export function OrderItemStockNote({
     );
   }
   const available = stock.availableMilli ?? 0;
-  const enough = available >= unitsToMilli(quantity);
+  const enough = available >= unitsToMilli(baseUnits);
   return (
     <small
       className={

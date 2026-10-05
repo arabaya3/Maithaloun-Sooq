@@ -18,9 +18,14 @@ export function createOrderRequestFingerprint(
     deliveryAddress: request.deliveryAddress,
     customerNote: request.customerNote ?? null,
     paymentMethod: request.paymentMethod,
-    items: [...request.items].sort((left, right) =>
-      left.productId.localeCompare(right.productId),
-    ),
+    // Items without a selling unit hash exactly as before, so retries of older requests still replay.
+    items: [...request.items]
+      .map(({ productId, variantId, quantity, sellingUnitId }) =>
+        sellingUnitId
+          ? { productId, variantId, quantity, sellingUnitId }
+          : { productId, variantId, quantity },
+      )
+      .sort((left, right) => left.productId.localeCompare(right.productId)),
   };
 
   return createHash("sha256")

@@ -6,6 +6,8 @@ import Link from "next/link";
 import { useCart } from "@/features/cart/cart-provider";
 import { MAX_CART_QUANTITY } from "@/features/cart/cart-store";
 import { OfferPrice } from "@/features/catalog/components/offer-price";
+import { offerForSellingUnit } from "@/features/catalog/domain/offer-pricing";
+import { defaultSellingUnit } from "@/features/catalog/domain/selling-unit";
 import { ProductMedia } from "@/features/catalog/components/product-media";
 import {
   getProductDisplayName,
@@ -19,13 +21,29 @@ export function ProductCard({ product }: { product: Product }) {
   const { isFavorite, toggleFavorite } = useFavorites();
   const name = getProductDisplayName(product);
   const favorite = isFavorite(product.id);
-  const available = isProductAvailable(product);
   const optionCount = product.variants.length;
   const variantId = product.defaultVariantId;
+  const variant = product.variants.find((row) => row.id === variantId);
+  const unit = variant ? defaultSellingUnit(variant.sellingUnits) : null;
+  const available = isProductAvailable(product);
+  // The card buys the default variant its default way; other ways are chosen on the product page.
+  const cardLine = unit
+    ? {
+        productId: product.id,
+        variantId,
+        sellingUnitId: unit.id,
+        unitsPerSale: unit.unitsPerSale,
+      }
+    : null;
+  const canAddFromCard = Boolean(cardLine && unit && unit.maxQuantity >= 1);
   const inCart =
     lines.find(
-      (line) => line.productId === product.id && line.variantId === variantId,
+      (line) =>
+        line.productId === product.id &&
+        line.variantId === variantId &&
+        line.sellingUnitId === unit?.id,
     )?.quantity ?? 0;
+  const maxInCart = Math.min(MAX_CART_QUANTITY, unit?.maxQuantity ?? 0);
 
   return (
     <article
@@ -74,23 +92,39 @@ export function ProductCard({ product }: { product: Product }) {
         <OfferPrice
           className="product-price"
           variant={
-            product.variants.find(
-              (row) => row.id === product.defaultVariantId,
-            ) ?? product
+            unit
+              ? {
+                  priceAgorot: unit.priceAgorot,
+                  offer: offerForSellingUnit(unit, variant?.offer),
+                }
+              : (variant ?? product)
           }
         />
+        {unit && unit.unitsPerSale > 1 ? (
+          <p className="product-meta">
+            <bdi dir="auto">{unit.labelAr}</bdi>
+          </p>
+        ) : null}
       </div>
 
       <div className="product-actions">
         {!available ? (
           <p className="product-unavailable">غير متوفر حالياً</p>
+        ) : !canAddFromCard || !cardLine ? (
+          <Link
+            href={`/products/${product.slug}`}
+            className="add-button"
+            aria-label={`عرض خيارات ${name}`}
+          >
+            عرض الخيارات
+          </Link>
         ) : inCart > 0 ? (
           <div className="card-quantity" aria-label={`كمية ${name} في السلة`}>
             <button
               type="button"
               aria-label={`زيادة كمية ${name}`}
-              disabled={inCart >= MAX_CART_QUANTITY}
-              onClick={() => setQuantity(product.id, variantId, inCart + 1)}
+              disabled={inCart >= maxInCart}
+              onClick={() => setQuantity(cardLine, inCart + 1)}
             >
               <Plus aria-hidden="true" />
             </button>
@@ -101,7 +135,7 @@ export function ProductCard({ product }: { product: Product }) {
               <button
                 type="button"
                 aria-label={`تقليل كمية ${name}`}
-                onClick={() => setQuantity(product.id, variantId, inCart - 1)}
+                onClick={() => setQuantity(cardLine, inCart - 1)}
               >
                 <Minus aria-hidden="true" />
               </button>
@@ -109,7 +143,7 @@ export function ProductCard({ product }: { product: Product }) {
               <button
                 type="button"
                 aria-label={`إزالة ${name} من السلة`}
-                onClick={() => removeItem(product.id, variantId)}
+                onClick={() => removeItem(cardLine)}
               >
                 <Trash2 aria-hidden="true" />
               </button>
@@ -119,7 +153,7 @@ export function ProductCard({ product }: { product: Product }) {
           <button
             type="button"
             className="add-button"
-            onClick={() => addItem(product.id, variantId, 1)}
+            onClick={() => addItem(cardLine, 1)}
           >
             <ShoppingCart aria-hidden="true" />
             أضف إلى السلة

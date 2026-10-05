@@ -29,8 +29,10 @@ import type {
   SalesService,
 } from "@/features/sales/application/sales-service";
 import { orderStatusLabels } from "@/features/orders/domain/order-status";
+import { calculateSale } from "@/features/sales/domain/sale-calculation";
 import { formatIls } from "@/shared/lib/format-currency";
 import { parseIlsToAgorot } from "@/shared/lib/parse-ils";
+import { matchSellingUnit } from "@/features/catalog/domain/selling-unit";
 import { moneyRejection } from "@/features/assistant/domain/money-rejection";
 import type { InvoiceExtractor } from "@/server/ai/invoice-extractor";
 import * as schema from "@/server/db/schema";
@@ -51,6 +53,8 @@ import type { AttachmentService } from "./attachment-service";
 import { CatalogOperations } from "./catalog-operations";
 import { PartyOperations } from "./party-operations";
 import { MediaOperations } from "./media-operations";
+import { SellingUnitOperations } from "./selling-unit-operations";
+import type { SellingUnitService } from "@/features/admin/application/selling-unit-service";
 import type { OfferService } from "@/features/offers/application/offer-service";
 import type { SupplierMaintenanceService } from "@/features/purchasing/application/supplier-maintenance-service";
 import type { SupplierService } from "@/features/purchasing/application/supplier-service";
@@ -133,6 +137,7 @@ export interface OperationServices {
   catalog: AdminCatalogService;
   authoring: CatalogAuthoringService;
   maintenance: ProductMaintenanceService;
+  sellingUnits: SellingUnitService;
   inventory: InventoryService;
   sales: SalesService;
   customers: CustomerService;
@@ -206,6 +211,7 @@ export class AssistantOperations {
   readonly catalogOps: CatalogOperations;
   readonly partyOps: PartyOperations;
   readonly mediaOps: MediaOperations;
+  readonly sellingUnitOps: SellingUnitOperations;
   readonly productOptions: ProductOptionsService;
 
   constructor(private readonly services: OperationServices) {
@@ -243,10 +249,16 @@ export class AssistantOperations {
       resolveProduct: (actor, query, scope, field, purpose) =>
         this.resolveProduct(actor, query, scope, field, purpose),
     });
+    this.sellingUnitOps = new SellingUnitOperations({
+      sellingUnits: services.sellingUnits,
+      resolveProduct: (actor, query, scope, field) =>
+        this.resolveProduct(actor, query, scope, field),
+    });
     const built = {
       ...this.buildHandlers(),
       ...this.partyOps.buildHandlers(),
       ...this.mediaOps.buildHandlers(),
+      ...this.sellingUnitOps.buildHandlers(),
       ...this.catalogOps.buildHandlers(async (actor, domainId) => {
         await services.maintenance.deleteUnreferenced(actor, domainId);
       }),
@@ -896,6 +908,7 @@ export class AssistantOperations {
         product: string;
         quantity: string;
         unitPriceIls?: string;
+        sellingOption?: string;
       }>;
       payment: "full" | "partial" | "none";
       paidIls?: string;
@@ -941,15 +954,48 @@ export class AssistantOperations {
         (row) => row.id === resolution.match.variantId,
       );
       if (!variant) return rejected("not_found", "المنتج غير موجود.");
+      // A named way of selling (حبة، باكيج، كرتونة) makes the quantity a count of that unit.
+      let unit: (typeof variant.sellingUnits)[number] | null = null;
+      if (item.sellingOption) {
+        const picked = matchSellingUnit(
+          variant.sellingUnits,
+          item.sellingOption,
+        );
+        if (!picked) {
+          return variant.sellingUnits.length
+            ? {
+                status: "needs_selection",
+                field: `items.${index}.sellingOption`,
+                question: `أي طريقة بيع لـ ${item.product.slice(0, 40)}؟`,
+                options: variant.sellingUnits.map((entry) => ({
+                  id: entry.labelAr,
+                  label: `${entry.labelAr} — ${formatIls(entry.priceAgorot)} — يخصم ${entry.unitsPerSale}`,
+                })),
+              }
+            : rejected(
+                "not_found",
+                `لا توجد طرق بيع فعّالة لـ ${item.product.slice(0, 40)}.`,
+              );
+        }
+        if (quantityMilli % 1000 !== 0) {
+          return rejected(
+            "invalid_input",
+            `عدد «${picked.labelAr}» يجب أن يكون رقماً صحيحاً.`,
+          );
+        }
+        unit = picked;
+      }
       const price =
         item.unitPriceIls === undefined
-          ? variant.priceAgorot
+          ? (unit?.priceAgorot ?? variant.priceAgorot)
           : parseIlsToAgorot(item.unitPriceIls);
       if (price === null)
         return rejected("invalid_input", "سعر الوحدة غير مفهوم.");
-      const existing = merged.get(variant.id);
-      merged.set(variant.id, {
+      const key = `${variant.id}::${unit?.id ?? "base"}`;
+      const existing = merged.get(key);
+      merged.set(key, {
         variantId: variant.id,
+        ...(unit ? { sellingUnitId: unit.id } : {}),
         quantityMilli: (existing?.quantityMilli ?? 0) + quantityMilli,
         unitPriceAgorot: price,
       });
@@ -1001,13 +1047,14 @@ export class AssistantOperations {
       discountAgorot: 0,
       paidAgorot: 0,
     };
-    const total = (
-      await this.services.sales.preview(actor, {
-        ...draft,
-        idempotencyKey: crypto.randomUUID(),
-        paidAgorot: 0,
-      })
-    ).totals.totalAgorot;
+    // The total comes from the lines alone. Previewing with nothing paid would apply the payment
+    // rule too early and reject every anonymous cash sale; the real payment is checked below.
+    const total = calculateSale({
+      lines,
+      discountAgorot: 0,
+      paidAgorot: 0,
+      hasCustomer: true,
+    }).totalAgorot;
     let paidAgorot = 0;
     if (input.payment === "full") paidAgorot = total;
     if (input.payment === "partial") {
@@ -1035,12 +1082,16 @@ export class AssistantOperations {
       );
     }
     const rows: ConfirmationCard["rows"] = preview.lines.map((line) => ({
-      label: line.name,
+      label: line.sellingUnitLabel
+        ? `${line.name} — ${line.sellingUnitLabel}`
+        : line.name,
       before:
         line.tracked && line.availableBeforeMilli !== null
           ? `المخزون ${quantityText(line.availableBeforeMilli)}`
           : null,
-      after: `${quantityText(line.quantityMilli)} × ${formatIls(line.unitPriceAgorot)} = ${formatIls(line.lineTotalAgorot)}`,
+      after: line.sellingUnitLabel
+        ? `${line.sellingUnitLabel} × ${quantityText(line.saleQuantityMilli)} × ${formatIls(line.unitPriceAgorot)} = ${formatIls(line.lineTotalAgorot)} · يخصم ${quantityText(line.quantityMilli)} من المخزون`
+        : `${quantityText(line.quantityMilli)} × ${formatIls(line.unitPriceAgorot)} = ${formatIls(line.lineTotalAgorot)}`,
     }));
     rows.push({
       label: "الإجمالي",
@@ -1529,6 +1580,7 @@ export class AssistantOperations {
         .array(
           z.object({
             variantId: z.string(),
+            sellingUnitId: z.uuid().optional(),
             quantityMilli: z.number().int().positive(),
             unitPriceAgorot: z.number().int().min(0),
           }),
@@ -1551,6 +1603,8 @@ export class AssistantOperations {
             balance: preview.balance,
             lines: preview.lines.map((line) => [
               line.variantId,
+              line.sellingUnitId,
+              line.unitsPerSale,
               line.lineTotalAgorot,
             ]),
           }),

@@ -5,12 +5,19 @@ import { CartProvider } from "@/features/cart/cart-provider";
 import type { Product } from "@/features/catalog/domain/product";
 import { DeliveryProvider } from "@/features/delivery/delivery-provider";
 import { FavoritesProvider } from "@/features/favorites/favorites-provider";
+import { singleSellingUnit } from "@/test/mock-product-repository";
 
-function catalogFromProducts(products: readonly Product[]) {
+export function catalogFromProducts(products: readonly Product[]) {
   return products.map((product) => ({
     productId: product.id,
     defaultVariantId: product.defaultVariantId,
-    variantIds: product.variants.map((variant) => variant.id),
+    variants: product.variants.map((variant) => ({
+      id: variant.id,
+      sellingUnits: variant.sellingUnits.map((unit) => ({
+        id: unit.id,
+        unitsPerSale: unit.unitsPerSale,
+      })),
+    })),
   }));
 }
 
@@ -29,11 +36,20 @@ export function renderWithProviders(
   const catalog =
     products != null
       ? catalogFromProducts(products)
-      : (productIds ?? []).map((productId) => ({
-          productId,
-          defaultVariantId: `${productId}--default`,
-          variantIds: [`${productId}--default`],
-        }));
+      : (productIds ?? []).map((productId) => {
+          const variantId = `${productId}--default`;
+          const unit = singleSellingUnit(variantId, 100);
+          return {
+            productId,
+            defaultVariantId: variantId,
+            variants: [
+              {
+                id: variantId,
+                sellingUnits: [{ id: unit.id, unitsPerSale: 1 }],
+              },
+            ],
+          };
+        });
   const favoriteIds =
     products?.map((product) => product.id) ?? productIds ?? [];
 

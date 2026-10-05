@@ -5,7 +5,10 @@ import { CheckCircle2, Plus, Trash2 } from "lucide-react";
 import { useMemo, useState, useTransition } from "react";
 
 import { Money } from "@/features/admin/ui/kit";
-import { parseQuantityToMilli } from "@/features/inventory/domain/quantity";
+import {
+  formatQuantity,
+  parseQuantityToMilli,
+} from "@/features/inventory/domain/quantity";
 import {
   VariantPicker,
   type VariantOption,
@@ -38,6 +41,14 @@ import { SaleReviewCard } from "./sale-review";
 
 export interface SaleVariantOption extends VariantOption {
   priceAgorot: number;
+  // Active ways to sell this variant; the first default is preselected.
+  sellingUnits?: ReadonlyArray<{
+    id: string;
+    labelAr: string;
+    unitsPerSale: number;
+    priceAgorot: number;
+    isDefault: boolean;
+  }>;
 }
 
 const customerModes: { id: SaleCustomerMode; label: string }[] = [
@@ -120,9 +131,36 @@ export function SaleForm({
 
   function selectVariant(key: string, variantId: string) {
     const variant = variants.find((item) => item.variantId === variantId);
+    const unit =
+      variant?.sellingUnits?.find((item) => item.isDefault) ??
+      variant?.sellingUnits?.[0];
     updateLine(key, {
       variantId,
-      unitPrice: variant ? formatAgorotAsIlsInput(variant.priceAgorot) : "",
+      sellingUnitId: unit?.id ?? "",
+      unitPrice: unit
+        ? formatAgorotAsIlsInput(unit.priceAgorot)
+        : variant
+          ? formatAgorotAsIlsInput(variant.priceAgorot)
+          : "",
+    });
+  }
+
+  // Only multi-piece units change the wording; a one-piece unit reads like a normal sale.
+  function packLine(line: SaleLineDraft) {
+    const unit = variants
+      .find((item) => item.variantId === line.variantId)
+      ?.sellingUnits?.find((item) => item.id === line.sellingUnitId);
+    return Boolean(unit && unit.unitsPerSale > 1);
+  }
+
+  function selectSellingUnit(key: string, variantId: string, unitId: string) {
+    const variant = variants.find((item) => item.variantId === variantId);
+    const unit = variant?.sellingUnits?.find((item) => item.id === unitId);
+    updateLine(key, {
+      sellingUnitId: unit?.id ?? "",
+      unitPrice: formatAgorotAsIlsInput(
+        unit?.priceAgorot ?? variant?.priceAgorot ?? 0,
+      ),
     });
   }
 
@@ -279,9 +317,50 @@ export function SaleForm({
                 </p>
               ) : null}
               <FieldError message={errors[`${line.key}.variantId`]} />
+              {(() => {
+                const units =
+                  variants.find((item) => item.variantId === line.variantId)
+                    ?.sellingUnits ?? [];
+                const unit = units.find(
+                  (item) => item.id === line.sellingUnitId,
+                );
+                const packs = parseQuantityToMilli(line.quantity);
+                return units.length ? (
+                  <>
+                    <label>
+                      طريقة البيع
+                      <select
+                        aria-label={`طريقة البيع للسطر ${index + 1}`}
+                        value={line.sellingUnitId}
+                        onChange={(event) =>
+                          selectSellingUnit(
+                            line.key,
+                            line.variantId,
+                            event.target.value,
+                          )
+                        }
+                      >
+                        {units.map((item) => (
+                          <option key={item.id} value={item.id}>
+                            {item.labelAr} — يخصم {item.unitsPerSale}
+                          </option>
+                        ))}
+                        <option value="">كمية حرة بالوحدة الأساسية</option>
+                      </select>
+                    </label>
+                    {unit && unit.unitsPerSale > 1 && packs ? (
+                      <p className="admin-muted" aria-live="polite">
+                        {unit.labelAr} × {formatQuantity(packs)} ={" "}
+                        {formatQuantity(packs * unit.unitsPerSale)} حبة من
+                        المخزون
+                      </p>
+                    ) : null}
+                  </>
+                ) : null;
+              })()}
               <div className="admin-field-grid admin-field-grid--pair">
                 <label>
-                  الكمية
+                  {packLine(line) ? "العدد" : "الكمية"}
                   <input
                     value={line.quantity}
                     inputMode="decimal"
@@ -296,7 +375,7 @@ export function SaleForm({
                   <FieldError message={errors[`${line.key}.quantity`]} />
                 </label>
                 <label>
-                  سعر البيع ₪
+                  {packLine(line) ? "السعر لكل باكيج ₪" : "سعر البيع ₪"}
                   <input
                     value={line.unitPrice}
                     inputMode="decimal"

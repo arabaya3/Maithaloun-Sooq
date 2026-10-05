@@ -7,6 +7,7 @@ import type { AdminActor } from "@/features/admin/domain/admin-actor";
 import { assertSafeAuditState } from "@/features/admin/domain/audit";
 import { assertPermission, can } from "@/features/admin/domain/permissions";
 import { variantDomainIdSchema } from "@/features/catalog/domain/product-variant";
+import { perPieceAgorot } from "@/features/catalog/domain/selling-unit";
 import {
   InventoryError,
   applyMovementToItem,
@@ -18,7 +19,10 @@ import {
   type InventoryItemRow,
 } from "@/features/inventory/application/stock-ledger";
 import { issueCostAgorot } from "@/features/inventory/domain/costing";
-import { MAX_QUANTITY_MILLI } from "@/features/inventory/domain/quantity";
+import {
+  MAX_QUANTITY_MILLI,
+  MILLI,
+} from "@/features/inventory/domain/quantity";
 import type { StockUnit } from "@/features/inventory/domain/stock-constants";
 import {
   saleSources,
@@ -39,6 +43,7 @@ export type SalesErrorCode =
   | "invalid_input"
   | "customer_not_found"
   | "variant_not_found"
+  | "selling_unit_not_found"
   | "insufficient_stock"
   | "discount_exceeds_subtotal"
   | "paid_exceeds_total"
@@ -72,10 +77,16 @@ export const saleInputSchema = z
         z
           .object({
             variantId: variantDomainIdSchema,
+            // With a selling unit this counts whole units sold (packs) in milli and the price is per
+            // unit; the server derives the stock taken from the unit. Without one it is base stock.
+            sellingUnitId: z.uuid().optional(),
             quantityMilli: z.number().int().min(1).max(MAX_QUANTITY_MILLI),
             unitPriceAgorot: z.number().int().min(0).max(10_000_000),
           })
-          .strict(),
+          .strict()
+          .refine(
+            (line) => !line.sellingUnitId || line.quantityMilli % MILLI === 0,
+          ),
       )
       .min(1)
       .max(100),
@@ -99,6 +110,12 @@ export const customerPaymentSchema = z
 export interface SaleLineImpact {
   variantId: string;
   name: string;
+  sellingUnitId: string | null;
+  sellingUnitLabel: string | null;
+  unitsPerSale: number;
+  // Singles or packs sold (milli); equals quantityMilli for lines without a selling unit.
+  saleQuantityMilli: number;
+  // Base stock taken.
   quantityMilli: number;
   unit: StockUnit;
   unitPriceAgorot: number;
@@ -137,6 +154,21 @@ interface ResolvedVariant {
   sku: string | null;
 }
 
+interface ResolvedSellingUnit {
+  id: string;
+  labelAr: string;
+  unitsPerSale: number;
+  sku: string | null;
+}
+
+// Each line with the base stock it takes: packs × units per sale for a selling unit.
+interface ResolvedLine {
+  line: SaleInput["lines"][number];
+  variant: ResolvedVariant;
+  unit: ResolvedSellingUnit | null;
+  stockMilli: number;
+}
+
 function mapCalculationError(error: unknown): never {
   if (error instanceof SaleCalculationError) throw new SalesError(error.code);
   throw error;
@@ -149,7 +181,7 @@ export class SalesService {
     assertPermission(actor, "sales.record");
     const data = this.parse(input);
     const totals = this.totals(data);
-    const variants = await this.resolveVariants(this.database, data);
+    const resolved = await this.resolveLines(this.database, data);
     const locationId = await getDefaultLocationId(this.database);
     const items = await this.database
       .select()
@@ -158,7 +190,7 @@ export class SalesService {
         and(
           inArray(
             schema.inventoryItems.variantId,
-            [...variants.values()].map((variant) => variant.id),
+            resolved.map((entry) => entry.variant.id),
           ),
           eq(schema.inventoryItems.locationId, locationId),
         ),
@@ -179,16 +211,23 @@ export class SalesService {
       lineTotalAgorot: number;
       cogsAgorot: number | null;
     }> = [];
-    const lines = data.lines.map((line, index): SaleLineImpact => {
-      const variant = variants.get(line.variantId)!;
+    const lines = resolved.map((entry, index): SaleLineImpact => {
+      const { line, variant, unit, stockMilli } = entry;
       const stock = state.get(variant.id);
       const lineTotalAgorot = totals.lineTotalsAgorot[index]!;
+      const sold = {
+        sellingUnitId: unit?.id ?? null,
+        sellingUnitLabel: unit?.labelAr ?? null,
+        unitsPerSale: unit?.unitsPerSale ?? 1,
+        saleQuantityMilli: line.quantityMilli,
+        quantityMilli: stockMilli,
+      };
       if (!stock) {
         costed.push({ lineTotalAgorot, cogsAgorot: null });
         return {
           variantId: variant.domainId,
           name: variant.name,
-          quantityMilli: line.quantityMilli,
+          ...sold,
           unit: "piece",
           unitPriceAgorot: line.unitPriceAgorot,
           lineTotalAgorot,
@@ -198,24 +237,24 @@ export class SalesService {
           insufficient: false,
         };
       }
-      const insufficient = line.quantityMilli > stock.available;
+      const insufficient = stockMilli > stock.available;
       const before = stock.available;
       if (insufficient) {
         costed.push({ lineTotalAgorot, cogsAgorot: null });
       } else {
         const cogs = issueCostAgorot(
           { onHandMilli: stock.onHand, valueAgorot: stock.value },
-          line.quantityMilli,
+          stockMilli,
         );
         costed.push({ lineTotalAgorot, cogsAgorot: cogs });
-        stock.available -= line.quantityMilli;
-        stock.onHand -= line.quantityMilli;
+        stock.available -= stockMilli;
+        stock.onHand -= stockMilli;
         stock.value -= cogs;
       }
       return {
         variantId: variant.domainId,
         name: variant.name,
-        quantityMilli: line.quantityMilli,
+        ...sold,
         unit: stock.unit,
         unitPriceAgorot: line.unitPriceAgorot,
         lineTotalAgorot,
@@ -286,14 +325,16 @@ export class SalesService {
         }
 
         const customer = await this.resolveCustomer(transaction, data);
-        const variants = await this.resolveVariants(transaction, data);
+        const resolved = await this.resolveLines(transaction, data);
         const locationId = await getDefaultLocationId(transaction);
 
         // Inventory rows are locked in a stable order before any movement is posted.
         const locked = new Map<string, InventoryItemRow | null>();
-        const ordered = [...variants.values()].sort((a, b) =>
-          a.id.localeCompare(b.id),
-        );
+        const ordered = [
+          ...new Map(
+            resolved.map((entry) => [entry.variant.id, entry.variant]),
+          ).values(),
+        ].sort((a, b) => a.id.localeCompare(b.id));
         for (const variant of ordered) {
           locked.set(
             variant.id,
@@ -308,16 +349,11 @@ export class SalesService {
         const invoiceId = crypto.randomUUID();
 
         // Header first (lines and movements reference it); cost totals are known after the stock-out.
-        const planned = data.lines.map((line, index) => {
-          const variant = variants.get(line.variantId)!;
-          const item = locked.get(variant.id) ?? null;
-          return {
-            line,
-            variant,
-            item,
-            lineTotalAgorot: totals.lineTotalsAgorot[index]!,
-          };
-        });
+        const planned = resolved.map((entry, index) => ({
+          ...entry,
+          item: locked.get(entry.variant.id) ?? null,
+          lineTotalAgorot: totals.lineTotalsAgorot[index]!,
+        }));
         const costs: Array<number | null> = [];
         const running = new Map(locked);
         const simulated = planned.map((entry) => {
@@ -326,10 +362,7 @@ export class SalesService {
             costs.push(null);
             return null;
           }
-          if (
-            entry.line.quantityMilli >
-            item.onHandMilli - item.reservedMilli
-          ) {
+          if (entry.stockMilli > item.onHandMilli - item.reservedMilli) {
             throw new SalesError("insufficient_stock", entry.variant.name);
           }
           const cogs = issueCostAgorot(
@@ -337,12 +370,12 @@ export class SalesService {
               onHandMilli: item.onHandMilli,
               valueAgorot: item.stockValueAgorot,
             },
-            entry.line.quantityMilli,
+            entry.stockMilli,
           );
           costs.push(cogs);
           running.set(entry.variant.id, {
             ...item,
-            onHandMilli: item.onHandMilli - entry.line.quantityMilli,
+            onHandMilli: item.onHandMilli - entry.stockMilli,
             stockValueAgorot: item.stockValueAgorot - cogs,
           });
           return cogs;
@@ -381,22 +414,31 @@ export class SalesService {
             variantId: entry.variant.id,
             productNameSnapshot: entry.variant.name,
             variantLabelSnapshot: entry.variant.labelAr,
-            skuSnapshot: entry.variant.sku,
+            skuSnapshot: entry.unit?.sku ?? entry.variant.sku,
             unit: item?.unit ?? "piece",
-            quantityMilli: entry.line.quantityMilli,
+            quantityMilli: entry.stockMilli,
             unitPriceAgorot: entry.line.unitPriceAgorot,
             lineTotalAgorot: entry.lineTotalAgorot,
+            // Cost per base unit, so a pack and a single of one variant compare directly.
             unitCostAgorot:
               plannedCost === null
                 ? null
-                : unitAmountAgorot(plannedCost, entry.line.quantityMilli),
+                : unitAmountAgorot(plannedCost, entry.stockMilli),
             cogsAgorot: plannedCost,
+            ...(entry.unit
+              ? {
+                  sellingUnitId: entry.unit.id,
+                  sellingUnitLabelSnapshot: entry.unit.labelAr,
+                  unitsPerSale: entry.unit.unitsPerSale,
+                  packQuantity: entry.line.quantityMilli / MILLI,
+                }
+              : {}),
           });
           if (!item) continue;
           const { movement } = await postStockOut(transaction, {
             item,
             reason: "manual_sale",
-            quantityMilli: entry.line.quantityMilli,
+            quantityMilli: entry.stockMilli,
             references: { customerInvoiceLineId: lineId },
             idempotencyKey: `sale-line:${lineId}`,
             actorId: actor.id,
@@ -405,7 +447,12 @@ export class SalesService {
           locked.set(entry.variant.id, applyMovementToItem(item, movement));
           await transaction
             .update(schema.inventoryItems)
-            .set({ lastSalePriceAgorot: entry.line.unitPriceAgorot })
+            .set({
+              lastSalePriceAgorot: perPieceAgorot(
+                entry.line.unitPriceAgorot,
+                entry.unit?.unitsPerSale ?? 1,
+              ),
+            })
             .where(eq(schema.inventoryItems.id, item.id));
         }
 
@@ -813,6 +860,8 @@ export class SalesService {
         lineNo: line.lineNo,
         name: line.productNameSnapshot,
         variantLabel: line.variantLabelSnapshot,
+        sellingUnitLabel: line.sellingUnitLabelSnapshot,
+        packQuantity: line.packQuantity,
         unit: line.unit,
         quantityMilli: line.quantityMilli,
         unitPriceAgorot: line.unitPriceAgorot,
@@ -910,14 +959,59 @@ export class SalesService {
     return customer;
   }
 
+  // Lines are unique per variant and selling unit; a unit must be active and belong to its variant.
+  private async resolveLines(
+    database: Database,
+    data: SaleInput,
+  ): Promise<ResolvedLine[]> {
+    const keys = data.lines.map(
+      (line) => `${line.variantId}::${line.sellingUnitId ?? "base"}`,
+    );
+    if (new Set(keys).size !== keys.length) {
+      throw new SalesError("invalid_input", "duplicate_line");
+    }
+    const variants = await this.resolveVariants(database, data);
+    const unitIds = data.lines.flatMap((line) =>
+      line.sellingUnitId ? [line.sellingUnitId] : [],
+    );
+    const units = unitIds.length
+      ? await database
+          .select()
+          .from(schema.productSellingUnits)
+          .where(inArray(schema.productSellingUnits.id, unitIds))
+      : [];
+    return data.lines.map((line) => {
+      const variant = variants.get(line.variantId)!;
+      if (!line.sellingUnitId) {
+        return { line, variant, unit: null, stockMilli: line.quantityMilli };
+      }
+      const unit = units.find((row) => row.id === line.sellingUnitId);
+      if (!unit || unit.variantId !== variant.id || unit.archivedAt) {
+        throw new SalesError("selling_unit_not_found", variant.name);
+      }
+      const stockMilli = line.quantityMilli * unit.unitsPerSale;
+      if (stockMilli > MAX_QUANTITY_MILLI) {
+        throw new SalesError("invalid_input");
+      }
+      return {
+        line,
+        variant,
+        unit: {
+          id: unit.id,
+          labelAr: unit.labelAr,
+          unitsPerSale: unit.unitsPerSale,
+          sku: unit.sku,
+        },
+        stockMilli,
+      };
+    });
+  }
+
   private async resolveVariants(
     database: Database,
     data: SaleInput,
   ): Promise<Map<string, ResolvedVariant>> {
     const domainIds = [...new Set(data.lines.map((line) => line.variantId))];
-    if (domainIds.length !== data.lines.length) {
-      throw new SalesError("invalid_input", "duplicate_line");
-    }
     const rows = await database
       .select({
         id: schema.productVariants.id,

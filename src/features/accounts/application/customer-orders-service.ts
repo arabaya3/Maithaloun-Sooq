@@ -4,8 +4,9 @@ import { and, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 
 import type { Product } from "@/features/catalog/domain/product";
-import { priceForQuantity } from "@/features/catalog/domain/offer-pricing";
+import { priceSellingUnit } from "@/features/catalog/domain/offer-pricing";
 import { isVariantAvailable } from "@/features/catalog/domain/product-variant";
+import { isSellingUnitPurchasable } from "@/features/catalog/domain/selling-unit";
 import type { OrderStatus } from "@/features/orders/domain/order-status";
 import * as schema from "@/server/db/schema";
 
@@ -20,7 +21,12 @@ export interface CustomerOrderSummary {
   finalTotalAgorot: number | null;
   itemsSubtotalAgorot: number;
   paymentMethod: "cash_on_delivery";
-  items: { name: string; quantity: number; lineSubtotalAgorot: number }[];
+  items: {
+    name: string;
+    sellingLabel: string | null;
+    quantity: number;
+    lineSubtotalAgorot: number;
+  }[];
 }
 
 export type ReorderLineStatus = "same" | "price_changed" | "unavailable";
@@ -28,6 +34,10 @@ export type ReorderLineStatus = "same" | "price_changed" | "unavailable";
 export interface ReorderLine {
   productId: string;
   variantId: string | null;
+  // The way it was bought; a line from before selling units is matched to the one-piece unit.
+  sellingUnitId: string | null;
+  unitsPerSale: number;
+  sellingLabel: string | null;
   name: string;
   quantity: number;
   previousUnitPriceAgorot: number;
@@ -71,6 +81,7 @@ export class CustomerOrdersService {
       .select({
         orderId: schema.orderItems.orderId,
         name: schema.orderItems.productNameSnapshot,
+        sellingLabel: schema.orderItems.sellingUnitLabelSnapshot,
         quantity: schema.orderItems.quantity,
         lineSubtotalAgorot: schema.orderItems.lineSubtotalAgorot,
       })
@@ -88,6 +99,7 @@ export class CustomerOrdersService {
         .filter((item) => item.orderId === id)
         .map((item) => ({
           name: item.name,
+          sellingLabel: item.sellingLabel,
           quantity: item.quantity,
           lineSubtotalAgorot: item.lineSubtotalAgorot,
         })),
@@ -188,17 +200,36 @@ export class CustomerOrdersService {
       const variant = products
         .get(item.productDomainId)
         ?.variants.find((entry) => entry.id === item.variantDomainId);
+      const unit = variant?.sellingUnits.find((entry) =>
+        item.sellingUnitId
+          ? entry.id === item.sellingUnitId &&
+            entry.unitsPerSale === item.unitsPerSale
+          : entry.unitsPerSale === 1,
+      );
       const base = {
         productId: item.productDomainId,
         variantId: item.variantDomainId,
+        sellingUnitId: unit?.id ?? item.sellingUnitId,
+        unitsPerSale: item.unitsPerSale,
+        sellingLabel: item.sellingUnitLabelSnapshot,
         name: item.productNameSnapshot,
         quantity: item.quantity,
         previousUnitPriceAgorot: item.unitPriceAgorot,
       };
-      if (!variant || !isVariantAvailable(variant)) {
+      if (
+        !variant ||
+        !unit ||
+        !isVariantAvailable(variant) ||
+        !isSellingUnitPurchasable(unit) ||
+        unit.maxQuantity < item.quantity
+      ) {
         return { ...base, currentUnitPriceAgorot: null, status: "unavailable" };
       }
-      const current = priceForQuantity(variant, item.quantity).unitPriceAgorot;
+      const current = priceSellingUnit(
+        unit,
+        variant.offer,
+        item.quantity,
+      ).unitPriceAgorot;
       return {
         ...base,
         currentUnitPriceAgorot: current,

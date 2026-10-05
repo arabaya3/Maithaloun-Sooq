@@ -100,7 +100,12 @@ export interface AdminOrderDetail {
     productId: string;
     productName: string;
     variantLabel: string | null;
+    // Snapshot of how it was bought; null for lines from before selling units (one piece each).
+    sellingUnitLabel: string | null;
+    unitsPerSale: number;
     quantity: number;
+    // Pieces taken from stock: quantity × units per sale.
+    baseUnits: number;
     unitPriceAgorot: number;
     lineSubtotalAgorot: number;
     stock: {
@@ -346,7 +351,10 @@ export class AdminOrderService {
         productId: item.productDomainId,
         productName: item.productNameSnapshot,
         variantLabel: item.variantLabelSnapshot ?? null,
+        sellingUnitLabel: item.sellingUnitLabelSnapshot,
+        unitsPerSale: item.unitsPerSale,
         quantity: item.quantity,
+        baseUnits: item.quantity * item.unitsPerSale,
         unitPriceAgorot: item.unitPriceAgorot,
         lineSubtotalAgorot: item.lineSubtotalAgorot,
         stock: stockByItem.get(item.id) ?? {

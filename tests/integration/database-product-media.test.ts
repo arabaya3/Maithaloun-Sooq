@@ -6,6 +6,7 @@ import { AdminCatalogService } from "@/features/admin/application/admin-catalog-
 import { AdminOrderService } from "@/features/admin/application/admin-order-service";
 import { CatalogAuthoringService } from "@/features/admin/application/catalog-authoring-service";
 import { ProductMaintenanceService } from "@/features/admin/application/product-maintenance-service";
+import { SellingUnitService } from "@/features/admin/application/selling-unit-service";
 import {
   ProductOptionsService,
   type ProductMatrix,
@@ -87,6 +88,7 @@ const operations = new AssistantOperations({
   catalog: new AdminCatalogService(db),
   authoring,
   maintenance: new ProductMaintenanceService(db),
+  sellingUnits: new SellingUnitService(db),
   inventory,
   sales: new SalesService(db),
   customers,
@@ -164,7 +166,8 @@ beforeEach(async () => {
   await client.unsafe("DELETE FROM product_options");
   await client.unsafe("DELETE FROM product_images");
   await client.unsafe(
-    "DELETE FROM product_variants WHERE domain_id LIKE 'general-cleaner--v%' AND id NOT IN (SELECT variant_id FROM inventory_items)",
+    // Variants an order bought (through a selling unit) stay, as they would in the store.
+    "DELETE FROM product_variants WHERE domain_id LIKE 'general-cleaner--v%' AND id NOT IN (SELECT variant_id FROM inventory_items) AND id NOT IN (SELECT s.variant_id FROM product_selling_units s JOIN order_items i ON i.selling_unit_id = s.id)",
   );
   await client.unsafe(
     "UPDATE product_variants SET combination_key = NULL, pack_count = NULL",

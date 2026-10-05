@@ -20,6 +20,20 @@ export function mapOrderCreationError(
       message: "أحد المنتجات غير متاح حالياً. عدّل السلة وحاول مجدداً.",
     };
   }
+  if (code === "selling_unit_changed") {
+    return {
+      status: 409,
+      message:
+        "تغيّرت طريقة شراء أحد المنتجات. راجع السلة واختر طريقة شراء متاحة.",
+    };
+  }
+  if (code === "insufficient_stock") {
+    return {
+      status: 409,
+      message:
+        "الكمية المطلوبة من أحد المنتجات أكبر من المتوفر حالياً. قلّل العدد وحاول مجدداً.",
+    };
+  }
   if (code === "invalid_service_area") {
     return {
       status: 409,

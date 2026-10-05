@@ -302,6 +302,86 @@ function partyPlan(words: string): Plan | null {
   return null;
 }
 
+const COUNT_WORDS: Record<string, number> = {
+  حبتين: 2,
+  ثلاث: 3,
+  تلات: 3,
+  اربع: 4,
+  أربع: 4,
+  ست: 6,
+  ستة: 6,
+};
+
+// «ضيف للمماسح خيار حبة بأربعة وباكيج ثلاث حبات بعشرة»: one card with both ways of buying.
+function sellingUnitPlan(words: string): Plan | null {
+  const add =
+    /^ضيف (?:لل|ل)(.+?) خيار حبة ب(.+?) وباكيج (\S+) حبات ب(.+)$/.exec(words);
+  if (add) {
+    const count = COUNT_WORDS[add[3]!] ?? Number(add[3]);
+    return {
+      kind: "tool",
+      toolName: "prepareSellingUnitsCreation",
+      input: {
+        product: add[1]!,
+        options: [
+          { label: "حبة واحدة", unitsPerSale: 1, priceIls: add[2]! },
+          {
+            label: `باكيج ${count} حبات`,
+            unitsPerSale: count,
+            priceIls: add[4]!,
+          },
+        ],
+      },
+    };
+  }
+  const sale = /^بعت (\S+) باكيج (?:من )?(.+?) لـ ?(.+)$/.exec(words);
+  if (sale) {
+    return {
+      kind: "tool",
+      toolName: "prepareManualSale",
+      input: {
+        customer: sale[3]!,
+        items: [
+          {
+            product: sale[2]!,
+            quantity: String(COUNT_WORDS[sale[1]!] ?? sale[1]!),
+            sellingOption: "باكيج",
+          },
+        ],
+        payment: "full",
+      },
+    };
+  }
+  // «بعت نقدي 2 باكيج من …» / «بعت نقدي 1 حبة من …»: a paid sale with no customer named.
+  const cash = /^بعت نقدي (\S+) (باكيج|حبة) من (.+)$/.exec(words);
+  if (cash) {
+    return {
+      kind: "tool",
+      toolName: "prepareManualSale",
+      input: {
+        customer: null,
+        items: [
+          {
+            product: cash[3]!,
+            quantity: String(COUNT_WORDS[cash[1]!] ?? cash[1]!),
+            sellingOption: cash[2]!,
+          },
+        ],
+        payment: "full",
+      },
+    };
+  }
+  const show = /^طرق بيع (.+)$/.exec(words);
+  if (show) {
+    return {
+      kind: "tool",
+      toolName: "getSellingUnits",
+      input: { product: show[1]! },
+    };
+  }
+  return null;
+}
+
 function normalizeWords(text: string) {
   return text
     .replace(/\[مرفقات:[^\]]*\]/g, " ")
@@ -357,6 +437,8 @@ function planFromUser(
   }
   const party = partyPlan(words);
   if (party) return party;
+  const selling = sellingUnitPlan(words);
+  if (selling) return selling;
   const variants = variantPlan(words, draft);
   if (variants) return variants;
   const catalog = catalogPlan(words, attachments, previous);

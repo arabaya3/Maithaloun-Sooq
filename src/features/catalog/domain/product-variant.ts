@@ -5,6 +5,11 @@ import {
   placeholderKinds,
   productAvailabilityValues,
 } from "@/features/catalog/domain/product-constants";
+import {
+  MAX_SELLING_UNITS_PER_VARIANT,
+  isSellingUnitPurchasable,
+  sellingUnitSchema,
+} from "@/features/catalog/domain/selling-unit";
 
 export const variantDomainIdSchema = z.string().regex(/^[a-z0-9-]{1,100}$/);
 
@@ -53,6 +58,8 @@ export const productVariantSchema = z
     sortOrder: z.number().int().nonnegative(),
     isDefault: z.boolean(),
     offer: variantOfferSchema.optional(),
+    // Active ways to buy this variant, sorted; an empty list means it cannot be bought right now.
+    sellingUnits: z.array(sellingUnitSchema).max(MAX_SELLING_UNITS_PER_VARIANT),
   })
   .strict();
 
@@ -100,15 +107,20 @@ export function resolveVariant(
   return variants.find((variant) => variant.isDefault) ?? variants[0] ?? null;
 }
 
-export function isVariantAvailable(variant: ProductVariant): boolean {
-  return variant.availability === "available";
+export function isVariantAvailable(
+  variant: Pick<ProductVariant, "availability" | "sellingUnits">,
+): boolean {
+  return (
+    variant.availability === "available" &&
+    variant.sellingUnits.some(isSellingUnitPurchasable)
+  );
 }
 
 export function getProductPriceRangeAgorot(
   variants: readonly ProductVariant[],
 ): { min: number; max: number } | null {
   const prices = variants
-    .filter((variant) => variant.availability === "available")
+    .filter(isVariantAvailable)
     .map((variant) => variant.priceAgorot);
   if (!prices.length) return null;
   const min = Math.min(...prices);

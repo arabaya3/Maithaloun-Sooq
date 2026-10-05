@@ -7,11 +7,14 @@ import { MAX_CART_QUANTITY } from "@/features/cart/cart-store";
 export function QuantityControl({
   name,
   quantity,
+  max = MAX_CART_QUANTITY,
   disabled = false,
   onChange,
 }: {
   name: string;
   quantity: number;
+  // Lower than the cart limit when stock allows fewer singles or packs.
+  max?: number;
   disabled?: boolean;
   onChange: (quantity: number) => void;
 }) {
@@ -31,8 +34,8 @@ export function QuantityControl({
       <button
         type="button"
         aria-label={`زيادة كمية ${name}`}
-        disabled={disabled || quantity >= MAX_CART_QUANTITY}
-        onClick={() => onChange(Math.min(MAX_CART_QUANTITY, quantity + 1))}
+        disabled={disabled || quantity >= Math.min(max, MAX_CART_QUANTITY)}
+        onClick={() => onChange(Math.min(max, MAX_CART_QUANTITY, quantity + 1))}
       >
         <Plus aria-hidden="true" />
       </button>

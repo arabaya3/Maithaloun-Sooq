@@ -6,48 +6,42 @@ import { useMemo, useState } from "react";
 
 import { QuantityControl } from "@/features/cart/components/quantity-control";
 import {
-  calculateCartSubtotal,
-  calculateLineSubtotal,
-} from "@/features/cart/cart-store";
+  cartMerchandiseSubtotal,
+  resolveCartLines,
+} from "@/features/cart/cart-lines";
+import { cartLineKey } from "@/features/cart/cart-store";
 import { useCart } from "@/features/cart/cart-provider";
 import { ProductMedia } from "@/features/catalog/components/product-media";
 import {
   getProductDisplayName,
   type Product,
 } from "@/features/catalog/domain/product";
+import { formatVariantAttributes } from "@/features/catalog/domain/product-variant";
 import {
-  formatVariantAttributes,
-  isVariantAvailable,
-  resolveVariant,
-} from "@/features/catalog/domain/product-variant";
-import { priceForQuantity } from "@/features/catalog/domain/offer-pricing";
+  isSellingUnitPurchasable,
+  sellingLineText,
+} from "@/features/catalog/domain/selling-unit";
 import { calculateDeliveryFeeAgorot } from "@/features/delivery/delivery-policy";
 import { getFreeDeliveryMessage } from "@/features/delivery/delivery-messaging";
 import { formatIls } from "@/shared/lib/format-currency";
 
 export function CartPage({ products }: { products: readonly Product[] }) {
-  const { lines, ready, setQuantity, removeItem, clearCart } = useCart();
+  const {
+    lines,
+    ready,
+    setQuantity,
+    removeItem,
+    changeSellingUnit,
+    clearCart,
+  } = useCart();
   const [confirmingClear, setConfirmingClear] = useState(false);
   const productsById = useMemo(
     () => new Map(products.map((product) => [product.id, product])),
     [products],
   );
-  const resolvedLines = lines.flatMap((line) => {
-    const product = productsById.get(line.productId);
-    if (!product) return [];
-    const variant = resolveVariant(product.variants, line.variantId);
-    if (!variant) return [];
-    return [{ ...line, product, variant }];
-  });
-  const merchandiseSubtotal = calculateCartSubtotal(
-    resolvedLines
-      .filter((line) => isVariantAvailable(line.variant))
-      .map((line) => ({
-        unitPriceAgorot: priceForQuantity(line.variant, line.quantity)
-          .unitPriceAgorot,
-        quantity: line.quantity,
-      })),
-  );
+  const resolvedLines = resolveCartLines(lines, productsById);
+  const merchandiseSubtotal = cartMerchandiseSubtotal(resolvedLines);
+  const needsAttention = resolvedLines.some((line) => line.status !== "ok");
   const deliveryFeeAgorot = calculateDeliveryFeeAgorot(merchandiseSubtotal);
   const orderTotal = merchandiseSubtotal + deliveryFeeAgorot;
   const freeDeliveryMessage = getFreeDeliveryMessage(merchandiseSubtotal);
@@ -113,100 +107,173 @@ export function CartPage({ products }: { products: readonly Product[] }) {
         ) : null}
 
         <div className="cart-line-list">
-          {resolvedLines.map(({ product, variant, quantity, variantId }) => {
-            const name = getProductDisplayName(product);
-            const available = isVariantAvailable(variant);
-            const priced = priceForQuantity(variant, quantity);
-            const lineSubtotal = available
-              ? calculateLineSubtotal(priced.unitPriceAgorot, quantity)
-              : null;
-            const attributeSummary = formatVariantAttributes(
-              variant.attributes,
-            );
-            const lineHref =
-              variantId === product.defaultVariantId
-                ? `/products/${product.slug}`
-                : `/products/${product.slug}?variant=${variantId}`;
+          {resolvedLines.map(
+            ({
+              line,
+              product,
+              variant,
+              unit,
+              status,
+              priced,
+              lineSubtotalAgorot,
+            }) => {
+              const { quantity, variantId } = line;
+              const name = getProductDisplayName(product);
+              const attributeSummary = formatVariantAttributes(
+                variant.attributes,
+              );
+              const lineHref =
+                variantId === product.defaultVariantId
+                  ? `/products/${product.slug}`
+                  : `/products/${product.slug}?variant=${variantId}`;
+              const pack = unit && unit.unitsPerSale > 1 ? unit : null;
+              const showUnit = Boolean(
+                unit && (pack || variant.sellingUnits.length > 1),
+              );
+              const choices = variant.sellingUnits.filter(
+                isSellingUnitPurchasable,
+              );
 
-            return (
-              <article
-                className="cart-line"
-                key={`${product.id}::${variantId}`}
-              >
-                <Link href={lineHref} aria-label={`عرض تفاصيل ${name}`}>
-                  <ProductMedia
-                    product={product}
-                    image={variant.image}
-                    className="cart-line-media"
-                    sizes="8rem"
-                  />
-                </Link>
-                <div className="cart-line-content">
-                  <h2>
-                    <Link href={lineHref}>
-                      <bdi dir="auto">{name}</bdi>
-                    </Link>
-                  </h2>
-                  <p className="cart-line-variant">
-                    {variant.labelAr}
-                    {attributeSummary ? ` · ${attributeSummary}` : ""}
-                  </p>
-                  <p>
-                    سعر الوحدة:{" "}
-                    <bdi dir="ltr">{formatIls(priced.unitPriceAgorot)}</bdi>
-                    {priced.offerId ? (
-                      <>
-                        {" "}
-                        <del className="price-was">
-                          <bdi dir="ltr">
-                            {formatIls(priced.listUnitPriceAgorot)}
-                          </bdi>
-                        </del>
-                      </>
-                    ) : null}
-                  </p>
-                  {!available ? (
-                    <p className="unavailable-message">
-                      غير متاح حالياً ولا يدخل في المجموع.
-                    </p>
-                  ) : null}
-                  <div className="cart-line-controls">
-                    <QuantityControl
-                      name={name}
-                      quantity={quantity}
-                      disabled={!available}
-                      onChange={(value) =>
-                        setQuantity(product.id, variantId, value)
-                      }
+              return (
+                <article className="cart-line" key={cartLineKey(line)}>
+                  <Link href={lineHref} aria-label={`عرض تفاصيل ${name}`}>
+                    <ProductMedia
+                      product={product}
+                      image={variant.image}
+                      className="cart-line-media"
+                      sizes="8rem"
                     />
-                    <button
-                      type="button"
-                      className="remove-line-button"
-                      aria-label={`إزالة ${name} من السلة`}
-                      onClick={() => removeItem(product.id, variantId)}
-                    >
-                      <Trash2 aria-hidden="true" />
-                      إزالة
-                    </button>
+                  </Link>
+                  <div className="cart-line-content">
+                    <h2>
+                      <Link href={lineHref}>
+                        <bdi dir="auto">{name}</bdi>
+                      </Link>
+                    </h2>
+                    <p className="cart-line-variant">
+                      {variant.labelAr}
+                      {attributeSummary ? ` · ${attributeSummary}` : ""}
+                    </p>
+                    {unit && showUnit ? (
+                      <p className="cart-line-unit">
+                        <bdi dir="auto">
+                          {sellingLineText(unit.labelAr, quantity)}
+                        </bdi>
+                      </p>
+                    ) : null}
+                    {pack ? (
+                      <p className="cart-line-pieces">
+                        إجمالي القطع: {quantity * pack.unitsPerSale}
+                      </p>
+                    ) : null}
+                    {priced && unit ? (
+                      <p>
+                        {pack ? (
+                          <>
+                            سعر «<bdi dir="auto">{pack.labelAr}</bdi>»:{" "}
+                          </>
+                        ) : (
+                          "سعر الوحدة: "
+                        )}
+                        <bdi dir="ltr">{formatIls(priced.unitPriceAgorot)}</bdi>
+                        {priced.offerId ? (
+                          <>
+                            {" "}
+                            <del className="price-was">
+                              <bdi dir="ltr">
+                                {formatIls(priced.listUnitPriceAgorot)}
+                              </bdi>
+                            </del>
+                          </>
+                        ) : null}
+                      </p>
+                    ) : null}
+                    {status === "unavailable" ? (
+                      <p className="unavailable-message">
+                        غير متاح حالياً ولا يدخل في المجموع.
+                      </p>
+                    ) : null}
+                    {status === "limited" && unit ? (
+                      <p className="unavailable-message" role="status">
+                        المتوفر الآن {unit.maxQuantity} فقط من هذا الخيار. قلّل
+                        العدد لإكمال الطلب.
+                      </p>
+                    ) : null}
+                    {status === "review" ? (
+                      <div
+                        className="cart-line-review"
+                        role="group"
+                        aria-label={`مراجعة طريقة شراء ${name}`}
+                      >
+                        <p className="unavailable-message">
+                          تغيّرت طريقة الشراء لهذا المنتج منذ أضفته. اختر طريقة
+                          شراء متاحة، ولن يدخل في المجموع قبل ذلك.
+                        </p>
+                        {choices.length ? (
+                          <div className="cart-line-review-options">
+                            {choices.map((choice) => (
+                              <button
+                                key={choice.id}
+                                type="button"
+                                onClick={() =>
+                                  changeSellingUnit(line, {
+                                    sellingUnitId: choice.id,
+                                    unitsPerSale: choice.unitsPerSale,
+                                  })
+                                }
+                              >
+                                <bdi dir="auto">{choice.labelAr}</bdi>
+                                {" — "}
+                                <bdi dir="ltr">
+                                  {formatIls(choice.priceAgorot)}
+                                </bdi>
+                              </button>
+                            ))}
+                          </div>
+                        ) : (
+                          <p>لا توجد طريقة شراء متاحة لهذا المنتج حالياً.</p>
+                        )}
+                      </div>
+                    ) : null}
+                    <div className="cart-line-controls">
+                      <QuantityControl
+                        name={pack ? `${name} — ${pack.labelAr}` : name}
+                        quantity={quantity}
+                        max={unit ? Math.max(1, unit.maxQuantity) : 1}
+                        disabled={
+                          status === "review" || status === "unavailable"
+                        }
+                        onChange={(value) => setQuantity(line, value)}
+                      />
+                      <button
+                        type="button"
+                        className="remove-line-button"
+                        aria-label={`إزالة ${name} من السلة`}
+                        onClick={() => removeItem(line)}
+                      >
+                        <Trash2 aria-hidden="true" />
+                        إزالة
+                      </button>
+                    </div>
                   </div>
-                </div>
-                <p
-                  className="cart-line-subtotal"
-                  aria-label={
-                    lineSubtotal === null
-                      ? `مجموع ${name} غير متاح`
-                      : `مجموع ${name} ${formatIls(lineSubtotal)}`
-                  }
-                >
-                  {lineSubtotal === null ? (
-                    "—"
-                  ) : (
-                    <bdi dir="ltr">{formatIls(lineSubtotal)}</bdi>
-                  )}
-                </p>
-              </article>
-            );
-          })}
+                  <p
+                    className="cart-line-subtotal"
+                    aria-label={
+                      lineSubtotalAgorot === null
+                        ? `مجموع ${name} غير متاح`
+                        : `مجموع ${name} ${formatIls(lineSubtotalAgorot)}`
+                    }
+                  >
+                    {lineSubtotalAgorot === null ? (
+                      "—"
+                    ) : (
+                      <bdi dir="ltr">{formatIls(lineSubtotalAgorot)}</bdi>
+                    )}
+                  </p>
+                </article>
+              );
+            },
+          )}
         </div>
       </section>
 
@@ -244,6 +311,11 @@ export function CartPage({ products }: { products: readonly Product[] }) {
           </p>
         ) : null}
         <p>تُراجع الأسعار والتوفر مرة أخرى عند تأكيد الطلب.</p>
+        {needsAttention ? (
+          <p className="checkout-blocker" role="status">
+            راجع المنتجات المعلَّمة في السلة قبل المتابعة.
+          </p>
+        ) : null}
         <Link className="checkout-action" href="/checkout">
           متابعة إلى بيانات الطلب
         </Link>

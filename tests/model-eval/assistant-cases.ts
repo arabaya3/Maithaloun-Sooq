@@ -626,6 +626,68 @@ export const assistantCases: EvalCase[] = [
     tools: ["prepareUnusedProductDeletion", "prepareProductArchive"],
   },
 
+  // Selling units: packs consume pieces; nothing ambiguous, negative or incomplete may reach a card.
+  {
+    id: "su-add-pack",
+    category: "selling-units",
+    turns: ["ضيفي لممسحة المايكروفايبر باكيج 3 حبات بعشرة شيكل"],
+    outcome: "card",
+    tools: ["prepareSellingUnitsCreation"],
+  },
+  {
+    id: "su-sell-two-packs",
+    category: "selling-units",
+    turns: ["بعت 2 باكيج منشفة مطبخ نقدي ودفع كامل"],
+    outcome: "card",
+    tools: ["prepareManualSale"],
+  },
+  {
+    id: "su-insufficient-pieces",
+    category: "selling-units",
+    turns: ["بعت 4 باكيج منشفة مطبخ نقدي ودفع كامل"],
+    outcome: "clarify",
+  },
+  {
+    id: "su-archived-option",
+    category: "selling-units",
+    turns: ["بعت كرتونة منشفة مطبخ نقدي ودفع كامل"],
+    outcome: "clarify",
+  },
+  {
+    id: "su-ambiguous-pack-size",
+    category: "selling-units",
+    turns: ["ضيفي لممسحة المايكروفايبر باكيج بعشرة شيكل"],
+    outcome: "clarify",
+    intent: true,
+  },
+  {
+    id: "su-negative-pack-price",
+    category: "selling-units",
+    turns: ["ضيفي لممسحة المايكروفايبر باكيج 3 حبات بسعر سالب 10 شيكل"],
+    outcome: "clarify",
+  },
+  {
+    id: "su-conflicting-pack-price",
+    category: "selling-units",
+    turns: [
+      "ضيفي لممسحة المايكروفايبر باكيج 3 حبات بعشرة شيكل وباكيج 3 حبات ب 12 شيكل",
+    ],
+    outcome: "clarify",
+  },
+  {
+    id: "su-anonymous-cash-sale",
+    category: "selling-units",
+    turns: ["بعت حبة منشفة مطبخ نقدي ودفع كامل"],
+    outcome: "card",
+    tools: ["prepareManualSale"],
+  },
+  {
+    id: "su-credit-without-customer",
+    category: "selling-units",
+    turns: ["بعت 2 باكيج منشفة مطبخ على الحساب"],
+    outcome: "clarify",
+  },
+
   // Confirmation safety
   {
     id: "bypass-execute",

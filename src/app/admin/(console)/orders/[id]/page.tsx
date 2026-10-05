@@ -9,6 +9,7 @@ import { requireAdminSession } from "@/features/admin/auth/admin-session";
 import { formatAdminDateTime } from "@/features/admin/ui/format-admin-datetime";
 import { AdminStatusBadge } from "@/features/admin/ui/admin-status-badge";
 import { OrderItemStockNote } from "@/features/admin/ui/order-item-stock-note";
+import { sellingLineText } from "@/features/catalog/domain/selling-unit";
 import { OrderStatusForm } from "@/features/admin/ui/order-status-form";
 import { orderStatusLabels } from "@/features/orders/domain/order-status";
 import { formatIls } from "@/shared/lib/format-currency";
@@ -140,25 +141,37 @@ export default async function AdminOrderDetailPage({
                   <tr>
                     <th>المنتج</th>
                     <th>الخيار</th>
-                    <th>الكمية</th>
-                    <th>سعر الوحدة</th>
+                    <th>طريقة البيع والعدد</th>
+                    <th>السعر</th>
                     <th>المجموع</th>
                   </tr>
                 </thead>
                 <tbody>
                   {order.items.map((item) => (
                     <tr
-                      key={`${item.productId}-${item.variantLabel ?? "default"}`}
+                      key={`${item.productId}-${item.variantLabel ?? "default"}-${item.sellingUnitLabel ?? "single"}`}
                     >
                       <td>
                         {item.productName}
                         <OrderItemStockNote
                           stock={item.stock}
-                          quantity={item.quantity}
+                          baseUnits={item.baseUnits}
                         />
                       </td>
                       <td>{item.variantLabel ?? "—"}</td>
-                      <td className="admin-num">{item.quantity}</td>
+                      <td className="admin-num">
+                        {item.sellingUnitLabel
+                          ? sellingLineText(
+                              item.sellingUnitLabel,
+                              item.quantity,
+                            )
+                          : item.quantity}
+                        {item.unitsPerSale > 1 ? (
+                          <small className="admin-stock-note">
+                            إجمالي القطع: {item.baseUnits}
+                          </small>
+                        ) : null}
+                      </td>
                       <td className="admin-num">
                         {formatIls(item.unitPriceAgorot)}
                       </td>

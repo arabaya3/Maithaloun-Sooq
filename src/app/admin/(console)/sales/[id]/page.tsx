@@ -81,8 +81,18 @@ export default async function SaleInvoicePage({
               <span className="admin-line-main">
                 <strong>{line.name}</strong>
                 <small>
-                  <Quantity milli={line.quantityMilli} unit={line.unit} /> ×{" "}
-                  <Money agorot={line.unitPriceAgorot} />
+                  {line.sellingUnitLabel && line.packQuantity ? (
+                    <>
+                      {line.sellingUnitLabel} × {line.packQuantity} ×{" "}
+                      <Money agorot={line.unitPriceAgorot} /> — يخصم{" "}
+                      <Quantity milli={line.quantityMilli} unit={line.unit} />
+                    </>
+                  ) : (
+                    <>
+                      <Quantity milli={line.quantityMilli} unit={line.unit} /> ×{" "}
+                      <Money agorot={line.unitPriceAgorot} />
+                    </>
+                  )}
                 </small>
               </span>
               <span className="admin-line-side">

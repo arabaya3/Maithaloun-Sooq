@@ -12,7 +12,9 @@ import {
 } from "@/features/catalog/components/product-gallery";
 import { ProductMedia } from "@/features/catalog/components/product-media";
 import { ProductSpecifications } from "@/features/catalog/components/product-specifications";
+import { SellingUnitSelector } from "@/features/catalog/components/selling-unit-selector";
 import { VariantSelector } from "@/features/catalog/components/variant-selector";
+import { offerForSellingUnit } from "@/features/catalog/domain/offer-pricing";
 import {
   getProductDisplayName,
   type Product,
@@ -37,6 +39,12 @@ import {
   emptyPresentation,
   type ProductPresentation,
 } from "@/features/catalog/domain/product-presentation";
+import {
+  findSellingUnit,
+  isSellingUnitPurchasable,
+  sellingUnitAfterVariantChange,
+  type SellingUnit,
+} from "@/features/catalog/domain/selling-unit";
 
 // The chosen variant is kept in the address for sharing, without asking the server for a new page.
 function rememberVariant(variantId: string, defaultVariantId: string) {
@@ -96,6 +104,11 @@ export function ProductDetailPanel({
   const [variantId, setVariantId] = useState(initial.id);
   const [selection, setSelection] = useState<OptionSelection>(initialSelection);
   const [imageId, setImageId] = useState<string | null>(initialImageId);
+  // The chosen way of buying, plus its size so an equivalent unit survives a colour or size change.
+  const [chosenUnit, setChosenUnit] = useState<{
+    id: string;
+    unitsPerSale: number;
+  } | null>(null);
 
   const optionVariant = options.length
     ? variantForSelection(options, selectable, selection)
@@ -113,10 +126,32 @@ export function ProductDetailPanel({
     ? null
     : formatVariantAttributes(shown.attributes);
   const pack = packLabel(presentation.packCounts[shown.id]);
+  const exactUnit = findSellingUnit(shown.sellingUnits, chosenUnit?.id);
+  const sellingUnit: SellingUnit | null =
+    exactUnit && isSellingUnitPurchasable(exactUnit)
+      ? exactUnit
+      : sellingUnitAfterVariantChange(chosenUnit, shown.sellingUnits);
+  const priceShown = sellingUnit
+    ? {
+        priceAgorot: sellingUnit.priceAgorot,
+        offer: offerForSellingUnit(sellingUnit, shown.offer),
+      }
+    : shown;
   const activeImage =
     gallery.find((image) => image.id === imageId) ?? gallery[0] ?? null;
 
+  // The way of buying the customer now sees becomes their choice, so going back never revives an old one.
+  function settleUnit(nextVariantId: string | null | undefined) {
+    const next = product.variants.find((row) => row.id === nextVariantId);
+    if (!next) return;
+    const unit = sellingUnitAfterVariantChange(sellingUnit, next.sellingUnits);
+    setChosenUnit(
+      unit ? { id: unit.id, unitsPerSale: unit.unitsPerSale } : null,
+    );
+  }
+
   function chooseVariant(id: string) {
+    settleUnit(id);
     setVariantId(id);
     setImageId(pickImage(id, presentation.variantOptions[id] ?? {}));
     rememberVariant(id, product.defaultVariantId);
@@ -134,6 +169,7 @@ export function ProductDetailPanel({
     setSelection(next);
     setImageId(pickImage(match?.id ?? null, next));
     if (match) rememberVariant(match.id, product.defaultVariantId);
+    settleUnit(match?.id);
   }
 
   // Tapping a colour or variant picture selects exactly what it shows; a shared picture only changes the view.
@@ -141,6 +177,7 @@ export function ProductDetailPanel({
     setImageId(image.id);
     const picked = selectionForImage(image, options, selectable, selection);
     if (picked.kind === "none") return;
+    settleUnit(picked.variantId);
     if (options.length) setSelection(picked.selection);
     else setVariantId(picked.variantId);
     rememberVariant(picked.variantId, product.defaultVariantId);
@@ -181,7 +218,7 @@ export function ProductDetailPanel({
         <h1>
           <bdi dir="auto">{name}</bdi>
         </h1>
-        <OfferPrice className="product-detail-price" variant={shown} />
+        <OfferPrice className="product-detail-price" variant={priceShown} />
         <p className="availability-status" data-available={available}>
           {!selectedVariant
             ? "اختر من الخيارات لمعرفة التوفر"
@@ -207,6 +244,16 @@ export function ProductDetailPanel({
           <p className="cart-line-variant">{attributeSummary}</p>
         ) : null}
         {pack ? <p className="cart-line-variant">{pack}</p> : null}
+        {selectedVariant ? (
+          <SellingUnitSelector
+            units={shown.sellingUnits}
+            selectedId={sellingUnit?.id ?? null}
+            offer={shown.offer}
+            onSelect={(unit) =>
+              setChosenUnit({ id: unit.id, unitsPerSale: unit.unitsPerSale })
+            }
+          />
+        ) : null}
         <p className="product-description">
           {product.description ??
             "تتوفر معلومات المنتج الأساسية المعروضة حالياً، وستُضاف التفاصيل بعد اعتمادها."}
@@ -219,8 +266,10 @@ export function ProductDetailPanel({
         ) : null}
         <ProductSpecifications specifications={product.specifications} />
         <ProductDetailActions
+          key={`${shown.id}:${sellingUnit?.id ?? "none"}`}
           product={product}
           variantId={selectedVariant?.id ?? null}
+          sellingUnit={sellingUnit}
           available={available}
           resolveVariantId={() =>
             options.length

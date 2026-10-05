@@ -6,6 +6,7 @@ import { AdminCatalogService } from "@/features/admin/application/admin-catalog-
 import { AdminOrderService } from "@/features/admin/application/admin-order-service";
 import { CatalogAuthoringService } from "@/features/admin/application/catalog-authoring-service";
 import { ProductMaintenanceService } from "@/features/admin/application/product-maintenance-service";
+import { SellingUnitService } from "@/features/admin/application/selling-unit-service";
 import type { AdminActor } from "@/features/admin/domain/admin-actor";
 import { AssistantOperations } from "@/features/assistant/application/assistant-operations";
 import {
@@ -103,6 +104,7 @@ const operations = new AssistantOperations({
   catalog,
   authoring,
   maintenance: new ProductMaintenanceService(db),
+  sellingUnits: new SellingUnitService(db),
   inventory,
   sales,
   customers,
@@ -377,6 +379,19 @@ const fixtures = (): Record<string, Record<string, unknown>> => ({
     variant: "لافندر",
     values: [{ option: "الرائحة", value: "لافندر" }],
   },
+  getSellingUnits: { product: PRODUCT },
+  getVariantsWithoutSellingUnits: {},
+  prepareSellingUnitsCreation: {
+    product: PRODUCT,
+    options: [{ label: "باكيج 3 حبات", unitsPerSale: 3, priceIls: "عشرين" }],
+  },
+  prepareSellingUnitChange: {
+    product: PRODUCT,
+    option: "حبة واحدة",
+    change: "update",
+    priceIls: "8",
+  },
+  prepareSellingUnitDeletion: { product: PRODUCT, option: "حبة واحدة" },
 });
 
 type JsonSchema = {

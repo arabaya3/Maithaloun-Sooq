@@ -17,6 +17,8 @@ export type SalePaymentChoice = "paid" | "unpaid" | "partial";
 export interface SaleLineDraft {
   key: string;
   variantId: string;
+  // "" sells a free base quantity (e.g. 1.5 kg); otherwise the quantity counts this unit (packs).
+  sellingUnitId: string;
   quantity: string;
   unitPrice: string;
   spokenText?: string;
@@ -40,6 +42,7 @@ export interface SalePayload {
   source: SaleSource;
   lines: Array<{
     variantId: string;
+    sellingUnitId?: string;
     quantityMilli: number;
     unitPriceAgorot: number;
   }>;
@@ -54,6 +57,7 @@ export function emptySaleLine(): SaleLineDraft {
   return {
     key: crypto.randomUUID(),
     variantId: "",
+    sellingUnitId: "",
     quantity: "1",
     unitPrice: "",
   };
@@ -74,6 +78,7 @@ export function emptySaleDraft(): SaleDraft {
 
 export function saleLineFrom(input: {
   variantId: string;
+  sellingUnitId?: string;
   quantityMilli: number;
   unitPriceAgorot: number;
   spokenText?: string;
@@ -81,6 +86,7 @@ export function saleLineFrom(input: {
   return {
     key: crypto.randomUUID(),
     variantId: input.variantId,
+    sellingUnitId: input.sellingUnitId ?? "",
     quantity: formatQuantity(input.quantityMilli),
     unitPrice: formatAgorotAsIlsInput(input.unitPriceAgorot),
     spokenText: input.spokenText,
@@ -108,21 +114,26 @@ export function buildSalePayload(
   const lines = draft.lines.map((line) => {
     const quantityMilli = parseQuantityToMilli(line.quantity);
     const unitPriceAgorot = parseSaleMoney(line.unitPrice);
+    const lineKey = `${line.variantId}::${line.sellingUnitId}`;
     if (!line.variantId) {
       errors[`${line.key}.variantId`] = "اختاري المنتج.";
-    } else if (seen.has(line.variantId)) {
+    } else if (seen.has(lineKey)) {
       errors[`${line.key}.variantId`] =
-        "هذا المنتج مكرر. عدّلي الكمية بدلاً من ذلك.";
+        "هذا المنتج مكرر بنفس طريقة البيع. عدّلي الكمية بدلاً من ذلك.";
     }
-    seen.add(line.variantId);
+    seen.add(lineKey);
     if (quantityMilli === null || quantityMilli <= 0) {
       errors[`${line.key}.quantity`] = "أدخلي كمية أكبر من صفر.";
+    } else if (line.sellingUnitId && quantityMilli % 1000 !== 0) {
+      errors[`${line.key}.quantity`] =
+        "عدد الحبات أو الباكيجات يجب أن يكون رقماً صحيحاً.";
     }
     if (unitPriceAgorot === null) {
       errors[`${line.key}.unitPrice`] = "أدخلي سعر البيع.";
     }
     return {
       variantId: line.variantId,
+      ...(line.sellingUnitId ? { sellingUnitId: line.sellingUnitId } : {}),
       quantityMilli: quantityMilli ?? 0,
       unitPriceAgorot: unitPriceAgorot ?? 0,
     };

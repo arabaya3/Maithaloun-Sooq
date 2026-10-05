@@ -4,6 +4,7 @@ import { connection } from "next/server";
 import {
   customerService,
   inventoryService,
+  sellingUnitService,
   supplierService,
 } from "@/features/admin/application/admin-services";
 import { requireAdminSession } from "@/features/admin/auth/admin-session";
@@ -17,10 +18,11 @@ export const metadata: Metadata = { title: "سجّل عملية بالصوت" };
 export default async function VoicePage() {
   await connection();
   const actor = await requireAdminSession();
-  const [stock, customers, suppliers] = await Promise.all([
+  const [stock, customers, suppliers, sellingUnits] = await Promise.all([
     inventoryService.listStock(actor),
     customerService.list(actor),
     supplierService.list(actor),
+    sellingUnitService.activeByVariant(),
   ]);
   const base = stock.map((item) => ({
     variantId: item.variantId,
@@ -44,7 +46,10 @@ export default async function VoicePage() {
         lede="قولي ما حدث. أعرض عليك البطاقة للمراجعة، ولا يُحفظ شيء قبل تأكيدك."
       />
       <VoiceAssistant
-        saleVariants={base}
+        saleVariants={base.map((item) => ({
+          ...item,
+          sellingUnits: sellingUnits.get(item.variantId) ?? [],
+        }))}
         purchaseVariants={base}
         customers={customers}
         suppliers={suppliers

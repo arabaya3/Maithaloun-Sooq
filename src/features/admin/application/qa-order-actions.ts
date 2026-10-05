@@ -38,6 +38,8 @@ const lineSchema = z.object({
 const failures: Record<OrderCreationError["code"], string> = {
   unknown_product: "أحد الأصناف غير موجود. حدّثي الصفحة.",
   unavailable_product: "أحد الأصناف غير متوفر أو غير منشور في المتجر.",
+  selling_unit_changed: "لا توجد طريقة بيع بالحبة لهذا الصنف.",
+  insufficient_stock: "الكمية أكبر من المخزون المتاح.",
   invalid_service_area: "منطقة التوصيل غير مفعّلة.",
   idempotency_conflict: "أُرسل الطلب مرتين. حدّثي الصفحة.",
   database_error: "تعذّر إنشاء طلب الاختبار.",

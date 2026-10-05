@@ -237,3 +237,112 @@ describe("report periods", () => {
     expect(addDays("2026-02-28", 1)).toBe("2026-03-01");
   });
 });
+
+describe("selling units in reports", () => {
+  it("counts a 3-pack as three pieces and costs it per base unit", () => {
+    // Two 3-packs at 10 ₪ with a 2 ₪ base cost, and one single at 4 ₪.
+    const pack = fact({
+      channel: "storefront",
+      documentId: "order-1",
+      productKey: "cloth--blue",
+      name: "ممسحة — أزرق",
+      productGroupKey: "cloth",
+      productName: "ممسحة",
+      sellingUnitKey: "cloth--blue::pack",
+      sellingUnitLabel: "باكيج 3 حبات",
+      unitsPerSale: 3,
+      saleQuantityMilli: 2_000,
+      quantityMilli: 6_000,
+      grossAgorot: 2_000,
+      cogsAgorot: 1_200,
+    });
+    const single = fact({
+      documentId: "sale-1",
+      productKey: "cloth--blue",
+      name: "ممسحة — أزرق",
+      productGroupKey: "cloth",
+      productName: "ممسحة",
+      sellingUnitKey: "cloth--blue::single",
+      sellingUnitLabel: "حبة واحدة",
+      unitsPerSale: 1,
+      saleQuantityMilli: 1_000,
+      quantityMilli: 1_000,
+      grossAgorot: 400,
+      cogsAgorot: 200,
+    });
+    const report = buildReport({
+      period,
+      sales: [pack, single],
+      returns: [],
+      totals,
+    });
+
+    expect(report.metrics).toMatchObject({
+      orderCount: 2,
+      unitsSoldMilli: 7_000,
+      packsSold: 2,
+      netSalesAgorot: 2_400,
+      cogsAgorot: 1_400,
+      grossProfitAgorot: 1_000,
+    });
+    expect(report.bySellingUnit).toEqual([
+      {
+        key: "cloth--blue::pack",
+        productKey: "cloth--blue",
+        name: "ممسحة — أزرق",
+        sellingUnitLabel: "باكيج 3 حبات",
+        unitsPerSale: 3,
+        saleQuantityMilli: 2_000,
+        quantityMilli: 6_000,
+        netSalesAgorot: 2_000,
+        cogsAgorot: 1_200,
+        profitAgorot: 800,
+      },
+      {
+        key: "cloth--blue::single",
+        productKey: "cloth--blue",
+        name: "ممسحة — أزرق",
+        sellingUnitLabel: "حبة واحدة",
+        unitsPerSale: 1,
+        saleQuantityMilli: 1_000,
+        quantityMilli: 1_000,
+        netSalesAgorot: 400,
+        cogsAgorot: 200,
+        profitAgorot: 200,
+      },
+    ]);
+    expect(report.byProduct).toEqual([
+      expect.objectContaining({
+        productKey: "cloth",
+        name: "ممسحة",
+        quantityMilli: 7_000,
+        netSalesAgorot: 2_400,
+        profitAgorot: 1_000,
+      }),
+    ]);
+    expect(report.byQuantity[0]).toMatchObject({
+      productKey: "cloth--blue",
+      quantityMilli: 7_000,
+    });
+  });
+
+  it("nets returned packs out of pieces and packs sold", () => {
+    const pack = fact({
+      sellingUnitKey: "cloth::pack",
+      sellingUnitLabel: "باكيج 3 حبات",
+      unitsPerSale: 3,
+      saleQuantityMilli: 1_000,
+      quantityMilli: 3_000,
+      grossAgorot: 1_000,
+      cogsAgorot: 600,
+    });
+    const report = buildReport({
+      period,
+      sales: [pack],
+      returns: [pack],
+      totals,
+    });
+    expect(report.metrics).toMatchObject({ unitsSoldMilli: 0, packsSold: 0 });
+    expect(report.bySellingUnit).toEqual([]);
+  });
+});

@@ -54,6 +54,7 @@ import { amountRefusal, missingAmountClarification } from "./amount-refusal";
 import { createCatalogTools } from "./catalog-tools";
 import { createPartyTools } from "./party-tools";
 import { createMediaTools } from "./media-tools";
+import { createSellingUnitTools } from "./selling-unit-tools";
 import type { OfferService } from "@/features/offers/application/offer-service";
 import type { SupplierMaintenanceService } from "@/features/purchasing/application/supplier-maintenance-service";
 import type { SupplierService } from "@/features/purchasing/application/supplier-service";
@@ -220,11 +221,13 @@ export function createAssistantTools(context: AssistantToolContext) {
   const catalogTools = createCatalogTools(context, run, prepare);
   const partyTools = createPartyTools(context, run, prepare);
   const mediaTools = createMediaTools(context, run, prepare);
+  const sellingUnitTools = createSellingUnitTools(context, run, prepare);
 
   const read = {
     ...catalogTools.read,
     ...partyTools.read,
     ...mediaTools.read,
+    ...sellingUnitTools.read,
     searchProducts: tool({
       description:
         "ابحث عن منتج بالاسم العربي أو اللاتيني أو الباركود أو SKU. يعيد منتجاً محدداً أو خيارات قريبة للاختيار.",
@@ -751,6 +754,7 @@ export function createAssistantTools(context: AssistantToolContext) {
     ...catalogTools.mutate,
     ...partyTools.mutate,
     ...mediaTools.mutate,
+    ...sellingUnitTools.mutate,
     prepareProductUpdate: tool({
       description:
         "جهّز بطاقة تأكيد لتعديل بيانات منتج (الاسم، الاسم اللاتيني، الوصف، القسم، الوحدة، سعر البيع، التوفر). SKU والباركود يتبعان الصنف: استعمل prepareVariantUpdate لهما، حتى لو كان للمنتج صنف واحد. لا ينفّذ شيئاً.",
@@ -844,14 +848,23 @@ export function createAssistantTools(context: AssistantToolContext) {
     }),
     prepareManualSale: tool({
       description:
-        "جهّز بطاقة بيع مباشر. الأسعار تُؤخذ من النظام إلا إذا ذكرت المستخدمة سعراً مختلفاً. payment: full دفع كامل، partial جزء (paidIls)، none على الحساب.",
+        "جهّز بطاقة بيع مباشر. الأسعار تُؤخذ من النظام إلا إذا ذكرت المستخدمة سعراً مختلفاً. إذا ذكرت طريقة بيع (حبة، باكيج، كرتونة) مرّرها في sellingOption وتصبح quantity عدد الباكيجات. payment: full دفع كامل، partial جزء (paidIls)، none على الحساب.",
       inputSchema: z
         .object({
           customer: z.string().trim().max(100).nullable(),
           items: z
             .array(
               z
-                .object({ product, quantity, unitPriceIls: money.optional() })
+                .object({
+                  product,
+                  quantity,
+                  unitPriceIls: money.optional(),
+                  sellingOption: text(60)
+                    .optional()
+                    .describe(
+                      "طريقة البيع كما قالتها المستخدمة، مثل «باكيج» أو «كرتونة 6»",
+                    ),
+                })
                 .strict(),
             )
             .min(1)

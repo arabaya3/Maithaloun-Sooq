@@ -28,6 +28,8 @@ export const readToolNames = [
   "getProductImageMapping",
   "getProductOptions",
   "getVariantMatrix",
+  "getSellingUnits",
+  "getVariantsWithoutSellingUnits",
 ] as const;
 
 export const catalogOperations = [
@@ -113,6 +115,17 @@ export const mediaOperations = [
 ] as const;
 export type MediaOperation = (typeof mediaOperations)[number];
 
+// Ways to buy one exact variant (a piece, a pack); stock always stays in base pieces.
+export const sellingUnitOperations = [
+  "sellingUnitsCreate",
+  "sellingUnitUpdate",
+  "sellingUnitDefault",
+  "sellingUnitArchive",
+  "sellingUnitRestore",
+  "sellingUnitDelete",
+] as const;
+export type SellingUnitOperation = (typeof sellingUnitOperations)[number];
+
 export const operations = [
   "productUpdate",
   "productImageReplacement",
@@ -128,6 +141,7 @@ export const operations = [
   ...catalogOperations,
   ...partyOperations,
   ...mediaOperations,
+  ...sellingUnitOperations,
 ] as const;
 export type AssistantOperation = (typeof operations)[number];
 
@@ -160,6 +174,12 @@ export const operationRisk: Record<AssistantOperation, 2 | 3 | 4> = {
   variantsGenerate: 2,
   variantOptions: 2,
   productSetCreate: 3,
+  sellingUnitsCreate: 2,
+  sellingUnitUpdate: 2,
+  sellingUnitDefault: 2,
+  sellingUnitArchive: 2,
+  sellingUnitRestore: 2,
+  sellingUnitDelete: 4,
   productUpdate: 2,
   productImageReplacement: 2,
   reorderThreshold: 2,
@@ -246,6 +266,9 @@ export const prepareToolRisk = {
   prepareOptionValueDeletion: 4,
   prepareVariantGeneration: 2,
   prepareVariantChoices: 2,
+  prepareSellingUnitsCreation: 2,
+  prepareSellingUnitChange: 2,
+  prepareSellingUnitDeletion: 4,
   prepareProductDetailsUpdate: 2,
   prepareProductPublication: 2,
   prepareProductRestore: 2,

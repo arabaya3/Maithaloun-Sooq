@@ -4,7 +4,9 @@ import {
   isOfferLive,
   offerLabel,
   offerUnitPrice,
+  offerForSellingUnit,
   priceForQuantity,
+  priceSellingUnit,
   windowsOverlap,
   type VariantOffer,
 } from "./offer-pricing";
@@ -86,5 +88,43 @@ describe("offer pricing", () => {
         { startsAt: at(5), endsAt: at(6) },
       ),
     ).toBe(true);
+  });
+});
+
+describe("selling unit pricing", () => {
+  it("applies variant offers to the one-piece unit and never once per piece of a pack", () => {
+    const tenPercent = offer({ kind: "percentage", value: 10 });
+    expect(
+      priceSellingUnit({ priceAgorot: 400, unitsPerSale: 1 }, tenPercent, 2),
+    ).toEqual({
+      unitPriceAgorot: 360,
+      listUnitPriceAgorot: 400,
+      offerId: "o1",
+    });
+    expect(
+      priceSellingUnit({ priceAgorot: 1000, unitsPerSale: 3 }, tenPercent, 2),
+    ).toEqual({
+      unitPriceAgorot: 1000,
+      listUnitPriceAgorot: 1000,
+      offerId: null,
+    });
+    // A per-piece fixed price must not become the price of a whole pack.
+    const fixed = offer({ kind: "fixed_price", value: 300 });
+    expect(
+      priceSellingUnit({ priceAgorot: 1000, unitsPerSale: 3 }, fixed, 1)
+        .unitPriceAgorot,
+    ).toBe(1000);
+    expect(offerForSellingUnit({ unitsPerSale: 3 }, fixed)).toBeUndefined();
+    expect(offerForSellingUnit({ unitsPerSale: 1 }, fixed)).toBe(fixed);
+  });
+
+  it("keeps the minimum-quantity rule for singles", () => {
+    const bulk = offer({ minQuantity: 3 });
+    expect(
+      priceSellingUnit({ priceAgorot: 400, unitsPerSale: 1 }, bulk, 2).offerId,
+    ).toBeNull();
+    expect(
+      priceSellingUnit({ priceAgorot: 400, unitsPerSale: 1 }, bulk, 3).offerId,
+    ).toBe("o1");
   });
 });
