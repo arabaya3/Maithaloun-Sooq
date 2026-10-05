@@ -222,7 +222,11 @@ export class ProductOptionsService {
     private readonly database: Database,
     private readonly authoring: Pick<
       CatalogAuthoringService,
-      "lockIdentifiers" | "assertIdentifiersFree" | "createProductIn"
+      | "lockIdentifiers"
+      | "assertIdentifiersFree"
+      | "createProductIn"
+      | "assertPublishable"
+      | "assertLiveSafe"
     >,
   ) {}
 
@@ -242,6 +246,7 @@ export class ProductOptionsService {
       beforeState: null,
       afterState,
     });
+    await this.authoring.assertLiveSafe(transaction, { domainId: entityId });
   }
 
   private async lockProduct(transaction: Transaction, domainId: string) {
@@ -1352,6 +1357,7 @@ export class ProductOptionsService {
             images: data.images.length,
           },
         );
+        await this.authoring.assertPublishable(transaction, { id: product.id });
         return { domainId: created.domainId, variantIds, replayed: false };
       });
     } catch (error) {

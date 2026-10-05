@@ -154,8 +154,15 @@ function authoringMessage(error: CatalogAuthoringError): string {
       "هذا هو الصنف الافتراضي؛ اختاري صنفاً افتراضياً آخر أولاً.",
     stock_on_hand: "لهذا الصنف كمية في المخزون؛ صفّريها أو انقليها أولاً.",
     not_publishable: "المنتج غير جاهز للنشر.",
+    breaks_published: "المنتج منشور، وهذا التغيير يتركه غير صالح للعرض.",
   };
-  return messages[error.code] ?? "تعذّر تجهيز العملية.";
+  const message = messages[error.code] ?? "تعذّر تجهيز العملية.";
+  return (error.code === "not_publishable" ||
+    error.code === "breaks_published") &&
+    error.detail &&
+    error.detail !== "placeholder"
+    ? `${message} ${error.detail}`
+    : message;
 }
 
 export interface CatalogOperationServices {
@@ -640,7 +647,10 @@ export class CatalogOperations {
     const fields = stateFields(input.state);
     const warnings: string[] = [];
     if (fields.publication === "published") {
-      const check = await this.services.authoring.publicationCheck(product.id);
+      const check = await this.services.authoring.publicationCheck(
+        product.id,
+        fields.availability,
+      );
       if (!check) return rejected("not_found", "المنتج غير موجود.");
       if (!check.ready) {
         return rejected(

@@ -122,10 +122,15 @@ export function CartPage({ products }: { products: readonly Product[] }) {
               const attributeSummary = formatVariantAttributes(
                 variant.attributes,
               );
-              const lineHref =
-                variantId === product.defaultVariantId
-                  ? `/products/${product.slug}`
-                  : `/products/${product.slug}?variant=${variantId}`;
+              // The link reopens exactly what is in the line: its variant and its way of buying.
+              const lineQuery = new URLSearchParams();
+              if (variantId !== product.defaultVariantId) {
+                lineQuery.set("variant", variantId);
+              }
+              if (unit && !unit.isDefault) lineQuery.set("unit", unit.id);
+              const lineHref = lineQuery.size
+                ? `/products/${product.slug}?${lineQuery}`
+                : `/products/${product.slug}`;
               const pack = unit && unit.unitsPerSale > 1 ? unit : null;
               const showUnit = Boolean(
                 unit && (pack || variant.sellingUnits.length > 1),

@@ -36,6 +36,7 @@ const authoringMessages: Record<CatalogAuthoringError["code"], string> = {
   default_variant: "لا يمكن تطبيق ذلك على الصنف الافتراضي.",
   stock_on_hand: "لهذا الصنف كمية في المخزون.",
   not_publishable: "المنتج غير جاهز للنشر.",
+  breaks_published: "المنتج منشور، وهذا التغيير يتركه غير صالح للعرض.",
   stale: "تغيّرت البيانات. حدّثي الصفحة ثم أعيدي المحاولة.",
 };
 
@@ -48,10 +49,13 @@ function authoringFailure(error: unknown): { ok: false; message: string } {
           "المنتج بدون صورة حقيقية. فعّلي «النشر بصورة مؤقتة» أو أضيفي صورة أولاً.",
       };
     }
-    if (error.code === "not_publishable" && error.detail) {
+    if (
+      (error.code === "not_publishable" || error.code === "breaks_published") &&
+      error.detail
+    ) {
       return {
         ok: false,
-        message: `${authoringMessages.not_publishable} ${error.detail}`,
+        message: `${authoringMessages[error.code]} ${error.detail}`,
       };
     }
     return { ok: false, message: authoringMessages[error.code] };
