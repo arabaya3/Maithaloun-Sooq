@@ -14,6 +14,12 @@ import type { AdminActor } from "@/features/admin/domain/admin-actor";
 import { can } from "@/features/admin/domain/permissions";
 import type { Product } from "@/features/catalog/domain/product";
 import { MAX_PRODUCT_IMAGES } from "@/features/catalog/domain/product-gallery";
+import { imageScopeLabel } from "@/features/catalog/domain/product-media";
+import { mappingMessages } from "@/features/catalog/domain/product-media-validation";
+import {
+  imageTargetValue,
+  parseImageTarget,
+} from "@/features/admin/domain/image-target";
 import {
   combinationKey,
   normalizeOptionText,
@@ -76,6 +82,9 @@ export const optionErrorMessages: Record<ProductOptionsError["code"], string> =
     gallery_full: "المعرض ممتلئ (8 صور كحد أقصى).",
     primary_required: "يجب أن تبقى صورة رئيسية.",
     default_variant: "لا يمكن تطبيق ذلك على الصنف الافتراضي.",
+    has_images:
+      "صور مرتبطة بهذه القيمة. انقلي الصور أو اجعليها صورة عامة أولاً.",
+    primary_must_be_shared: "الصورة الرئيسية يجب أن تكون صورة عامة للمنتج.",
   };
 
 type Located = {
@@ -226,12 +235,76 @@ export class MediaOperations {
         number: index + 1,
         primary: image.isPrimary,
         alt: image.alt,
+        mappedTo: this.mappingLabel(located.matrix, image),
         variant: variantLabel(image.variantId),
       })),
       archived: located.matrix.images
         .filter((image) => image.archived)
         .map((image, index) => ({ number: index + 1, alt: image.alt })),
       limit: MAX_PRODUCT_IMAGES,
+    };
+  }
+
+  private mappingLabel(
+    matrix: ProductMatrix,
+    image: Pick<
+      ProductMatrix["images"][number],
+      | "id"
+      | "isPrimary"
+      | "sortOrder"
+      | "scope"
+      | "variantId"
+      | "optionId"
+      | "optionValueId"
+    >,
+  ): string {
+    if (image.scope === "unassigned") return "غير مربوطة";
+    if (image.scope === "product") return "صورة عامة لكل الأصناف";
+    const live = matrix.options.filter((option) => !option.archived);
+    return (
+      imageScopeLabel(image, live, (id) => {
+        const variant = matrix.variants.find(
+          (row) => row.id === id && !row.archived,
+        );
+        return variant ? `الصنف ${variant.label}` : null;
+      }) ?? mappingMessages.stale
+    );
+  }
+
+  mappingView(located: Located) {
+    const matrix = located.matrix;
+    const active = this.activeImages(matrix);
+    const live = matrix.options.filter((option) => !option.archived);
+    return {
+      status: "found" as const,
+      product: located.product.nameAr,
+      options: live.map((option) => ({
+        name: option.nameAr,
+        kind: optionKindLabels[option.kind],
+        values: option.values.map((value) => ({
+          value: value.valueAr,
+          usesSharedImage: value.usesSharedImage,
+        })),
+      })),
+      variants: matrix.variants
+        .filter((variant) => !variant.archived)
+        .map((variant) => ({
+          variant: variant.label,
+          choices: selectionLabel(live, variant.optionValues) || null,
+        })),
+      images: active.map((image, index) => ({
+        number: index + 1,
+        primary: image.isPrimary,
+        mappedTo: this.mappingLabel(matrix, image),
+      })),
+      unmapped: active
+        .map((image, index) => ({ image, number: index + 1 }))
+        .filter(({ image }) => image.scope === "unassigned")
+        .map(({ number }) => number),
+      publicationBlockers: [
+        ...new Set(matrix.mapping.map((problem) => problem.message)),
+      ],
+      canPublishImages: matrix.mapping.length === 0,
     };
   }
 
@@ -425,9 +498,8 @@ export class MediaOperations {
     input: {
       product: string;
       image: number;
-      change: "primary" | "alt" | "assign" | "archive" | "restore" | "delete";
+      change: "primary" | "alt" | "archive" | "restore" | "delete";
       alt?: string;
-      variant?: string | null;
     },
   ): Promise<PrepareResult> {
     const denied = this.ownerOnly(actor);
@@ -442,6 +514,11 @@ export class MediaOperations {
     if (input.change === "primary") {
       if (image.isPrimary)
         return rejected("no_change", "هذه هي الصورة الرئيسية أصلاً.");
+      if (image.scope !== "product")
+        return rejected(
+          "not_shared",
+          "الصورة الرئيسية يجب أن تكون صورة عامة. اجعليها صورة عامة أولاً بـ prepareImageMapping.",
+        );
       return this.card(
         located,
         "galleryPrimary",
@@ -469,40 +546,6 @@ export class MediaOperations {
         `تعديل وصف الصورة ${input.image}`,
         [{ label: "الوصف", before: image.alt, after: alt }],
         { images: preview },
-      );
-    }
-    if (input.change === "assign") {
-      let variant: ProductMatrix["variants"][number] | null = null;
-      if (input.variant) {
-        const found = this.variantByLabel(located.matrix, input.variant);
-        if (this.isResult(found)) return found;
-        variant = found;
-      }
-      const current = image.variantId
-        ? (located.matrix.variants.find((row) => row.id === image.variantId)
-            ?.label ?? null)
-        : "كل الأصناف";
-      return this.card(
-        located,
-        "galleryAssign",
-        { imageId: image.id, variantDomainId: variant?.id ?? null },
-        "ربط صورة بصنف",
-        `ربط الصورة ${input.image} بـ ${variant?.label ?? "كل الأصناف"}`,
-        [
-          {
-            label: "الصورة تخص",
-            before: current,
-            after: variant?.label ?? "كل الأصناف",
-          },
-        ],
-        {
-          images: preview,
-          impact: [
-            variant
-              ? "عند اختيار هذا الصنف تظهر صورته أولاً."
-              : "تظهر الصورة مع كل الأصناف.",
-          ],
-        },
       );
     }
     if (input.change === "archive" || input.change === "restore") {
@@ -543,6 +586,159 @@ export class MediaOperations {
         confirmLabel: "حذف نهائي",
         dependencies: ["لا تؤثر على الطلبات السابقة."],
         impact: ["يُحذف الملف إن لم تستخدمه صورة أخرى."],
+      },
+    );
+  }
+
+  // Image mapping
+
+  async prepareImageMapping(
+    actor: AdminActor,
+    input: {
+      product: string;
+      image: number;
+      target: "shared" | "value" | "variant" | "unassigned";
+      option?: string;
+      value?: string;
+      variant?: string;
+      suggestion?: {
+        value: string;
+        confidence: number;
+        source: "image_analysis";
+      };
+    },
+  ): Promise<PrepareResult> {
+    const denied = this.ownerOnly(actor);
+    if (denied) return denied;
+    const located = await this.locate(actor, input.product);
+    if (!located.ok) return located.result;
+    const matrix = located.matrix;
+    const image = this.image(matrix, input.image);
+    if (this.isResult(image)) return image;
+
+    let target = "product";
+    let affected: string | null = null;
+    let impact = "تظهر الصورة مع كل الأصناف ولا تغيّر اختيار الزبون.";
+    if (input.target === "unassigned") {
+      target = "unassigned";
+      impact = "تختفي الصورة من صفحة المنتج حتى تُربط من جديد.";
+    } else if (input.target === "value") {
+      if (!input.option || !input.value)
+        return rejected(
+          "missing_required_field",
+          "اذكري الخيار والقيمة، مثل اللون أزرق.",
+        );
+      const option = this.option(
+        { ...matrix, options: matrix.options.filter((row) => !row.archived) },
+        input.option,
+      );
+      if (this.isResult(option)) return option;
+      const value = this.value(option, input.value);
+      if (this.isResult(value)) return value;
+      target = `value:${value.id}`;
+      affected = `${option.nameAr}: ${value.valueAr}`;
+      const carriers = matrix.variants.filter(
+        (variant) =>
+          !variant.archived && variant.optionValues[option.id] === value.id,
+      );
+      impact = `عند اختيار ${affected} تظهر هذه الصورة، والضغط عليها يختار ${value.valueAr} (${carriers.length} أصناف).`;
+    } else if (input.target === "variant") {
+      if (!input.variant)
+        return rejected("missing_required_field", "اذكري الصنف.");
+      const variant = this.variantByLabel(matrix, input.variant);
+      if (this.isResult(variant)) return variant;
+      target = `variant:${variant.id}`;
+      affected = `الصنف ${variant.label}`;
+      impact = `الضغط على الصورة يختار ${variant.label} بالضبط، وتظهر أولاً عند اختياره.`;
+    }
+    if (target === imageTargetValue(image))
+      return rejected("no_change", "الصورة مربوطة بهذا أصلاً.");
+    const parsed = parseImageTarget(target);
+    if (!parsed) return rejected("invalid_input", "الربط غير صالح.");
+
+    const warnings: string[] = [];
+    if (input.suggestion) {
+      warnings.push(
+        `هذا الربط مبني على اقتراح من تحليل الصورة («${input.suggestion.value}»، ثقة ${Math.round(input.suggestion.confidence * 100)}٪). تأكدي من الصورة بنفسك قبل التأكيد.`,
+      );
+    }
+    if (image.isPrimary && target !== "product")
+      warnings.push("هذه الصورة الرئيسية؛ تصبح الصورة العامة التالية رئيسية.");
+    const current = this.mappingLabel(matrix, image);
+    const proposed =
+      target === "unassigned"
+        ? "غير مربوطة"
+        : target === "product"
+          ? "صورة عامة لكل الأصناف"
+          : affected!;
+    return this.card(
+      located,
+      "galleryScope",
+      { imageId: image.id, target },
+      "ربط صورة بالأصناف",
+      `ربط الصورة ${input.image} من ${located.product.nameAr} بـ ${proposed}`,
+      [
+        { label: "الصورة تخص", before: current, after: proposed },
+        ...(affected
+          ? [{ label: "يتأثر", before: null, after: affected }]
+          : []),
+      ],
+      {
+        images: { before: image.src, after: image.src },
+        impact: [impact, "الملف نفسه لا يُحذف ولا يُرفع من جديد."],
+        warnings,
+      },
+    );
+  }
+
+  async prepareSharedImageUse(
+    actor: AdminActor,
+    input: { product: string; option: string; value: string; use: boolean },
+  ): Promise<PrepareResult> {
+    const denied = this.ownerOnly(actor);
+    if (denied) return denied;
+    const located = await this.locate(actor, input.product);
+    if (!located.ok) return located.result;
+    const option = this.option(
+      {
+        ...located.matrix,
+        options: located.matrix.options.filter((row) => !row.archived),
+      },
+      input.option,
+    );
+    if (this.isResult(option)) return option;
+    const value = this.value(option, input.value);
+    if (this.isResult(value)) return value;
+    const current = option.values.find((row) => row.id === value.id)!;
+    if (current.usesSharedImage === input.use)
+      return rejected("no_change", "هذا الإعداد مطبّق أصلاً.");
+    const shared = this.activeImages(located.matrix).find(
+      (image) => image.scope === "product",
+    );
+    const label = `${option.nameAr}: ${value.valueAr}`;
+    return this.card(
+      located,
+      "valueSharedImage",
+      { valueId: value.id, use: input.use },
+      "صورة القيمة",
+      input.use
+        ? `استخدام الصورة العامة لـ ${label}`
+        : `إلغاء استخدام الصورة العامة لـ ${label}`,
+      [
+        {
+          label,
+          before: input.use ? "بلا صورة" : "الصورة العامة",
+          after: input.use ? "الصورة العامة" : "تحتاج صورة خاصة",
+        },
+      ],
+      {
+        ...(shared ? { images: { before: null, after: shared.src } } : {}),
+        impact: [
+          input.use
+            ? `عند اختيار ${label} تظهر الصورة العامة للمنتج.`
+            : `يمنع النشر حتى تُضاف صورة لـ ${label}.`,
+        ],
+        warnings: shared ? [] : ["لا توجد صورة عامة بعد؛ أضيفي واحدة."],
       },
     );
   }
@@ -1316,6 +1512,33 @@ export class MediaOperations {
         imageId: string;
         variantDomainId: string | null;
       }>,
+      galleryScope: {
+        args: imageArgs.extend({ target: z.string().min(1).max(120) }),
+        version,
+        async execute(actor, args) {
+          const target = parseImageTarget(args.target);
+          if (!target) throw new ProductOptionsError("invalid_input");
+          await options.setImageScope(actor, args.imageId, target);
+          return done("تم ربط الصورة.", args.domainId);
+        },
+      } satisfies Handler<{
+        domainId: string;
+        imageId: string;
+        target: string;
+      }>,
+      valueSharedImage: {
+        args: valueArgs.extend({ use: z.boolean() }),
+        version,
+        async execute(actor, args) {
+          await options.setValueSharedImage(actor, args.valueId, args.use);
+          return done(
+            args.use
+              ? "ستظهر الصورة العامة لهذه القيمة."
+              : "أُلغي استخدام الصورة العامة.",
+            args.domainId,
+          );
+        },
+      } satisfies Handler<{ domainId: string; valueId: string; use: boolean }>,
       galleryArchive: {
         args: imageArgs,
         version,

@@ -316,6 +316,7 @@ const fixtures = (): Record<string, Record<string, unknown>> => ({
   },
   preparePurchaseInvoiceImport: { attachmentIds: [attachmentId] },
   getProductGallery: { product: PRODUCT },
+  getProductImageMapping: { product: PRODUCT },
   getProductOptions: { product: PRODUCT },
   getVariantMatrix: { product: PRODUCT },
   setDraftOptions: {
@@ -334,6 +335,13 @@ const fixtures = (): Record<string, Record<string, unknown>> => ({
     alt: "وصف",
   },
   prepareGalleryImageDeletion: { product: PRODUCT, image: 1 },
+  prepareImageMapping: { product: PRODUCT, image: 1, target: "unassigned" },
+  prepareSharedImageUse: {
+    product: PRODUCT,
+    option: "الرائحة",
+    value: "لافندر",
+    use: true,
+  },
   prepareProductOptionCreate: {
     product: PRODUCT,
     nameAr: "الرائحة",

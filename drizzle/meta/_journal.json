@@ -134,6 +134,13 @@
       "when": 1791129894842,
       "tag": "0018_qa_stock_simulation",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1791188102864,
+      "tag": "0019_product_image_scopes",
+      "breakpoints": true
     }
   ]
 }

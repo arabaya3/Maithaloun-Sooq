@@ -71,6 +71,7 @@ const toolLabels: Record<string, string> = {
   setDraftVariants: "تعديل أصناف المسودة",
   assignDraftImages: "ربط صور المسودة",
   getProductGallery: "قراءة صور المنتج",
+  getProductImageMapping: "قراءة ربط الصور بالأصناف",
   getProductOptions: "قراءة خيارات المنتج",
   getVariantMatrix: "قراءة أصناف المنتج",
   searchProductDuplicates: "البحث عن منتجات مشابهة",

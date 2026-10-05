@@ -3525,48 +3525,75 @@ html[data-launch="skip"] .launch-splash {
 }
 
 /* Product gallery and option selectors */
+/* One reserved square stage keeps the layout still while images change; thumbnails sit right under it. */
 .product-gallery {
-  position: relative;
   display: grid;
   gap: var(--space-2);
-  background: var(--surface-warm);
+  align-content: start;
+  padding: var(--space-2);
+  background: var(--white);
 }
 
-.product-gallery-track {
-  display: flex;
-  overflow-x: auto;
-  scroll-snap-type: x mandatory;
-  scrollbar-width: none;
-  aspect-ratio: 3 / 4;
-  max-height: min(32rem, 70vh);
-  overscroll-behavior-x: contain;
-}
-
-.product-gallery-track::-webkit-scrollbar {
-  display: none;
-}
-
-.product-gallery-track:focus-visible {
-  outline: var(--focus-ring);
-  outline-offset: -3px;
-}
-
-.product-gallery-slide {
+.product-gallery-stage {
   position: relative;
-  flex: 0 0 100%;
-  margin: 0;
-  scroll-snap-align: start;
+  display: grid;
+  overflow: hidden;
+  place-items: center;
+  width: 100%;
+  max-width: min(100%, 48svh);
+  aspect-ratio: 1;
+  margin-inline: auto;
+  border-radius: var(--radius-sm);
+  background: var(--surface-warm);
+  touch-action: pan-y;
+  user-select: none;
 }
 
-.product-gallery-slide img {
-  object-fit: contain;
+/* Contained, centred and never stretched past the file's own size. */
+.product-gallery-image {
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: 100%;
   padding: 0.5rem;
+  object-fit: contain;
+  animation: product-gallery-in 160ms ease-out;
+}
+
+@keyframes product-gallery-in {
+  from {
+    opacity: 0.4;
+  }
+}
+
+.product-gallery-missing {
+  display: grid;
+  width: 100%;
+  height: 100%;
+  place-items: center;
+}
+
+.product-gallery-position {
+  position: absolute;
+  inset-block-end: 0.5rem;
+  inset-inline-start: 0.5rem;
+  max-width: calc(100% - 7rem);
+  margin: 0;
+  overflow: hidden;
+  padding: 0.15rem 0.55rem;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 92%);
+  color: var(--text);
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .product-gallery-arrows {
   position: absolute;
-  inset-inline: 0.5rem;
-  top: calc(50% - 1.75rem);
+  inset-inline: 0.4rem;
+  top: calc(50% - 1.375rem);
   display: flex;
   justify-content: space-between;
   pointer-events: none;
@@ -3580,7 +3607,7 @@ html[data-launch="skip"] .launch-splash {
   border: 1px solid var(--border);
   border-radius: 50%;
   color: var(--text);
-  background: rgb(255 255 255 / 90%);
+  background: rgb(255 255 255 / 92%);
   pointer-events: auto;
   cursor: pointer;
 }
@@ -3590,33 +3617,90 @@ html[data-launch="skip"] .launch-splash {
   cursor: default;
 }
 
-.product-gallery-thumbs {
-  display: flex;
-  gap: var(--space-2);
-  overflow-x: auto;
-  padding: 0 var(--space-2) var(--space-2);
+.product-gallery-arrows button:focus-visible,
+.product-gallery-thumbs button:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: 2px;
 }
 
+.product-gallery-thumbs {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+/* 3rem buttons exceed the 44px touch minimum. The active one gets a thick frame and a bar, not only a colour. */
 .product-gallery-thumbs button {
+  position: relative;
+  display: grid;
   flex: none;
-  width: 3.5rem;
-  height: 3.5rem;
+  width: 3rem;
+  height: 3rem;
   overflow: hidden;
+  place-items: center;
   padding: 0;
-  border: 2px solid transparent;
+  border: 1px solid var(--border);
   border-radius: var(--radius-sm);
-  background: var(--white);
+  background: var(--surface-warm);
   cursor: pointer;
 }
 
 .product-gallery-thumbs button[aria-current="true"] {
-  border-color: var(--action);
+  border: 3px solid var(--action);
+}
+
+.product-gallery-thumbs button[aria-current="true"]::after {
+  position: absolute;
+  inset-inline: 0.5rem;
+  inset-block-end: 0.15rem;
+  height: 0.2rem;
+  border-radius: 999px;
+  background: var(--action);
+  content: "";
 }
 
 .product-gallery-thumbs img {
   width: 100%;
   height: 100%;
   object-fit: contain;
+}
+
+.product-gallery-thumb-missing {
+  width: 1.25rem;
+  height: 1.25rem;
+  border: 2px dashed var(--border);
+  border-radius: 50%;
+}
+
+@media (min-width: 48rem) {
+  .product-gallery {
+    padding: var(--space-4);
+  }
+
+  .product-gallery-stage {
+    max-width: 100%;
+  }
+}
+
+/* On wide screens the thumbnails become a column beside the image, still within reach. */
+@media (min-width: 64rem) {
+  .product-gallery {
+    grid-template-columns: 3.5rem minmax(0, 1fr);
+    align-items: start;
+  }
+
+  .product-gallery-stage {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .product-gallery-thumbs {
+    grid-column: 1;
+    grid-row: 1;
+    flex-direction: column;
+    flex-wrap: nowrap;
+  }
 }
 
 .option-selectors {
@@ -3645,9 +3729,13 @@ html[data-launch="skip"] .launch-splash {
   font-size: 0.75rem;
 }
 
+.variant-option[data-state="adjusts"] {
+  border-style: dashed;
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .product-gallery-track {
-    scroll-behavior: auto;
+  .product-gallery-image {
+    animation: none;
   }
 }
 

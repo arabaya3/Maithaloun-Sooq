@@ -102,6 +102,7 @@ export interface SelectableVariant {
   id: string;
   optionValues: OptionSelection;
   available: boolean;
+  isDefault?: boolean;
 }
 
 export function duplicateCombinations(
@@ -163,9 +164,11 @@ export function missingCombinations(
   return all.filter((row) => !existing.has(combinationKey(row)));
 }
 
-export type ValueState = "selectable" | "unavailable" | "impossible";
+export type ValueState =
+  "selectable" | "unavailable" | "adjusts" | "impossible";
 
-// A value is impossible when no variant combines it with the other current choices.
+// "adjusts": a variant has this value, but not with the other current choices, so choosing it moves those choices too.
+// "impossible": no variant has this value at all; it is disabled and can never be reached.
 export function valueStates(
   options: readonly ProductOption[],
   variants: readonly SelectableVariant[],
@@ -175,21 +178,24 @@ export function valueStates(
   for (const option of options) {
     states[option.id] = {};
     for (const value of option.values) {
-      const candidates = variants.filter(
-        (variant) =>
-          variant.optionValues[option.id] === value.id &&
-          Object.entries(selection).every(
-            ([otherOption, otherValue]) =>
-              otherOption === option.id ||
-              !otherValue ||
-              variant.optionValues[otherOption] === otherValue,
-          ),
+      const withValue = variants.filter(
+        (variant) => variant.optionValues[option.id] === value.id,
       );
-      states[option.id]![value.id] = !candidates.length
+      const compatible = withValue.filter((variant) =>
+        Object.entries(selection).every(
+          ([otherOption, otherValue]) =>
+            otherOption === option.id ||
+            !otherValue ||
+            variant.optionValues[otherOption] === otherValue,
+        ),
+      );
+      states[option.id]![value.id] = !withValue.length
         ? "impossible"
-        : candidates.some((variant) => variant.available)
-          ? "selectable"
-          : "unavailable";
+        : !compatible.length
+          ? "adjusts"
+          : compatible.some((variant) => variant.available)
+            ? "selectable"
+            : "unavailable";
     }
   }
   return states;
@@ -212,7 +218,43 @@ export function variantForSelection<T extends SelectableVariant>(
   );
 }
 
-// Choosing a value keeps the other choices when a matching variant exists, otherwise moves to the closest available one.
+// Among the variants that carry optionId=valueId, the one that keeps most of the current choices wins;
+// ties go to the default variant, then an available one, then the saved variant order. Always the same answer.
+export function closestVariant<T extends SelectableVariant>(
+  variants: readonly T[],
+  selection: OptionSelection,
+  optionId: string,
+  valueId: string,
+): T | null {
+  let best: { variant: T; score: number[] } | null = null;
+  for (const [index, variant] of variants.entries()) {
+    if (variant.optionValues[optionId] !== valueId) continue;
+    const kept = Object.entries(selection).filter(
+      ([otherOption, otherValue]) =>
+        otherOption !== optionId &&
+        otherValue &&
+        variant.optionValues[otherOption] === otherValue,
+    ).length;
+    const score = [
+      kept,
+      Number(Boolean(variant.isDefault)),
+      Number(variant.available),
+      -index,
+    ];
+    if (!best || isGreater(score, best.score)) best = { variant, score };
+  }
+  return best?.variant ?? null;
+}
+
+function isGreater(left: readonly number[], right: readonly number[]) {
+  for (const [index, part] of left.entries()) {
+    if (part !== right[index]) return part > right[index]!;
+  }
+  return false;
+}
+
+// Choosing a value keeps the other choices when that exact variant exists, otherwise moves to the closest variant with the value.
+// A value no variant carries leaves the selection unchanged, so the page never shows a combination that does not exist.
 export function nextSelection<T extends SelectableVariant>(
   options: readonly ProductOption[],
   variants: readonly T[],
@@ -222,12 +264,8 @@ export function nextSelection<T extends SelectableVariant>(
 ): OptionSelection {
   const wanted = { ...selection, [optionId]: valueId };
   if (variantForSelection(options, variants, wanted)) return wanted;
-  const matching = variants.filter(
-    (variant) => variant.optionValues[optionId] === valueId,
-  );
-  const best =
-    matching.find((variant) => variant.available) ?? matching[0] ?? null;
-  return best ? { ...best.optionValues } : wanted;
+  const best = closestVariant(variants, selection, optionId, valueId);
+  return best ? { ...best.optionValues } : selection;
 }
 
 export function packLabel(packCount: number | null | undefined): string | null {

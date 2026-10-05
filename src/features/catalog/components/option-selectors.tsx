@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  selectionLabel,
   valueStates,
   type OptionSelection,
   type ProductOption,
@@ -21,6 +22,9 @@ export function OptionSelectors({
   const states = valueStates(options, variants, selection);
   return (
     <div className="option-selectors">
+      <p className="sr-only" aria-live="polite">
+        {selectionLabel(options, selection)}
+      </p>
       {options.map((option) => {
         const chosen = option.values.find(
           (value) => value.id === selection[option.id],
@@ -58,6 +62,9 @@ export function OptionSelectors({
                     {value.valueAr}
                     {state === "unavailable" ? (
                       <span className="variant-option-note">غير متوفر</span>
+                    ) : null}
+                    {state === "adjusts" ? (
+                      <span className="sr-only"> — يتغير معه اختيار آخر</span>
                     ) : null}
                   </button>
                 );

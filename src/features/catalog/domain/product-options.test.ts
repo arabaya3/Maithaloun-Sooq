@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  galleryForVariant,
   isPermutation,
   orderGallery,
   type GalleryImage,
@@ -119,12 +118,12 @@ describe("combinations", () => {
 });
 
 describe("storefront selection", () => {
-  it("marks impossible and unavailable values for the current choice", () => {
+  it("marks values that move other choices, and unavailable values, for the current choice", () => {
     const states = valueStates(options, variants, { "o-size": "750" });
     expect(states["o-scent"]).toEqual({
       lav: "selectable",
-      rose: "impossible",
-      musk: "impossible",
+      rose: "adjusts",
+      musk: "adjusts",
     });
     expect(
       valueStates(options, variants, { "o-size": "450" })["o-scent"]!.musk,
@@ -158,6 +157,63 @@ describe("storefront selection", () => {
     });
   });
 
+  it("disables only a value that no variant carries", () => {
+    const withExtra: ProductOption[] = options.map((option) =>
+      option.id === "o-scent"
+        ? {
+            ...option,
+            values: [
+              ...option.values,
+              { id: "oud", valueAr: "عود", sortOrder: 3 },
+            ],
+          }
+        : option,
+    );
+    expect(valueStates(withExtra, variants, {})["o-scent"]!.oud).toBe(
+      "impossible",
+    );
+  });
+
+  it("never returns a combination that has no variant", () => {
+    const current = { "o-scent": "lav", "o-size": "450" };
+    expect(
+      nextSelection(options, variants, current, "o-scent", "no-such-value"),
+    ).toEqual(current);
+  });
+
+  it("prefers the default variant, then an available one, when moving", () => {
+    const sparse = [
+      {
+        id: "a",
+        optionValues: { "o-scent": "rose", "o-size": "450" },
+        available: false,
+      },
+      {
+        id: "b",
+        optionValues: { "o-scent": "rose", "o-size": "750" },
+        available: true,
+      },
+    ];
+    expect(
+      nextSelection(
+        options,
+        sparse,
+        { "o-scent": "lav", "o-size": "999" },
+        "o-scent",
+        "rose",
+      ),
+    ).toEqual({ "o-scent": "rose", "o-size": "750" });
+    expect(
+      nextSelection(
+        options,
+        [{ ...sparse[0]!, isDefault: true }, sparse[1]!],
+        { "o-scent": "lav", "o-size": "999" },
+        "o-scent",
+        "rose",
+      ),
+    ).toEqual({ "o-scent": "rose", "o-size": "450" });
+  });
+
   it("describes packs without changing stock units", () => {
     expect(packLabel(3)).toBe("العبوة فيها 3 قطع");
     expect(packLabel(1)).toBeNull();
@@ -170,7 +226,6 @@ describe("gallery", () => {
     id: string,
     sortOrder: number,
     isPrimary = false,
-    variantId: string | null = null,
   ): GalleryImage => ({
     id,
     src: `/${id}.webp`,
@@ -179,7 +234,10 @@ describe("gallery", () => {
     height: 100,
     sortOrder,
     isPrimary,
-    variantId,
+    scope: "product",
+    variantId: null,
+    optionId: null,
+    optionValueId: null,
   });
 
   it("puts the primary image first, then the saved order", () => {
@@ -188,21 +246,6 @@ describe("gallery", () => {
         (row) => row.id,
       ),
     ).toEqual(["a", "b", "c"]);
-  });
-
-  it("shows a variant's own images before shared ones and hides other variants' images", () => {
-    const images = [
-      image("main", 0, true),
-      image("lav", 1, false, "v1"),
-      image("rose", 2, false, "v2"),
-    ];
-    expect(galleryForVariant(images, "v1").map((row) => row.id)).toEqual([
-      "lav",
-      "main",
-    ]);
-    expect(galleryForVariant(images, null).map((row) => row.id)).toEqual([
-      "main",
-    ]);
   });
 
   it("accepts only a complete reorder of the same images", () => {

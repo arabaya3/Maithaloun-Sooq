@@ -3,6 +3,7 @@ import "server-only";
 import { revalidatePath } from "next/cache";
 
 import type { AdminActor } from "@/features/admin/domain/admin-actor";
+import type { ImageTarget } from "@/features/admin/domain/image-target";
 import { AuthorizationError } from "@/features/admin/domain/admin-actor";
 import { galleryUploadMessages } from "@/features/admin/domain/gallery-upload-limits";
 import {
@@ -21,6 +22,7 @@ const optionMessages: Partial<Record<ProductOptionsError["code"], string>> = {
   not_found: "المنتج غير موجود. حدّث الصفحة.",
   gallery_full: "المعرض ممتلئ (8 صور كحد أقصى).",
   too_many: "المعرض ممتلئ (8 صور كحد أقصى).",
+  archived: "الخيار أو الصنف المختار لم يعد موجوداً. اختر ربطاً آخر.",
 };
 
 // The file is published only after validation; if saving the row fails it is removed again.
@@ -29,6 +31,7 @@ export async function uploadGalleryImage(
   productDomainId: string,
   bytes: Buffer,
   alt: string,
+  target: ImageTarget | null = null,
 ): Promise<GalleryUploadResult> {
   const store = getProductImageStore();
   let stored: { src: string; width: number; height: number };
@@ -46,7 +49,11 @@ export async function uploadGalleryImage(
   }
   try {
     await productOptionsService.addImages(actor, productDomainId, [
-      { ...stored, alt: alt.trim().slice(0, 250) || "صورة المنتج" },
+      {
+        ...stored,
+        alt: alt.trim().slice(0, 250) || "صورة المنتج",
+        ...(target ? { target } : {}),
+      },
     ]);
   } catch (error) {
     await store.remove?.(stored.src);

@@ -4,6 +4,7 @@ import { and, asc, eq, isNull, sql } from "drizzle-orm";
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 
 import { orderGallery } from "@/features/catalog/domain/product-gallery";
+import { customerGallery } from "@/features/catalog/domain/product-media";
 import {
   sortOptions,
   type ProductOption,
@@ -98,9 +99,25 @@ export async function loadProductPresentation(
       [link.optionId]: link.valueId,
     };
   }
+  // An image of an archived variant, option or value is left out; it must never fall back to looking shared.
+  const liveValues = new Map(
+    liveOptions.flatMap((option) =>
+      option.values.map((value) => [value.id, option.id] as const),
+    ),
+  );
+  const visible = images.filter((image) =>
+    image.scope === "variant"
+      ? Boolean(image.variantId && domainOf.has(image.variantId))
+      : image.scope === "option_value"
+        ? Boolean(
+            image.optionValueId &&
+            liveValues.get(image.optionValueId) === image.optionId,
+          )
+        : image.scope === "product",
+  );
   return {
     gallery: orderGallery(
-      images.map((image) => ({
+      customerGallery(visible).map((image) => ({
         id: image.id,
         src: image.src,
         alt: image.altAr,
@@ -108,9 +125,12 @@ export async function loadProductPresentation(
         height: image.height,
         sortOrder: image.sortOrder,
         isPrimary: image.isPrimary,
+        scope: image.scope,
         variantId: image.variantId
           ? (domainOf.get(image.variantId) ?? null)
           : null,
+        optionId: image.optionId,
+        optionValueId: image.optionValueId,
       })),
     ),
     options: liveOptions.filter((option) => option.values.length),

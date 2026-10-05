@@ -6,6 +6,7 @@ import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { z } from "zod";
 
 import type { AdminActor } from "@/features/admin/domain/admin-actor";
+import type { ImageTarget } from "@/features/admin/domain/image-target";
 import { assertPermission } from "@/features/admin/domain/permissions";
 import {
   assertSafeAuditState,
@@ -16,6 +17,11 @@ import {
   MAX_VARIANT_IMAGES,
   isPermutation,
 } from "@/features/catalog/domain/product-gallery";
+import {
+  VISUAL_OPTION_KINDS,
+  mappingProblems,
+  type MappingProblem,
+} from "@/features/catalog/domain/product-media-validation";
 import {
   combinationKey,
   duplicateCombinations,
@@ -56,7 +62,9 @@ export type ProductOptionsErrorCode =
   | "too_many"
   | "gallery_full"
   | "primary_required"
-  | "default_variant";
+  | "default_variant"
+  | "has_images"
+  | "primary_must_be_shared";
 
 export class ProductOptionsError extends Error {
   constructor(
@@ -164,7 +172,10 @@ export interface MatrixVariant {
 export interface ProductMatrix {
   product: { id: string; domainId: string; nameAr: string };
   options: Array<
-    ProductOption & {
+    Omit<ProductOption, "values"> & {
+      values: Array<
+        ProductOption["values"][number] & { usesSharedImage: boolean }
+      >;
       archived: boolean;
       archivedValues: Array<{ id: string; valueAr: string }>;
     }
@@ -178,13 +189,20 @@ export interface ProductMatrix {
     height: number;
     sortOrder: number;
     isPrimary: boolean;
+    scope: "unassigned" | "product" | "option_value" | "variant";
     variantId: string | null;
+    optionId: string | null;
+    optionValueId: string | null;
     archived: boolean;
   }>;
   missing: OptionSelection[] | null;
   duplicates: string[][];
   incomplete: string[];
+  /** Image-to-variant problems; drafts may keep them, publishing may not. */
+  mapping: MappingProblem[];
 }
+
+export type { ImageTarget };
 
 function isUnique(error: unknown, name?: string): boolean {
   const value = error as {
@@ -332,6 +350,7 @@ export class ProductOptionsService {
           id: value.id,
           valueAr: value.valueAr,
           sortOrder: value.sortOrder,
+          usesSharedImage: value.usesSharedImage,
         })),
     }));
     const domainOf = new Map(variants.map((row) => [row.id, row.domainId]));
@@ -377,11 +396,28 @@ export class ProductOptionsService {
         height: image.height,
         sortOrder: image.sortOrder,
         isPrimary: image.isPrimary,
+        scope: image.scope,
         variantId: image.variantId
           ? (domainOf.get(image.variantId) ?? null)
           : null,
+        optionId: image.optionId,
+        optionValueId: image.optionValueId,
         archived: Boolean(image.archivedAt),
       })),
+      mapping: mappingProblems({
+        options: activeOptions,
+        variants: matrixVariants,
+        images: images.map((image) => ({
+          id: image.id,
+          archived: Boolean(image.archivedAt),
+          scope: image.scope,
+          variantId: image.variantId
+            ? (domainOf.get(image.variantId) ?? null)
+            : null,
+          optionId: image.optionId,
+          optionValueId: image.optionValueId,
+        })),
+      }),
       missing: live.length ? missingCombinations(live, selectable) : [],
       duplicates: duplicateCombinations(selectable),
       incomplete: incompleteVariants(live, selectable),
@@ -616,6 +652,26 @@ export class ProductOptionsService {
     return (row?.total ?? 0) > 0;
   }
 
+  // Images keep pointing at their option value, so the value stays until the images are moved; files are never touched here.
+  private async imagesMapped(
+    transaction: Transaction,
+    target: { optionId: string } | { valueId: string },
+    activeOnly: boolean,
+  ) {
+    const [row] = await transaction
+      .select({ total: sql<number>`count(*)::int` })
+      .from(schema.productImages)
+      .where(
+        and(
+          "optionId" in target
+            ? eq(schema.productImages.optionId, target.optionId)
+            : eq(schema.productImages.optionValueId, target.valueId),
+          activeOnly ? isNull(schema.productImages.archivedAt) : undefined,
+        ),
+      );
+    return (row?.total ?? 0) > 0;
+  }
+
   // Active variants keep a complete choice for every active option, so an option in use cannot be archived.
   async setOptionArchived(
     actor: AdminActor,
@@ -630,6 +686,12 @@ export class ProductOptionsService {
       );
       if (archived && (await this.optionInUse(transaction, option.id, true))) {
         throw new ProductOptionsError("in_use", option.nameAr);
+      }
+      if (
+        archived &&
+        (await this.imagesMapped(transaction, { optionId: option.id }, true))
+      ) {
+        throw new ProductOptionsError("has_images", option.nameAr);
       }
       await transaction
         .update(schema.productOptions)
@@ -657,6 +719,11 @@ export class ProductOptionsService {
       );
       if (await this.optionInUse(transaction, option.id, false)) {
         throw new ProductOptionsError("in_use", option.nameAr);
+      }
+      if (
+        await this.imagesMapped(transaction, { optionId: option.id }, false)
+      ) {
+        throw new ProductOptionsError("has_images", option.nameAr);
       }
       await transaction
         .delete(schema.productOptions)
@@ -833,6 +900,12 @@ export class ProductOptionsService {
       if (archived && (await this.valueInUse(transaction, value.id, true))) {
         throw new ProductOptionsError("in_use", value.valueAr);
       }
+      if (
+        archived &&
+        (await this.imagesMapped(transaction, { valueId: value.id }, true))
+      ) {
+        throw new ProductOptionsError("has_images", value.valueAr);
+      }
       await transaction
         .update(schema.productOptionValues)
         .set({
@@ -861,6 +934,9 @@ export class ProductOptionsService {
       );
       if (await this.valueInUse(transaction, value.id, false)) {
         throw new ProductOptionsError("in_use", value.valueAr);
+      }
+      if (await this.imagesMapped(transaction, { valueId: value.id }, false)) {
+        throw new ProductOptionsError("has_images", value.valueAr);
       }
       await transaction
         .delete(schema.productOptionValues)
@@ -1359,24 +1435,37 @@ export class ProductOptionsService {
   async addImages(
     actor: AdminActor,
     productDomainId: string,
-    images: Array<NewGalleryImage & { variantDomainId?: string | null }>,
+    images: Array<
+      Omit<
+        NewGalleryImage,
+        "variantId" | "scope" | "optionId" | "optionValueId"
+      > & {
+        variantDomainId?: string | null;
+        target?: ImageTarget;
+      }
+    >,
   ): Promise<{ imageIds: string[] }> {
     assertPermission(actor, "settings.manage");
     return this.database.transaction(async (transaction) => {
       const product = await this.lockProduct(transaction, productDomainId);
+      const fallback = await this.defaultTarget(transaction, product.id);
       const imageIds: string[] = [];
       for (const image of images) {
-        const variantId = image.variantDomainId
-          ? await this.variantOfProduct(
-              transaction,
-              product.id,
-              image.variantDomainId,
-            )
-          : null;
-        if (variantId) await this.assertVariantRoom(transaction, variantId);
+        const target: ImageTarget = image.target
+          ? image.target
+          : image.variantDomainId
+            ? { scope: "variant", variantDomainId: image.variantDomainId }
+            : fallback;
+        const columns = await this.targetColumns(
+          transaction,
+          product.id,
+          target,
+        );
+        if (columns.variantId)
+          await this.assertVariantRoom(transaction, columns.variantId);
         const row = await addGalleryImage(transaction, product.id, {
           ...image,
-          variantId,
+          ...columns,
         }).catch((error: unknown) => {
           if (error instanceof Error && error.message === "gallery_full") {
             throw new ProductOptionsError("gallery_full");
@@ -1396,6 +1485,200 @@ export class ProductOptionsService {
         },
       );
       return { imageIds };
+    });
+  }
+
+  // A product whose customers choose between colours or scents gets new images unclassified, so nobody's picture is assumed;
+  // a product with a single variant needs no choice and its images are shared.
+  private async defaultTarget(
+    transaction: Transaction,
+    productId: string,
+  ): Promise<ImageTarget> {
+    const [variants] = await transaction
+      .select({ total: sql<number>`count(*)::int` })
+      .from(schema.productVariants)
+      .where(
+        and(
+          eq(schema.productVariants.productId, productId),
+          isNull(schema.productVariants.archivedAt),
+        ),
+      );
+    if ((variants?.total ?? 0) < 2) return { scope: "product" };
+    const [visual] = await transaction
+      .select({ total: sql<number>`count(*)::int` })
+      .from(schema.productOptions)
+      .where(
+        and(
+          eq(schema.productOptions.productId, productId),
+          isNull(schema.productOptions.archivedAt),
+          inArray(schema.productOptions.kind, [...VISUAL_OPTION_KINDS]),
+        ),
+      );
+    return (visual?.total ?? 0) > 0
+      ? { scope: "unassigned" }
+      : { scope: "product" };
+  }
+
+  // Checks the target belongs to this product and is live, and returns the columns that record it.
+  private async targetColumns(
+    transaction: Transaction,
+    productId: string,
+    target: ImageTarget,
+  ) {
+    if (target.scope === "variant") {
+      const [variant] = await transaction
+        .select({
+          id: schema.productVariants.id,
+          archivedAt: schema.productVariants.archivedAt,
+        })
+        .from(schema.productVariants)
+        .where(
+          and(
+            eq(schema.productVariants.domainId, target.variantDomainId),
+            eq(schema.productVariants.productId, productId),
+          ),
+        );
+      if (!variant) throw new ProductOptionsError("not_found");
+      if (variant.archivedAt) throw new ProductOptionsError("archived");
+      return {
+        scope: "variant" as const,
+        variantId: variant.id,
+        optionId: null,
+        optionValueId: null,
+      };
+    }
+    if (target.scope === "option_value") {
+      const [value] = await transaction
+        .select({
+          id: schema.productOptionValues.id,
+          optionId: schema.productOptionValues.optionId,
+          archivedAt: schema.productOptionValues.archivedAt,
+          optionArchivedAt: schema.productOptions.archivedAt,
+        })
+        .from(schema.productOptionValues)
+        .innerJoin(
+          schema.productOptions,
+          eq(schema.productOptions.id, schema.productOptionValues.optionId),
+        )
+        .where(
+          and(
+            eq(schema.productOptionValues.id, target.valueId),
+            eq(schema.productOptionValues.productId, productId),
+          ),
+        );
+      if (!value) throw new ProductOptionsError("not_found");
+      if (value.archivedAt || value.optionArchivedAt)
+        throw new ProductOptionsError("archived");
+      return {
+        scope: "option_value" as const,
+        variantId: null,
+        optionId: value.optionId,
+        optionValueId: value.id,
+      };
+    }
+    return {
+      scope: target.scope,
+      variantId: null,
+      optionId: null,
+      optionValueId: null,
+    };
+  }
+
+  /**
+   * Moves an image to a new place without touching its file. The product row is locked, so two owners
+   * changing the same product's images run one after the other.
+   */
+  async setImageScope(
+    actor: AdminActor,
+    imageId: string,
+    target: ImageTarget,
+  ): Promise<{ changed: boolean }> {
+    assertPermission(actor, "settings.manage");
+    return this.database.transaction(async (transaction) => {
+      const { image, product } = await this.productOfImage(
+        transaction,
+        imageId,
+      );
+      if (image.archivedAt) throw new ProductOptionsError("archived");
+      const columns = await this.targetColumns(transaction, product.id, target);
+      if (
+        image.scope === columns.scope &&
+        image.variantId === columns.variantId &&
+        image.optionValueId === columns.optionValueId
+      ) {
+        return { changed: false };
+      }
+      if (columns.variantId && columns.variantId !== image.variantId)
+        await this.assertVariantRoom(transaction, columns.variantId);
+      // The primary image is always a shared one; when it stops being shared the next shared image takes over.
+      const losesPrimary = image.isPrimary && columns.scope !== "product";
+      await transaction
+        .update(schema.productImages)
+        .set({
+          ...columns,
+          isPrimary: losesPrimary ? false : image.isPrimary,
+          updatedAt: new Date(),
+        })
+        .where(eq(schema.productImages.id, image.id));
+      if (losesPrimary)
+        await this.promoteSharedPrimary(transaction, product.id);
+      await syncImageMirrors(transaction, product.id);
+      await this.audit(
+        transaction,
+        actor,
+        "product_image_scope",
+        product.domainId,
+        {
+          image: image.id,
+          from: image.scope,
+          to: columns.scope,
+        },
+      );
+      return { changed: true };
+    });
+  }
+
+  private async promoteSharedPrimary(
+    transaction: Transaction,
+    productId: string,
+  ) {
+    const active = await activeGallery(transaction, productId);
+    if (active.some((row) => row.isPrimary)) return;
+    const next = active.find((row) => row.scope === "product");
+    if (!next) return;
+    await transaction
+      .update(schema.productImages)
+      .set({ isPrimary: true, updatedAt: new Date() })
+      .where(eq(schema.productImages.id, next.id));
+    await renumber(transaction, productId, next.id);
+  }
+
+  /** The owner's explicit choice to show the shared product image for a colour or scent that has no picture. */
+  async setValueSharedImage(
+    actor: AdminActor,
+    valueId: string,
+    usesSharedImage: boolean,
+  ): Promise<{ changed: boolean }> {
+    assertPermission(actor, "settings.manage");
+    return this.database.transaction(async (transaction) => {
+      const { value, product } = await this.productOfValue(
+        transaction,
+        valueId,
+      );
+      if (value.archivedAt) throw new ProductOptionsError("archived");
+      if (value.usesSharedImage === usesSharedImage) return { changed: false };
+      await transaction
+        .update(schema.productOptionValues)
+        .set({ usesSharedImage, updatedAt: new Date() })
+        .where(eq(schema.productOptionValues.id, value.id));
+      await this.audit(
+        transaction,
+        actor,
+        "product_option_value_shared_image",
+        product.domainId,
+        { value: value.valueAr, usesSharedImage },
+      );
+      return { changed: true };
     });
   }
 
@@ -1458,10 +1741,18 @@ export class ProductOptionsService {
             eq(schema.productImages.isPrimary, true),
           ),
         );
+      // The first shared image in the new order becomes the primary one.
+      const primaryId = imageIds.find(
+        (id) => active.find((row) => row.id === id)?.scope === "product",
+      );
       for (const [sortOrder, id] of imageIds.entries()) {
         await transaction
           .update(schema.productImages)
-          .set({ sortOrder, isPrimary: sortOrder === 0, updatedAt: new Date() })
+          .set({
+            sortOrder,
+            isPrimary: id === primaryId,
+            updatedAt: new Date(),
+          })
           .where(eq(schema.productImages.id, id));
       }
       await syncImageMirrors(transaction, product.id);
@@ -1485,6 +1776,8 @@ export class ProductOptionsService {
         imageId,
       );
       if (image.archivedAt) throw new ProductOptionsError("archived");
+      if (image.scope !== "product")
+        throw new ProductOptionsError("primary_must_be_shared");
       await transaction
         .update(schema.productImages)
         .set({ isPrimary: false })
@@ -1533,39 +1826,19 @@ export class ProductOptionsService {
     });
   }
 
+  // Kept for confirmation cards prepared before image scopes existed.
   async assignImage(
     actor: AdminActor,
     imageId: string,
     variantDomainId: string | null,
   ) {
-    assertPermission(actor, "settings.manage");
-    await this.database.transaction(async (transaction) => {
-      const { image, product } = await this.productOfImage(
-        transaction,
-        imageId,
-      );
-      if (image.archivedAt) throw new ProductOptionsError("archived");
-      const variantId = variantDomainId
-        ? await this.variantOfProduct(transaction, product.id, variantDomainId)
-        : null;
-      if (variantId && variantId !== image.variantId)
-        await this.assertVariantRoom(transaction, variantId);
-      await transaction
-        .update(schema.productImages)
-        .set({ variantId, updatedAt: new Date() })
-        .where(eq(schema.productImages.id, image.id));
-      await syncImageMirrors(transaction, product.id);
-      await this.audit(
-        transaction,
-        actor,
-        "product_image_assign",
-        product.domainId,
-        {
-          image: image.id,
-          variant: variantDomainId ?? "none",
-        },
-      );
-    });
+    await this.setImageScope(
+      actor,
+      imageId,
+      variantDomainId
+        ? { scope: "variant", variantDomainId }
+        : { scope: "product" },
+    );
   }
 
   async setImageArchived(
@@ -1585,15 +1858,8 @@ export class ProductOptionsService {
           .update(schema.productImages)
           .set({ archivedAt: now, isPrimary: false, updatedAt: now })
           .where(eq(schema.productImages.id, image.id));
-        if (image.isPrimary) {
-          const [next] = await activeGallery(transaction, product.id);
-          if (next) {
-            await transaction
-              .update(schema.productImages)
-              .set({ isPrimary: true })
-              .where(eq(schema.productImages.id, next.id));
-          }
-        }
+        if (image.isPrimary)
+          await this.promoteSharedPrimary(transaction, product.id);
       } else {
         const active = await activeGallery(transaction, product.id);
         if (active.length >= 8) throw new ProductOptionsError("gallery_full");
@@ -1601,7 +1867,8 @@ export class ProductOptionsService {
           .update(schema.productImages)
           .set({
             archivedAt: null,
-            isPrimary: !active.some((row) => row.isPrimary),
+            isPrimary:
+              image.scope === "product" && !active.some((row) => row.isPrimary),
             sortOrder: active.length,
             updatedAt: now,
           })

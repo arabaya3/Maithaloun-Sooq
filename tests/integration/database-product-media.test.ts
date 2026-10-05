@@ -530,7 +530,14 @@ describe("whole product with variants", () => {
     expect(lamis.images.map((image) => image.variantId)).toEqual(
       lamis.variants.map((variant) => variant.id),
     );
-    expect(lamis.images[0]!.isPrimary).toBe(true);
+    // Each photo is one scent's own picture; only a shared image can be primary, so the card shows the default scent's.
+    expect(lamis.images.map((image) => image.scope)).toEqual([
+      "variant",
+      "variant",
+      "variant",
+    ]);
+    expect(lamis.images.some((image) => image.isPrimary)).toBe(false);
+    expect(products[0]!.imageSrc).toBe(lamis.images[0]!.src);
     expect(published).toHaveLength(3);
     expect(removed).toEqual([]);
     const [stock] = await db

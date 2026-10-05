@@ -16,10 +16,14 @@ export function ProductDetailActions({
   product,
   variantId,
   available,
+  resolveVariantId,
 }: {
   product: Product;
-  variantId: string;
+  /** The one variant the current choices name, or null while the choice is incomplete. */
+  variantId: string | null;
   available: boolean;
+  /** Re-reads the current choices at the moment of adding, so a stale render can never add another variant. */
+  resolveVariantId: () => string | null;
 }) {
   const [quantity, setQuantity] = useState(1);
   const [confirmation, setConfirmation] = useState("");
@@ -46,12 +50,22 @@ export function ProductDetailActions({
         className="add-button detail-add-button"
         disabled={!canAdd}
         onClick={() => {
-          addItem(product.id, variantId, quantity);
+          const current = resolveVariantId();
+          const exact = product.variants.find((entry) => entry.id === current);
+          if (!exact || current !== variantId || !isVariantAvailable(exact)) {
+            setConfirmation("اختر خيارات متوفرة قبل الإضافة إلى السلة.");
+            return;
+          }
+          addItem(product.id, exact.id, quantity);
           setConfirmation(`تمت إضافة ${name} إلى السلة.`);
         }}
       >
         <ShoppingBasket aria-hidden="true" />
-        {canAdd ? "أضف إلى السلة" : "المنتج غير متاح"}
+        {canAdd
+          ? "أضف إلى السلة"
+          : variantId
+            ? "المنتج غير متاح"
+            : "اختر من الخيارات"}
       </button>
       <button
         type="button"

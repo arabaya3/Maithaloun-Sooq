@@ -89,6 +89,16 @@ export function createMediaTools(
           return located.ok ? ops.galleryView(located) : located.output;
         }),
     }),
+    getProductImageMapping: tool({
+      description:
+        "اقرأ ربط صور منتج بالخيارات والأصناف: لكل صورة ما تخصه (صورة عامة، قيمة مثل «اللون: أزرق»، صنف محدد، أو غير مربوطة)، والصور غير المربوطة، والقيم التي بلا صورة، وما يمنع النشر.",
+      inputSchema: z.object({ product }).strict(),
+      execute: (input) =>
+        run("getProductImageMapping", input, async () => {
+          const located = await locate(input.product);
+          return located.ok ? ops.mappingView(located) : located.output;
+        }),
+    }),
     getProductOptions: tool({
       description:
         "اقرأ خيارات منتج (الرائحة، اللون، الحجم، العبوة) وقيمها الحالية والمؤرشفة.",
@@ -144,22 +154,65 @@ export function createMediaTools(
     }),
     prepareGalleryImageChange: tool({
       description:
-        "جهّز بطاقة تغيير صورة واحدة: primary=جعلها رئيسية، alt=وصفها، assign=ربطها بصنف (variant) أو بكل الأصناف (بدون variant)، archive=أرشفتها، restore=استعادة صورة مؤرشفة برقمها في قائمة المؤرشفة.",
+        "جهّز بطاقة تغيير صورة واحدة: primary=جعلها رئيسية (للصور العامة فقط)، alt=وصفها، archive=أرشفتها، restore=استعادة صورة مؤرشفة برقمها في قائمة المؤرشفة. لربط صورة بلون أو صنف استخدم prepareImageMapping.",
       inputSchema: z
         .object({
           product,
           image: imageNumber,
-          change: z.enum(["primary", "alt", "assign", "archive", "restore"]),
+          change: z.enum(["primary", "alt", "archive", "restore"]),
           alt: text(250).optional(),
-          variant: valueText.optional(),
         })
         .strict(),
       execute: (input) =>
         prepare("prepareGalleryImageChange", input, () =>
-          ops.prepareGalleryImage(actor, {
-            ...input,
-            variant: input.variant ?? null,
-          }),
+          ops.prepareGalleryImage(actor, input),
+        ),
+    }),
+    prepareImageMapping: tool({
+      description:
+        "جهّز بطاقة ربط صورة موجودة (برقمها من getProductImageMapping): shared=صورة عامة لكل الأصناف، value=لقيمة خيار مثل اللون أزرق، variant=لصنف محدد واحد، unassigned=إزالة الربط. اربط فقط بما قالته المستخدمة.",
+      inputSchema: z
+        .object({
+          product,
+          image: imageNumber,
+          target: z.enum(["shared", "value", "variant", "unassigned"]),
+          option: optionName.optional().describe("مع value: اسم الخيار"),
+          value: valueText.optional().describe("مع value: القيمة كما قالتها"),
+          variant: valueText
+            .optional()
+            .describe("مع variant: اسم الصنف كما قالته"),
+          suggestion: z
+            .object({
+              value: valueText,
+              confidence: z.number().min(0).max(1),
+              source: z.literal("image_analysis"),
+            })
+            .strict()
+            .optional()
+            .describe(
+              "فقط إذا كان الربط مبنياً على تحليلك للصورة: ما ظننته ودرجة ثقتك. يظهر تحذيراً في البطاقة.",
+            ),
+        })
+        .strict(),
+      execute: (input) =>
+        prepare("prepareImageMapping", input, () =>
+          ops.prepareImageMapping(actor, input),
+        ),
+    }),
+    prepareSharedImageUse: tool({
+      description:
+        "جهّز بطاقة لاستخدام الصورة العامة للمنتج لقيمة لون أو رائحة ليس لها صورة (use=true)، أو لإلغاء ذلك (use=false). فقط عندما تطلبه المستخدمة.",
+      inputSchema: z
+        .object({
+          product,
+          option: optionName,
+          value: valueText,
+          use: z.boolean(),
+        })
+        .strict(),
+      execute: (input) =>
+        prepare("prepareSharedImageUse", input, () =>
+          ops.prepareSharedImageUse(actor, input),
         ),
     }),
     prepareGalleryImageDeletion: tool({
