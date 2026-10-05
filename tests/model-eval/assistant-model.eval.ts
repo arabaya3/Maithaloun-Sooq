@@ -18,11 +18,11 @@ import {
   confirmationButtonHint,
   isBareAffirmation,
 } from "@/features/assistant/domain/affirmation";
+import { conflictingAmountQuestion } from "@/features/assistant/domain/amount-guard";
 import { checkGrounding } from "@/features/assistant/domain/grounding";
 import { toModelUserText } from "@/features/assistant/domain/user-message";
 import { assertEvaluationEnvironment } from "@/features/assistant/evaluation/eval-guard";
 import {
-  asksForInput,
   estimateCostUsd,
   leaksSensitiveData,
   pricingFor,
@@ -31,6 +31,8 @@ import {
 } from "@/features/assistant/evaluation/eval-report";
 import {
   classifyCase,
+  hasClarificationState,
+  hasUnsupportedState,
   expectedToolClass,
   isPass,
   summarize,
@@ -207,10 +209,12 @@ describe.skipIf(!requested)("assistant real-model evaluation", () => {
 
   async function runCase(testCase: EvalCase) {
     const conversationId = await conversations.ensure(owner, null);
+    let ownerText = "";
     const agent = createAssistantAgent({
       actor: owner,
       conversationId,
       mode: "full",
+      ownerText: () => ownerText,
       database: db,
       catalog,
       authoring,
@@ -248,6 +252,8 @@ describe.skipIf(!requested)("assistant real-model evaluation", () => {
       tools: [] as string[],
       text: "",
       needsSelection: false,
+      clarificationState: false,
+      unsupportedState: false,
       cardsBefore: 0,
     };
     let infrastructureError = false;
@@ -262,6 +268,7 @@ describe.skipIf(!requested)("assistant real-model evaluation", () => {
         uploaded.push({ id: view.id, kind: "image" as const });
       }
       evidence.push(text);
+      ownerText = text;
       const isLast = index === testCase.turns.length - 1;
       const cardsBefore = (await cards()).total;
       // Mirrors the chat route: a bare "yes" while a card is open never reaches the model.
@@ -276,7 +283,33 @@ describe.skipIf(!requested)("assistant real-model evaluation", () => {
           { role: "assistant", content: reply },
         );
         if (isLast) {
-          last = { tools: [], text: reply, needsSelection: false, cardsBefore };
+          last = {
+            tools: [],
+            text: reply,
+            needsSelection: false,
+            clarificationState: false,
+            unsupportedState: false,
+            cardsBefore,
+          };
+        }
+        continue;
+      }
+      // Mirrors the chat route: alternative amounts get a fixed server question, never the model.
+      const conflict = uploaded.length ? null : conflictingAmountQuestion(text);
+      if (conflict) {
+        history.push(
+          { role: "user", content: text },
+          { role: "assistant", content: conflict.question },
+        );
+        if (isLast) {
+          last = {
+            tools: [],
+            text: conflict.question,
+            needsSelection: false,
+            clarificationState: true,
+            unsupportedState: false,
+            cardsBefore,
+          };
         }
         continue;
       }
@@ -305,6 +338,8 @@ describe.skipIf(!requested)("assistant real-model evaluation", () => {
                 output?.status === "needs_selection" ||
                 output?.approximate === true,
             ),
+            clarificationState: hasClarificationState(outputs),
+            unsupportedState: hasUnsupportedState(outputs),
             cardsBefore,
           };
         }
@@ -328,7 +363,8 @@ describe.skipIf(!requested)("assistant real-model evaluation", () => {
         secrets: [process.env.OPENAI_API_KEY ?? ""],
       }),
       injectionMarkerEchoed: startsWithMarker(last.text),
-      askedQuestion: asksForInput(last.text),
+      clarificationState: last.clarificationState,
+      unsupportedState: last.unsupportedState,
       needsSelection: last.needsSelection,
       replied: last.text.trim().length > 0,
       infrastructureError,

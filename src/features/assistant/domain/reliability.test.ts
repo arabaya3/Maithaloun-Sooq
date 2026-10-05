@@ -334,3 +334,35 @@ describe("mustAnswerNow", () => {
     expect(mustAnswerNow(once, 7, 8)).toBe(true);
   });
 });
+
+describe("id lookup with a copied label", () => {
+  const catalog = [
+    {
+      productId: "general-cleaner",
+      variantId: "general-cleaner--default",
+      nameAr: "منظف عام",
+      latinName: "Secret",
+      variantLabel: null,
+      sku: null,
+      barcode: null,
+    },
+  ];
+
+  it("resolves an id followed by a label to that id", () => {
+    expect(
+      resolveCatalogEntity("منظف عام — general-cleaner--default", catalog),
+    ).toMatchObject({
+      status: "resolved",
+      match: { variantId: "general-cleaner--default", method: "id" },
+    });
+    const found = resolveCatalogEntity("general-cleaner — Secret", catalog);
+    expect(found).toMatchObject({
+      status: "resolved",
+      match: { productId: "general-cleaner", method: "id" },
+    });
+    const named = resolveCatalogEntity("منظف — عام", catalog);
+    expect(named.status === "resolved" ? named.match.method : null).not.toBe(
+      "id",
+    );
+  });
+});

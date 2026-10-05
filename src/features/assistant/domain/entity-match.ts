@@ -92,11 +92,19 @@ export function resolveCatalogEntity(
   const raw = toLatinDigits(query).trim();
   if (!raw) return { status: "not_found", candidates: [] };
 
+  // "general-cleaner — Secret" or "منظف عام — general-cleaner--default": an id copied next to a label still names that id.
+  const segments = raw.split(/\s+[—-]\s+/).map((part) => part.trim());
+  const id =
+    segments.find((part) =>
+      catalog.some(
+        (entry) => entry.productId === part || entry.variantId === part,
+      ),
+    ) ?? raw;
   const byId = catalog.filter(
-    (entry) => entry.productId === raw || entry.variantId === raw,
+    (entry) => entry.productId === id || entry.variantId === id,
   );
   if (byId.length) {
-    const exactVariant = byId.filter((entry) => entry.variantId === raw);
+    const exactVariant = byId.filter((entry) => entry.variantId === id);
     return decide(
       (exactVariant.length ? exactVariant : byId).map((entry) =>
         candidate(entry, 100, "id"),

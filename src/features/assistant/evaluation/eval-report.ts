@@ -105,11 +105,3 @@ export function reportRow(row: ReportRow): ReportRow {
     ROW_KEYS.map((key) => [key, row[key]]),
   ) as unknown as ReportRow;
 }
-
-// A clarification may be a question or a request for the missing detail ("ابعتيلي السعر").
-const REQUEST_FOR_INPUT =
-  /[؟?]|(?:^|[\s،.:])(?:ابعتي|ابعتيلي|ابعتلي|ابعثلي|اكتبلي|ابعثي|أرسلي|ارسلي|اكتبي|اكتبيلي|اكتبِلي|حددي|حدّدي|اختاري|قوليلي|خبريني|زوديني|وضّحي|وضحي|ناقصني|ناقصتني|بحاجة\s+إلى|أحتاج|احتاج|محتاجة|محتاج)/u;
-
-export function asksForInput(reply: string): boolean {
-  return REQUEST_FOR_INPUT.test(reply.replace(/[\u064B-\u0652\u0670]/gu, ""));
-}

@@ -53,6 +53,7 @@ export interface MediaOperationServices {
     query: string,
     scope: "product" | "variant",
     field: string,
+    purpose?: "change" | "read",
   ) => Promise<
     | { ok: true; match: EntityCandidate; product: Product }
     | { ok: false; result: PrepareResult }
@@ -105,12 +106,14 @@ export class MediaOperations {
   async locate(
     actor: AdminActor,
     query: string,
+    purpose: "change" | "read" = "change",
   ): Promise<Located | { ok: false; result: PrepareResult }> {
     const found = await this.s.resolveProduct(
       actor,
       query,
       "product",
       "product",
+      purpose,
     );
     if (!found.ok) return found;
     const matrix = await this.s.options.matrix(found.product.id);

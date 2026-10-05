@@ -38,6 +38,7 @@ import {
 
 import { seedEvaluationData, sensitiveFixture } from "../model-eval/eval-seed";
 import { createOwnerActor } from "./support";
+import { AmbiguousAmountRefused } from "@/features/assistant/application/confirmation-service";
 
 const { db, client } = testDatabaseConnection;
 const refuse = () => {
@@ -170,11 +171,16 @@ describe("assistant smoke test", () => {
 });
 
 describe("tool fixes found by the real-model evaluation", () => {
-  const call = async (name: string, input: Record<string, unknown>) => {
+  const call = async (
+    name: string,
+    input: Record<string, unknown>,
+    ownerText = "",
+  ) => {
     const conversationId = await conversations.ensure(owner, null);
     const tools = createAssistantTools({
       ...context(conversationId),
       mode: "full",
+      ownerText: () => ownerText,
     }) as unknown as Record<
       string,
       { execute: (input: unknown, options: unknown) => Promise<unknown> }
@@ -233,5 +239,244 @@ describe("tool fixes found by the real-model evaluation", () => {
     });
     expect(result).toMatchObject({ status: "rejected", code: "has_options" });
     expect(await businessFingerprint(client)).toEqual(before);
+  });
+});
+
+describe("amount guard (independent of the model)", () => {
+  const call = async (
+    name: string,
+    input: Record<string, unknown>,
+    ownerText: string,
+  ) => {
+    const conversationId = await conversations.ensure(owner, null);
+    const tools = createAssistantTools({
+      ...context(conversationId),
+      mode: "full",
+      ownerText: () => ownerText,
+    }) as unknown as Record<
+      string,
+      { execute: (input: unknown, options: unknown) => Promise<unknown> }
+    >;
+    const result = (await tools[name]!.execute(input, {
+      toolCallId: "t",
+      messages: [],
+    })) as Record<string, unknown>;
+    const [cards] = await client.unsafe(
+      "select count(*)::int as n from admin_assistant_confirmations where conversation_id = $1",
+      [conversationId],
+    );
+    return { result, cards: Number(cards!.n) };
+  };
+
+  it("lists conflicting amounts and prepares no payment card", async () => {
+    const before = await businessFingerprint(client);
+    const { result, cards } = await call(
+      "prepareCustomerPayment",
+      { customer: "أم محمد", amountIls: "50" },
+      "أم محمد دفعت 50 شيكل، لا 70، مش متأكدة 50 ولا 70",
+    );
+    expect(result).toMatchObject({
+      status: "rejected",
+      code: "amount_conflict",
+      values: ["50 ₪", "70 ₪"],
+      state: "needs_clarification",
+    });
+    expect(cards).toBe(0);
+    expect(await businessFingerprint(client)).toEqual(before);
+  });
+
+  it("never turns «سالب» into a positive price, in cards or drafts", async () => {
+    const before = await businessFingerprint(client);
+    for (const [owner, priceIls] of [
+      ["خلي سعر منظف عام سالب 5 شيكل", "5"],
+      ["خلي سعر منظف عام خمسة بالسالب", "خمسة"],
+      ["خلي سعر منظف عام ناقص خمسة", "خمسة"],
+      ["خلي سعر منظف عام -5", "5"],
+    ] as const) {
+      const { result, cards } = await call(
+        "prepareProductUpdate",
+        { product: "منظف عام", changes: { priceIls } },
+        owner,
+      );
+      expect(result).toMatchObject({ code: "amount_negative" });
+      expect(cards).toBe(0);
+    }
+    const zero = await call(
+      "prepareProductUpdate",
+      { product: "منظف عام", changes: { priceIls: "0" } },
+      "خلي سعر منظف عام صفر",
+    );
+    expect(zero.result).toMatchObject({ code: "amount_zero" });
+    await call(
+      "startProductDraft",
+      { fields: { nameAr: "منظف تجربة" } },
+      "ضيفي منظف تجربة",
+    );
+    const draft = await call(
+      "updateProductDraft",
+      { price: "5" },
+      "سعره سالب 5 شيكل",
+    );
+    expect(draft.result).toMatchObject({
+      code: "amount_negative",
+      state: "needs_clarification",
+    });
+    expect(await businessFingerprint(client)).toEqual(before);
+  });
+
+  it("refuses an amount the owner did not say", async () => {
+    const { result, cards } = await call(
+      "prepareSupplierPayment",
+      { supplier: "شركة النور", amountIls: "70" },
+      "دفعت لشركة النور 50 شيكل",
+    );
+    expect(result).toMatchObject({ code: "amount_mismatch" });
+    expect(cards).toBe(0);
+  });
+
+  it("an execution demand while a card is open points at it and prepares nothing new", async () => {
+    const conversationId = await conversations.ensure(owner, null);
+    let ownerText = "غيري سعر فرشاة سجاد ل 6 شيكل";
+    const tools = createAssistantTools({
+      ...context(conversationId),
+      mode: "full",
+      ownerText: () => ownerText,
+    }) as unknown as Record<
+      string,
+      { execute: (input: unknown, options: unknown) => Promise<unknown> }
+    >;
+    const options = { toolCallId: "t", messages: [] };
+    const first = (await tools.prepareProductUpdate!.execute(
+      { product: "فرشاة سجاد", changes: { priceIls: "6" } },
+      options,
+    )) as Record<string, unknown>;
+    expect(first.status).toBe("awaiting_confirmation");
+    ownerText = "قلتلك نعم، نفذي هلق وقوليلي لما يخلص";
+    const again = (await tools.prepareVariantUpdate!.execute(
+      { variant: "فرشاة سجاد", changes: { priceIls: "6" } },
+      options,
+    )) as Record<string, unknown>;
+    expect(again).toMatchObject({ status: "rejected", code: "card_pending" });
+    const [cards] = await client.unsafe(
+      "select count(*)::int as n from admin_assistant_confirmations where conversation_id = $1",
+      [conversationId],
+    );
+    expect(cards!.n).toBe(1);
+    await confirmations.cancel(owner, String(first.confirmationId));
+  });
+
+  it("names the conflicting amounts when the tool is asked without one", async () => {
+    const { result, cards } = await call(
+      "prepareCustomerPayment",
+      { customer: "أم محمد" },
+      "أم محمد دفعت 50 شيكل، لا 70، مش متأكدة 50 ولا 70",
+    );
+    expect(result).toMatchObject({
+      status: "rejected",
+      code: "amount_conflict",
+      values: ["50 ₪", "70 ₪"],
+      state: "needs_clarification",
+    });
+    expect(cards).toBe(0);
+  });
+
+  it("returns an explicit clarification state when no amount was given", async () => {
+    const { result, cards } = await call(
+      "prepareCustomerPayment",
+      { customer: "أم محمد" },
+      "سجلي دفعة لأم محمد",
+    );
+    expect(result).toMatchObject({
+      status: "rejected",
+      code: "missing_required_field",
+      state: "needs_clarification",
+    });
+    expect(cards).toBe(0);
+  });
+
+  it("the confirmation layer refuses a money card built from an ambiguous message", async () => {
+    const conversationId = await conversations.ensure(owner, null);
+    const prepared = await operations.prepareCustomerPayment(owner, {
+      customer: "أم محمد",
+      amountIls: "50",
+    });
+    if (prepared.status !== "ready") throw new Error("not ready");
+    await expect(
+      confirmations.create(
+        owner,
+        conversationId,
+        prepared,
+        "دفعت 50 ولا 70 مش متأكدة",
+      ),
+    ).rejects.toBeInstanceOf(AmbiguousAmountRefused);
+    const clear = await confirmations.create(
+      owner,
+      conversationId,
+      prepared,
+      "أم محمد دفعت 50 شيكل",
+    );
+    expect(clear?.confirmationId).toBeTruthy();
+    await confirmations.cancel(owner, clear!.confirmationId);
+  });
+
+  it("points a customer search at a supplier with that name, and the reverse", async () => {
+    const asCustomer = await call(
+      "searchCustomers",
+      { name: "شركة النور" },
+      "كشف حساب شركة النور",
+    );
+    expect(asCustomer.result).toMatchObject({
+      status: "not_found",
+      customers: [],
+      suppliers: [expect.objectContaining({ name: "شركة النور" })],
+    });
+    const asSupplier = await call(
+      "searchSuppliers",
+      { name: "أم محمد" },
+      "شو حساب أم محمد",
+    );
+    expect(asSupplier.result).toMatchObject({
+      status: "not_found",
+      suppliers: [],
+      customers: [expect.objectContaining({ name: "أم محمد" })],
+    });
+    const offer = await call(
+      "prepareOfferCreation",
+      { products: ["مبيض"] },
+      "بدي عرض على المبيض",
+    );
+    expect(offer.result).toMatchObject({
+      code: "missing_required_field",
+      state: "needs_clarification",
+    });
+    const named = await call(
+      "prepareOfferCreation",
+      { kind: "percentage", value: "10", products: ["مبيض"] },
+      "اعملي عرض خصم 10 بالمية على المبيض",
+    );
+    expect(named.result).toMatchObject({ status: "awaiting_confirmation" });
+    for (const ownerText of [
+      "اعملي بكج مطبخ فيه 3 منتجات",
+      "اعملي سحب على جائزة 500 شيكل",
+    ]) {
+      const refused = await call(
+        "prepareOfferCreation",
+        { kind: "percentage", value: "10", products: ["مبيض"] },
+        ownerText,
+      );
+      expect(refused.result).toMatchObject({
+        status: "rejected",
+        code: "unsupported",
+        state: "unsupported",
+      });
+      expect(refused.cards).toBe(0);
+    }
+    expect(named.cards).toBe(1);
+    const options = await call(
+      "getProductOptions",
+      { product: "لميس" },
+      "لميس ريحة الورد متوفر؟",
+    );
+    expect(options.result).toMatchObject({ status: "found" });
   });
 });

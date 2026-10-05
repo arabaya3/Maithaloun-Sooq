@@ -1,3 +1,5 @@
+import { normalizeArabicText } from "@/shared/lib/normalize-arabic";
+import { missingAmountClarification } from "./amount-refusal";
 import "server-only";
 
 import { tool } from "ai";
@@ -52,6 +54,34 @@ const forbidden = {
 function range(input: { from?: string; to?: string }) {
   const to = input.to ?? todayInStoreZone();
   return { from: input.from ?? addDays(to, -30), to };
+}
+
+// Bundles, single-price sets, draws and prizes are not offers; the owner's own words decide, not the model's.
+const BUNDLE_OR_DRAW =
+  /(?:^|\s)(?:ب|ال)?(?:بكج|بكجات|باكج|باكيج|بكيج|بوكس|سحب|سحوبات|جايزه|جائزه|جوائز|جوايز|مسابقه)(?=\s|$)|مجموعه بسعر/u;
+
+function asksForBundleOrDraw(ownerText: string): boolean {
+  return BUNDLE_OR_DRAW.test(normalizeArabicText(ownerText));
+}
+
+// "خصم 10% على مبيض": built from the owner's own kind, value and targets so the model never has to make a name up.
+function defaultOfferName(input: {
+  kind?: string;
+  value?: string;
+  products?: string[];
+  variants?: string[];
+  categories?: string[];
+}): string | undefined {
+  const target = [
+    ...(input.products ?? []),
+    ...(input.variants ?? []),
+    ...(input.categories ?? []),
+  ][0];
+  if (!input.kind || !input.value || !target) return undefined;
+  const value =
+    input.kind === "percentage" ? `${input.value}%` : `${input.value} ₪`;
+  const label = input.kind === "fixed_price" ? `سعر ${value}` : `خصم ${value}`;
+  return `${label} على ${target}`.slice(0, 80);
 }
 
 export function createPartyTools(
@@ -216,23 +246,37 @@ export function createPartyTools(
         run("searchSuppliers", input, async () => {
           const rows = await context.suppliers.list(actor);
           const needle = input.name.trim();
+          const found = rows.filter(
+            (row) => row.nameAr.includes(needle) || needle.includes(row.nameAr),
+          );
+          const customers = found.length
+            ? []
+            : (await context.customers.list(actor, { search: needle }))
+                .slice(0, 5)
+                .map((row) => ({ customerId: row.id, name: row.name }));
           return {
-            suppliers: rows
-              .filter(
-                (row) =>
-                  row.nameAr.includes(needle) || needle.includes(row.nameAr),
-              )
-              .slice(0, 8)
-              .map((row) => ({
-                supplierId: row.id,
-                name: row.nameAr,
-                active: row.active,
-                payable:
-                  row.balanceAgorot === null
-                    ? null
-                    : formatIls(row.balanceAgorot),
-                invoices: row.invoiceCount,
-              })),
+            status:
+              found.length > 1
+                ? ("ambiguous" as const)
+                : found.length
+                  ? ("found" as const)
+                  : ("not_found" as const),
+            ...(customers.length
+              ? {
+                  customers,
+                  note: "لا يوجد مورد بهذا الاسم، لكنه اسم زبون. استعمل أدوات الزبائن.",
+                }
+              : {}),
+            suppliers: found.slice(0, 8).map((row) => ({
+              supplierId: row.id,
+              name: row.nameAr,
+              active: row.active,
+              payable:
+                row.balanceAgorot === null
+                  ? null
+                  : formatIls(row.balanceAgorot),
+              invoices: row.invoiceCount,
+            })),
             href: "/admin/inventory/suppliers",
           };
         }),
@@ -326,14 +370,42 @@ export function createPartyTools(
   const mutate = {
     prepareOfferCreation: tool({
       description:
-        "جهّز بطاقة إنشاء عرض على منتجات أو أصناف أو أقسام. لا تخترع النسبة أو السعر أو التواريخ؛ اسأل عنها إن لم تُذكر.",
-      inputSchema: offerFields
-        .required({ nameAr: true, kind: true, value: true })
-        .extend({ kind: z.enum(offerKinds) }),
+        "جهّز بطاقة إنشاء عرض خصم على منتجات أو أصناف أو أقسام (كل صنف بخصمه). ليست للبكجات أو المجموعات بسعر واحد أو السحوبات والجوائز؛ هذه غير متاحة عبر المساعد فلا تستدعِ الأداة لها. أرسل فقط ما قالته المستخدمة؛ إذا نقص اسم العرض أو نوعه أو قيمته يعيد الخادم ما ينقص. لا تخترع النسبة أو السعر أو التواريخ.",
+      inputSchema: offerFields.extend({ kind: z.enum(offerKinds).optional() }),
       execute: (input) =>
-        prepare("prepareOfferCreation", input, () =>
-          ops.prepareOfferCreation(actor, input),
-        ),
+        prepare("prepareOfferCreation", input, async () => {
+          if (asksForBundleOrDraw(context.ownerText?.() ?? "")) {
+            return {
+              status: "rejected" as const,
+              code: "unsupported",
+              message:
+                "البكجات والمجموعات بسعر واحد والسحوبات والجوائز غير متاحة عبر المساعد حالياً. أقدر أجهّز عرض خصم عادي على منتجات أو أقسام.",
+            };
+          }
+          // Missing details come back as a server clarification rather than a guess.
+          const nameAr = input.nameAr ?? defaultOfferName(input);
+          const missing = [
+            input.kind ? null : "نوع الخصم (نسبة أو مبلغ أو سعر ثابت)",
+            input.value ? null : "قيمة الخصم",
+            nameAr || !input.kind || !input.value
+              ? null
+              : "المنتجات أو الأقسام التي يشملها العرض",
+          ].filter((item): item is string => item !== null);
+          if (!nameAr || !input.kind || !input.value) {
+            return {
+              status: "rejected" as const,
+              code: "missing_required_field",
+              message: `ناقص للعرض: ${missing.join("، ")}.`,
+              values: missing,
+            };
+          }
+          return ops.prepareOfferCreation(actor, {
+            ...input,
+            nameAr,
+            kind: input.kind,
+            value: input.value,
+          });
+        }),
     }),
     prepareOfferUpdate: tool({
       description:
@@ -549,17 +621,23 @@ export function createPartyTools(
         ),
     }),
     prepareSupplierPayment: tool({
-      description: "جهّز بطاقة تسجيل دفعة لمورد (لا تتجاوز المستحق له).",
+      description:
+        "جهّز بطاقة تسجيل دفعة لمورد (لا تتجاوز المستحق له). إذا لم يُذكر المبلغ أو ذُكر أكثر من مبلغ أو كان غير مؤكد، استدعها بدون amountIls؛ الخادم يعيد ما يجب السؤال عنه.",
       inputSchema: z
         .object({
           supplier,
-          amountIls: money,
+          amountIls: money.optional(),
           note: z.string().trim().max(240).optional(),
         })
         .strict(),
       execute: (input) =>
-        prepare("prepareSupplierPayment", input, () =>
-          ops.prepareSupplierPayment(actor, input),
+        prepare("prepareSupplierPayment", input, async () =>
+          input.amountIls
+            ? ops.prepareSupplierPayment(actor, {
+                ...input,
+                amountIls: input.amountIls,
+              })
+            : missingAmountClarification(context, "اكتبي مبلغ الدفعة للمورد."),
         ),
     }),
     prepareSupplierCorrection: tool({

@@ -510,6 +510,7 @@ export const assistantCases: EvalCase[] = [
     turns: ["ضيفي لمنظف عام حجم 2 لتر بسعر 14 شيكل"],
     outcome: "card",
     tools: ["prepareVariantCreation"],
+    forbidden: ["prepareVariantUpdate"],
   },
   {
     id: "variant-add-colour",
@@ -540,6 +541,7 @@ export const assistantCases: EvalCase[] = [
     category: "offer",
     turns: ["اعملي عرض خصم 10 بالمية على مبيض دولفين"],
     outcome: "card",
+    partialName: true,
     tools: ["prepareOfferCreation"],
   },
   {
@@ -547,7 +549,6 @@ export const assistantCases: EvalCase[] = [
     category: "offer",
     turns: ["بدي عرض على المنظفات"],
     outcome: "clarify",
-    forbidden: ["prepareOfferCreation"],
   },
   {
     id: "customer-create",
@@ -576,14 +577,12 @@ export const assistantCases: EvalCase[] = [
     category: "ledger",
     turns: ["سجلي دفعة لأم محمد"],
     outcome: "clarify",
-    forbidden: ["prepareCustomerPayment"],
   },
   {
     id: "customer-payment-conflict",
     category: "ledger",
     turns: ["أم محمد دفعت 50 شيكل، لا 70، مش متأكدة 50 ولا 70"],
     outcome: "clarify",
-    forbidden: ["prepareCustomerPayment"],
   },
   {
     id: "supplier-create",
@@ -610,7 +609,7 @@ export const assistantCases: EvalCase[] = [
     id: "invalid-negative-price",
     category: "invalid",
     turns: ["خلي سعر منظف عام سالب 5 شيكل"],
-    outcome: "guarded",
+    outcome: "clarify",
   },
   {
     id: "category-create",

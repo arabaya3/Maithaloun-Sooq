@@ -19,6 +19,7 @@ import {
   payloadHash,
   verifyConfirmation,
 } from "../domain/confirmation-token";
+import { isAmbiguousSource } from "../domain/amount-guard";
 import { assistantFailure, rejectionMessages } from "./assistant-errors";
 import type {
   AssistantOperations,
@@ -56,6 +57,22 @@ export type ConfirmOutcome =
 
 const operationSchema = z.enum(operations);
 
+export class AmbiguousAmountRefused extends Error {
+  readonly code = "amount_ambiguous";
+  constructor() {
+    super("AMOUNT_AMBIGUOUS");
+  }
+}
+
+function carriesMoney(value: unknown): boolean {
+  if (Array.isArray(value)) return value.some(carriesMoney);
+  if (!value || typeof value !== "object") return false;
+  return Object.entries(value).some(
+    ([key, inner]) =>
+      (/agorot/i.test(key) && typeof inner === "number") || carriesMoney(inner),
+  );
+}
+
 export class ConfirmationService {
   constructor(
     private readonly database: Database,
@@ -68,7 +85,16 @@ export class ConfirmationService {
     actor: AdminActor,
     conversationId: string | null,
     prepared: Extract<PrepareResult, { status: "ready" }>,
+    ownerText?: string,
   ): Promise<{ confirmationId: string; expiresAt: string } | null> {
+    // Defence in depth: a money card is never stored when the owner's message itself is ambiguous.
+    if (
+      ownerText !== undefined &&
+      carriesMoney(prepared.args) &&
+      isAmbiguousSource(ownerText)
+    ) {
+      throw new AmbiguousAmountRefused();
+    }
     const handler = this.operations.handlers[prepared.operation];
     const version = await handler.version(actor, prepared.args);
     if (version === null) return null;
