@@ -38,11 +38,16 @@ import {
 import { variantAttributesSchema } from "@/features/catalog/domain/product-variant";
 import { postStockAdjustment } from "@/features/inventory/application/inventory-service";
 import type { Database } from "@/features/inventory/application/stock-ledger";
+import {
+  mappingMessages,
+  mappingProblems,
+} from "@/features/catalog/domain/product-media-validation";
 import * as schema from "@/server/db/schema";
 
 import {
   activeGallery,
   addGalleryImage,
+  mappingInputFor,
   renumber,
   syncImageMirrors,
 } from "./gallery-store";
@@ -694,6 +699,16 @@ export class CatalogAuthoringService {
     if (!category || category.archivedAt)
       problems.push("القسم غير صالح أو مؤرشف.");
     if (product.archivedAt) problems.push("المنتج مؤرشف؛ استرجعيه أولاً.");
+    // Publishing is stricter than saving a draft: every image must say which colour, scent or variant it shows.
+    const mapping = mappingProblems(
+      await mappingInputFor(executor as Transaction, product.id),
+    );
+    if (mapping.length) {
+      problems.push(
+        mappingMessages.blocked,
+        ...new Set(mapping.map((problem) => problem.message)),
+      );
+    }
     return {
       ready: problems.length === 0,
       problems,

@@ -5,6 +5,7 @@ import { z } from "zod";
 
 import { requireTrustedAdminMutation } from "@/features/admin/auth/admin-session";
 import { AuthorizationError } from "@/features/admin/domain/admin-actor";
+import { parseImageTarget } from "@/features/admin/domain/image-target";
 import { optionKinds } from "@/features/catalog/domain/product-options";
 import { parseMoneyInput } from "@/shared/lib/money-input";
 import { getProductImageStore } from "@/server/storage/product-images";
@@ -27,6 +28,9 @@ const messages: Record<ProductOptionsError["code"], string> = {
   gallery_full: "المعرض ممتلئ (8 صور كحد أقصى).",
   primary_required: "يجب أن تبقى صورة رئيسية.",
   default_variant: "لا يمكن تطبيق ذلك على الصنف الافتراضي.",
+  has_images:
+    "صور مرتبطة بهذه القيمة. انقل الصور إلى قيمة أخرى أو اجعلها صورة عامة أولاً.",
+  primary_must_be_shared: "الصورة الرئيسية يجب أن تكون صورة عامة للمنتج.",
 };
 
 async function run(
@@ -59,8 +63,8 @@ const uuid = z.uuid();
 export async function galleryImageAction(input: {
   productDomainId: string;
   imageId: string;
-  action: "primary" | "archive" | "restore" | "delete" | "assign" | "alt";
-  variantDomainId?: string | null;
+  action: "primary" | "archive" | "restore" | "delete" | "scope" | "alt";
+  target?: string;
   alt?: string;
 }): Promise<MediaActionResult> {
   const actor = await requireTrustedAdminMutation();
@@ -79,12 +83,10 @@ export async function galleryImageAction(input: {
         imageId,
         input.alt ?? "",
       );
-    if (input.action === "assign") {
-      await productOptionsService.assignImage(
-        actor,
-        imageId,
-        input.variantDomainId ? variantId.parse(input.variantDomainId) : null,
-      );
+    if (input.action === "scope") {
+      const target = parseImageTarget(input.target);
+      if (!target) throw new ProductOptionsError("invalid_input");
+      await productOptionsService.setImageScope(actor, imageId, target);
     }
     if (input.action === "delete") {
       const removed = await productOptionsService.deleteImage(actor, imageId);
@@ -92,6 +94,23 @@ export async function galleryImageAction(input: {
         await getProductImageStore().remove?.(removed.src);
     }
   });
+}
+
+export async function valueSharedImageAction(input: {
+  productDomainId: string;
+  valueId: string;
+  usesSharedImage: boolean;
+}): Promise<MediaActionResult> {
+  const actor = await requireTrustedAdminMutation();
+  const domainId = productId.parse(input.productDomainId);
+  const valueId = uuid.parse(input.valueId);
+  return run(domainId, () =>
+    productOptionsService.setValueSharedImage(
+      actor,
+      valueId,
+      z.boolean().parse(input.usesSharedImage),
+    ),
+  );
 }
 
 export async function reorderGalleryAction(

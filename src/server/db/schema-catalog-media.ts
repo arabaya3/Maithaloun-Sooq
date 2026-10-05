@@ -23,50 +23,6 @@ const timestamps = {
   updatedAt: at("updated_at").defaultNow().notNull(),
 };
 
-// Gallery images; the legacy products.image_* and product_variants.image_* columns mirror the primary and assigned images.
-export const productImages = pgTable(
-  "product_images",
-  {
-    id: uuid("id").defaultRandom().primaryKey(),
-    productId: uuid("product_id")
-      .notNull()
-      .references(() => products.id, { onDelete: "cascade" }),
-    variantId: uuid("variant_id"),
-    src: varchar("src", { length: 500 }).notNull(),
-    altAr: varchar("alt_ar", { length: 250 }).notNull(),
-    width: integer("width").notNull(),
-    height: integer("height").notNull(),
-    sortOrder: integer("sort_order").notNull(),
-    isPrimary: boolean("is_primary").default(false).notNull(),
-    archivedAt: at("archived_at"),
-    ...timestamps,
-  },
-  (table) => [
-    index("product_images_product_sort_idx").on(
-      table.productId,
-      table.sortOrder,
-    ),
-    index("product_images_variant_idx").on(table.variantId, table.productId),
-    uniqueIndex("product_images_one_primary_uidx")
-      .on(table.productId)
-      .where(sql`${table.isPrimary} AND ${table.archivedAt} IS NULL`),
-    foreignKey({
-      name: "product_images_variant_same_product_fk",
-      columns: [table.variantId, table.productId],
-      foreignColumns: [productVariants.id, productVariants.productId],
-    }),
-    check(
-      "product_images_dimensions",
-      sql`${table.width} > 0 AND ${table.height} > 0`,
-    ),
-    check("product_images_sort", sql`${table.sortOrder} >= 0`),
-    check(
-      "product_images_primary_active",
-      sql`NOT (${table.isPrimary} AND ${table.archivedAt} IS NOT NULL)`,
-    ),
-  ],
-);
-
 export const productOptionKinds = [
   "color",
   "fragrance",
@@ -119,6 +75,8 @@ export const productOptionValues = pgTable(
     valueAr: varchar("value_ar", { length: 60 }).notNull(),
     normalizedValue: varchar("normalized_value", { length: 60 }).notNull(),
     sortOrder: integer("sort_order").notNull(),
+    // The owner chose to show the shared product image for this value instead of a picture of its own.
+    usesSharedImage: boolean("uses_shared_image").default(false).notNull(),
     archivedAt: at("archived_at"),
     ...timestamps,
   },
@@ -144,6 +102,89 @@ export const productOptionValues = pgTable(
     check(
       "product_option_values_not_blank",
       sql`char_length(btrim(${table.valueAr})) >= 1`,
+    ),
+  ],
+);
+
+export const productImageScopes = [
+  "unassigned",
+  "product",
+  "option_value",
+  "variant",
+] as const;
+export type ProductImageScope = (typeof productImageScopes)[number];
+export const productImageScopeEnum = pgEnum(
+  "product_image_scope",
+  productImageScopes,
+);
+
+// Every image states what it shows: the whole product, one option value (such as a colour), one exact variant, or nothing yet.
+// Gallery images; the legacy products.image_* and product_variants.image_* columns mirror the primary and assigned images.
+export const productImages = pgTable(
+  "product_images",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    productId: uuid("product_id")
+      .notNull()
+      .references(() => products.id, { onDelete: "cascade" }),
+    variantId: uuid("variant_id"),
+    scope: productImageScopeEnum("scope").default("product").notNull(),
+    optionId: uuid("option_id"),
+    optionValueId: uuid("option_value_id"),
+    src: varchar("src", { length: 500 }).notNull(),
+    altAr: varchar("alt_ar", { length: 250 }).notNull(),
+    width: integer("width").notNull(),
+    height: integer("height").notNull(),
+    sortOrder: integer("sort_order").notNull(),
+    isPrimary: boolean("is_primary").default(false).notNull(),
+    archivedAt: at("archived_at"),
+    ...timestamps,
+  },
+  (table) => [
+    index("product_images_product_sort_idx").on(
+      table.productId,
+      table.sortOrder,
+    ),
+    index("product_images_variant_idx").on(table.variantId, table.productId),
+    index("product_images_option_idx").on(table.optionId, table.productId),
+    index("product_images_option_value_idx").on(
+      table.optionValueId,
+      table.optionId,
+    ),
+    uniqueIndex("product_images_one_primary_uidx")
+      .on(table.productId)
+      .where(sql`${table.isPrimary} AND ${table.archivedAt} IS NULL`),
+    foreignKey({
+      name: "product_images_variant_same_product_fk",
+      columns: [table.variantId, table.productId],
+      foreignColumns: [productVariants.id, productVariants.productId],
+    }),
+    foreignKey({
+      name: "product_images_option_same_product_fk",
+      columns: [table.optionId, table.productId],
+      foreignColumns: [productOptions.id, productOptions.productId],
+    }),
+    foreignKey({
+      name: "product_images_value_same_option_fk",
+      columns: [table.optionValueId, table.optionId],
+      foreignColumns: [productOptionValues.id, productOptionValues.optionId],
+    }),
+    check(
+      "product_images_scope_target",
+      sql`(${table.scope} = 'variant' AND ${table.variantId} IS NOT NULL AND ${table.optionId} IS NULL AND ${table.optionValueId} IS NULL) OR (${table.scope} = 'option_value' AND ${table.variantId} IS NULL AND ${table.optionId} IS NOT NULL AND ${table.optionValueId} IS NOT NULL) OR (${table.scope} IN ('product', 'unassigned') AND ${table.variantId} IS NULL AND ${table.optionId} IS NULL AND ${table.optionValueId} IS NULL)`,
+    ),
+    check(
+      "product_images_unassigned_not_primary",
+      sql`NOT (${table.isPrimary} AND ${table.scope} = 'unassigned')`,
+    ),
+    check(
+      "product_images_dimensions",
+      sql`${table.width} > 0 AND ${table.height} > 0`,
+    ),
+    check("product_images_sort", sql`${table.sortOrder} >= 0`),
+    check(
+      "product_images_primary_active",
+      sql`NOT (${table.isPrimary} AND ${table.archivedAt} IS NOT NULL)`,
     ),
   ],
 );

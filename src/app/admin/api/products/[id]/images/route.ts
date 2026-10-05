@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { uploadGalleryImage } from "@/features/admin/application/gallery-upload";
+import { parseImageTarget } from "@/features/admin/domain/image-target";
 import {
   jsonNoStore,
   unauthorizedJson,
@@ -67,9 +68,22 @@ export async function POST(
       400,
     );
   }
-  const alt = new URL(request.url).searchParams.get("alt") ?? "";
+  const params = new URL(request.url).searchParams;
+  const alt = params.get("alt") ?? "";
+  const target = params.has("target")
+    ? parseImageTarget(params.get("target"))
+    : null;
+  if (params.has("target") && !target) {
+    return jsonNoStore({ ok: false, message: "البيانات غير صالحة." }, 400);
+  }
   try {
-    const result = await uploadGalleryImage(actor, domainId.data, bytes, alt);
+    const result = await uploadGalleryImage(
+      actor,
+      domainId.data,
+      bytes,
+      alt,
+      target,
+    );
     if (!result.ok) {
       return jsonNoStore({ ok: false, message: result.message }, result.status);
     }

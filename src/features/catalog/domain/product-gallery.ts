@@ -3,6 +3,14 @@ import { z } from "zod";
 export const MAX_PRODUCT_IMAGES = 8;
 export const MAX_VARIANT_IMAGES = 5;
 
+export const galleryImageScopes = [
+  "unassigned",
+  "product",
+  "option_value",
+  "variant",
+] as const;
+export type GalleryImageScope = (typeof galleryImageScopes)[number];
+
 export const galleryImageSchema = z
   .object({
     id: z.string().min(1).max(64),
@@ -12,7 +20,12 @@ export const galleryImageSchema = z
     height: z.number().int().positive(),
     sortOrder: z.number().int().nonnegative(),
     isPrimary: z.boolean(),
+    scope: z.enum(galleryImageScopes),
+    /** Variant domain id, only for scope "variant". */
     variantId: z.string().min(1).max(100).nullable(),
+    /** Option and value ids, only for scope "option_value". */
+    optionId: z.string().min(1).max(64).nullable(),
+    optionValueId: z.string().min(1).max(64).nullable(),
   })
   .strict();
 
@@ -26,19 +39,6 @@ export function orderGallery<
       Number(right.isPrimary) - Number(left.isPrimary) ||
       left.sortOrder - right.sortOrder,
   );
-}
-
-// A variant shows its own images first, then the shared product images; another variant's images are left out.
-export function galleryForVariant(
-  images: readonly GalleryImage[],
-  variantId: string | null,
-): GalleryImage[] {
-  const ordered = orderGallery(images);
-  const own = ordered.filter(
-    (image) => variantId && image.variantId === variantId,
-  );
-  const shared = ordered.filter((image) => !image.variantId);
-  return [...own, ...shared];
 }
 
 export function isPermutation(

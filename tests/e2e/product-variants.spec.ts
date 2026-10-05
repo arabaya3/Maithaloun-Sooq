@@ -124,10 +124,10 @@ async function seedStorefront() {
     await link(muskSmall, musk, small);
     await link(lavenderLarge, lavender, large);
     await sql`
-      insert into product_images (product_id, variant_id, src, alt_ar, width, height, sort_order, is_primary)
-      values (${product!.id}, null, '/products/lamis-air-group.webp', 'مجموعة معطرات لميس', 800, 800, 0, true),
-             (${product!.id}, null, '/products/lamis-lavender-real.webp', 'معطر لميس لافندر', 800, 800, 1, false),
-             (${product!.id}, ${muskSmall}, '/products/lamis-velvet-musk-real.webp', 'معطر لميس مسك', 800, 800, 2, false)`;
+      insert into product_images (product_id, scope, variant_id, src, alt_ar, width, height, sort_order, is_primary)
+      values (${product!.id}, 'product', null, '/products/lamis-air-group.webp', 'مجموعة معطرات لميس', 800, 800, 0, true),
+             (${product!.id}, 'product', null, '/products/lamis-lavender-real.webp', 'معطر لميس لافندر', 800, 800, 1, false),
+             (${product!.id}, 'variant', ${muskSmall}, '/products/lamis-velvet-musk-real.webp', 'معطر لميس مسك', 800, 800, 2, false)`;
   });
 }
 
@@ -143,7 +143,7 @@ test.beforeAll(async () => {
 });
 test.afterAll(cleanUp);
 
-test("storefront: choose scent and size, impossible combination disabled, exact variant reaches the order", async ({
+test("storefront: choose scent and size, missing combination never reached, exact variant reaches the order", async ({
   page,
 }) => {
   const issues = trackPageIssues(page);
@@ -156,10 +156,20 @@ test("storefront: choose scent and size, impossible combination disabled, exact 
   );
   await expect(page.locator(".product-detail-price")).toContainText("10");
 
-  // مسك comes only in 450 مل, so choosing 1 لتر rules it out.
+  // مسك comes only in 450 مل: with 1 لتر chosen it stays reachable but marked, and choosing it moves the size.
   await size.getByRole("radio", { name: "1 لتر" }).click();
   await expect(page.locator(".product-detail-price")).toContainText("18");
-  await expect(scent.getByRole("radio", { name: "مسك" })).toBeDisabled();
+  await expect(scent.getByRole("radio", { name: /^مسك/ })).toHaveAttribute(
+    "data-state",
+    "adjusts",
+  );
+  await scent.getByRole("radio", { name: /^مسك/ }).click();
+  await expect(size.getByRole("radio", { name: "450 مل" })).toHaveAttribute(
+    "aria-checked",
+    "true",
+  );
+  await scent.getByRole("radio", { name: "لافندر" }).click();
+  await size.getByRole("radio", { name: "1 لتر" }).click();
 
   // Choosing values never asks the server; the page already holds every combination.
   const requests: string[] = [];
@@ -167,15 +177,15 @@ test("storefront: choose scent and size, impossible combination disabled, exact 
     if (request.resourceType() === "fetch") requests.push(request.url());
   });
   await size.getByRole("radio", { name: "450 مل" }).click();
-  await scent.getByRole("radio", { name: "مسك" }).click();
+  await scent.getByRole("radio", { name: /^مسك/ }).click();
   expect(requests).toEqual([]);
   await expect(page.locator(".product-detail-price")).toContainText("12");
   await expect(page).toHaveURL(/variant=e2e-lamis--musk-450/);
 
-  // The musk image leads its own gallery.
+  // The musk variant's own image is the one shown.
   const gallery = page.getByRole("region", { name: `صور ${STORE.name}` });
   await expect(
-    gallery.getByRole("img", { name: "معطر لميس مسك" }),
+    gallery.getByRole("img", { name: /^معطر لميس مسك/ }),
   ).toBeVisible();
   await expect(gallery.getByRole("button", { name: /عرض الصورة/ })).toHaveCount(
     3,
@@ -228,11 +238,14 @@ test("storefront gallery: swipe, arrows, thumbnails and RTL keyboard", async ({
   await page.goto(`/products/${STORE.slug}?variant=e2e-lamis--musk-450`);
   const gallery = page.getByRole("region", { name: `صور ${STORE.name}` });
   const thumb = (n: number) =>
-    gallery.getByRole("button", { name: `عرض الصورة ${n} من 3` });
-  await expect(thumb(1)).toHaveAttribute("aria-current", "true");
+    gallery.getByRole("button", { name: new RegExp(`^عرض الصورة ${n} من 3`) });
+  // The musk variant's own picture is active; shared ones stay one tap away.
+  await expect(thumb(3)).toHaveAttribute("aria-current", "true");
 
-  const track = gallery.locator(".product-gallery-track");
-  await track.focus();
+  await thumb(3).focus();
+  await page.keyboard.press("Home");
+  await expect(thumb(1)).toHaveAttribute("aria-current", "true");
+  await expect(thumb(1)).toBeFocused();
   await page.keyboard.press("ArrowLeft");
   await expect(thumb(2)).toHaveAttribute("aria-current", "true");
   await page.keyboard.press("End");
@@ -242,21 +255,23 @@ test("storefront gallery: swipe, arrows, thumbnails and RTL keyboard", async ({
   ).toBeDisabled();
   await page.keyboard.press("ArrowRight");
   await expect(thumb(2)).toHaveAttribute("aria-current", "true");
-  await page.keyboard.press("Home");
-  await expect(thumb(1)).toHaveAttribute("aria-current", "true");
 
-  // A swipe is a horizontal scroll of the snap track (negative in RTL).
-  await track.evaluate((element) => {
-    element.scrollTo({ left: -element.clientWidth, behavior: "instant" });
-  });
-  await expect(thumb(2)).toHaveAttribute("aria-current", "true");
-  await thumb(3).click();
+  // A sideways swipe on the main image moves one picture; in RTL a swipe to the right goes forward.
+  const stage = gallery.locator(".product-gallery-stage");
+  const box = (await stage.boundingBox())!;
+  const y = box.y + box.height / 2;
+  await page.mouse.move(box.x + box.width * 0.3, y);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width * 0.7, y, { steps: 5 });
+  await page.mouse.up();
   await expect(thumb(3)).toHaveAttribute("aria-current", "true");
+  await gallery.getByRole("button", { name: "الصورة السابقة" }).click();
+  await expect(thumb(2)).toHaveAttribute("aria-current", "true");
 
   for (const target of await gallery.getByRole("button").all()) {
-    const box = await target.boundingBox();
-    expect(box!.height).toBeGreaterThanOrEqual(44);
-    expect(box!.width).toBeGreaterThanOrEqual(44);
+    const size = await target.boundingBox();
+    expect(size!.height).toBeGreaterThanOrEqual(44);
+    expect(size!.width).toBeGreaterThanOrEqual(44);
   }
   for (const radio of await page.getByRole("radio").all()) {
     expect((await radio.boundingBox())!.height).toBeGreaterThanOrEqual(44);
@@ -281,10 +296,10 @@ test("storefront variant page fits 360, 390, 768 and 1440 without errors", async
   }
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.goto(`/products/${STORE.slug}`);
-  const behavior = await page
-    .locator(".product-gallery-track")
-    .evaluate((element) => getComputedStyle(element).scrollBehavior);
-  expect(behavior).toBe("auto");
+  const animation = await page
+    .locator(".product-gallery-image")
+    .evaluate((element) => getComputedStyle(element).animationName);
+  expect(animation).toBe("none");
   expect(issues.consoleErrors).toEqual([]);
   expect(issues.failedRequests).toEqual([]);
 });
@@ -344,7 +359,10 @@ test("admin at 390: three scents with three images, by hand", async ({
   await expect(editor.getByText("الصور (3 من 8)")).toBeVisible();
   const items = editor.locator(".admin-gallery-item");
   for (const [index, label] of ["لافندر", "ورد أبيض", "مسك"].entries()) {
-    await items.nth(index).getByLabel("تخص الصنف").selectOption({ label });
+    await items
+      .nth(index)
+      .getByLabel("الصورة تخص")
+      .selectOption({ label: `الرائحة: ${label}` });
     await expect(status).toHaveText("تم ربط الصورة.");
   }
   await expectNoHorizontalOverflow(page);
@@ -356,7 +374,9 @@ test("admin at 390: three scents with three images, by hand", async ({
   const rows = await withTestDb(
     (sql) => sql<{ label: string; price: number; images: number }[]>`
       select v.label_ar as label, v.price_agorot as price,
-        (select count(*)::int from product_images i where i.variant_id = v.id and i.archived_at is null) as images
+        (select count(*)::int from product_images i
+          join product_variant_option_values l on l.value_id = i.option_value_id
+          where l.variant_id = v.id and i.archived_at is null) as images
       from product_variants v join products p on p.id = v.product_id
       where p.domain_id = ${MANUAL.domainId} and v.archived_at is null order by v.sort_order`,
   );

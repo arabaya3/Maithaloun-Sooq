@@ -341,6 +341,20 @@ function planFromUser(
       input: { variant: archive[1]!, mode: "restore" },
     };
   }
+  const mapping = /^اربطي الصورة (\d+) من (.+?) باللون (.+)$/.exec(words);
+  if (mapping) {
+    return {
+      kind: "tool",
+      toolName: "prepareImageMapping",
+      input: {
+        product: mapping[2]!,
+        image: Number(mapping[1]),
+        target: "value",
+        option: "اللون",
+        value: mapping[3]!,
+      },
+    };
+  }
   const party = partyPlan(words);
   if (party) return party;
   const variants = variantPlan(words, draft);
