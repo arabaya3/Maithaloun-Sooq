@@ -4,3 +4,9 @@ packages:
 allowBuilds:
   esbuild: true
   unrs-resolver: true
+
+# Security pins. exceljs 4.4.0 (latest) ranges uuid ^8 but only calls require("uuid").v4, kept in uuid 11 (GHSA-w5hq-g745-h8pq).
+# @serwist/utils 9.5.12 pins browserslist 4.28.6 (GHSA-c83g-rgw3-j3cx, GHSA-73wf-gq98-2v4g); 4.29.3 is a compatible 4.x patch.
+overrides:
+  exceljs>uuid: 11.1.1
+  browserslist: 4.29.3
