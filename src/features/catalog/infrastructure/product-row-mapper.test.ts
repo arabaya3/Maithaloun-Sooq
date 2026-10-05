@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { products } from "@/server/db/schema";
 
-import { mapProductRow } from "./product-row-mapper";
+import { mapProductRow, type SellingUnitRow } from "./product-row-mapper";
 
 const row: typeof products.$inferSelect = {
   id: "4077df44-66f8-458d-a5e2-b5d98fa2ec72",
@@ -82,10 +82,70 @@ describe("product database mapping", () => {
           image: { kind: "placeholder", variant: "general-cleaner" },
           sortOrder: 0,
           isDefault: true,
+          sellingUnits: [],
         },
       ],
       specifications: [],
     });
+  });
+
+  it("maps active selling units with availability from free base stock", () => {
+    const unit = (
+      id: string,
+      labelAr: string,
+      unitsPerSale: number,
+      priceAgorot: number,
+      extra: Partial<SellingUnitRow> = {},
+    ): SellingUnitRow => ({
+      id,
+      productId: row.id,
+      variantId: defaultVariant.id,
+      labelAr,
+      unitsPerSale,
+      priceAgorot,
+      isDefault: unitsPerSale === 1,
+      mirrorsVariant: unitsPerSale === 1,
+      sku: null,
+      barcode: null,
+      sortOrder: unitsPerSale,
+      archivedAt: null,
+      version: 1,
+      createdAt: row.createdAt,
+      updatedAt: row.updatedAt,
+      ...extra,
+    });
+    const units = [
+      unit("aaaaaaaa-aaaa-4aaa-8aaa-000000000003", "باكيج 3 حبات", 3, 1000),
+      unit("aaaaaaaa-aaaa-4aaa-8aaa-000000000001", "حبة واحدة", 1, 400),
+      unit("aaaaaaaa-aaaa-4aaa-8aaa-000000000006", "كرتونة", 6, 1800, {
+        archivedAt: new Date("2026-02-01T00:00:00.000Z"),
+      }),
+    ];
+    const withStock = (freeBaseMilli: number | null) =>
+      mapProductRow(
+        row,
+        [defaultVariant],
+        [],
+        new Map(),
+        new Map([[defaultVariant.id, { units, freeBaseMilli }]]),
+      ).variants[0]!.sellingUnits.map((entry) => [
+        entry.labelAr,
+        entry.maxQuantity,
+      ]);
+
+    expect(withStock(10_000)).toEqual([
+      ["حبة واحدة", 9],
+      ["باكيج 3 حبات", 3],
+    ]);
+    expect(withStock(2_000)).toEqual([
+      ["حبة واحدة", 2],
+      ["باكيج 3 حبات", 0],
+    ]);
+    // Untracked stock leaves only the cart limit.
+    expect(withStock(null)).toEqual([
+      ["حبة واحدة", 9],
+      ["باكيج 3 حبات", 9],
+    ]);
   });
 
   it("rejects an inconsistent image representation", () => {

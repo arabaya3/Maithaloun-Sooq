@@ -5,20 +5,17 @@ import { useRouter } from "next/navigation";
 import { useMemo, useRef, useState, type FormEvent } from "react";
 
 import {
-  calculateCartSubtotal,
-  calculateLineSubtotal,
-} from "@/features/cart/cart-store";
+  cartMerchandiseSubtotal,
+  resolveCartLines,
+} from "@/features/cart/cart-lines";
+import { cartLineKey } from "@/features/cart/cart-store";
 import { useCart } from "@/features/cart/cart-provider";
 import {
   getProductDisplayName,
   type Product,
 } from "@/features/catalog/domain/product";
-import {
-  formatVariantAttributes,
-  isVariantAvailable,
-  resolveVariant,
-} from "@/features/catalog/domain/product-variant";
-import { priceForQuantity } from "@/features/catalog/domain/offer-pricing";
+import { formatVariantAttributes } from "@/features/catalog/domain/product-variant";
+import { sellingLineText } from "@/features/catalog/domain/selling-unit";
 import { ACTIVE_SERVICE_AREA_CODE } from "@/features/delivery/delivery-policy";
 import { calculateDeliveryFeeAgorot } from "@/features/delivery/delivery-policy";
 import { getFreeDeliveryMessage } from "@/features/delivery/delivery-messaging";
@@ -67,25 +64,14 @@ export function CheckoutForm({
     () => new Map(products.map((product) => [product.id, product])),
     [products],
   );
-  const resolvedLines = lines.flatMap((line) => {
-    const product = productsById.get(line.productId);
-    if (!product) return [];
-    const variant = resolveVariant(product.variants, line.variantId);
-    if (!variant) return [];
-    return [{ ...line, product, variant }];
-  });
+  const resolvedLines = resolveCartLines(lines, productsById);
   const hasUnavailableProduct = resolvedLines.some(
-    (line) => !isVariantAvailable(line.variant),
+    (line) => line.status === "unavailable" || line.status === "limited",
   );
-  const merchandiseSubtotal = calculateCartSubtotal(
-    resolvedLines
-      .filter((line) => isVariantAvailable(line.variant))
-      .map((line) => ({
-        unitPriceAgorot: priceForQuantity(line.variant, line.quantity)
-          .unitPriceAgorot,
-        quantity: line.quantity,
-      })),
+  const needsUnitReview = resolvedLines.some(
+    (line) => line.status === "review",
   );
+  const merchandiseSubtotal = cartMerchandiseSubtotal(resolvedLines);
   const deliveryFeeAgorot = calculateDeliveryFeeAgorot(merchandiseSubtotal);
   const orderTotal = merchandiseSubtotal + deliveryFeeAgorot;
   const freeDeliveryMessage = getFreeDeliveryMessage(merchandiseSubtotal);
@@ -99,6 +85,7 @@ export function CheckoutForm({
     resolvedLines.length > 0 &&
     resolvedLines.length === lines.length &&
     !hasUnavailableProduct &&
+    !needsUnitReview &&
     maythalunEnabled;
 
   const focusErrorSummary = () => {
@@ -132,7 +119,14 @@ export function CheckoutForm({
       customerNote: form.get("customerNote"),
       paymentMethod: "cash_on_delivery",
       honeypot: form.get("companyWebsite"),
-      items: lines,
+      // Only identifiers and counts go to the server; it prices and checks stock itself.
+      items: resolvedLines.map(({ line }) => ({
+        productId: line.productId,
+        variantId: line.variantId,
+        sellingUnitId: line.sellingUnitId,
+        unitsPerSale: line.unitsPerSale,
+        quantity: line.quantity,
+      })),
     };
 
     setSubmitting(true);
@@ -341,7 +335,12 @@ export function CheckoutForm({
         ) : null}
         {hasUnavailableProduct ? (
           <p className="checkout-blocker">
-            تحتوي السلة على منتج غير متاح حالياً.
+            تحتوي السلة على منتج غير متاح حالياً أو بكمية أكبر من المتوفر.
+          </p>
+        ) : null}
+        {needsUnitReview ? (
+          <p className="checkout-blocker">
+            تغيّرت طريقة شراء أحد المنتجات. راجع السلة واختر طريقة شراء متاحة.
           </p>
         ) : null}
         {!maythalunEnabled ? (
@@ -351,30 +350,45 @@ export function CheckoutForm({
         ) : null}
 
         <div className="checkout-items">
-          {resolvedLines.map((line) => {
+          {resolvedLines.map((resolved) => {
+            const { line, unit } = resolved;
             const attributeSummary = formatVariantAttributes(
-              line.variant.attributes,
+              resolved.variant.attributes,
+            );
+            const showUnit = Boolean(
+              unit &&
+              (unit.unitsPerSale > 1 ||
+                resolved.variant.sellingUnits.length > 1),
             );
             return (
-              <div key={`${line.product.id}::${line.variantId}`}>
+              <div key={cartLineKey(line)}>
                 <span>
-                  <bdi dir="auto">{getProductDisplayName(line.product)}</bdi>
-                  {" × "}
-                  {line.quantity}
+                  <bdi dir="auto">
+                    {getProductDisplayName(resolved.product)}
+                  </bdi>
+                  {unit && showUnit ? (
+                    <>
+                      {" · "}
+                      <bdi dir="auto">
+                        {sellingLineText(unit.labelAr, line.quantity)}
+                      </bdi>
+                    </>
+                  ) : (
+                    <>
+                      {" × "}
+                      {line.quantity}
+                    </>
+                  )}
                   <span className="checkout-item-variant">
                     {" · "}
-                    {line.variant.labelAr}
+                    {resolved.variant.labelAr}
                     {attributeSummary ? ` · ${attributeSummary}` : ""}
                   </span>
                 </span>
                 <bdi dir="ltr">
-                  {formatIls(
-                    calculateLineSubtotal(
-                      priceForQuantity(line.variant, line.quantity)
-                        .unitPriceAgorot,
-                      line.quantity,
-                    ),
-                  )}
+                  {resolved.lineSubtotalAgorot === null
+                    ? "—"
+                    : formatIls(resolved.lineSubtotalAgorot)}
                 </bdi>
               </div>
             );

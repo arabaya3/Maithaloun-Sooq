@@ -8,6 +8,9 @@ export interface ShareableInvoice {
   lines: ReadonlyArray<{
     name: string;
     quantityMilli: number;
+    // Set when sold by a selling unit, so the customer reads «باكيج 3 حبات × 2», not six pieces.
+    sellingUnitLabel?: string | null;
+    packQuantity?: number | null;
     lineTotalAgorot: number;
   }>;
   discountAgorot: number;
@@ -22,9 +25,10 @@ export function buildInvoiceShareText(invoice: ShareableInvoice): string {
     invoice.customerName ? `الزبون: ${invoice.customerName}` : null,
     `التاريخ: ${invoice.date}`,
     "",
-    ...invoice.lines.map(
-      (line) =>
-        `• ${line.name} × ${formatQuantity(line.quantityMilli)} = ${formatIls(line.lineTotalAgorot)}`,
+    ...invoice.lines.map((line) =>
+      line.sellingUnitLabel && line.packQuantity
+        ? `• ${line.name} — ${line.sellingUnitLabel} × ${line.packQuantity} = ${formatIls(line.lineTotalAgorot)}`
+        : `• ${line.name} × ${formatQuantity(line.quantityMilli)} = ${formatIls(line.lineTotalAgorot)}`,
     ),
     "",
     invoice.discountAgorot > 0

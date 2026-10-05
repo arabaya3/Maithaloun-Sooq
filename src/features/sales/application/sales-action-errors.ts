@@ -16,6 +16,10 @@ export function mapSalesError(error: unknown): string {
         return "الزبون غير موجود.";
       case "variant_not_found":
         return "أحد المنتجات غير موجود. اختاريه من القائمة من جديد.";
+      case "selling_unit_not_found":
+        return error.detail
+          ? `طريقة البيع المختارة لـ ${error.detail} لم تعد متاحة. اختاري طريقة بيع أخرى.`
+          : "طريقة البيع المختارة لم تعد متاحة. اختاري طريقة بيع أخرى.";
       case "discount_exceeds_subtotal":
         return "الخصم أكبر من مجموع الفاتورة.";
       case "paid_exceeds_total":

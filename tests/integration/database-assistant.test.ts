@@ -7,6 +7,7 @@ import { AdminCatalogService } from "@/features/admin/application/admin-catalog-
 import { CatalogAuthoringService } from "@/features/admin/application/catalog-authoring-service";
 import { AdminOrderService } from "@/features/admin/application/admin-order-service";
 import { ProductMaintenanceService } from "@/features/admin/application/product-maintenance-service";
+import { SellingUnitService } from "@/features/admin/application/selling-unit-service";
 import type { AdminActor } from "@/features/admin/domain/admin-actor";
 import { AssistantOperations } from "@/features/assistant/application/assistant-operations";
 import { createAssistantTools } from "@/features/assistant/application/assistant-tools";
@@ -105,6 +106,7 @@ const operations = new AssistantOperations({
   catalog,
   authoring,
   maintenance,
+  sellingUnits: new SellingUnitService(db),
   inventory,
   sales,
   customers,

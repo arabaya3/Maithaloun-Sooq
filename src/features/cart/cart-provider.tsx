@@ -13,69 +13,88 @@ import {
 import {
   CART_STORAGE_KEY,
   LEGACY_CART_STORAGE_KEY,
+  PREVIOUS_CART_STORAGE_KEY,
   cartReducer,
   initialCartState,
   parsePersistedCart,
   serializeCart,
+  type CartCatalog,
+  type CartCatalogEntry,
   type CartLine,
+  type CartLineKey,
 } from "./cart-store";
+
+export type AddableLine = CartLineKey & {
+  sellingUnitId: string;
+  unitsPerSale: number;
+};
 
 interface CartContextValue {
   lines: readonly CartLine[];
+  catalog: CartCatalog;
   count: number;
   ready: boolean;
-  addItem: (productId: string, variantId: string, quantity?: number) => void;
-  setQuantity: (productId: string, variantId: string, quantity: number) => void;
-  removeItem: (productId: string, variantId: string) => void;
+  addItem: (line: AddableLine, quantity?: number) => void;
+  setQuantity: (line: CartLineKey, quantity: number) => void;
+  removeItem: (line: CartLineKey) => void;
+  changeSellingUnit: (
+    line: CartLineKey,
+    to: { sellingUnitId: string; unitsPerSale: number },
+  ) => void;
   clearCart: () => void;
 }
 
 const CartContext = createContext<CartContextValue | null>(null);
 
+function sellsUnit(
+  catalog: CartCatalog,
+  line: Pick<CartLine, "productId" | "variantId">,
+  unit: { sellingUnitId: string; unitsPerSale: number },
+) {
+  return Boolean(
+    catalog
+      .get(line.productId)
+      ?.variants.find((variant) => variant.id === line.variantId)
+      ?.sellingUnits.some(
+        (entry) =>
+          entry.id === unit.sellingUnitId &&
+          entry.unitsPerSale === unit.unitsPerSale,
+      ),
+  );
+}
+
 export function CartProvider({
   children,
-  catalog,
+  catalog: entries,
 }: {
   children: ReactNode;
-  catalog: ReadonlyArray<{
-    productId: string;
-    defaultVariantId: string;
-    variantIds: readonly string[];
-  }>;
+  catalog: readonly CartCatalogEntry[];
 }) {
   const [state, dispatch] = useReducer(cartReducer, initialCartState);
   const [restored, setRestored] = useState(false);
 
-  const allowedPairs = useMemo(() => {
-    const map = new Map<string, ReadonlySet<string>>();
-    for (const entry of catalog) {
-      map.set(entry.productId, new Set(entry.variantIds));
-    }
-    return map;
-  }, [catalog]);
-
-  const defaultVariantByProduct = useMemo(() => {
-    const map = new Map<string, string>();
-    for (const entry of catalog) {
-      map.set(entry.productId, entry.defaultVariantId);
-    }
-    return map;
-  }, [catalog]);
+  const catalog = useMemo<CartCatalog>(
+    () => new Map(entries.map((entry) => [entry.productId, entry])),
+    [entries],
+  );
 
   useEffect(() => {
     const saved = parsePersistedCart(
-      window.localStorage.getItem(CART_STORAGE_KEY),
-      allowedPairs,
-      defaultVariantByProduct,
-      window.localStorage.getItem(LEGACY_CART_STORAGE_KEY),
+      {
+        v3: window.localStorage.getItem(CART_STORAGE_KEY),
+        v2: window.localStorage.getItem(PREVIOUS_CART_STORAGE_KEY),
+        v1: window.localStorage.getItem(LEGACY_CART_STORAGE_KEY),
+      },
+      catalog,
     );
     dispatch({ type: "restore", lines: saved.lines });
     queueMicrotask(() => setRestored(true));
-  }, [allowedPairs, defaultVariantByProduct]);
+  }, [catalog]);
 
   useEffect(() => {
     if (restored) {
       window.localStorage.setItem(CART_STORAGE_KEY, serializeCart(state));
+      window.localStorage.removeItem(PREVIOUS_CART_STORAGE_KEY);
       window.localStorage.removeItem(LEGACY_CART_STORAGE_KEY);
     }
   }, [restored, state]);
@@ -83,23 +102,23 @@ export function CartProvider({
   const value = useMemo<CartContextValue>(
     () => ({
       lines: state.lines,
+      catalog,
       count: state.lines.reduce((total, line) => total + line.quantity, 0),
       ready: restored,
-      addItem: (productId, variantId, quantity = 1) => {
-        if (!allowedPairs.get(productId)?.has(variantId)) return;
-        dispatch({ type: "add", productId, variantId, quantity });
+      addItem: (line, quantity = 1) => {
+        if (!sellsUnit(catalog, line, line)) return;
+        dispatch({ type: "add", line, quantity });
       },
-      setQuantity: (productId, variantId, quantity) => {
-        if (!allowedPairs.get(productId)?.has(variantId)) return;
-        dispatch({ type: "setQuantity", productId, variantId, quantity });
-      },
-      removeItem: (productId, variantId) => {
-        if (!allowedPairs.get(productId)?.has(variantId)) return;
-        dispatch({ type: "remove", productId, variantId });
+      setQuantity: (line, quantity) =>
+        dispatch({ type: "setQuantity", line, quantity }),
+      removeItem: (line) => dispatch({ type: "remove", line }),
+      changeSellingUnit: (line, to) => {
+        if (!sellsUnit(catalog, line, to)) return;
+        dispatch({ type: "changeSellingUnit", line, to });
       },
       clearCart: () => dispatch({ type: "clear" }),
     }),
-    [allowedPairs, restored, state.lines],
+    [catalog, restored, state.lines],
   );
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;

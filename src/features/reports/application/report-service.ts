@@ -73,6 +73,22 @@ function discountShares(lineTotals: number[], discount: number): number[] {
   return shares;
 }
 
+function sellingFields(row: Row, saleQuantityMilli: number) {
+  const key = String(row.product_key);
+  return {
+    productGroupKey: String(row.product_group),
+    productName: String(row.product_name),
+    sellingUnitKey: row.selling_unit_id
+      ? `${key}::${String(row.selling_unit_id)}`
+      : `${key}::base`,
+    sellingUnitLabel: row.selling_unit_label_snapshot
+      ? String(row.selling_unit_label_snapshot)
+      : null,
+    unitsPerSale: int(row.units_per_sale) || 1,
+    saleQuantityMilli,
+  };
+}
+
 export class ReportService {
   constructor(
     private readonly database: Database,
@@ -96,6 +112,8 @@ export class ReportService {
           select o.id as document_id, h.created_at as sold_at,
             coalesce(oi.variant_domain_id, oi.product_domain_id) as product_key,
             oi.product_name_snapshot as name, oi.quantity,
+            oi.units_per_sale, oi.selling_unit_id, oi.selling_unit_label_snapshot,
+            oi.product_domain_id as product_group, p.name_ar as product_name,
             oi.line_subtotal_agorot as gross,
             (select -sum(m.value_delta_agorot)
                from stock_movements m
@@ -103,6 +121,7 @@ export class ReportService {
           from order_status_history h
           join orders o on o.id = h.order_id
           join order_items oi on oi.order_id = o.id
+          join products p on p.domain_id = oi.product_domain_id
           where h.new_status = 'delivered'
             and not o.is_test
             and h.created_at >= ${fromIso}::timestamptz and h.created_at < ${toIso}::timestamptz
@@ -111,10 +130,13 @@ export class ReportService {
           select i.id as document_id, i.created_at as sold_at, i.cancelled_at,
             i.discount_agorot as discount, l.line_no,
             v.domain_id as product_key, l.product_name_snapshot as name,
-            l.quantity_milli, l.line_total_agorot as gross, l.cogs_agorot as cogs
+            l.quantity_milli, l.line_total_agorot as gross, l.cogs_agorot as cogs,
+            l.units_per_sale, l.pack_quantity, l.selling_unit_id, l.selling_unit_label_snapshot,
+            p.domain_id as product_group, p.name_ar as product_name
           from customer_invoices i
           join customer_invoice_lines l on l.invoice_id = i.id
           join product_variants v on v.id = l.variant_id
+          join products p on p.id = v.product_id
           where (i.created_at >= ${fromIso}::timestamptz and i.created_at < ${toIso}::timestamptz)
              or (i.cancelled_at >= ${fromIso}::timestamptz and i.cancelled_at < ${toIso}::timestamptz)
           order by i.id, l.line_no
@@ -168,7 +190,11 @@ export class ReportService {
         date: toStoreDate(new Date(row.sold_at as string)),
         productKey: String(row.product_key),
         name: String(row.name),
-        quantityMilli: unitsToMilli(int(row.quantity)),
+        // Pieces, not packs: two 3-packs are six units out of stock.
+        quantityMilli: unitsToMilli(
+          int(row.quantity) * int(row.units_per_sale),
+        ),
+        ...sellingFields(row, unitsToMilli(int(row.quantity))),
         grossAgorot: int(row.gross),
         discountAgorot: 0,
         cogsAgorot: row.cogs === null ? null : int(row.cogs),
@@ -196,6 +222,12 @@ export class ReportService {
         productKey: String(line.product_key),
         name: String(line.name),
         quantityMilli: int(line.quantity_milli),
+        ...sellingFields(
+          line,
+          line.pack_quantity === null
+            ? int(line.quantity_milli)
+            : unitsToMilli(int(line.pack_quantity)),
+        ),
         grossAgorot: int(line.gross),
         discountAgorot: shares[index]!,
         cogsAgorot: line.cogs === null ? null : int(line.cogs),

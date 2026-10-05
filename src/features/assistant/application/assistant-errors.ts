@@ -7,6 +7,10 @@ import {
 } from "@/features/admin/application/admin-action-errors";
 import { AdminOrderError } from "@/features/admin/application/admin-order-service";
 import { ProductMaintenanceError } from "@/features/admin/application/product-maintenance-service";
+import {
+  SellingUnitError,
+  sellingUnitErrorMessages,
+} from "@/features/admin/application/selling-unit-service";
 import { OfferError } from "@/features/offers/application/offer-service";
 import { ProductOptionsError } from "@/features/admin/application/product-options-service";
 import { SupplierMaintenanceError } from "@/features/purchasing/application/supplier-maintenance-service";
@@ -70,6 +74,9 @@ export function assistantFailure(error: unknown): {
   }
   if (error instanceof AuthorizationError) {
     return { code, message: "ليست لديك صلاحية لهذا الإجراء." };
+  }
+  if (error instanceof SellingUnitError) {
+    return { code: error.code, message: sellingUnitErrorMessages[error.code] };
   }
   if (error instanceof ProductMaintenanceError) {
     return { code, message: maintenanceMessages[error.code] };

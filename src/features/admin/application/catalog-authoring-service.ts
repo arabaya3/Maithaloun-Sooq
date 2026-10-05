@@ -36,6 +36,7 @@ import {
   type ProductPublication,
 } from "@/features/catalog/domain/product";
 import { variantAttributesSchema } from "@/features/catalog/domain/product-variant";
+import { sellingUnitMessages } from "@/features/catalog/domain/selling-unit";
 import { postStockAdjustment } from "@/features/inventory/application/inventory-service";
 import type { Database } from "@/features/inventory/application/stock-ledger";
 import {
@@ -269,7 +270,22 @@ export class CatalogAuthoringService {
           ),
         )
         .limit(1);
-      if (clash) {
+      // A selling unit's SKU or barcode is taken too: one code names one thing on the shelf.
+      const unitField =
+        column === "sku"
+          ? schema.productSellingUnits.sku
+          : schema.productSellingUnits.barcode;
+      const [unitClash] = await executor
+        .select({ id: schema.productSellingUnits.id })
+        .from(schema.productSellingUnits)
+        .where(
+          and(
+            sql`lower(${unitField}) = lower(${value})`,
+            isNull(schema.productSellingUnits.archivedAt),
+          ),
+        )
+        .limit(1);
+      if (clash || unitClash) {
         throw new CatalogAuthoringError(
           column === "sku" ? "duplicate_sku" : "duplicate_barcode",
           value,
@@ -688,6 +704,28 @@ export class CatalogAuthoringService {
     if (!variants.length) problems.push("لا يوجد صنف صالح للبيع.");
     if (!variants.some((variant) => variant.priceAgorot > 0)) {
       problems.push("لا يوجد صنف له سعر بيع.");
+    }
+    if (variants.length) {
+      const sellable = await executor
+        .selectDistinct({ variantId: schema.productSellingUnits.variantId })
+        .from(schema.productSellingUnits)
+        .where(
+          and(
+            inArray(
+              schema.productSellingUnits.variantId,
+              variants.map((variant) => variant.id),
+            ),
+            isNull(schema.productSellingUnits.archivedAt),
+          ),
+        );
+      const withUnits = new Set(sellable.map((row) => row.variantId));
+      for (const variant of variants) {
+        if (!withUnits.has(variant.id)) {
+          problems.push(
+            `«${variant.labelAr}»: ${sellingUnitMessages.required}`,
+          );
+        }
+      }
     }
     const [category] = await executor
       .select({

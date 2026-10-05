@@ -20,6 +20,7 @@ const onStorefront = and(
 import { liveOffersForVariants } from "./offer-queries";
 import { loadProductPresentation } from "./product-presentation";
 import { mapProductRow } from "./product-row-mapper";
+import { loadProductCommerce, singlePiecePrice } from "./variant-commerce";
 
 export class PostgresProductRepository implements ProductRepository {
   constructor(private readonly database: PostgresJsDatabase<typeof schema>) {}
@@ -84,7 +85,8 @@ export class PostgresProductRepository implements ProductRepository {
   ): Promise<Product[]> {
     if (!rows.length) return [];
     const productIds = rows.map((row) => row.id);
-    const [variantRows, specRows] = await Promise.all([
+    // Selling units and stock load in the same round trip as the variants.
+    const [variantRows, specRows, commerce] = await Promise.all([
       this.database
         .select()
         .from(schema.productVariants)
@@ -95,6 +97,7 @@ export class PostgresProductRepository implements ProductRepository {
         .from(schema.productSpecifications)
         .where(inArray(schema.productSpecifications.productId, productIds))
         .orderBy(asc(schema.productSpecifications.sortOrder)),
+      loadProductCommerce(this.database, productIds),
     ]);
 
     const variantsByProductId = new Map<
@@ -120,16 +123,15 @@ export class PostgresProductRepository implements ProductRepository {
     const categoryByProductId = new Map(
       rows.map((row) => [row.id, row.categoryId]),
     );
+    const liveVariants = variantRows.filter((variant) => !variant.archivedAt);
     const offers = await liveOffersForVariants(
       this.database,
-      variantRows
-        .filter((variant) => !variant.archivedAt)
-        .map((variant) => ({
-          variantId: variant.id,
-          productId: variant.productId,
-          categoryCode: categoryByProductId.get(variant.productId)!,
-          priceAgorot: variant.priceAgorot,
-        })),
+      liveVariants.map((variant) => ({
+        variantId: variant.id,
+        productId: variant.productId,
+        categoryCode: categoryByProductId.get(variant.productId)!,
+        priceAgorot: singlePiecePrice(variant, commerce),
+      })),
       new Date(),
     );
 
@@ -139,6 +141,7 @@ export class PostgresProductRepository implements ProductRepository {
         variantsByProductId.get(row.id) ?? [],
         specsByProductId.get(row.id) ?? [],
         offers,
+        commerce,
       ),
     );
   }

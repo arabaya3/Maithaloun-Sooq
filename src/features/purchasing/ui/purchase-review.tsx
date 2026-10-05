@@ -22,6 +22,28 @@ export function PurchaseLineImpacts({
             <strong>{line.name}</strong>
             <Money agorot={line.lineTotalAgorot} />
           </div>
+          {line.packQuantity > 1 ? (
+            <p className="admin-review-line-stock">
+              الاستلام: <Quantity milli={line.purchasedQuantityMilli} /> ×{" "}
+              <bdi dir="ltr">{line.packQuantity}</bdi> ={" "}
+              <strong>
+                <Quantity
+                  milli={line.stockQuantityMilli}
+                  unit={line.stockUnit}
+                />
+              </strong>
+            </p>
+          ) : null}
+          {line.costAgorot !== null && line.stockUnitCostAgorot !== null ? (
+            <p className="admin-review-line-stock">
+              التكلفة الإجمالية <Money agorot={line.costAgorot} /> · تكلفة
+              الوحدة الأساسية <Money agorot={line.stockUnitCostAgorot} />
+              <small className="admin-muted">
+                {" "}
+                (مقرّبة للعرض؛ يُضاف المبلغ الكامل لقيمة المخزون)
+              </small>
+            </p>
+          ) : null}
           <p className="admin-review-line-stock">
             المخزون:{" "}
             <Quantity milli={line.onHandBeforeMilli} unit={line.stockUnit} />

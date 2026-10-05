@@ -13,6 +13,7 @@ import {
   type CategoryIconKey,
 } from "@/features/catalog/domain/category";
 import {
+  isVariantAvailable,
   productSpecificationSchema,
   productVariantSchema,
   type ProductSpecification,
@@ -118,9 +119,7 @@ export function getProductDisplayName(
 }
 
 export function isProductAvailable(product: Product): boolean {
-  return product.variants.some(
-    (variant) => variant.availability === "available",
-  );
+  return product.variants.some(isVariantAvailable);
 }
 
 export function getDefaultVariant(product: Product): ProductVariant {

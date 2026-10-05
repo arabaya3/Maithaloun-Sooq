@@ -3,6 +3,10 @@ import { z } from "zod";
 import { MAX_CART_QUANTITY } from "@/features/cart/cart-store";
 import { productIdSchema } from "@/features/catalog/domain/product";
 import { variantDomainIdSchema } from "@/features/catalog/domain/product-variant";
+import {
+  MAX_UNITS_PER_SALE,
+  sellingUnitIdSchema,
+} from "@/features/catalog/domain/selling-unit";
 import { ACTIVE_SERVICE_AREA_CODE } from "@/features/delivery/delivery-policy";
 
 import {
@@ -27,6 +31,10 @@ const checkoutItemSchema = z
   .object({
     productId: productIdSchema,
     variantId: variantDomainIdSchema,
+    // The way of buying. Clients from before selling units send neither field and buy single pieces.
+    sellingUnitId: sellingUnitIdSchema.nullable().optional(),
+    // Only compared with the server value to detect a unit that changed; never used for stock or price.
+    unitsPerSale: z.number().int().min(1).max(MAX_UNITS_PER_SALE).optional(),
     quantity: z
       .number()
       .int()
@@ -88,7 +96,8 @@ export const checkoutRequestSchema = z
       });
     }
     const keys = value.items.map(
-      (item) => `${item.productId}::${item.variantId}`,
+      (item) =>
+        `${item.productId}::${item.variantId}::${item.sellingUnitId ?? "single"}`,
     );
     if (new Set(keys).size !== keys.length) {
       context.addIssue({

@@ -1,7 +1,8 @@
 import "server-only";
 
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, sql } from "drizzle-orm";
 
+import { perPieceAgorot } from "@/features/catalog/domain/selling-unit";
 import { unitsToMilli } from "@/features/inventory/domain/quantity";
 import type { OrderStatus } from "@/features/orders/domain/order-status";
 import * as schema from "@/server/db/schema";
@@ -41,7 +42,8 @@ async function reserveOrder(transaction: Database, input: TransitionInput) {
   const lines = await transaction
     .select({
       orderItemId: schema.orderItems.id,
-      quantity: schema.orderItems.quantity,
+      // Pieces, not packs: two 3-packs reserve six base units.
+      baseUnits: sql<number>`${schema.orderItems.quantity} * ${schema.orderItems.unitsPerSale}`,
       productName: schema.orderItems.productNameSnapshot,
       variantId: schema.productVariants.id,
     })
@@ -63,7 +65,7 @@ async function reserveOrder(transaction: Database, input: TransitionInput) {
     );
     // Variants without an inventory item are not tracked yet.
     if (!item) continue;
-    const quantityMilli = unitsToMilli(line.quantity);
+    const quantityMilli = unitsToMilli(Number(line.baseUnits));
     if (quantityMilli > item.onHandMilli - item.reservedMilli) {
       throw new InventoryError("insufficient_stock", line.productName);
     }
@@ -94,6 +96,7 @@ async function activeReservations(transaction: Database, orderId: string) {
       orderItemId: schema.stockReservations.orderItemId,
       quantityMilli: schema.stockReservations.quantityMilli,
       unitPriceAgorot: schema.orderItems.unitPriceAgorot,
+      unitsPerSale: schema.orderItems.unitsPerSale,
     })
     .from(schema.stockReservations)
     .innerJoin(
@@ -159,7 +162,12 @@ async function fulfillOrder(transaction: Database, input: TransitionInput) {
       .where(eq(schema.stockReservations.id, reservation.id));
     await transaction
       .update(schema.inventoryItems)
-      .set({ lastSalePriceAgorot: reservation.unitPriceAgorot })
+      .set({
+        lastSalePriceAgorot: perPieceAgorot(
+          reservation.unitPriceAgorot,
+          reservation.unitsPerSale,
+        ),
+      })
       .where(eq(schema.inventoryItems.id, item.id));
   }
 }

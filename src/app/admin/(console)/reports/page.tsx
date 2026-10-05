@@ -196,8 +196,11 @@ export default async function ReportsPage({
               <Money agorot={metrics.averageOrderValueAgorot} />
             )}
           </Figure>
-          <Figure label="الوحدات المباعة">
+          <Figure label="الوحدات المباعة" note="قطع فعلية من المخزون">
             <Quantity milli={metrics.unitsSoldMilli} />
+          </Figure>
+          <Figure label="الباكيجات المباعة" note="كل باكيج أو كرتونة مرة واحدة">
+            <bdi dir="ltr">{metrics.packsSold}</bdi>
           </Figure>
         </dl>
       </section>
@@ -317,6 +320,54 @@ export default async function ReportsPage({
             </bdi>
           )}
         />
+      </div>
+
+      <div className="admin-two-column">
+        <Ranking
+          title="المبيعات حسب المنتج"
+          items={report.byProduct}
+          value={(item) => (
+            <>
+              <Money agorot={item.netSalesAgorot} /> ·{" "}
+              <Quantity milli={item.quantityMilli} /> قطعة
+            </>
+          )}
+        />
+        <section className="admin-panel" aria-labelledby="selling-units-title">
+          <h2 id="selling-units-title">المبيعات حسب طريقة البيع</h2>
+          {report.bySellingUnit.length ? (
+            <ul className="admin-line-list">
+              {report.bySellingUnit.map((row) => (
+                <li key={row.key} className="admin-line">
+                  <span className="admin-line-main">
+                    <strong>{row.name}</strong>
+                    <small>
+                      {row.sellingUnitLabel ?? "بالوحدة"} ·{" "}
+                      <Quantity milli={row.saleQuantityMilli} /> مرة ·{" "}
+                      <Quantity milli={row.quantityMilli} /> قطعة
+                      {row.profitAgorot === null ? (
+                        " · التكلفة غير مسجلة"
+                      ) : (
+                        <>
+                          {" "}
+                          · تكلفة <Money agorot={row.cogsAgorot ?? 0} /> · ربح{" "}
+                          <Money agorot={row.profitAgorot} />
+                        </>
+                      )}
+                    </small>
+                  </span>
+                  <span className="admin-line-side">
+                    <Money agorot={row.netSalesAgorot} />
+                  </span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="admin-empty">
+              لا توجد مبيعات حسب طرق البيع في هذه الفترة.
+            </p>
+          )}
+        </section>
       </div>
 
       <div className="admin-two-column">

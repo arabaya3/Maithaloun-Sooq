@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+
 import { describe, expect, it, vi } from "vitest";
 
 import { checkoutRequestSchema } from "@/features/orders/domain/checkout-request";
@@ -55,5 +57,41 @@ describe("order identifiers", () => {
         deliveryAddress: "عنوان مختلف تماماً للاختبار",
       }),
     ).not.toBe(createOrderRequestFingerprint(request));
+  });
+
+  it("hashes requests without selling units exactly as before, so old retries still replay", () => {
+    // The canonical payload used before selling units existed.
+    const legacy = createHash("sha256")
+      .update(
+        JSON.stringify({
+          customerName: request.customerName,
+          whatsappPhoneE164: request.whatsappPhoneE164,
+          serviceAreaCode: request.serviceAreaCode,
+          deliveryAddress: request.deliveryAddress,
+          customerNote: request.customerNote ?? null,
+          paymentMethod: request.paymentMethod,
+          items: [...request.items].sort((left, right) =>
+            left.productId.localeCompare(right.productId),
+          ),
+        }),
+      )
+      .digest("hex");
+    expect(createOrderRequestFingerprint(request)).toBe(legacy);
+  });
+
+  it("treats a different way of buying as a different request", () => {
+    const withUnit = (sellingUnitId: string) => ({
+      ...request,
+      items: request.items.map((item) => ({ ...item, sellingUnitId })),
+    });
+    expect(
+      createOrderRequestFingerprint(
+        withUnit("11111111-1111-4111-8111-000000000001"),
+      ),
+    ).not.toBe(
+      createOrderRequestFingerprint(
+        withUnit("11111111-1111-4111-8111-000000000003"),
+      ),
+    );
   });
 });

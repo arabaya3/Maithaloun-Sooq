@@ -149,6 +149,7 @@ describe("report queries", () => {
       grossMarginBasisPoints: 4_118,
       costComplete: false,
       orderCount: 3,
+      packsSold: 0,
       averageOrderValueAgorot: 1_400,
       unitsSoldMilli: 6_000,
       stockTurnoverBasisPoints: 12_500,

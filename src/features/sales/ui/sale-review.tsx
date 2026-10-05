@@ -21,15 +21,30 @@ export function SaleReviewCard({ preview }: { preview: SalePreview }) {
       <h3>المنتجات وأثرها على المخزون</h3>
       <ul className="admin-review-lines">
         {preview.lines.map((line) => (
-          <li key={line.variantId}>
+          <li key={`${line.variantId}:${line.sellingUnitId ?? "base"}`}>
             <div className="admin-review-line-head">
               <strong>{line.name}</strong>
               <Money agorot={line.lineTotalAgorot} />
             </div>
-            <p className="admin-review-line-stock">
-              <Quantity milli={line.quantityMilli} unit={line.unit} /> ×{" "}
-              <Money agorot={line.unitPriceAgorot} />
-            </p>
+            {line.sellingUnitLabel ? (
+              <p className="admin-review-line-stock">
+                {line.sellingUnitLabel} ×{" "}
+                <Quantity milli={line.saleQuantityMilli} /> ×{" "}
+                <Money agorot={line.unitPriceAgorot} />
+                {line.unitsPerSale > 1 ? (
+                  <>
+                    {" "}
+                    — يخصم{" "}
+                    <Quantity milli={line.quantityMilli} unit={line.unit} />
+                  </>
+                ) : null}
+              </p>
+            ) : (
+              <p className="admin-review-line-stock">
+                <Quantity milli={line.quantityMilli} unit={line.unit} /> ×{" "}
+                <Money agorot={line.unitPriceAgorot} />
+              </p>
+            )}
             {line.tracked ? (
               <p className="admin-review-line-stock">
                 المخزون: <Quantity milli={line.availableBeforeMilli ?? 0} />

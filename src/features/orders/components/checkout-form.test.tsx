@@ -2,10 +2,17 @@ import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
-import { CART_STORAGE_KEY } from "@/features/cart/cart-store";
+import {
+  CART_STORAGE_KEY,
+  PREVIOUS_CART_STORAGE_KEY,
+} from "@/features/cart/cart-store";
 import { CheckoutForm } from "@/features/orders/components/checkout-form";
 import { renderWithProviders } from "@/test/render-with-providers";
-import { MockProductRepository } from "@/test/mock-product-repository";
+import {
+  MockProductRepository,
+  fixtureUuid,
+  multipackClothFixture,
+} from "@/test/mock-product-repository";
 
 const { push } = vi.hoisted(() => ({ push: vi.fn() }));
 vi.mock("next/navigation", () => ({
@@ -25,7 +32,7 @@ const serviceAreas = [
 async function renderCheckout() {
   const products = await new MockProductRepository().list();
   window.localStorage.setItem(
-    CART_STORAGE_KEY,
+    PREVIOUS_CART_STORAGE_KEY,
     JSON.stringify({
       version: 2,
       lines: [
@@ -84,31 +91,69 @@ describe("checkout form", () => {
   });
 
   it("clears the cart only after a confirmed success", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue({
-        json: async () => ({
-          ok: true,
-          confirmation: {
-            publicReference: "MS-abcdefghijklmnopqrstuvwx",
-            status: "pending",
-            itemsSubtotalAgorot: 700,
-            deliveryFeeAgorot: null,
-            finalTotalAgorot: null,
-            paymentMethod: "cash_on_delivery",
-            duplicate: false,
-          },
-        }),
+    const fetchMock = vi.fn().mockResolvedValue({
+      json: async () => ({
+        ok: true,
+        confirmation: {
+          publicReference: "MS-abcdefghijklmnopqrstuvwx",
+          status: "pending",
+          itemsSubtotalAgorot: 700,
+          deliveryFeeAgorot: null,
+          finalTotalAgorot: null,
+          paymentMethod: "cash_on_delivery",
+          duplicate: false,
+        },
       }),
-    );
+    });
+    vi.stubGlobal("fetch", fetchMock);
     const user = await renderCheckout();
 
     await user.click(screen.getByRole("button", { name: "تأكيد الطلب" }));
+    // Only identifiers and counts are sent; the server prices and checks stock itself.
+    const body = JSON.parse(fetchMock.mock.calls[0]![1].body as string);
+    expect(body.items).toEqual([
+      {
+        productId: "general-cleaner",
+        variantId: "general-cleaner--default",
+        sellingUnitId: fixtureUuid("general-cleaner--default:single"),
+        unitsPerSale: 1,
+        quantity: 1,
+      },
+    ]);
     expect(push).toHaveBeenCalledWith(
       "/orders/MS-abcdefghijklmnopqrstuvwx/confirmation",
     );
     expect(
       screen.getByText("السلة فارغة. أضف منتجات أولاً."),
     ).toBeInTheDocument();
+  });
+
+  it("blocks submission while a line's way of buying needs review", async () => {
+    const products = [multipackClothFixture({ blueFreePieces: 10 })];
+    window.localStorage.setItem(
+      CART_STORAGE_KEY,
+      JSON.stringify({
+        version: 3,
+        lines: [
+          {
+            productId: "test-cloth",
+            variantId: "test-cloth--blue",
+            sellingUnitId: fixtureUuid("test-cloth--blue:pack3"),
+            unitsPerSale: 2,
+            quantity: 1,
+          },
+        ],
+      }),
+    );
+    renderWithProviders(
+      <CheckoutForm products={products} serviceAreas={serviceAreas} />,
+      { products },
+    );
+    expect(
+      await screen.findByText(
+        "تغيّرت طريقة شراء أحد المنتجات. راجع السلة واختر طريقة شراء متاحة.",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "تأكيد الطلب" })).toBeDisabled();
   });
 });

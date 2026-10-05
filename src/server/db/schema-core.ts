@@ -3,6 +3,7 @@ import {
   type AnyPgColumn,
   boolean,
   check,
+  foreignKey,
   index,
   integer,
   jsonb,
@@ -266,6 +267,86 @@ export const productVariants = pgTable(
   ],
 );
 
+// The ways to buy one exact variant (a piece, a 3-pack, a carton). Stock stays in base units on the
+// variant; selling one of these consumes units_per_sale base units. mirrors_variant marks the base
+// unit created for every variant, whose price follows product_variants.price_agorot.
+export const productSellingUnits = pgTable(
+  "product_selling_units",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    productId: uuid("product_id").notNull(),
+    variantId: uuid("variant_id").notNull(),
+    labelAr: varchar("label_ar", { length: 60 }).notNull(),
+    unitsPerSale: integer("units_per_sale").notNull(),
+    priceAgorot: integer("price_agorot").notNull(),
+    isDefault: boolean("is_default").default(false).notNull(),
+    mirrorsVariant: boolean("mirrors_variant").default(false).notNull(),
+    sku: varchar("sku", { length: 64 }),
+    barcode: varchar("barcode", { length: 64 }),
+    sortOrder: integer("sort_order").default(0).notNull(),
+    archivedAt: timestamp("archived_at", { withTimezone: true, mode: "date" }),
+    version: integer("version").default(1).notNull(),
+    ...timestamps,
+  },
+  (table) => [
+    foreignKey({
+      name: "product_selling_units_variant_fk",
+      columns: [table.variantId, table.productId],
+      foreignColumns: [productVariants.id, productVariants.productId],
+    })
+      .onDelete("cascade")
+      .onUpdate("cascade"),
+    index("product_selling_units_variant_idx").on(
+      table.variantId,
+      table.productId,
+    ),
+    index("product_selling_units_product_idx").on(table.productId),
+    uniqueIndex("product_selling_units_one_default_uidx")
+      .on(table.variantId)
+      .where(sql`${table.isDefault}`),
+    uniqueIndex("product_selling_units_one_mirror_uidx")
+      .on(table.variantId)
+      .where(sql`${table.mirrorsVariant}`),
+    uniqueIndex("product_selling_units_active_units_uidx")
+      .on(table.variantId, table.unitsPerSale)
+      .where(sql`${table.archivedAt} IS NULL`),
+    uniqueIndex("product_selling_units_active_label_uidx")
+      .on(table.variantId, sql`lower(btrim(${table.labelAr}))`)
+      .where(sql`${table.archivedAt} IS NULL`),
+    uniqueIndex("product_selling_units_active_sku_uidx")
+      .on(sql`lower(${table.sku})`)
+      .where(sql`${table.sku} IS NOT NULL AND ${table.archivedAt} IS NULL`),
+    uniqueIndex("product_selling_units_active_barcode_uidx")
+      .on(table.barcode)
+      .where(sql`${table.barcode} IS NOT NULL AND ${table.archivedAt} IS NULL`),
+    check(
+      "product_selling_units_units_per_sale",
+      sql`${table.unitsPerSale} BETWEEN 1 AND 1000`,
+    ),
+    check(
+      "product_selling_units_positive_price",
+      sql`${table.priceAgorot} BETWEEN 1 AND 10000000`,
+    ),
+    check(
+      "product_selling_units_label",
+      sql`char_length(btrim(${table.labelAr})) BETWEEN 1 AND 60`,
+    ),
+    check(
+      "product_selling_units_default_active",
+      sql`NOT (${table.isDefault} AND ${table.archivedAt} IS NOT NULL)`,
+    ),
+    check(
+      "product_selling_units_mirror_single",
+      sql`NOT ${table.mirrorsVariant} OR ${table.unitsPerSale} = 1`,
+    ),
+    check(
+      "product_selling_units_non_negative_sort",
+      sql`${table.sortOrder} >= 0`,
+    ),
+    check("product_selling_units_positive_version", sql`${table.version} > 0`),
+  ],
+);
+
 export const productSpecifications = pgTable(
   "product_specifications",
   {
@@ -513,12 +594,45 @@ export const orderItems = pgTable(
     }),
     quantity: integer("quantity").notNull(),
     lineSubtotalAgorot: integer("line_subtotal_agorot").notNull(),
+    // How the customer bought it; lines from before selling units have no unit and count 1 piece each.
+    sellingUnitId: uuid("selling_unit_id").references(
+      () => productSellingUnits.id,
+      { onDelete: "restrict" },
+    ),
+    sellingUnitLabelSnapshot: varchar("selling_unit_label_snapshot", {
+      length: 60,
+    }),
+    sellingUnitSkuSnapshot: varchar("selling_unit_sku_snapshot", {
+      length: 64,
+    }),
+    sellingUnitBarcodeSnapshot: varchar("selling_unit_barcode_snapshot", {
+      length: 64,
+    }),
+    unitsPerSale: integer("units_per_sale").default(1).notNull(),
+    // Pieces reserved and delivered for this line; never stored separately from its inputs.
+    baseUnits: integer("base_units").generatedAlwaysAs(
+      sql`quantity * units_per_sale`,
+    ),
   },
   (table) => [
     index("order_items_offer_idx").on(table.offerId),
     uniqueIndex("order_items_order_variant_uidx")
       .on(table.orderId, table.variantDomainId)
-      .where(sql`${table.variantDomainId} IS NOT NULL`),
+      .where(
+        sql`${table.variantDomainId} IS NOT NULL AND ${table.sellingUnitId} IS NULL`,
+      ),
+    uniqueIndex("order_items_order_selling_unit_uidx")
+      .on(table.orderId, table.sellingUnitId)
+      .where(sql`${table.sellingUnitId} IS NOT NULL`),
+    index("order_items_selling_unit_idx").on(table.sellingUnitId),
+    check(
+      "order_items_units_per_sale",
+      sql`${table.unitsPerSale} BETWEEN 1 AND 1000`,
+    ),
+    check(
+      "order_items_selling_unit_snapshot",
+      sql`${table.sellingUnitId} IS NULL OR ${table.sellingUnitLabelSnapshot} IS NOT NULL`,
+    ),
     index("order_items_variant_domain_id_idx").on(table.variantDomainId),
     check(
       "order_items_quantity_bounds",

@@ -7,9 +7,20 @@ export interface SaleFact {
   channel: SalesChannel;
   documentId: string;
   date: string;
+  // The exact variant sold.
   productKey: string;
   name: string;
+  // Physical base units that left stock: a 3-pack sold twice is 6 pieces.
   quantityMilli: number;
+  // The product across its variants; defaults to productKey.
+  productGroupKey?: string;
+  productName?: string;
+  // How it was sold. Lines from before selling units have none and count as base units.
+  sellingUnitKey?: string;
+  sellingUnitLabel?: string | null;
+  unitsPerSale?: number;
+  // Singles or packs sold, in milli-units; defaults to quantityMilli.
+  saleQuantityMilli?: number;
   grossAgorot: number;
   discountAgorot: number;
   // null when the sale left no cost record (untracked stock or pre-inventory orders).
@@ -44,6 +55,8 @@ export interface ReportMetrics extends ReportTotalsInput {
   orderCount: number;
   averageOrderValueAgorot: number | null;
   unitsSoldMilli: number;
+  // Multi-piece selling units sold (packs, cartons), net of returns.
+  packsSold: number;
   stockTurnoverBasisPoints: number | null;
 }
 
@@ -54,6 +67,19 @@ export interface ProductPerformance {
   netSalesAgorot: number;
   profitAgorot: number | null;
   marginBasisPoints: number | null;
+}
+
+export interface SellingUnitPerformance {
+  key: string;
+  productKey: string;
+  name: string;
+  sellingUnitLabel: string | null;
+  unitsPerSale: number;
+  saleQuantityMilli: number;
+  quantityMilli: number;
+  netSalesAgorot: number;
+  cogsAgorot: number | null;
+  profitAgorot: number | null;
 }
 
 export interface ProfitPoint {
@@ -78,11 +104,15 @@ export interface ReportResult {
   byRevenue: ProductPerformance[];
   byProfit: ProductPerformance[];
   byMargin: ProductPerformance[];
+  // Whole products across their variants, by net sales.
+  byProduct: ProductPerformance[];
+  bySellingUnit: SellingUnitPerformance[];
   profitSeries: ProfitPoint[];
   channels: ChannelSummary[];
 }
 
 const RANKING_SIZE = 5;
+const BREAKDOWN_SIZE = 20;
 const net = (fact: SaleFact) => fact.grossAgorot - fact.discountAgorot;
 const sum = (values: number[]) =>
   values.reduce((total, value) => total + value, 0);
@@ -135,6 +165,7 @@ function seriesBuckets(period: ReportPeriod): Array<{
 function rank(
   items: ProductPerformance[],
   score: (item: ProductPerformance) => number | null,
+  size = RANKING_SIZE,
 ): ProductPerformance[] {
   return items
     .filter((item) => score(item) !== null)
@@ -142,7 +173,79 @@ function rank(
       (a, b) =>
         (score(b) ?? 0) - (score(a) ?? 0) || a.name.localeCompare(b.name, "ar"),
     )
-    .slice(0, RANKING_SIZE);
+    .slice(0, size);
+}
+
+const packMilli = (fact: SaleFact) =>
+  (fact.unitsPerSale ?? 1) > 1 ? (fact.saleQuantityMilli ?? 0) : 0;
+
+interface Aggregate {
+  productKey: string;
+  name: string;
+  sellingUnitLabel: string | null;
+  unitsPerSale: number;
+  quantity: number;
+  saleQuantity: number;
+  net: number;
+  costedNet: number;
+  cogs: number;
+  costed: boolean;
+}
+
+// Sales minus returns per key; a group is costed only when every fact in it carried a cost.
+function aggregate(
+  sales: readonly SaleFact[],
+  returns: readonly SaleFact[],
+  keyOf: (fact: SaleFact) => string,
+  nameOf: (fact: SaleFact) => string = (fact) => fact.name,
+): Map<string, Aggregate> {
+  const groups = new Map<string, Aggregate>();
+  const apply = (fact: SaleFact, sign: 1 | -1) => {
+    const key = keyOf(fact);
+    const entry = groups.get(key) ?? {
+      productKey: fact.productKey,
+      name: nameOf(fact),
+      sellingUnitLabel: fact.sellingUnitLabel ?? null,
+      unitsPerSale: fact.unitsPerSale ?? 1,
+      quantity: 0,
+      saleQuantity: 0,
+      net: 0,
+      costedNet: 0,
+      cogs: 0,
+      costed: true,
+    };
+    entry.quantity += sign * fact.quantityMilli;
+    entry.saleQuantity += sign * (fact.saleQuantityMilli ?? fact.quantityMilli);
+    entry.net += sign * net(fact);
+    if (fact.cogsAgorot === null) entry.costed = false;
+    else {
+      entry.costedNet += sign * net(fact);
+      entry.cogs += sign * fact.cogsAgorot;
+    }
+    groups.set(key, entry);
+  };
+  for (const fact of sales) apply(fact, 1);
+  for (const fact of returns) apply(fact, -1);
+  return groups;
+}
+
+function toPerformance(groups: Map<string, Aggregate>): ProductPerformance[] {
+  return [...groups.entries()]
+    .filter(([, entry]) => entry.quantity > 0)
+    .map(([productKey, entry]): ProductPerformance => {
+      const profitAgorot = entry.costed ? entry.costedNet - entry.cogs : null;
+      return {
+        productKey,
+        name: entry.name,
+        quantityMilli: entry.quantity,
+        netSalesAgorot: entry.net,
+        profitAgorot,
+        marginBasisPoints:
+          profitAgorot === null
+            ? null
+            : ratioBasisPoints(profitAgorot, entry.costedNet),
+      };
+    });
 }
 
 // Every figure is computed here from recorded facts; nothing is estimated.
@@ -166,54 +269,46 @@ export function buildReport(input: {
       .filter((documentId) => !returnedDocuments.has(documentId)),
   ).size;
 
-  const products = new Map<
-    string,
-    {
-      name: string;
-      quantity: number;
-      net: number;
-      costedNet: number;
-      cogs: number;
-      costed: boolean;
-    }
-  >();
-  const apply = (fact: SaleFact, sign: 1 | -1) => {
-    const entry = products.get(fact.productKey) ?? {
-      name: fact.name,
-      quantity: 0,
-      net: 0,
-      costedNet: 0,
-      cogs: 0,
-      costed: true,
-    };
-    entry.quantity += sign * fact.quantityMilli;
-    entry.net += sign * net(fact);
-    if (fact.cogsAgorot === null) entry.costed = false;
-    else {
-      entry.costedNet += sign * net(fact);
-      entry.cogs += sign * fact.cogsAgorot;
-    }
-    products.set(fact.productKey, entry);
-  };
-  for (const fact of sales) apply(fact, 1);
-  for (const fact of returns) apply(fact, -1);
-
-  const performance = [...products.entries()]
+  const variants = aggregate(sales, returns, (fact) => fact.productKey);
+  const performance = toPerformance(variants);
+  const byProduct = rank(
+    toPerformance(
+      aggregate(
+        sales,
+        returns,
+        (fact) => fact.productGroupKey ?? fact.productKey,
+        (fact) => fact.productName ?? fact.name,
+      ),
+    ),
+    (item) => item.netSalesAgorot,
+    BREAKDOWN_SIZE,
+  );
+  const bySellingUnit = [
+    ...aggregate(
+      sales,
+      returns,
+      (fact) => fact.sellingUnitKey ?? `${fact.productKey}::base`,
+    ).entries(),
+  ]
     .filter(([, entry]) => entry.quantity > 0)
-    .map(([productKey, entry]): ProductPerformance => {
-      const profitAgorot = entry.costed ? entry.costedNet - entry.cogs : null;
-      return {
-        productKey,
-        name: entry.name,
-        quantityMilli: entry.quantity,
-        netSalesAgorot: entry.net,
-        profitAgorot,
-        marginBasisPoints:
-          profitAgorot === null
-            ? null
-            : ratioBasisPoints(profitAgorot, entry.costedNet),
-      };
-    });
+    .map(([key, entry]): SellingUnitPerformance => ({
+      key,
+      productKey: entry.productKey,
+      name: entry.name,
+      sellingUnitLabel: entry.sellingUnitLabel,
+      unitsPerSale: entry.unitsPerSale,
+      saleQuantityMilli: entry.saleQuantity,
+      quantityMilli: entry.quantity,
+      netSalesAgorot: entry.net,
+      cogsAgorot: entry.costed ? entry.cogs : null,
+      profitAgorot: entry.costed ? entry.costedNet - entry.cogs : null,
+    }))
+    .sort(
+      (a, b) =>
+        b.netSalesAgorot - a.netSalesAgorot ||
+        a.name.localeCompare(b.name, "ar"),
+    )
+    .slice(0, BREAKDOWN_SIZE);
 
   const within = (fact: SaleFact, from: string, to: string) =>
     fact.date >= from && fact.date <= to;
@@ -268,6 +363,9 @@ export function buildReport(input: {
       unitsSoldMilli:
         sum(sales.map((fact) => fact.quantityMilli)) -
         sum(returns.map((fact) => fact.quantityMilli)),
+      packsSold: Math.round(
+        (sum(sales.map(packMilli)) - sum(returns.map(packMilli))) / 1000,
+      ),
       stockTurnoverBasisPoints: ratioBasisPoints(
         all.cogs,
         input.totals.inventoryValueAgorot,
@@ -277,6 +375,8 @@ export function buildReport(input: {
     byRevenue: rank(performance, (item) => item.netSalesAgorot),
     byProfit: rank(performance, (item) => item.profitAgorot),
     byMargin: rank(performance, (item) => item.marginBasisPoints),
+    byProduct,
+    bySellingUnit,
     profitSeries,
     channels,
   };

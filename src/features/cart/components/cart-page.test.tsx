@@ -3,10 +3,31 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 
 import { CartPage } from "@/features/cart/components/cart-page";
-import { CART_STORAGE_KEY } from "@/features/cart/cart-store";
+import {
+  CART_STORAGE_KEY,
+  PREVIOUS_CART_STORAGE_KEY,
+} from "@/features/cart/cart-store";
 import type { Product } from "@/features/catalog/domain/product";
 import { renderWithProviders } from "@/test/render-with-providers";
-import { MockProductRepository } from "@/test/mock-product-repository";
+import {
+  MockProductRepository,
+  fixtureUuid,
+  multipackClothFixture,
+} from "@/test/mock-product-repository";
+
+const blueSingle = fixtureUuid("test-cloth--blue:single");
+const bluePack = fixtureUuid("test-cloth--blue:pack3");
+const clothLine = (
+  sellingUnitId: string,
+  unitsPerSale: number,
+  quantity: number,
+) => ({
+  productId: "test-cloth",
+  variantId: "test-cloth--blue",
+  sellingUnitId,
+  unitsPerSale,
+  quantity,
+});
 
 describe("cart page", () => {
   const productRepository = new MockProductRepository();
@@ -23,7 +44,7 @@ describe("cart page", () => {
   it("resolves authoritative prices, updates quantities, and removes a line", async () => {
     const products = await productRepository.list();
     window.localStorage.setItem(
-      CART_STORAGE_KEY,
+      PREVIOUS_CART_STORAGE_KEY,
       JSON.stringify({
         version: 2,
         lines: [
@@ -72,7 +93,7 @@ describe("cart page", () => {
   it("clears the cart after explicit confirmation", async () => {
     const products = await productRepository.list();
     window.localStorage.setItem(
-      CART_STORAGE_KEY,
+      PREVIOUS_CART_STORAGE_KEY,
       JSON.stringify({
         version: 2,
         lines: [
@@ -111,7 +132,7 @@ describe("cart page", () => {
         : product,
     );
     window.localStorage.setItem(
-      CART_STORAGE_KEY,
+      PREVIOUS_CART_STORAGE_KEY,
       JSON.stringify({
         version: 2,
         lines: [
@@ -136,5 +157,66 @@ describe("cart page", () => {
         name: "زيادة كمية منظف عام Secret",
       }),
     ).toBeDisabled();
+  });
+
+  it("shows two 3-packs as packs with their piece count and price", async () => {
+    const products = [multipackClothFixture({ blueFreePieces: 10 })];
+    window.localStorage.setItem(
+      CART_STORAGE_KEY,
+      JSON.stringify({
+        version: 3,
+        lines: [clothLine(bluePack, 3, 2), clothLine(blueSingle, 1, 1)],
+      }),
+    );
+    renderWithProviders(<CartPage products={products} />, { products });
+
+    const [packLine, singleLine] = await screen.findAllByRole("article");
+    expect(within(packLine!).getByText("باكيج 3 حبات × 2")).toBeInTheDocument();
+    expect(within(packLine!).getByText("إجمالي القطع: 6")).toBeInTheDocument();
+    expect(
+      within(packLine!).getByLabelText("مجموع ممسحة تنظيف 20 ₪"),
+    ).toBeInTheDocument();
+    expect(within(packLine!).queryByText(/2 حبة/)).not.toBeInTheDocument();
+    expect(within(singleLine!).getByText("حبة واحدة × 1")).toBeInTheDocument();
+    expect(screen.getByLabelText("مجموع المنتجات 24 ₪")).toBeInTheDocument();
+  });
+
+  it("limits pack quantity to what base stock can fill", async () => {
+    const products = [multipackClothFixture({ blueFreePieces: 7 })];
+    window.localStorage.setItem(
+      CART_STORAGE_KEY,
+      JSON.stringify({ version: 3, lines: [clothLine(bluePack, 3, 2)] }),
+    );
+    renderWithProviders(<CartPage products={products} />, { products });
+    expect(
+      await screen.findByRole("button", {
+        name: "زيادة كمية ممسحة تنظيف — باكيج 3 حبات",
+      }),
+    ).toBeDisabled();
+  });
+
+  it("asks for a new choice when the unit was archived or changed", async () => {
+    const products = [multipackClothFixture({ blueFreePieces: 10 })];
+    const user = userEvent.setup();
+    window.localStorage.setItem(
+      CART_STORAGE_KEY,
+      JSON.stringify({
+        version: 3,
+        // Saved when the pack held 2 pieces; it now holds 3, so it is not converted silently.
+        lines: [clothLine(bluePack, 2, 1)],
+      }),
+    );
+    renderWithProviders(<CartPage products={products} />, { products });
+
+    expect(
+      await screen.findByText(/تغيّرت طريقة الشراء لهذا المنتج/),
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText("مجموع المنتجات 0 ₪")).toBeInTheDocument();
+    expect(
+      screen.getByText("راجع المنتجات المعلَّمة في السلة قبل المتابعة."),
+    ).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /باكيج 3 حبات/ }));
+    expect(await screen.findByText("باكيج 3 حبات × 1")).toBeInTheDocument();
+    expect(screen.getByLabelText("مجموع المنتجات 10 ₪")).toBeInTheDocument();
   });
 });

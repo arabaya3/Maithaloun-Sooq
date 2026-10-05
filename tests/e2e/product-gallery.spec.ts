@@ -183,10 +183,17 @@ test("mobile: tapping the blue image selects only blue, keeps the size, and the 
     .getByRole("button", { name: "أضف إلى السلة" })
     .click();
   const saved = await page.evaluate(() =>
-    window.localStorage.getItem("souq-maythalun:cart:v2"),
+    window.localStorage.getItem("souq-maythalun:cart:v3"),
   );
+  // The exact variant on screen, bought one piece at a time.
   expect(JSON.parse(saved!).lines).toEqual([
-    { productId: LOYAL.domainId, variantId: "e2e-loyal--blue-l", quantity: 1 },
+    {
+      productId: LOYAL.domainId,
+      variantId: "e2e-loyal--blue-l",
+      sellingUnitId: expect.any(String),
+      unitsPerSale: 1,
+      quantity: 1,
+    },
   ]);
   const [variant] = await withTestDb(
     (sql) => sql<{ sku: string; price: number }[]>`
@@ -264,7 +271,7 @@ test("archived variant can be neither reached nor added", async ({ page }) => {
       .click();
     const saved = JSON.parse(
       (await page.evaluate(() =>
-        window.localStorage.getItem("souq-maythalun:cart:v2"),
+        window.localStorage.getItem("souq-maythalun:cart:v3"),
       ))!,
     ) as { lines: Array<{ variantId: string }> };
     expect(saved.lines.map((line) => line.variantId)).not.toContain(

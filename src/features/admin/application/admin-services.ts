@@ -32,6 +32,7 @@ import { CustomerMaintenanceService } from "@/features/sales/application/custome
 import { QaStockSimulationService } from "@/features/admin/application/qa-stock-simulation";
 import { CatalogAuthoringService } from "@/features/admin/application/catalog-authoring-service";
 import { ProductMaintenanceService } from "./product-maintenance-service";
+import { SellingUnitService } from "@/features/admin/application/selling-unit-service";
 import { InventoryService } from "@/features/inventory/application/inventory-service";
 import { PriceReviewService } from "@/features/inventory/application/price-review-service";
 import { ExtractionService } from "@/features/purchasing/application/extraction-service";
@@ -96,6 +97,7 @@ export const productOptionsService = new ProductOptionsService(
   db,
   catalogAuthoringService,
 );
+export const sellingUnitService = new SellingUnitService(db);
 export const offerService = new OfferService(db);
 export const customerMaintenanceService = new CustomerMaintenanceService(db);
 export const supplierMaintenanceService = new SupplierMaintenanceService(db);
@@ -110,6 +112,7 @@ export const assistantOperations = new AssistantOperations({
   catalog: adminCatalogService,
   authoring: catalogAuthoringService,
   maintenance: productMaintenanceService,
+  sellingUnits: sellingUnitService,
   inventory: inventoryService,
   sales: salesService,
   customers: customerService,

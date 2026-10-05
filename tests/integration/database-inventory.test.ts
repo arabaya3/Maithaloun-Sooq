@@ -411,7 +411,7 @@ describe("order integration", () => {
           {
             variantId: CLEANER,
             unit: "piece",
-            quantityMilli: 2_000,
+            quantityMilli: 3_000,
             packQuantity: 1,
             unitCostAgorot: 400,
             lineDiscountAgorot: 0,
@@ -419,7 +419,18 @@ describe("order integration", () => {
         ],
       }),
     );
+    // Checkout checks free stock: 4 of 3 pieces is refused before an order exists.
+    await expect(placeOrder(4)).rejects.toMatchObject({
+      code: "insufficient_stock",
+    });
     const reference = await placeOrder(3);
+    // Stock falls after the order was placed; confirmation re-checks under lock.
+    await inventoryService.adjust(owner, {
+      idempotencyKey: crypto.randomUUID(),
+      variantId: CLEANER,
+      reason: "damaged",
+      quantityMilli: 1_000,
+    });
     const pending = await adminOrderService.getByPublicReference(
       owner,
       reference,

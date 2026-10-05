@@ -13,6 +13,7 @@ import type {
   ReorderReview,
 } from "@/features/accounts/application/customer-orders-service";
 import { useCart } from "@/features/cart/cart-provider";
+import { sellingLineText } from "@/features/catalog/domain/selling-unit";
 import { orderStatusLabels } from "@/features/orders/domain/order-status";
 import { formatIls } from "@/shared/lib/format-currency";
 
@@ -50,11 +51,13 @@ function ReorderPanel({
       <ul>
         {review.lines.map((line) => (
           <li
-            key={`${line.productId}:${line.variantId}`}
+            key={`${line.productId}:${line.variantId}:${line.sellingUnitId}`}
             data-status={line.status}
           >
             <span>
-              {line.name} × {line.quantity}
+              {line.sellingLabel
+                ? `${line.name} — ${sellingLineText(line.sellingLabel, line.quantity)}`
+                : `${line.name} × ${line.quantity}`}
             </span>
             {line.status === "unavailable" ? (
               <strong>غير متوفر حالياً — لن يُضاف</strong>
@@ -108,8 +111,20 @@ export function OrderHistory({
 
   function addToCart(lines: ReorderReview["lines"]) {
     for (const line of lines) {
-      if (line.status !== "unavailable" && line.variantId) {
-        addItem(line.productId, line.variantId, line.quantity);
+      if (
+        line.status !== "unavailable" &&
+        line.variantId &&
+        line.sellingUnitId
+      ) {
+        addItem(
+          {
+            productId: line.productId,
+            variantId: line.variantId,
+            sellingUnitId: line.sellingUnitId,
+            unitsPerSale: line.unitsPerSale,
+          },
+          line.quantity,
+        );
       }
     }
     router.push("/cart");
@@ -205,7 +220,9 @@ export function OrderHistory({
               <ul className="order-history-items">
                 {order.items.map((item, index) => (
                   <li key={index}>
-                    {item.name} × {item.quantity}
+                    {item.sellingLabel
+                      ? `${item.name} — ${sellingLineText(item.sellingLabel, item.quantity)}`
+                      : `${item.name} × ${item.quantity}`}
                   </li>
                 ))}
               </ul>

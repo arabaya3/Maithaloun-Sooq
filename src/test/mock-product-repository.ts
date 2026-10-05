@@ -10,6 +10,32 @@ import {
   type ProductPresentation,
 } from "@/features/catalog/domain/product-presentation";
 
+// Stable UUIDs for fixture selling units, derived from a readable key.
+export function fixtureUuid(key: string): string {
+  let hash = BigInt("0xcbf29ce484222325");
+  for (const char of key) {
+    hash ^= BigInt(char.codePointAt(0)!);
+    hash = (hash * BigInt("0x100000001b3")) & BigInt("0xffffffffffffffff");
+  }
+  const hex = hash.toString(16).padStart(16, "0");
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-4${hex.slice(13, 16)}-8000-${hex.slice(0, 12)}`;
+}
+
+export function singleSellingUnit(
+  variantId: string,
+  priceAgorot: number,
+  maxQuantity = 9,
+) {
+  return {
+    id: fixtureUuid(`${variantId}:single`),
+    labelAr: "حبة واحدة",
+    unitsPerSale: 1,
+    priceAgorot,
+    isDefault: true,
+    maxQuantity,
+  };
+}
+
 export function withDefaultVariant(
   product: Omit<
     Product,
@@ -35,9 +61,113 @@ export function withDefaultVariant(
         image: product.image,
         sortOrder: 0,
         isDefault: true,
+        sellingUnits: [
+          singleSellingUnit(defaultVariantId, product.priceAgorot),
+        ],
       },
     ],
     specifications: product.specifications ?? [],
+  });
+}
+
+// Cleaning cloths sold singly (4 ₪) or as a 3-pack (10 ₪); the green colour sells singles and a 6-carton.
+export function multipackClothFixture(
+  options: { blueFreePieces?: number; greenFreePieces?: number } = {},
+): Product {
+  const cap = (pieces: number | undefined, units: number) =>
+    pieces === undefined ? 9 : Math.min(9, Math.floor(pieces / units));
+  const unit = (
+    variantId: string,
+    key: string,
+    labelAr: string,
+    unitsPerSale: number,
+    priceAgorot: number,
+    isDefault: boolean,
+    pieces: number | undefined,
+  ) => ({
+    id: fixtureUuid(`${variantId}:${key}`),
+    labelAr,
+    unitsPerSale,
+    priceAgorot,
+    isDefault,
+    maxQuantity: cap(pieces, unitsPerSale),
+  });
+  return productSchema.parse({
+    id: "test-cloth",
+    slug: "test-cloth",
+    nameAr: "ممسحة تنظيف",
+    priceAgorot: 400,
+    categoryId: "tools",
+    image: { kind: "placeholder", variant: "brush" },
+    availability: "available",
+    publication: "published",
+    detailsStatus: "placeholder",
+    defaultVariantId: "test-cloth--blue",
+    variants: [
+      {
+        id: "test-cloth--blue",
+        productId: "test-cloth",
+        labelAr: "أزرق",
+        attributes: { اللون: "أزرق" },
+        priceAgorot: 400,
+        availability: "available",
+        image: { kind: "placeholder", variant: "brush" },
+        sortOrder: 0,
+        isDefault: true,
+        sellingUnits: [
+          unit(
+            "test-cloth--blue",
+            "single",
+            "حبة واحدة",
+            1,
+            400,
+            true,
+            options.blueFreePieces,
+          ),
+          unit(
+            "test-cloth--blue",
+            "pack3",
+            "باكيج 3 حبات",
+            3,
+            1000,
+            false,
+            options.blueFreePieces,
+          ),
+        ],
+      },
+      {
+        id: "test-cloth--green",
+        productId: "test-cloth",
+        labelAr: "أخضر",
+        attributes: { اللون: "أخضر" },
+        priceAgorot: 450,
+        availability: "available",
+        image: { kind: "placeholder", variant: "brush" },
+        sortOrder: 1,
+        isDefault: false,
+        sellingUnits: [
+          unit(
+            "test-cloth--green",
+            "single",
+            "حبة واحدة",
+            1,
+            450,
+            true,
+            options.greenFreePieces,
+          ),
+          unit(
+            "test-cloth--green",
+            "carton6",
+            "كرتونة 6 حبات",
+            6,
+            2400,
+            false,
+            options.greenFreePieces,
+          ),
+        ],
+      },
+    ],
+    specifications: [],
   });
 }
 
@@ -163,6 +293,7 @@ const catalog = productSchema.array().parse([
         image: { kind: "placeholder", variant: "general-cleaner" },
         sortOrder: 0,
         isDefault: true,
+        sellingUnits: [singleSellingUnit("test-multi-weight--1kg", 1500)],
       },
       {
         id: "test-multi-weight--5kg",
@@ -174,6 +305,7 @@ const catalog = productSchema.array().parse([
         image: { kind: "placeholder", variant: "floor-cleaner" },
         sortOrder: 1,
         isDefault: false,
+        sellingUnits: [singleSellingUnit("test-multi-weight--5kg", 4500)],
       },
     ],
     specifications: [

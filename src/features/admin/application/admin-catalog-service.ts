@@ -28,6 +28,7 @@ import {
   variantDomainIdSchema,
 } from "@/features/catalog/domain/product-variant";
 import { mapProductRow } from "@/features/catalog/infrastructure/product-row-mapper";
+import { loadVariantCommerce } from "@/features/catalog/infrastructure/variant-commerce";
 import * as schema from "@/server/db/schema";
 
 import { addGalleryImage, syncImageMirrors } from "./gallery-store";
@@ -903,11 +904,19 @@ export class AdminCatalogService {
       specsByProductId.set(spec.productId, list);
     }
 
+    const commerce = await loadVariantCommerce(
+      this.database,
+      variantRows
+        .filter((variant) => !variant.archivedAt)
+        .map((variant) => variant.id),
+    );
     return rows.map((row) =>
       mapProductRow(
         row,
         variantsByProductId.get(row.id) ?? [],
         specsByProductId.get(row.id) ?? [],
+        new Map(),
+        commerce,
       ),
     );
   }

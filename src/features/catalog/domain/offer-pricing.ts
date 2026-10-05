@@ -54,6 +54,35 @@ export function priceForQuantity(
   };
 }
 
+/**
+ * Price of one selling unit. Order of resolution: exact variant → exact selling unit and its
+ * regular price → eligible offer → final price. Product, variant and category offers keep their
+ * per-piece meaning, so they apply only to the one-piece unit; a pack is sold at its own price and
+ * is never discounted once per piece inside it.
+ */
+export function priceSellingUnit(
+  unit: { priceAgorot: number; unitsPerSale: number },
+  offer: VariantOffer | undefined,
+  quantity: number,
+): PricedUnit {
+  if (unit.unitsPerSale === 1) {
+    return priceForQuantity({ priceAgorot: unit.priceAgorot, offer }, quantity);
+  }
+  return {
+    unitPriceAgorot: unit.priceAgorot,
+    listUnitPriceAgorot: unit.priceAgorot,
+    offerId: null,
+  };
+}
+
+/** The offer shown beside a selling unit, if it can apply to it at all. */
+export function offerForSellingUnit(
+  unit: { unitsPerSale: number },
+  offer: VariantOffer | undefined,
+): VariantOffer | undefined {
+  return unit.unitsPerSale === 1 ? offer : undefined;
+}
+
 export function offerLabel(offer: VariantOffer): string {
   if (offer.displayText) return offer.displayText;
   const base =
