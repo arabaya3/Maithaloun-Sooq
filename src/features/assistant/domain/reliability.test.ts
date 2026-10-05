@@ -8,7 +8,7 @@ import {
   selectionQuestion,
   type CatalogEntry,
 } from "./entity-match";
-import { shouldStopLoop } from "./loop-guard";
+import { mustAnswerNow, shouldStopLoop } from "./loop-guard";
 import {
   INTERRUPTED_TOOL_ERROR,
   messageStatus,
@@ -314,5 +314,23 @@ describe("draft corrections", () => {
     data = applyDraftPatch(data, { price: "عشرة دولار" }, categories).data;
     expect(data.fields.price).toBeUndefined();
     expect(draftStage(data)).toBe("price_missing");
+  });
+});
+
+describe("mustAnswerNow", () => {
+  const call = (
+    toolName: string,
+    input: unknown,
+    output: unknown = { status: "ok" },
+  ) => ({
+    toolCalls: [{ toolName, input }],
+    toolResults: [{ output }],
+  });
+
+  it("forces a text answer after a repeated call or on the last allowed step", () => {
+    const once = [call("searchProducts", { query: "منظف" })];
+    expect(mustAnswerNow(once, 1, 8)).toBe(false);
+    expect(mustAnswerNow([...once, ...once], 2, 8)).toBe(true);
+    expect(mustAnswerNow(once, 7, 8)).toBe(true);
   });
 });

@@ -193,7 +193,10 @@ export function createAssistantTools(context: AssistantToolContext) {
       inputSchema: z.object({ query: text(120) }).strict(),
       execute: ({ query }) =>
         run("searchProducts", { query }, async () => {
-          const products = await context.catalog.list(actor);
+          const [products, archivedProducts] = await Promise.all([
+            context.catalog.list(actor),
+            context.catalog.listArchived(actor),
+          ]);
           const resolution = forSearch(
             resolveCatalogEntity(query, catalogEntries(products), "product"),
           );
@@ -202,9 +205,39 @@ export function createAssistantTools(context: AssistantToolContext) {
               ? [resolution.match]
               : resolution.candidates;
           const stock = await context.inventory.listStock(actor);
+          // Archived products are reported apart, only when nothing active matched, so they can be restored by id.
+          const archived =
+            resolution.status === "resolved" && !resolution.approximate
+              ? []
+              : (() => {
+                  const entries = catalogEntries(archivedProducts);
+                  const found = resolveCatalogEntity(query, entries, "product");
+                  const rows =
+                    found.status === "resolved"
+                      ? [found.match]
+                      : found.candidates;
+                  return [
+                    ...new Map(
+                      rows.map((row) => [row.productId, row]),
+                    ).values(),
+                  ]
+                    .slice(0, 5)
+                    .map((row) => ({
+                      productId: row.productId,
+                      label: row.label,
+                      href: `/admin/products/${row.productId}`,
+                    }));
+                })();
           return {
             status: resolution.status,
             approximate: resolution.approximate,
+            ...(archived.length
+              ? {
+                  archived,
+                  archivedNote:
+                    "منتجات مؤرشفة غير ظاهرة في المتجر. لاسترجاع أحدها استعمل prepareProductRestore بمعرّفه.",
+                }
+              : {}),
             results: list.map((item) => {
               const product = products.find(
                 (row) => row.id === item.productId,
@@ -217,6 +250,7 @@ export function createAssistantTools(context: AssistantToolContext) {
                 variantId: item.variantId,
                 label: item.label,
                 confidence: item.confidence,
+                variantCount: product.variants.length,
                 price: formatIls(product.priceAgorot),
                 availability:
                   product.availability === "available"
@@ -502,47 +536,80 @@ export function createAssistantTools(context: AssistantToolContext) {
         }),
     }),
     getPurchaseInvoice: tool({
-      description: "آخر فواتير الشراء أو فاتورة محددة بمعرّفها.",
-      inputSchema: z.object({ invoiceId: z.uuid().optional() }).strict(),
-      execute: ({ invoiceId }) =>
-        run("getPurchaseInvoice", { invoiceId }, async () => {
-          if (!invoiceId) {
-            const list = await context.purchases.list(actor, 8);
+      description:
+        "آخر فواتير الشراء، أو فاتورة محددة بمعرّفها (invoiceId) أو برقمها المكتوب عليها (reference مثل INV-7781).",
+      inputSchema: z
+        .object({
+          invoiceId: z.uuid().optional(),
+          reference: text(60).optional(),
+        })
+        .strict(),
+      execute: ({ invoiceId: requestedId, reference }) =>
+        run(
+          "getPurchaseInvoice",
+          { invoiceId: requestedId, reference },
+          async () => {
+            let invoiceId = requestedId;
+            if (!invoiceId && reference) {
+              const normalize = (value: string) =>
+                value.replace(/\s+/g, "").toLowerCase();
+              const wanted = normalize(reference);
+              const matches = (await context.purchases.list(actor, 200)).filter(
+                (row) => row.reference && normalize(row.reference) === wanted,
+              );
+              if (!matches.length) return { status: "not_found" as const };
+              if (matches.length > 1) {
+                return {
+                  status: "needs_selection" as const,
+                  invoices: matches.slice(0, 8).map((row) => ({
+                    invoiceId: row.id,
+                    supplier: row.supplierName,
+                    date: row.invoiceDate,
+                  })),
+                };
+              }
+              invoiceId = matches[0]!.id;
+            }
+            if (!invoiceId) {
+              const list = await context.purchases.list(actor, 8);
+              return {
+                invoices: list.map((row) => ({
+                  invoiceId: row.id,
+                  supplier: row.supplierName,
+                  reference: row.reference,
+                  date: row.invoiceDate,
+                  total:
+                    row.totalAgorot === null
+                      ? null
+                      : formatIls(row.totalAgorot),
+                  href: `/admin/inventory/purchases/${row.id}`,
+                })),
+              };
+            }
+            const detail = await context.purchases.getDetail(actor, invoiceId);
+            if (!detail) return { status: "not_found" as const };
             return {
-              invoices: list.map((row) => ({
-                invoiceId: row.id,
-                supplier: row.supplierName,
-                reference: row.reference,
-                date: row.invoiceDate,
-                total:
-                  row.totalAgorot === null ? null : formatIls(row.totalAgorot),
-                href: `/admin/inventory/purchases/${row.id}`,
-              })),
-            };
-          }
-          const detail = await context.purchases.getDetail(actor, invoiceId);
-          if (!detail) return { status: "not_found" as const };
-          return {
-            status: "found" as const,
-            invoiceId,
-            supplier: detail.supplierName,
-            reference: detail.reference,
-            date: detail.invoiceDate,
-            total:
-              detail.totalAgorot === null
-                ? null
-                : formatIls(detail.totalAgorot),
-            lines: detail.lines.slice(0, 30).map((line) => ({
-              name: line.name,
-              quantity: formatQuantity(line.quantityMilli),
-              lineTotal:
-                line.lineTotalAgorot === null
+              status: "found" as const,
+              invoiceId,
+              supplier: detail.supplierName,
+              reference: detail.reference,
+              date: detail.invoiceDate,
+              total:
+                detail.totalAgorot === null
                   ? null
-                  : formatIls(line.lineTotalAgorot),
-            })),
-            href: `/admin/inventory/purchases/${invoiceId}`,
-          };
-        }),
+                  : formatIls(detail.totalAgorot),
+              lines: detail.lines.slice(0, 30).map((line) => ({
+                name: line.name,
+                quantity: formatQuantity(line.quantityMilli),
+                lineTotal:
+                  line.lineTotalAgorot === null
+                    ? null
+                    : formatIls(line.lineTotalAgorot),
+              })),
+              href: `/admin/inventory/purchases/${invoiceId}`,
+            };
+          },
+        ),
     }),
     getSalesSummary: tool({
       description:

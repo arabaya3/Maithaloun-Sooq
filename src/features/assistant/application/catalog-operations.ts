@@ -163,6 +163,7 @@ export interface CatalogOperationServices {
   authoring: CatalogAuthoringService;
   attachments: AttachmentService;
   productImages: () => ProductImageStore;
+  hasOptions: (domainId: string) => Promise<boolean>;
   resolveProduct: (
     actor: AdminActor,
     query: string,
@@ -850,6 +851,13 @@ export class CatalogOperations {
     );
     if (!resolved.ok) return resolved.result;
     const product = resolved.product;
+    // A free-text variant on a product with options would have no option values and break its combinations.
+    if (await this.services.hasOptions(product.id)) {
+      return rejected(
+        "has_options",
+        "هذا المنتج أصنافه حسب خيارات (لون، رائحة، حجم). أضيفي قيمة الخيار ثم الأصناف الناقصة بدل صنف حر.",
+      );
+    }
     const priceAgorot = parseIlsToAgorot(input.priceIls);
     if (!priceAgorot) return moneyRejection(input.priceIls);
     const problem =

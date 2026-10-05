@@ -19,5 +19,6 @@ export function e2eServerEnvironment(
     CUSTOMER_OTP_PROVIDER: "development",
     CUSTOMER_OTP_DEV_CODE: "246810",
     QA_STOCK_SIMULATION: "on",
+    ASSISTANT_SMOKE_TEST: "on",
   };
 }

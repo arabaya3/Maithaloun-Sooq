@@ -218,6 +218,8 @@ export class AssistantOperations {
       authoring: services.authoring,
       attachments: services.attachments,
       productImages: services.productImages,
+      hasOptions: async (domainId) =>
+        Boolean((await this.productOptions.matrix(domainId))?.options.length),
       resolveProduct: (actor, query, scope, field) =>
         this.resolveProduct(actor, query, scope, field),
       resolveVariant: (actor, query, field) =>

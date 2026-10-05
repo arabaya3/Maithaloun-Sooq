@@ -34,6 +34,7 @@ import { CustomerService } from "@/features/sales/application/customer-service";
 import { SalesService } from "@/features/sales/application/sales-service";
 import type { ProductImageAnalyzer } from "@/server/ai/product-image-analyzer";
 import type { PrivateDocumentStore } from "@/server/storage/private-documents";
+import { businessFingerprint } from "@/test/business-fingerprint";
 import {
   resetTestDatabase,
   testDatabaseConnection,
@@ -378,48 +379,6 @@ const fixtures = (): Record<string, Record<string, unknown>> => ({
   },
 });
 
-const BUSINESS_TABLES = [
-  "products",
-  "product_variants",
-  "product_categories",
-  "product_specifications",
-  "inventory_items",
-  "stock_movements",
-  "offers",
-  "offer_targets",
-  "customers",
-  "customer_aliases",
-  "customer_ledger_entries",
-  "customer_payments",
-  "customer_invoices",
-  "suppliers",
-  "supplier_aliases",
-  "supplier_ledger_entries",
-  "purchase_invoices",
-  "orders",
-  "order_items",
-  "order_status_history",
-  "product_images",
-  "product_options",
-  "product_option_values",
-  "product_variant_option_values",
-];
-
-async function businessFingerprint(): Promise<Record<string, string>> {
-  const result: Record<string, string> = {};
-  for (const table of BUSINESS_TABLES) {
-    const exists = await client.unsafe(
-      `select to_regclass('public.${table}') is not null as ok`,
-    );
-    if (!exists[0]?.ok) continue;
-    const [row] = await client.unsafe(
-      `select md5(coalesce(string_agg(t::text, '|' order by t::text), '')) as hash from "${table}" t`,
-    );
-    result[table] = String(row?.hash);
-  }
-  return result;
-}
-
 type JsonSchema = {
   type?: string | string[];
   properties?: Record<string, JsonSchema>;
@@ -568,7 +527,7 @@ describe("assistant tool contracts", () => {
   it("returns structured results and never changes business data while reading or preparing", async () => {
     const tools = toolsFor(context(owner, "full"));
     const data = fixtures();
-    const before = await businessFingerprint();
+    const before = await businessFingerprint(client);
     const unexpected: string[] = [];
     for (const [name, tool] of Object.entries(tools)) {
       const output = (await tool.execute!(data[name], {
@@ -591,7 +550,7 @@ describe("assistant tool contracts", () => {
       }
     }
     expect(unexpected).toEqual([]);
-    expect(await businessFingerprint()).toEqual(before);
+    expect(await businessFingerprint(client)).toEqual(before);
   });
 
   it("never prepares owner-only destructive cards for an operator", async () => {
