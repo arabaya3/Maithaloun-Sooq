@@ -9,14 +9,17 @@ import { checkoutRequestSchema } from "@/features/orders/domain/checkout-request
 import { createPostgresOrderSubmissionGuard } from "@/features/orders/infrastructure/postgres-order-submission-guard";
 import { db } from "@/server/db/db";
 import { getServerEnv } from "@/server/env/env";
+import { lazyObject } from "@/server/lazy-object";
 import { adminNotificationService } from "@/features/admin/application/admin-services";
 import { getCustomerSession } from "@/features/accounts/application/customer-session";
 
 export const dynamic = "force-dynamic";
 
-const submissionGuard = createPostgresOrderSubmissionGuard(
-  db,
-  getServerEnv().ORDER_RATE_LIMIT_PEPPER,
+const submissionGuard = lazyObject(() =>
+  createPostgresOrderSubmissionGuard(
+    db,
+    getServerEnv().ORDER_RATE_LIMIT_PEPPER,
+  ),
 );
 const noStoreHeaders = { "Cache-Control": "no-store, max-age=0" };
 

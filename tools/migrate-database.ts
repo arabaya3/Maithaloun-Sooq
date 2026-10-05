@@ -4,18 +4,7 @@ import { readFileSync } from "node:fs";
 import { migrate } from "drizzle-orm/postgres-js/migrator";
 
 import { createDatabaseConnection } from "../src/server/db/database";
-
-function shouldApplyMigrations(databaseUrl: string): boolean {
-  const hostname = new URL(databaseUrl).hostname;
-  if (["127.0.0.1", "localhost"].includes(hostname)) {
-    return false;
-  }
-  // Preview builds must never migrate the database they were pointed at.
-  return (
-    process.env.VERCEL_ENV === "production" ||
-    process.env.APPLY_DB_MIGRATIONS === "1"
-  );
-}
+import { mayChangeRemoteSchema } from "./deployment-policy";
 
 /** DDL needs session mode; transaction pooler (:6543) often times out on ALTER. */
 function toMigrationDatabaseUrl(databaseUrl: string): string {
@@ -35,7 +24,7 @@ if (!databaseUrl) {
   process.exit(0);
 }
 
-if (!shouldApplyMigrations(databaseUrl)) {
+if (!mayChangeRemoteSchema(process.env, databaseUrl)) {
   console.log("Skipping database migrate outside Vercel/remote apply mode.");
   process.exit(0);
 }

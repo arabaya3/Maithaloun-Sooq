@@ -3,6 +3,8 @@ import { readFileSync } from "node:fs";
 
 import postgres from "postgres";
 
+import { mayChangeRemoteSchema } from "./deployment-policy";
+
 function toSessionPoolerUrl(databaseUrl: string): string {
   const url = new URL(databaseUrl);
   if (url.hostname.includes("pooler.supabase.com") && url.port === "6543") {
@@ -11,19 +13,13 @@ function toSessionPoolerUrl(databaseUrl: string): string {
   return url.toString();
 }
 
-function shouldRun(databaseUrl: string): boolean {
-  const hostname = new URL(databaseUrl).hostname;
-  if (["127.0.0.1", "localhost"].includes(hostname)) return false;
-  return Boolean(process.env.VERCEL) || process.env.APPLY_DB_MIGRATIONS === "1";
-}
-
 const databaseUrl = process.env.DATABASE_URL;
 if (!databaseUrl) {
   console.log("Skipping order-contact ensure: DATABASE_URL is not set.");
   process.exit(0);
 }
 
-if (!shouldRun(databaseUrl)) {
+if (!mayChangeRemoteSchema(process.env, databaseUrl)) {
   console.log(
     "Skipping order-contact ensure outside Vercel/remote apply mode.",
   );
