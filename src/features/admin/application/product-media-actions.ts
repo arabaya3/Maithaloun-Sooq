@@ -10,8 +10,12 @@ import { optionKinds } from "@/features/catalog/domain/product-options";
 import { parseMoneyInput } from "@/shared/lib/money-input";
 import { getProductImageStore } from "@/server/storage/product-images";
 
+import { CatalogAuthoringError } from "./catalog-authoring-service";
 import { ProductOptionsError } from "./product-options-service";
-import { productOptionsService } from "./admin-services";
+import {
+  catalogAuthoringService,
+  productOptionsService,
+} from "./admin-services";
 
 export type MediaActionResult = { ok: true } | { ok: false; message: string };
 
@@ -42,6 +46,25 @@ async function run(
   } catch (error) {
     if (error instanceof ProductOptionsError) {
       return { ok: false, message: messages[error.code] };
+    }
+    if (
+      error instanceof CatalogAuthoringError &&
+      error.code === "breaks_published"
+    ) {
+      return {
+        ok: false,
+        message:
+          `المنتج منشور، وهذا التغيير يتركه غير صالح للعرض. ${error.detail ?? ""}`.trim(),
+      };
+    }
+    if (error instanceof CatalogAuthoringError) {
+      return {
+        ok: false,
+        message:
+          error.code === "not_found"
+            ? "الصنف غير موجود أو مؤرشف."
+            : "تعذّر الحفظ. حدّث الصفحة ثم حاول مرة أخرى.",
+      };
     }
     if (error instanceof AuthorizationError) {
       return { ok: false, message: "هذا الإجراء للمالك فقط." };
@@ -222,6 +245,20 @@ export async function optionValueAction(input: {
       );
     }
   });
+}
+
+export async function defaultVariantAction(input: {
+  productDomainId: string;
+  variantDomainId: string;
+}): Promise<MediaActionResult> {
+  const actor = await requireTrustedAdminMutation();
+  const domainId = productId.parse(input.productDomainId);
+  return run(domainId, () =>
+    catalogAuthoringService.setDefaultVariant(
+      actor,
+      z.string().trim().min(1).max(100).parse(input.variantDomainId),
+    ),
+  );
 }
 
 export async function variantOptionsAction(input: {

@@ -46,12 +46,23 @@ import {
   type SellingUnit,
 } from "@/features/catalog/domain/selling-unit";
 
-// The chosen variant is kept in the address for sharing, without asking the server for a new page.
-function rememberVariant(variantId: string, defaultVariantId: string) {
+// The chosen variant and way of buying are kept in the address for sharing, without asking the server for a new page.
+function rememberInAddress(key: "variant" | "unit", value: string | null) {
   const url = new URL(window.location.href);
-  if (variantId === defaultVariantId) url.searchParams.delete("variant");
-  else url.searchParams.set("variant", variantId);
+  if (value) url.searchParams.set(key, value);
+  else url.searchParams.delete(key);
   window.history.replaceState(window.history.state, "", url);
+}
+
+function rememberVariant(variantId: string, defaultVariantId: string) {
+  rememberInAddress(
+    "variant",
+    variantId === defaultVariantId ? null : variantId,
+  );
+}
+
+function rememberUnit(unit: SellingUnit | null) {
+  rememberInAddress("unit", unit && !unit.isDefault ? unit.id : null);
 }
 
 export function ProductDetailPanel({
@@ -108,7 +119,13 @@ export function ProductDetailPanel({
   const [chosenUnit, setChosenUnit] = useState<{
     id: string;
     unitsPerSale: number;
-  } | null>(null);
+  } | null>(() => {
+    const unit = findSellingUnit(
+      initial.sellingUnits,
+      searchParams.get("unit"),
+    );
+    return unit ? { id: unit.id, unitsPerSale: unit.unitsPerSale } : null;
+  });
 
   const optionVariant = options.length
     ? variantForSelection(options, selectable, selection)
@@ -148,6 +165,12 @@ export function ProductDetailPanel({
     setChosenUnit(
       unit ? { id: unit.id, unitsPerSale: unit.unitsPerSale } : null,
     );
+    rememberUnit(unit);
+  }
+
+  function chooseUnit(unit: SellingUnit) {
+    setChosenUnit({ id: unit.id, unitsPerSale: unit.unitsPerSale });
+    rememberUnit(unit);
   }
 
   function chooseVariant(id: string) {
@@ -249,9 +272,7 @@ export function ProductDetailPanel({
             units={shown.sellingUnits}
             selectedId={sellingUnit?.id ?? null}
             offer={shown.offer}
-            onSelect={(unit) =>
-              setChosenUnit({ id: unit.id, unitsPerSale: unit.unitsPerSale })
-            }
+            onSelect={chooseUnit}
           />
         ) : null}
         <p className="product-description">
@@ -266,7 +287,6 @@ export function ProductDetailPanel({
         ) : null}
         <ProductSpecifications specifications={product.specifications} />
         <ProductDetailActions
-          key={`${shown.id}:${sellingUnit?.id ?? "none"}`}
           product={product}
           variantId={selectedVariant?.id ?? null}
           sellingUnit={sellingUnit}

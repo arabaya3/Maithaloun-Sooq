@@ -9,7 +9,10 @@ import {
   type GalleryImageScope,
 } from "@/features/catalog/domain/product-gallery";
 import { resolveImage } from "@/features/catalog/domain/product-media";
-import type { MappingInput } from "@/features/catalog/domain/product-media-validation";
+import type {
+  MappingInput,
+  StructureInput,
+} from "@/features/catalog/domain/product-media-validation";
 import { sortOptions } from "@/features/catalog/domain/product-options";
 import * as schema from "@/server/db/schema";
 
@@ -228,6 +231,9 @@ async function liveStructure(transaction: Transaction, productId: string) {
       .select({
         id: schema.productVariants.id,
         archivedAt: schema.productVariants.archivedAt,
+        labelAr: schema.productVariants.labelAr,
+        isDefault: schema.productVariants.isDefault,
+        availability: schema.productVariants.availability,
       })
       .from(schema.productVariants)
       .where(eq(schema.productVariants.productId, productId)),
@@ -285,6 +291,13 @@ export async function mappingInputFor(
   transaction: Transaction | Database,
   productId: string,
 ): Promise<MappingInput> {
+  return structureInputFor(transaction, productId);
+}
+
+export async function structureInputFor(
+  transaction: Transaction | Database,
+  productId: string,
+): Promise<StructureInput> {
   const executor = transaction as Transaction;
   const [live, images] = await Promise.all([
     liveStructure(executor, productId),
@@ -312,6 +325,9 @@ export async function mappingInputFor(
       id: variant.id,
       archived: Boolean(variant.archivedAt),
       optionValues: live.selections.get(variant.id) ?? {},
+      labelAr: variant.labelAr,
+      isDefault: variant.isDefault,
+      available: variant.availability === "available",
     })),
     images: images.map((image) => ({
       id: image.id,
@@ -320,6 +336,7 @@ export async function mappingInputFor(
       variantId: image.variantId,
       optionId: image.optionId,
       optionValueId: image.optionValueId,
+      isPrimary: image.isPrimary,
     })),
   };
 }

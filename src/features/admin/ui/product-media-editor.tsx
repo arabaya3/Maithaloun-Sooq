@@ -12,6 +12,7 @@ import {
   reorderGalleryAction,
   valueSharedImageAction,
   variantOptionsAction,
+  defaultVariantAction,
   type MediaActionResult,
 } from "@/features/admin/application/product-media-actions";
 import type { ProductMatrix } from "@/features/admin/application/product-options-service";
@@ -417,7 +418,25 @@ export function ProductMediaEditor({
                     <strong>{variant.label}</strong>
                     {variant.isDefault ? (
                       <span className="admin-badge">الافتراضي</span>
-                    ) : null}
+                    ) : (
+                      <button
+                        type="button"
+                        className="admin-variant-default"
+                        disabled={pending}
+                        onClick={() =>
+                          act(
+                            () =>
+                              defaultVariantAction({
+                                productDomainId: domainId,
+                                variantDomainId: variant.id,
+                              }),
+                            "أصبح هذا الصنف هو الذي يظهر أولاً للزبون.",
+                          )
+                        }
+                      >
+                        اجعليه الافتراضي
+                      </button>
+                    )}
                   </p>
                   <p className="admin-muted">
                     {formatIls(variant.priceAgorot)} ·{" "}

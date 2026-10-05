@@ -594,3 +594,148 @@ test("assistant: mapping card changes nothing before confirmation, «نعم» do
   expect((await audits())[0]!.total - auditsBefore).toBe(1);
   expect(issues.consoleErrors).toEqual([]);
 });
+
+test("selection, quantity and picture survive the cart and checkout at 360, 390, 768 and 1440", async ({
+  page,
+}) => {
+  test.setTimeout(240_000);
+  const issues = trackPageIssues(page);
+  const NAVY = "/products/lilac-air-navy-real.webp";
+  // What the catalog service writes when blue-large has its own picture.
+  await withTestDb(
+    (sql) => sql`
+      update product_variants set image_src = ${NAVY}
+      where domain_id = 'e2e-loyal--blue-l'`,
+  );
+  const picture = (locator: ReturnType<Page["locator"]>) =>
+    locator.evaluate((image) =>
+      decodeURIComponent(
+        (image as HTMLImageElement).currentSrc ||
+          (image as HTMLImageElement).src,
+      ),
+    );
+  for (const [width, height] of [
+    [360, 800],
+    [390, 844],
+    [768, 1024],
+    [1440, 900],
+  ] as const) {
+    await page.setViewportSize({ width, height });
+    await page.goto(`/products/${LOYAL.slug}`);
+    await page.evaluate(() => window.localStorage.clear());
+    await page.reload();
+    const gallery = page.getByRole("region", { name: `صور ${LOYAL.name}` });
+    await gallery
+      .getByRole("button", { name: /— اللون: أزرق$/ })
+      .first()
+      .click();
+    const more = page.getByRole("button", { name: `زيادة كمية ${LOYAL.name}` });
+    await more.click();
+    await radio(page, "الحجم", "كبير").click();
+    // Changing the size keeps the quantity and moves to blue-large's own picture.
+    await expect(page.getByLabel(`كمية ${LOYAL.name} الحالية`)).toHaveText("2");
+    await expect(page.locator(".product-detail-price")).toContainText("18");
+    await expect
+      .poll(async () => decodeURIComponent((await shownImage(page)) ?? ""))
+      .toContain(NAVY);
+    await page
+      .locator(".product-detail-actions")
+      .getByRole("button", { name: "أضف إلى السلة" })
+      .click();
+
+    await page.locator(".cart-button").click();
+    const line = page.locator(".cart-line").first();
+    await expect(line.locator(".cart-line-variant")).toContainText(
+      "أزرق · كبير",
+    );
+    await expect(page.getByLabel("مجموع المنتجات 36 ₪")).toBeVisible();
+    expect(await picture(line.locator("img").first())).toContain(NAVY);
+    await expectNoHorizontalOverflow(page);
+
+    // The line link reopens exactly the variant that is in the cart.
+    await line.getByRole("link", { name: `عرض تفاصيل ${LOYAL.name}` }).click();
+    await expect(page).toHaveURL(/variant=e2e-loyal--blue-l/);
+    await expect(radio(page, "اللون", "أزرق")).toHaveAttribute(
+      "aria-checked",
+      "true",
+    );
+    await expect(radio(page, "الحجم", "كبير")).toHaveAttribute(
+      "aria-checked",
+      "true",
+    );
+    expect(decodeURIComponent((await shownImage(page)) ?? "")).toContain(NAVY);
+
+    if (width === 390) {
+      await page.locator(".cart-button").click();
+      await page.getByRole("link", { name: "متابعة إلى بيانات الطلب" }).click();
+      await page
+        .getByRole("textbox", { name: "الاسم الكامل" })
+        .fill("عميل تجريبي");
+      await page.getByLabel("مفتاح الدولة").selectOption("970");
+      await page
+        .getByRole("textbox", { name: "الرقم المحلي" })
+        .fill("0591234567");
+      await page
+        .getByRole("textbox", { name: "العنوان بالتفصيل أو أقرب نقطة دالة" })
+        .fill("عنوان محلي مفصل للاختبار");
+      await page.getByRole("button", { name: "تأكيد الطلب" }).click();
+      await expect(page).toHaveURL(
+        /\/orders\/MS-[A-Za-z0-9_-]{24}\/confirmation$/,
+      );
+      const [ordered] = await withTestDb(
+        (sql) => sql<{ variant: string; quantity: number; unit: number }[]>`
+          select variant_domain_id as variant, quantity, unit_price_agorot as unit
+          from order_items where product_domain_id = ${LOYAL.domainId}
+          order by id desc limit 1`,
+      );
+      expect(ordered).toEqual({
+        variant: "e2e-loyal--blue-l",
+        quantity: 2,
+        unit: 1800,
+      });
+    }
+  }
+  expect(issues.consoleErrors).toEqual([]);
+  expect(issues.failedRequests).toEqual([]);
+});
+
+test("admin at 360 and 390: the owner can choose which variant opens first", async ({
+  page,
+}) => {
+  const issues = trackPageIssues(page);
+  await login(page);
+  for (const [width, height] of [
+    [360, 800],
+    [390, 844],
+  ] as const) {
+    await page.setViewportSize({ width, height });
+    await page.goto(`/admin/products/${LOYAL.domainId}`);
+    const editor = page.getByRole("region", {
+      name: "الصور والخيارات والأصناف",
+    });
+    const button = editor
+      .getByRole("button", { name: "اجعليه الافتراضي" })
+      .first();
+    await expect(button).toBeVisible();
+    expect((await button.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+    await expectNoHorizontalOverflow(page);
+    const before = await withTestDb(
+      (sql) => sql<{ domain_id: string }[]>`
+        select v.domain_id from product_variants v join products p on p.id = v.product_id
+        where p.domain_id = ${LOYAL.domainId} and v.is_default`,
+    );
+    await button.click();
+    await expect(editor.getByRole("status")).toHaveText(
+      "أصبح هذا الصنف هو الذي يظهر أولاً للزبون.",
+    );
+    const after = await withTestDb(
+      (sql) => sql<{ domain_id: string }[]>`
+        select v.domain_id from product_variants v join products p on p.id = v.product_id
+        where p.domain_id = ${LOYAL.domainId} and v.is_default`,
+    );
+    expect(after).toHaveLength(1);
+    expect(after[0]!.domain_id).not.toBe(before[0]!.domain_id);
+  }
+  expect(issues.consoleErrors).toEqual([]);
+  expect(issues.failedRequests).toEqual([]);
+});

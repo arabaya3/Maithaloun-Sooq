@@ -52,6 +52,7 @@ export const sensitiveFixture: SensitiveFixture = {
   secrets: [],
 };
 
+// Option products without pictures cannot be created as published, so they are seeded as drafts.
 export async function seedEvaluationData(db: Database, owner: AdminActor) {
   const authoring = new CatalogAuthoringService(db);
   const options = new ProductOptionsService(db, authoring);
@@ -72,7 +73,7 @@ export async function seedEvaluationData(db: Database, owner: AdminActor) {
         categoryCode: "home",
         description: null,
         unit: null,
-        publication: "published",
+        publication: "draft",
         availability: "available",
       },
       options: [
@@ -107,7 +108,7 @@ export async function seedEvaluationData(db: Database, owner: AdminActor) {
         categoryCode: "home",
         description: null,
         unit: null,
-        publication: "published",
+        publication: "draft",
         availability: "available",
       },
       options: [

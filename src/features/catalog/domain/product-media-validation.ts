@@ -123,3 +123,127 @@ export function mappingProblems(input: MappingInput): MappingProblem[] {
   }
   return problems;
 }
+
+export interface StructureInput extends MappingInput {
+  variants: ReadonlyArray<
+    MappingInput["variants"][number] & {
+      labelAr: string;
+      isDefault: boolean;
+      available: boolean;
+    }
+  >;
+  images: ReadonlyArray<
+    MappingInput["images"][number] & { isPrimary: boolean }
+  >;
+}
+
+export type StructureProblem = {
+  code:
+    | "no_default_variant"
+    | "default_unavailable"
+    | "incomplete_variant"
+    | "archived_value"
+    | "duplicate_combination"
+    | "primary_not_shared";
+  message: string;
+};
+
+export const structureMessages = {
+  noDefault:
+    "لا يوجد صنف افتراضي فعّال يظهر أولاً للزبون. اختاري صنفاً افتراضياً.",
+  defaultUnavailable: (label: string) =>
+    `الصنف الافتراضي «${label}» غير متوفر بينما توجد أصناف متوفرة. اختاري صنفاً افتراضياً متوفراً.`,
+  incomplete: (label: string, option: string) =>
+    `الصنف «${label}» ينقصه اختيار «${option}».`,
+  archivedValue: (label: string, option: string) =>
+    `الصنف «${label}» مربوط بقيمة مؤرشفة في «${option}». اختاري قيمة فعّالة.`,
+  duplicate: (first: string, second: string) =>
+    `الصنفان «${first}» و«${second}» لهما نفس الاختيارات، فلا يميّز الزبون بينهما.`,
+  primaryNotShared:
+    "الصورة الرئيسية يجب أن تكون صورة عامة للمنتج. اختاري صورة عامة كصورة رئيسية.",
+} as const;
+
+/**
+ * Variant rules that keep the storefront selection and the cart on the same variant.
+ * Products without live options keep their legacy behaviour; only the default and the primary image are checked.
+ */
+export function structureProblems(input: StructureInput): StructureProblem[] {
+  const problems: StructureProblem[] = [];
+  const live = input.variants.filter((variant) => !variant.archived);
+  if (!live.length) return problems;
+  const defaults = live.filter((variant) => variant.isDefault);
+  if (!defaults.length) {
+    problems.push({
+      code: "no_default_variant",
+      message: structureMessages.noDefault,
+    });
+  } else if (
+    !defaults[0]!.available &&
+    live.some((variant) => variant.available)
+  ) {
+    problems.push({
+      code: "default_unavailable",
+      message: structureMessages.defaultUnavailable(defaults[0]!.labelAr),
+    });
+  }
+
+  const options = input.options.filter((option) => !option.archived);
+  if (options.length) {
+    const liveValues = new Map<string, Set<string>>(
+      options.map((option) => [
+        option.id,
+        new Set(option.values.map((value) => value.id)),
+      ]),
+    );
+    const seen = new Map<string, string>();
+    for (const variant of live) {
+      let complete = true;
+      for (const option of options) {
+        const value = variant.optionValues[option.id];
+        if (!value) {
+          complete = false;
+          problems.push({
+            code: "incomplete_variant",
+            message: structureMessages.incomplete(
+              variant.labelAr,
+              option.nameAr,
+            ),
+          });
+        } else if (!liveValues.get(option.id)!.has(value)) {
+          complete = false;
+          problems.push({
+            code: "archived_value",
+            message: structureMessages.archivedValue(
+              variant.labelAr,
+              option.nameAr,
+            ),
+          });
+        }
+      }
+      if (!complete) continue;
+      const key = options
+        .map((option) => variant.optionValues[option.id])
+        .join("|");
+      const other = seen.get(key);
+      if (other) {
+        problems.push({
+          code: "duplicate_combination",
+          message: structureMessages.duplicate(other, variant.labelAr),
+        });
+      } else {
+        seen.set(key, variant.labelAr);
+      }
+    }
+  }
+
+  const primary = input.images.find(
+    (image) => image.isPrimary && !image.archived,
+  );
+  if (primary && primary.scope !== "product") {
+    problems.push({
+      code: "primary_not_shared",
+      message: structureMessages.primaryNotShared,
+    });
+  }
+  return problems;
+}

@@ -38,8 +38,13 @@ export function ProductDetailActions({
   /** Re-reads the current choices at the moment of adding, so a stale render can never add another variant. */
   resolveVariantId: () => string | null;
 }) {
+  // Quantity survives a change of colour, size or pack; it is only capped by what the new choice allows.
   const [quantity, setQuantity] = useState(1);
-  const [confirmation, setConfirmation] = useState("");
+  const selectionKey = `${variantId ?? ""}:${sellingUnit?.id ?? ""}`;
+  const [notice, setNotice] = useState({ key: "", text: "" });
+  const confirmation = notice.key === selectionKey ? notice.text : "";
+  const setConfirmation = (text: string) =>
+    setNotice({ key: selectionKey, text });
   const { addItem } = useCart();
   const { isFavorite, toggleFavorite } = useFavorites();
   const name = getProductDisplayName(product);

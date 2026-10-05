@@ -1567,3 +1567,20 @@
   margin: 0 0 0.25rem;
   white-space: pre-wrap;
 }
+
+.admin-variant-default {
+  min-height: 44px;
+  padding: 0 0.75rem;
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius-md);
+  background: var(--admin-surface);
+  color: var(--admin-forest);
+  font: inherit;
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+
+.admin-variant-default:focus-visible {
+  outline: 2px solid var(--admin-focus);
+  outline-offset: 2px;
+}

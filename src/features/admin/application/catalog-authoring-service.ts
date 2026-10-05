@@ -42,13 +42,15 @@ import type { Database } from "@/features/inventory/application/stock-ledger";
 import {
   mappingMessages,
   mappingProblems,
+  structureProblems,
+  type StructureProblem,
 } from "@/features/catalog/domain/product-media-validation";
 import * as schema from "@/server/db/schema";
 
 import {
   activeGallery,
   addGalleryImage,
-  mappingInputFor,
+  structureInputFor,
   renumber,
   syncImageMirrors,
 } from "./gallery-store";
@@ -67,7 +69,16 @@ export type CatalogAuthoringErrorCode =
   | "default_variant"
   | "stock_on_hand"
   | "not_publishable"
+  | "breaks_published"
   | "stale";
+
+// Edits of a published product that could show or sell a different variant than the customer picked.
+const LIVE_BLOCKERS: ReadonlySet<StructureProblem["code"]> = new Set([
+  "no_default_variant",
+  "archived_value",
+  "duplicate_combination",
+  "primary_not_shared",
+]);
 
 export class CatalogAuthoringError extends Error {
   constructor(
@@ -429,16 +440,22 @@ export class CatalogAuthoringService {
       .digest("hex")
       .slice(0, 32);
     try {
-      return await this.database.transaction((transaction) =>
-        this.createProductIn(
+      return await this.database.transaction(async (transaction) => {
+        const created = await this.createProductIn(
           transaction,
           actor,
           draft,
           attributes,
           replayRef,
           idempotencyKey,
-        ),
-      );
+        );
+        if (!created.replayed) {
+          await this.assertPublishable(transaction, {
+            domainId: created.domainId,
+          });
+        }
+        return created;
+      });
     } catch (error) {
       if (error instanceof CatalogAuthoringError) throw error;
       if (isUniqueViolation(error))
@@ -607,6 +624,17 @@ export class CatalogAuthoringService {
       adminUserId: actor.id,
       ...event,
     });
+    if (event.entityType === "product") {
+      await this.assertLiveSafe(transaction, { domainId: event.entityId });
+    } else if (event.entityType === "product_variant") {
+      const [variant] = await transaction
+        .select({ productId: schema.productVariants.productId })
+        .from(schema.productVariants)
+        .where(eq(schema.productVariants.domainId, event.entityId))
+        .limit(1);
+      if (variant)
+        await this.assertLiveSafe(transaction, { id: variant.productId });
+    }
   }
 
   async updateProductFields(
@@ -675,19 +703,75 @@ export class CatalogAuthoringService {
     }
   }
 
-  async publicationCheck(domainId: string): Promise<PublicationCheck | null> {
+  // Any write that leaves a product published must leave it publishable; otherwise the whole write rolls back.
+  private async productFor(
+    transaction: Transaction,
+    key: { id: string } | { domainId: string },
+  ) {
+    const [product] = await transaction
+      .select()
+      .from(schema.products)
+      .where(
+        "id" in key
+          ? eq(schema.products.id, key.id)
+          : eq(schema.products.domainId, key.domainId),
+      )
+      .limit(1);
+    return product ?? null;
+  }
+
+  // Creating a product as published runs the same check as publishing it.
+  async assertPublishable(
+    transaction: Transaction,
+    key: { id: string } | { domainId: string },
+  ): Promise<void> {
+    const product = await this.productFor(transaction, key);
+    if (!product || product.publication !== "published") return;
+    const check = await this.checkPublishable(transaction, product);
+    if (!check.ready) {
+      throw new CatalogAuthoringError(
+        "not_publishable",
+        check.problems.join(" "),
+      );
+    }
+  }
+
+  // Editing a live product may pass through incomplete states, but never one that shows or sells the wrong variant.
+  async assertLiveSafe(
+    transaction: Transaction,
+    key: { id: string } | { domainId: string },
+  ): Promise<void> {
+    const product = await this.productFor(transaction, key);
+    if (!product || product.publication !== "published") return;
+    const problems = structureProblems(
+      await structureInputFor(transaction, product.id),
+    ).filter((problem) => LIVE_BLOCKERS.has(problem.code));
+    if (problems.length) {
+      throw new CatalogAuthoringError(
+        "breaks_published",
+        [...new Set(problems.map((problem) => problem.message))].join(" "),
+      );
+    }
+  }
+
+  async publicationCheck(
+    domainId: string,
+    availability?: "available" | "unavailable",
+  ): Promise<PublicationCheck | null> {
     const [product] = await this.database
       .select()
       .from(schema.products)
       .where(eq(schema.products.domainId, domainId))
       .limit(1);
     if (!product) return null;
-    return this.checkPublishable(this.database, product);
+    return this.checkPublishable(this.database, product, availability);
   }
 
   private async checkPublishable(
     executor: Database | Transaction,
     product: ProductRow,
+    /** Publishing with an availability also sets the default variant to it, so judge it as it will be. */
+    availability?: "available" | "unavailable",
   ): Promise<PublicationCheck> {
     const problems: string[] = [];
     if (product.nameAr.trim().length < 2) problems.push("اسم المنتج غير صالح.");
@@ -738,15 +822,31 @@ export class CatalogAuthoringService {
       problems.push("القسم غير صالح أو مؤرشف.");
     if (product.archivedAt) problems.push("المنتج مؤرشف؛ استرجعيه أولاً.");
     // Publishing is stricter than saving a draft: every image must say which colour, scent or variant it shows.
-    const mapping = mappingProblems(
-      await mappingInputFor(executor as Transaction, product.id),
-    );
+    const loaded = await structureInputFor(executor as Transaction, product.id);
+    const structure =
+      availability && availability !== product.availability
+        ? {
+            ...loaded,
+            variants: loaded.variants.map((variant) =>
+              variant.isDefault
+                ? { ...variant, available: availability === "available" }
+                : variant,
+            ),
+          }
+        : loaded;
+    const mapping = mappingProblems(structure);
     if (mapping.length) {
       problems.push(
         mappingMessages.blocked,
         ...new Set(mapping.map((problem) => problem.message)),
       );
     }
+    // The storefront must open on a real, buyable variant whose choices lead to exactly one variant.
+    problems.push(
+      ...new Set(
+        structureProblems(structure).map((problem) => problem.message),
+      ),
+    );
     return {
       ready: problems.length === 0,
       problems,
@@ -767,7 +867,11 @@ export class CatalogAuthoringService {
     await this.database.transaction(async (transaction) => {
       const product = await this.lockProduct(transaction, input.domainId);
       if (input.publication === "published") {
-        const check = await this.checkPublishable(transaction, product);
+        const check = await this.checkPublishable(
+          transaction,
+          product,
+          input.availability,
+        );
         if (!check.ready) {
           throw new CatalogAuthoringError(
             "not_publishable",

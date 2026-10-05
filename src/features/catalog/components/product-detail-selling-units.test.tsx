@@ -1,6 +1,6 @@
 import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { CART_STORAGE_KEY } from "@/features/cart/cart-store";
 import { ProductDetailPanel } from "@/features/catalog/components/product-detail-panel";
@@ -11,8 +11,12 @@ import {
 import { renderWithProviders } from "@/test/render-with-providers";
 
 vi.mock("next/navigation", () => ({
-  useSearchParams: () => new URLSearchParams(),
+  useSearchParams: () => new URLSearchParams(window.location.search),
 }));
+
+beforeEach(() => {
+  window.history.replaceState(null, "", "/products/test-cloth");
+});
 
 function renderCloth(stock: { blueFreePieces?: number } = {}) {
   const product = multipackClothFixture({
@@ -101,6 +105,44 @@ describe("product page selling units", () => {
       "24 ₪",
     );
     expect(screen.getByLabelText("السعر 4.5 ₪")).toBeInTheDocument();
+  });
+
+  it("keeps the chosen quantity when the colour changes", async () => {
+    const { user } = renderCloth();
+    const more = () =>
+      screen.getByRole("button", { name: "زيادة كمية ممسحة تنظيف" });
+    await user.click(more());
+    await user.click(more());
+    await user.click(screen.getByRole("radio", { name: "أخضر" }));
+    expect(screen.getByLabelText("كمية ممسحة تنظيف الحالية")).toHaveTextContent(
+      "3",
+    );
+  });
+
+  it("keeps the way of buying in the address and restores it on load", async () => {
+    const { user } = renderCloth();
+    await user.click(purchaseOptions().getByRole("radio", { name: /باكيج 3/ }));
+    const unit = new URL(window.location.href).searchParams.get("unit");
+    expect(unit).toBe(fixtureUuid("test-cloth--blue:pack3"));
+    await user.click(
+      purchaseOptions().getByRole("radio", { name: /حبة واحدة/ }),
+    );
+    expect(new URL(window.location.href).searchParams.get("unit")).toBeNull();
+
+    document.body.innerHTML = "";
+    window.history.replaceState(null, "", `/products/test-cloth?unit=${unit}`);
+    renderCloth();
+    expect(
+      purchaseOptions().getByRole("radio", { name: /باكيج 3/ }),
+    ).toHaveAttribute("aria-checked", "true");
+  });
+
+  it("does not keep an old “added” message after the choice changes", async () => {
+    const { user } = renderCloth();
+    await user.click(screen.getByRole("button", { name: "أضف إلى السلة" }));
+    expect(screen.getByText(/تمت إضافة/)).toBeInTheDocument();
+    await user.click(purchaseOptions().getByRole("radio", { name: /باكيج 3/ }));
+    expect(screen.queryByText(/تمت إضافة/)).toBeNull();
   });
 
   it("moves between ways of buying with arrow keys", async () => {

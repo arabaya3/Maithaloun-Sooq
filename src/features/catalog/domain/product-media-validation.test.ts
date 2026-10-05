@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   mappingMessages,
   mappingProblems,
+  structureProblems,
   type MappingInput,
 } from "./product-media-validation";
 
@@ -184,5 +185,120 @@ describe("mappingProblems", () => {
     expect(mappingMessages.blocked).toBe(
       "لا يمكن نشر المنتج قبل إكمال ربط الصور بالأصناف.",
     );
+  });
+});
+
+describe("structureProblems", () => {
+  const colour = {
+    id: "c",
+    nameAr: "اللون",
+    kind: "color" as const,
+    archived: false,
+    values: [
+      { id: "blue", valueAr: "أزرق", usesSharedImage: false },
+      { id: "pink", valueAr: "زهري", usesSharedImage: false },
+    ],
+  };
+  const variant = (
+    id: string,
+    optionValues: Record<string, string>,
+    extra: {
+      isDefault?: boolean;
+      available?: boolean;
+      archived?: boolean;
+    } = {},
+  ) => ({
+    id,
+    labelAr: id,
+    archived: extra.archived ?? false,
+    isDefault: extra.isDefault ?? false,
+    available: extra.available ?? true,
+    optionValues,
+  });
+  const base = {
+    options: [colour],
+    variants: [
+      variant("أزرق", { c: "blue" }, { isDefault: true }),
+      variant("زهري", { c: "pink" }),
+    ],
+    images: [],
+  };
+  const codes = (input: Parameters<typeof structureProblems>[0]) =>
+    structureProblems(input).map((problem) => problem.code);
+
+  it("accepts a complete product and a simple one", () => {
+    expect(codes(base)).toEqual([]);
+    expect(
+      codes({
+        options: [],
+        variants: [variant("الأساسي", {}, { isDefault: true })],
+        images: [],
+      }),
+    ).toEqual([]);
+  });
+
+  it("finds missing and unavailable defaults", () => {
+    expect(
+      codes({
+        ...base,
+        variants: base.variants.map((row) => ({ ...row, isDefault: false })),
+      }),
+    ).toEqual(["no_default_variant"]);
+    expect(
+      codes({
+        ...base,
+        variants: [
+          variant("أزرق", { c: "blue" }, { isDefault: true, available: false }),
+          variant("زهري", { c: "pink" }),
+        ],
+      }),
+    ).toEqual(["default_unavailable"]);
+    expect(
+      codes({
+        ...base,
+        variants: [
+          variant("أزرق", { c: "blue" }, { isDefault: true, available: false }),
+          variant("زهري", { c: "pink" }, { available: false }),
+        ],
+      }),
+    ).toEqual([]);
+  });
+
+  it("finds incomplete, archived-value and duplicate variants, ignoring archived variants", () => {
+    expect(
+      codes({ ...base, variants: [variant("أزرق", {}, { isDefault: true })] }),
+    ).toEqual(["incomplete_variant"]);
+    expect(
+      codes({
+        ...base,
+        variants: [variant("أزرق", { c: "gone" }, { isDefault: true })],
+      }),
+    ).toEqual(["archived_value"]);
+    expect(
+      codes({
+        ...base,
+        variants: [
+          variant("أزرق", { c: "blue" }, { isDefault: true }),
+          variant("أزرق 2", { c: "blue" }),
+          variant("قديم", { c: "blue" }, { archived: true }),
+        ],
+      }),
+    ).toEqual(["duplicate_combination"]);
+  });
+
+  it("requires the primary picture to be shared", () => {
+    const image = (scope: "product" | "option_value", isPrimary: boolean) => ({
+      id: scope,
+      archived: false,
+      scope,
+      variantId: null,
+      optionId: scope === "option_value" ? "c" : null,
+      optionValueId: scope === "option_value" ? "blue" : null,
+      isPrimary,
+    });
+    expect(codes({ ...base, images: [image("product", true)] })).toEqual([]);
+    expect(codes({ ...base, images: [image("option_value", true)] })).toEqual([
+      "primary_not_shared",
+    ]);
   });
 });
