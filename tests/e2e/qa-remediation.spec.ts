@@ -94,7 +94,7 @@ test("P2: a 9.5 MB image shows a size error instead of crashing the admin page",
     "big.jpg: الصورة أكبر من 8 ميغابايت.",
   );
   await expect(
-    page.getByRole("heading", { name: "تعديل المنتج" }),
+    page.locator(".admin-workspace-header").getByText("تعديل المنتج"),
   ).toBeVisible();
 
   // The server refuses it on its own too, before reading the body.

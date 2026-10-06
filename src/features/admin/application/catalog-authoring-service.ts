@@ -45,6 +45,7 @@ import {
   structureProblems,
   type StructureProblem,
 } from "@/features/catalog/domain/product-media-validation";
+import { incompleteProductIds } from "@/features/catalog/infrastructure/product-structure";
 import * as schema from "@/server/db/schema";
 
 import {
@@ -752,6 +753,29 @@ export class CatalogAuthoringService {
         [...new Set(problems.map((problem) => problem.message))].join(" "),
       );
     }
+  }
+
+  /** Products, by domain id, whose live variants cannot each name one exact choice (one batched check). */
+  // Without ids it checks every live product, so a list page can run it alongside its own query.
+  async incompleteDomainIds(
+    domainIds?: readonly string[],
+  ): Promise<Set<string>> {
+    if (domainIds && !domainIds.length) return new Set();
+    const rows = await this.database
+      .select({ id: schema.products.id, domainId: schema.products.domainId })
+      .from(schema.products)
+      .where(
+        domainIds
+          ? inArray(schema.products.domainId, [...domainIds])
+          : isNull(schema.products.archivedAt),
+      );
+    const incomplete = await incompleteProductIds(
+      this.database,
+      rows.map((row) => row.id),
+    );
+    return new Set(
+      rows.filter((row) => incomplete.has(row.id)).map((row) => row.domainId),
+    );
   }
 
   async publicationCheck(

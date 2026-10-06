@@ -1,0 +1,360 @@
+/* Products list (status tabs, health chips, bulk bar) and the product workspace. */
+
+.admin-status-tabs {
+  display: flex;
+  gap: 0.5rem;
+  overflow-x: auto;
+  padding-bottom: 0.25rem;
+  scrollbar-width: thin;
+}
+
+.admin-status-tabs a {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: var(--admin-touch);
+  padding: 0 1rem;
+  border: 1px solid var(--admin-border);
+  border-radius: 999px;
+  background: var(--admin-surface);
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.admin-app .admin-status-tabs a {
+  color: var(--admin-text);
+}
+
+.admin-status-tabs a span {
+  color: var(--admin-muted);
+  font-size: 0.8125rem;
+}
+
+.admin-app .admin-status-tabs a[aria-current="page"] {
+  border-color: var(--admin-forest);
+  background: var(--admin-forest);
+  color: #fff;
+}
+
+.admin-status-tabs a[aria-current="page"] span {
+  color: #fff;
+}
+
+.admin-chip-row {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+}
+
+/* Desktop table */
+.admin-product-table td {
+  vertical-align: middle;
+}
+
+.admin-product-table tr[data-selected] td {
+  background: var(--admin-success-bg);
+}
+
+.admin-select-cell {
+  width: 3rem;
+}
+
+/* Each checkbox sits in a 44 × 44 label, so the whole square is the target. */
+.admin-check {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--admin-touch);
+  height: var(--admin-touch);
+  cursor: pointer;
+}
+
+.admin-check input {
+  width: 1.25rem;
+  height: 1.25rem;
+  margin: 0;
+  accent-color: var(--admin-forest);
+  cursor: pointer;
+}
+
+.admin-product-table td a {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--admin-touch);
+}
+
+/* Phone cards */
+.admin-product-cards {
+  display: grid;
+  gap: 0.75rem;
+}
+
+@media (min-width: 64rem) {
+  .admin-product-cards:not(.is-always) {
+    display: none;
+  }
+}
+
+.admin-product-item {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 0.75rem;
+  padding: 1rem;
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius-lg);
+  background: var(--admin-surface);
+}
+
+.admin-product-item:not(:has(.admin-check)) {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.admin-product-item[data-selected] {
+  border-color: var(--admin-forest);
+  background: var(--admin-success-bg);
+}
+
+.admin-product-item-main {
+  display: grid;
+  gap: 0.375rem;
+  min-width: 0;
+}
+
+.admin-product-item-title {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--admin-touch);
+  font-size: 1rem;
+  font-weight: 700;
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+
+.admin-product-item-side {
+  display: grid;
+  justify-items: end;
+  gap: 0.5rem;
+}
+
+/* Bulk bar: above the bottom navigation on phones, at the bottom of the viewport on desktop. */
+.admin-bulk-bar {
+  position: sticky;
+  bottom: calc(4.75rem + env(safe-area-inset-bottom));
+  z-index: 36;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--admin-forest);
+  border-radius: var(--admin-radius-lg);
+  background: var(--admin-surface);
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--admin-text) 12%, transparent);
+}
+
+@media (min-width: 64rem) {
+  .admin-bulk-bar {
+    bottom: 1rem;
+  }
+}
+
+.admin-bulk-bar p {
+  font-weight: 700;
+}
+
+.admin-bulk-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+/* Product workspace */
+.admin-workspace-header {
+  display: grid;
+  gap: 0.375rem;
+}
+
+.admin-workspace-header .admin-back-link {
+  justify-self: start;
+}
+
+.admin-workspace-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1rem;
+}
+
+.admin-workspace-title h1 {
+  overflow-wrap: anywhere;
+}
+
+.admin-workspace-preview {
+  justify-self: start;
+}
+
+.admin-workspace-nav {
+  position: sticky;
+  top: calc(3.5rem + env(safe-area-inset-top));
+  z-index: 25;
+  display: flex;
+  gap: 0.25rem;
+  overflow-x: auto;
+  margin-inline: -1rem;
+  padding: 0.5rem 1rem;
+  background: color-mix(in srgb, var(--admin-bg) 94%, transparent);
+  border-bottom: 1px solid var(--admin-border);
+  scrollbar-width: none;
+}
+
+@media (min-width: 64rem) {
+  .admin-workspace-nav {
+    top: var(--admin-topbar-height);
+    margin-inline: 0;
+    padding-inline: 0;
+  }
+}
+
+.admin-workspace-nav a {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--admin-touch);
+  padding: 0 1rem;
+  border-radius: 999px;
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.admin-app .admin-workspace-nav a {
+  color: var(--admin-muted);
+}
+
+.admin-app .admin-workspace-nav a[aria-current="true"] {
+  background: var(--admin-nav-selected);
+  color: var(--admin-forest);
+}
+
+.admin-workspace-section {
+  display: grid;
+  gap: 1rem;
+  min-width: 0;
+  padding: 1.25rem;
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius-lg);
+  background: var(--admin-surface);
+  scroll-margin-top: 8rem;
+}
+
+.admin-workspace-section-title {
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--admin-divider);
+}
+
+/* The overview save stays in reach while scrolling the form. */
+.admin-workspace #panel-core .admin-form > button[type="submit"] {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 3rem;
+  border: 1px solid var(--admin-forest);
+  border-radius: var(--admin-radius-md);
+  background: var(--admin-forest);
+  color: #fff;
+  font-weight: 700;
+  cursor: pointer;
+  position: sticky;
+  bottom: calc(5rem + env(safe-area-inset-bottom));
+  z-index: 5;
+  box-shadow: 0 0 0 0.5rem var(--admin-surface);
+}
+
+/* On desktop the assistant floats beside the sidebar, so the save sits at the far (end) side. */
+@media (min-width: 64rem) {
+  .admin-workspace #panel-core .admin-form > button[type="submit"] {
+    bottom: 1rem;
+    margin-inline-start: auto;
+    width: fit-content;
+    min-width: 14rem;
+    padding-inline: 2rem;
+  }
+}
+
+.admin-stock-summary {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.admin-stock-summary > li {
+  display: grid;
+  gap: 0.5rem;
+  padding: 1rem;
+  border: 1px solid var(--admin-divider);
+  border-radius: var(--admin-radius-md);
+}
+
+.admin-stock-summary > li > a {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--admin-touch);
+  justify-self: start;
+  font-weight: 600;
+}
+
+.admin-stock-summary-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.admin-stock-summary-figures {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr));
+  gap: 0.5rem 1rem;
+  margin: 0;
+}
+
+.admin-stock-summary-figures dt {
+  color: var(--admin-muted);
+  font-size: 0.8125rem;
+}
+
+.admin-stock-summary-figures dd {
+  margin: 0;
+  font-weight: 700;
+}
+
+.admin-workspace-anchor {
+  min-width: 0;
+  scroll-margin-top: 8rem;
+}
+
+.admin-workspace
+  #panel-core
+  .admin-form
+  > button[type="submit"]:hover:not(:disabled) {
+  background: var(--admin-forest-hover);
+}
+
+.admin-workspace #panel-core .admin-form > button[type="submit"]:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+/* The assistant floats above the sticky save, never over it. */
+@media (max-width: 63.99rem) {
+  .admin-app:has(.admin-workspace) .assistant-launcher {
+    bottom: calc(10.25rem + env(safe-area-inset-bottom));
+  }
+}
+
+.admin-skeleton-stock {
+  min-height: 9rem;
+  border-radius: var(--admin-radius-md);
+}

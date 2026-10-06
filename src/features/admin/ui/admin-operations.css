@@ -1308,8 +1308,11 @@
   background: var(--admin-nav-selected);
 }
 
+/* Amber for attention; red stays for destructive or blocking states. */
 .admin-media-message[data-tone="warning"] {
-  border: 1px solid var(--admin-danger);
+  border: 1px solid var(--admin-warning-border);
+  background: var(--admin-warning-bg);
+  color: var(--admin-text);
 }
 
 .admin-incomplete-warning h2 {
@@ -1324,7 +1327,7 @@
 }
 
 .admin-media-message[data-tone="error"] {
-  color: var(--admin-danger);
+  color: var(--admin-danger-text);
   background: var(--admin-danger-bg);
 }
 

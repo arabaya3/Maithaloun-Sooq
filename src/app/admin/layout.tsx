@@ -6,6 +6,7 @@ import { ADMIN_MANIFEST_PATH } from "@/features/pwa/admin-manifest";
 import "@/features/admin/ui/admin.css";
 import "@/features/admin/ui/admin-operations.css";
 import "@/features/admin/ui/admin-today.css";
+import "@/features/admin/ui/admin-products.css";
 
 // Cairo (OFL), the admin typeface. Each subset is its own family in one stack, so the browser takes Arabic,
 // Latin and ₪ (latin-ext) from the file that has them; only Arabic is preloaded.
