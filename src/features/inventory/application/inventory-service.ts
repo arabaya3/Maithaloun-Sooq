@@ -222,6 +222,8 @@ export type StockAdjustmentInput = z.infer<typeof stockAdjustmentSchema>;
 export type StockListFilter =
   "all" | "attention" | "low" | "out" | "tracked" | "untracked";
 
+export type StockListSort = "catalog" | "available" | "value" | "recent";
+
 export interface StockListItem {
   variantId: string;
   productId: string;
@@ -265,6 +267,10 @@ export interface InventoryOverview {
   outOfStock: StockListItem[];
   outCount: number;
   inventoryValueAgorot: number | null;
+  /** Tracked items whose sale price is below their average cost (cost viewers only). */
+  belowCost: StockListItem[];
+  /** Tracked items with more reserved than on hand; the ledger should never allow it. */
+  overReserved: StockListItem[];
   recentReceipts: Array<{
     variantId: string;
     name: string;
@@ -275,6 +281,28 @@ export interface InventoryOverview {
 }
 
 const DEFAULT_LABEL = "الافتراضي";
+
+// Untracked rows always sink below tracked ones; ties keep the catalogue order.
+export function sortStock(
+  rows: StockListItem[],
+  sort: StockListSort,
+): StockListItem[] {
+  if (sort === "catalog") return rows;
+  const key = (row: StockListItem): number => {
+    if (sort === "available") return row.availableMilli;
+    if (sort === "value") return -(row.stockValueAgorot ?? 0);
+    return -(row.lastMovementAt ? Date.parse(row.lastMovementAt) : 0);
+  };
+  return rows
+    .map((row, index) => ({ row, index }))
+    .sort(
+      (a, b) =>
+        Number(!a.row.tracked) - Number(!b.row.tracked) ||
+        key(a.row) - key(b.row) ||
+        a.index - b.index,
+    )
+    .map(({ row }) => row);
+}
 
 // Runs inside the caller's transaction so a stock adjustment can commit together with other changes.
 export async function postStockAdjustment(
@@ -401,7 +429,11 @@ export class InventoryService {
 
   async listStock(
     actor: AdminActor,
-    query: { filter?: StockListFilter; search?: string } = {},
+    query: {
+      filter?: StockListFilter;
+      search?: string;
+      sort?: StockListSort;
+    } = {},
   ): Promise<StockListItem[]> {
     assertPermission(actor, "stock.view");
     const showCosts = can(actor, "stock.costs");
@@ -438,7 +470,7 @@ export class InventoryService {
     const needle = query.search ? normalizeArabicText(query.search) : "";
     const filter = query.filter ?? "all";
 
-    return rows
+    const listed = rows
       .map(({ variant, product, item }): StockListItem => {
         const productName = product.latinName
           ? `${product.nameAr} ${product.latinName}`
@@ -499,6 +531,7 @@ export class InventoryService {
         );
         return haystack.includes(needle);
       });
+    return sortStock(listed, query.sort ?? "catalog");
   }
 
   async getOverview(actor: AdminActor): Promise<InventoryOverview> {
@@ -540,6 +573,10 @@ export class InventoryService {
       lowCount: low.length,
       outOfStock: out.slice(0, 6),
       outCount: out.length,
+      belowCost: tracked.filter(
+        (row) => row.unitProfitAgorot !== null && row.unitProfitAgorot < 0,
+      ),
+      overReserved: tracked.filter((row) => row.availableMilli < 0),
       inventoryValueAgorot: can(actor, "stock.costs")
         ? tracked.reduce((sum, row) => sum + (row.stockValueAgorot ?? 0), 0)
         : null,

@@ -119,6 +119,30 @@ export class SupplierMaintenanceService {
       .limit(limit);
   }
 
+  /** The names this supplier's invoices use for our products, saved when a review corrects a match. */
+  async aliases(supplierId: string) {
+    return this.database
+      .select({
+        id: schema.supplierProductAliases.id,
+        aliasText: schema.supplierProductAliases.aliasText,
+        variantId: schema.productVariants.domainId,
+        productName: schema.products.nameAr,
+        variantLabel: schema.productVariants.labelAr,
+      })
+      .from(schema.supplierProductAliases)
+      .innerJoin(
+        schema.productVariants,
+        eq(schema.productVariants.id, schema.supplierProductAliases.variantId),
+      )
+      .innerJoin(
+        schema.products,
+        eq(schema.products.id, schema.productVariants.productId),
+      )
+      .where(eq(schema.supplierProductAliases.supplierId, supplierId))
+      .orderBy(asc(schema.supplierProductAliases.aliasText))
+      .limit(100);
+  }
+
   private async audit(
     executor: Pick<Database, "insert">,
     actor: AdminActor,

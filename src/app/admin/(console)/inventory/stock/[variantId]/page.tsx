@@ -1,10 +1,12 @@
 import type { Metadata } from "next";
+import { SlidersHorizontal } from "lucide-react";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
 
 import { inventoryService } from "@/features/admin/application/admin-services";
 import { requireAdminSession } from "@/features/admin/auth/admin-session";
 import { can } from "@/features/admin/domain/permissions";
+import { FilterSheet } from "@/features/admin/ui/filter-sheet";
 import { formatAdminDateTime } from "@/features/admin/ui/format-admin-datetime";
 import {
   Money,
@@ -125,25 +127,33 @@ export default async function StockDetailPage({
           <h2 id="adjust-title">
             {stock.tracked ? "تعديل مخزون" : "بدء التتبّع برصيد افتتاحي"}
           </h2>
-          <StockAdjustForm
-            variantId={stock.variantId}
-            tracked={stock.tracked}
-            unit={stock.unit}
-            onHandMilli={stock.onHandMilli}
-          />
-          {stock.tracked ? (
-            <ReorderThresholdForm
+          <FilterSheet
+            title={stock.tracked ? "تعديل مخزون" : "بدء التتبّع برصيد افتتاحي"}
+            label={
+              stock.tracked ? "تعديل الكمية أو حد الطلب" : "إدخال رصيد افتتاحي"
+            }
+            icon={<SlidersHorizontal size={18} aria-hidden="true" />}
+          >
+            <StockAdjustForm
               variantId={stock.variantId}
-              thresholdMilli={stock.reorderThresholdMilli}
+              tracked={stock.tracked}
+              unit={stock.unit}
+              onHandMilli={stock.onHandMilli}
             />
-          ) : null}
+            {stock.tracked ? (
+              <ReorderThresholdForm
+                variantId={stock.variantId}
+                thresholdMilli={stock.reorderThresholdMilli}
+              />
+            ) : null}
+          </FilterSheet>
         </section>
       ) : null}
 
       <section className="admin-panel" aria-labelledby="movements-title">
         <h2 id="movements-title">سجل الحركات</h2>
         {movements.length ? (
-          <ol className="admin-line-list">
+          <ol className="admin-line-list admin-movement-timeline">
             {movements.map((movement) => (
               <li key={movement.id} className="admin-line">
                 <span className="admin-line-main">

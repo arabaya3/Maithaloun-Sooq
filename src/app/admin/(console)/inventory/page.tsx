@@ -23,6 +23,7 @@ import { can } from "@/features/admin/domain/permissions";
 import { formatAdminDateTime } from "@/features/admin/ui/format-admin-datetime";
 import {
   EmptyState,
+  MetricCard,
   Money,
   PageHeader,
   Quantity,
@@ -71,6 +72,16 @@ export default async function InventoryOverviewPage() {
     ? await priceReviewService.countPending(actor)
     : 0;
   const attention = [...overview.outOfStock, ...overview.lowStock];
+  const anomalies = [
+    ...overview.overReserved.map((item) => ({
+      item,
+      note: "المحجوز أكثر من الموجود — راجعي الطلبات المؤكدة أو صحّحي الجرد",
+    })),
+    ...overview.belowCost.map((item) => ({
+      item,
+      note: "سعر البيع أقل من متوسط التكلفة",
+    })),
+  ];
 
   const actions = [
     {
@@ -126,6 +137,63 @@ export default async function InventoryOverviewPage() {
           )
         }
       />
+
+      <section className="admin-kpi-strip" aria-label="صحة المخزون">
+        {overview.inventoryValueAgorot === null ? null : (
+          <MetricCard
+            label="قيمة المخزون"
+            value={<Money agorot={overview.inventoryValueAgorot} />}
+            support="بمتوسط التكلفة"
+          />
+        )}
+        <MetricCard
+          label="نفد"
+          value={overview.outCount}
+          tone={overview.outCount ? "danger" : "neutral"}
+          href="/admin/inventory/stock?filter=out"
+        />
+        <MetricCard
+          label="منخفض"
+          value={overview.lowCount}
+          tone={overview.lowCount ? "warning" : "neutral"}
+          href="/admin/inventory/stock?filter=low"
+        />
+        <MetricCard
+          label="غير متتبَّع"
+          value={overview.untrackedCount}
+          href="/admin/inventory/stock?filter=untracked"
+        />
+      </section>
+
+      {anomalies.length ? (
+        <section className="admin-panel" aria-labelledby="anomalies-title">
+          <h2 id="anomalies-title">أرقام تحتاج تدقيق ({anomalies.length})</h2>
+          <ul className="admin-line-list">
+            {anomalies.map(({ item, note }) => (
+              <li key={`${note}-${item.variantId}`}>
+                <Link
+                  href={`/admin/inventory/stock/${item.variantId}`}
+                  prefetch={false}
+                  className="admin-line"
+                >
+                  <span className="admin-line-main">
+                    <strong>{item.name}</strong>
+                    <small>{note}</small>
+                  </span>
+                  <span className="admin-line-side">
+                    {item.unitProfitAgorot !== null &&
+                    item.unitProfitAgorot < 0 ? (
+                      <Money agorot={item.unitProfitAgorot} />
+                    ) : (
+                      <Quantity milli={item.availableMilli} unit={item.unit} />
+                    )}
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
 
       <nav className="admin-action-grid" aria-label="إجراءات المخزون">
         {actions.map((action) => (

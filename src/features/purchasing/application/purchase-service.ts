@@ -520,7 +520,11 @@ export class PurchaseService {
     };
   }
 
-  async list(actor: AdminActor, limit = 20): Promise<PurchaseListItem[]> {
+  async list(
+    actor: AdminActor,
+    limit = 20,
+    filter: { paymentStatus?: PurchasePaymentStatus } = {},
+  ): Promise<PurchaseListItem[]> {
     assertPermission(actor, "purchase.record");
     const showCosts = can(actor, "stock.costs");
     const rows = await this.database
@@ -542,6 +546,11 @@ export class PurchaseService {
       .innerJoin(
         schema.suppliers,
         eq(schema.suppliers.id, schema.purchaseInvoices.supplierId),
+      )
+      .where(
+        filter.paymentStatus
+          ? eq(schema.purchaseInvoices.paymentStatus, filter.paymentStatus)
+          : undefined,
       )
       .orderBy(desc(schema.purchaseInvoices.createdAt))
       .limit(Math.min(Math.max(limit, 1), 100));
@@ -576,9 +585,27 @@ export class PurchaseService {
     // Operators see amounts only on documents they recorded themselves.
     const showCosts =
       can(actor, "stock.costs") || invoice.invoice.createdBy === actor.id;
+    // Each line with the stock movement it posted, so the page shows the recorded effect, not a recomputation.
     const lines = await this.database
-      .select()
+      .select({
+        line: schema.purchaseInvoiceItems,
+        variantDomainId: schema.productVariants.domainId,
+        movedMilli: schema.stockMovements.qtyDeltaMilli,
+        onHandAfterMilli: schema.stockMovements.onHandAfterMilli,
+        avgCostAfterAgorot: schema.stockMovements.avgCostAfterAgorot,
+      })
       .from(schema.purchaseInvoiceItems)
+      .innerJoin(
+        schema.productVariants,
+        eq(schema.productVariants.id, schema.purchaseInvoiceItems.variantId),
+      )
+      .leftJoin(
+        schema.stockMovements,
+        eq(
+          schema.stockMovements.purchaseInvoiceItemId,
+          schema.purchaseInvoiceItems.id,
+        ),
+      )
       .where(eq(schema.purchaseInvoiceItems.invoiceId, invoiceId))
       .orderBy(schema.purchaseInvoiceItems.lineNo);
     return {
@@ -599,8 +626,19 @@ export class PurchaseService {
       taxAgorot: showCosts ? invoice.invoice.taxAgorot : null,
       totalAgorot: showCosts ? invoice.invoice.totalAgorot : null,
       paidAgorot: showCosts ? invoice.invoice.paidAgorot : null,
-      lines: lines.map((line) => ({
+      lines: lines.map(({ line, ...posted }) => ({
         lineNo: line.lineNo,
+        variantId: posted.variantDomainId,
+        stockEffect:
+          posted.movedMilli === null || posted.onHandAfterMilli === null
+            ? null
+            : {
+                addedMilli: posted.movedMilli,
+                onHandAfterMilli: posted.onHandAfterMilli,
+                avgCostAfterAgorot: showCosts
+                  ? posted.avgCostAfterAgorot
+                  : null,
+              },
         name: line.productNameSnapshot,
         variantLabel: line.variantLabelSnapshot,
         unit: line.unit,
