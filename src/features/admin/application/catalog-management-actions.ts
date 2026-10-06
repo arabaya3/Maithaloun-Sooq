@@ -157,6 +157,81 @@ export async function setPublicationAction(
   productSaved(product.data, "publication");
 }
 
+export type BulkPublicationResult =
+  | { ok: false; message: string }
+  | {
+      ok: true;
+      changed: number;
+      failed: Array<{ domainId: string; message: string }>;
+    }
+  | null;
+
+const BULK_LIMIT = 100;
+
+/**
+ * Changes publication product by product, each in its own transaction with the full publish check,
+ * so one product that is not ready never blocks or rolls back the others.
+ */
+export async function bulkPublicationAction(
+  _state: BulkPublicationResult,
+  formData: FormData,
+): Promise<BulkPublicationResult> {
+  const actor = await requireTrustedAdminMutation();
+  const ids = z
+    .array(productId)
+    .min(1)
+    .max(BULK_LIMIT)
+    .safeParse([...new Set(formData.getAll("domainId").map(String))]);
+  const publication = z
+    .enum(productPublicationValues)
+    .safeParse(formData.get("publication"));
+  if (!ids.success || !publication.success) {
+    return {
+      ok: false,
+      message: "اختاري منتجاً واحداً على الأقل وحالة النشر.",
+    };
+  }
+  let changed = 0;
+  const failed: Array<{ domainId: string; message: string }> = [];
+  for (const domainId of ids.data) {
+    try {
+      await catalogAuthoringService.setPublication(actor, {
+        domainId,
+        publication: publication.data,
+        acceptPlaceholder: false,
+      });
+      changed += 1;
+    } catch (error) {
+      if (error instanceof AuthorizationError) {
+        return { ok: false, message: "هذا الإجراء للمالك فقط." };
+      }
+      failed.push({ domainId, message: authoringFailure(error).message });
+    }
+  }
+  if (changed) {
+    revalidatePath("/");
+    revalidatePath("/admin/products");
+  }
+  return { ok: true, changed, failed };
+}
+
+export async function restoreProductAction(
+  _state: CatalogActionResult,
+  formData: FormData,
+): Promise<CatalogActionResult> {
+  const actor = await requireTrustedAdminMutation();
+  const product = productId.safeParse(formData.get("domainId"));
+  if (!product.success) {
+    return { ok: false, message: authoringMessages.invalid_input };
+  }
+  try {
+    await catalogAuthoringService.restoreProduct(actor, product.data);
+  } catch (error) {
+    return authoringFailure(error);
+  }
+  productSaved(product.data, "restored");
+}
+
 function categoriesSaved(saved: string): never {
   revalidatePath("/", "layout");
   revalidatePath("/admin/categories");

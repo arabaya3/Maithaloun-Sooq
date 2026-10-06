@@ -7,6 +7,8 @@ export const productSaveMessages = {
   spec: "تم حفظ المواصفة.",
   spec_removed: "تم حذف المواصفة.",
   publication: "تم تحديث حالة النشر.",
+  restored:
+    "تمت استعادة المنتج من الأرشيف. هو الآن مخفي؛ انشريه عندما يكون جاهزاً.",
 } as const;
 
 export type ProductSaveKind = keyof typeof productSaveMessages;

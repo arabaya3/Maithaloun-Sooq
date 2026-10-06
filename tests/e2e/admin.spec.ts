@@ -195,7 +195,7 @@ test("admin authentication, operations, and privacy controls", async ({
   await page.locator("#product-availability").selectOption("unavailable");
   await page.getByRole("button", { name: "حفظ المنتج" }).click();
   await expect(
-    page.getByRole("heading", { name: "تعديل المنتج" }),
+    page.locator(".admin-workspace-header").getByText("تعديل المنتج"),
   ).toBeVisible();
   await expect
     .poll(() =>
@@ -225,7 +225,7 @@ test("admin authentication, operations, and privacy controls", async ({
   await page.locator("#product-availability").selectOption("available");
   await page.getByRole("button", { name: "حفظ المنتج" }).click();
   await expect(
-    page.getByRole("heading", { name: "تعديل المنتج" }),
+    page.locator(".admin-workspace-header").getByText("تعديل المنتج"),
   ).toBeVisible();
 
   await goAdminSection(page, "إعدادات المتجر");
@@ -264,9 +264,9 @@ test("admin authentication, operations, and privacy controls", async ({
   await page.locator("#product-latin-name").fill(quickId);
   await page.locator("#product-price").fill("4.50");
   await page.getByRole("button", { name: "إنشاء المنتج" }).click();
-  await expect(page.getByRole("heading", { name: "تعديل المنتج" })).toBeVisible(
-    { timeout: 15_000 },
-  );
+  await expect(
+    page.locator(".admin-workspace-header").getByText("تعديل المنتج"),
+  ).toBeVisible({ timeout: 15_000 });
   await expect(page.locator("#product-name-ar")).toHaveValue(
     "منتج إضافة سريعة",
   );
@@ -298,9 +298,9 @@ test("admin authentication, operations, and privacy controls", async ({
   await page.getByRole("button", { name: "التالي" }).click();
   await expect(page.getByRole("heading", { name: "المراجعة" })).toBeVisible();
   await page.getByRole("button", { name: "إنشاء المنتج" }).click();
-  await expect(page.getByRole("heading", { name: "تعديل المنتج" })).toBeVisible(
-    { timeout: 15_000 },
-  );
+  await expect(
+    page.locator(".admin-workspace-header").getByText("تعديل المنتج"),
+  ).toBeVisible({ timeout: 15_000 });
 
   await page.goto("/");
   await expect(page.locator(".hero-facts")).toContainText("توصيل داخل ميثلون");
@@ -486,7 +486,7 @@ test("admin desktop layout and screenshots", async ({ page }) => {
     .first()
     .click();
   await expect(
-    page.getByRole("heading", { name: "تعديل المنتج" }),
+    page.locator(".admin-workspace-header").getByText("تعديل المنتج"),
   ).toBeVisible();
   await page.screenshot({
     path: "artifacts/admin-screenshots/product-editor-desktop.png",
