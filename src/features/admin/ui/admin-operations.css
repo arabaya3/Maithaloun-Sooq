@@ -213,7 +213,8 @@
 }
 
 .admin-pill--danger {
-  color: var(--admin-danger);
+  /* The text shade passes AA on the pale background; the brighter danger is for borders and icons. */
+  color: var(--admin-danger-text);
   background: var(--admin-danger-bg);
   border-color: var(--admin-danger-border);
 }

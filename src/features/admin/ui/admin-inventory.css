@@ -1,0 +1,61 @@
+/* Inventory and purchasing: stock toolbar, movement timeline, supplier balances. */
+
+.admin-stock-toolbar {
+  display: grid;
+  gap: 0.75rem;
+}
+
+@media (min-width: 64rem) {
+  .admin-stock-toolbar {
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    align-items: end;
+  }
+
+  .admin-stock-toolbar .admin-filter-fields {
+    display: contents;
+  }
+}
+
+.admin-stock-toolbar .admin-filter-sheet > .admin-filter-toggle {
+  justify-self: start;
+}
+
+/* Movements read as a timeline: a rail with a dot per movement, newest first. */
+.admin-movement-timeline > li {
+  position: relative;
+  padding-inline-start: 1.5rem;
+}
+
+.admin-movement-timeline > li::before {
+  content: "";
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: 0.4375rem;
+  width: 2px;
+  background: var(--admin-border);
+}
+
+.admin-movement-timeline > li::after {
+  content: "";
+  position: absolute;
+  inset-block-start: 1.125rem;
+  inset-inline-start: 0.1875rem;
+  width: 0.625rem;
+  height: 0.625rem;
+  border-radius: 999px;
+  background: var(--admin-forest);
+}
+
+.admin-balance-due {
+  color: var(--admin-danger-text);
+  font-weight: 700;
+}
+
+.admin-stock-toolbar select {
+  min-height: var(--admin-touch);
+  padding-inline: 0.75rem;
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius-md);
+  background: var(--admin-surface);
+  color: var(--admin-text);
+}

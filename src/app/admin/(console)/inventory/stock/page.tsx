@@ -1,12 +1,13 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
-import { Package, PackageSearch, Search } from "lucide-react";
+import { ArrowDownUp, Package, PackageSearch, Search } from "lucide-react";
 import { connection } from "next/server";
 
 import { inventoryService } from "@/features/admin/application/admin-services";
 import { requireAdminSession } from "@/features/admin/auth/admin-session";
 import { can } from "@/features/admin/domain/permissions";
+import { FilterSheet } from "@/features/admin/ui/filter-sheet";
 import { formatAdminDateTime } from "@/features/admin/ui/format-admin-datetime";
 import {
   EmptyState,
@@ -18,6 +19,7 @@ import {
 import type {
   StockListFilter,
   StockListItem,
+  StockListSort,
 } from "@/features/inventory/application/inventory-service";
 import { stockMovementReasonLabels } from "@/features/inventory/domain/stock-constants";
 import { formatBasisPoints } from "@/shared/lib/money-math";
@@ -27,8 +29,17 @@ export const metadata: Metadata = { title: "قائمة المخزون" };
 const filters: { id: StockListFilter; label: string }[] = [
   { id: "all", label: "الكل" },
   { id: "attention", label: "النواقص" },
+  { id: "out", label: "نفد" },
+  { id: "low", label: "منخفض" },
   { id: "tracked", label: "متتبَّع" },
   { id: "untracked", label: "غير متتبَّع" },
+];
+
+const sorts: { id: StockListSort; label: string; costs?: boolean }[] = [
+  { id: "catalog", label: "ترتيب الكتالوج" },
+  { id: "available", label: "الأقل توفراً أولاً" },
+  { id: "value", label: "الأعلى قيمة أولاً", costs: true },
+  { id: "recent", label: "آخر حركة أولاً" },
 ];
 
 function Thumb({ item }: { item: StockListItem }) {
@@ -60,15 +71,23 @@ function LastMovement({ item }: { item: StockListItem }) {
 export default async function StockListPage({
   searchParams,
 }: {
-  searchParams: Promise<{ filter?: string; q?: string }>;
+  searchParams: Promise<{ filter?: string; q?: string; sort?: string }>;
 }) {
   await connection();
   const actor = await requireAdminSession();
   const params = await searchParams;
   const filter = filters.find((item) => item.id === params.filter)?.id ?? "all";
   const search = (params.q ?? "").slice(0, 80);
-  const items = await inventoryService.listStock(actor, { filter, search });
   const showCosts = can(actor, "stock.costs");
+  const sortOptions = sorts.filter((item) => !item.costs || showCosts);
+  const sort =
+    sortOptions.find((item) => item.id === params.sort)?.id ?? "catalog";
+  const items = await inventoryService.listStock(actor, {
+    filter,
+    search,
+    sort,
+  });
+  const keep = `${search ? `&q=${encodeURIComponent(search)}` : ""}${sort === "catalog" ? "" : `&sort=${sort}`}`;
 
   return (
     <main className="admin-page">
@@ -77,29 +96,52 @@ export default async function StockListPage({
         back={{ href: "/admin/inventory", label: "المخزون والمشتريات" }}
       />
 
-      <form className="admin-search-bar" action="/admin/inventory/stock">
+      <form className="admin-stock-toolbar" action="/admin/inventory/stock">
         <input type="hidden" name="filter" value={filter} />
-        <label className="sr-only" htmlFor="stock-search">
-          بحث في المخزون
-        </label>
-        <Search size={18} aria-hidden="true" />
-        <input
-          id="stock-search"
-          name="q"
-          type="search"
-          defaultValue={search}
-          placeholder="اسم المنتج أو الباركود"
-        />
-        <button type="submit" className="admin-btn admin-btn-secondary">
-          بحث
-        </button>
+        <div className="admin-search-bar">
+          <label className="sr-only" htmlFor="stock-search">
+            بحث في المخزون
+          </label>
+          <Search size={18} aria-hidden="true" />
+          <input
+            id="stock-search"
+            name="q"
+            type="search"
+            defaultValue={search}
+            placeholder="اسم المنتج أو الباركود"
+          />
+          <button type="submit" className="admin-btn admin-btn-secondary">
+            بحث
+          </button>
+        </div>
+        <FilterSheet
+          title="ترتيب المخزون"
+          label="ترتيب"
+          icon={<ArrowDownUp size={18} aria-hidden="true" />}
+          activeCount={sort === "catalog" ? 0 : 1}
+        >
+          <label className="admin-toolbar-field" htmlFor="stock-sort">
+            <span>ترتيب</span>
+            <select id="stock-sort" name="sort" defaultValue={sort}>
+              {sortOptions.map((option) => (
+                <option key={option.id} value={option.id}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          {/* Visible inline on desktop too: a select alone does not submit the form. */}
+          <button type="submit" className="admin-btn admin-btn-secondary">
+            تطبيق الترتيب
+          </button>
+        </FilterSheet>
       </form>
 
       <nav className="admin-tabs" aria-label="تصفية المخزون">
         {filters.map((item) => (
           <Link
             key={item.id}
-            href={`/admin/inventory/stock?filter=${item.id}${search ? `&q=${encodeURIComponent(search)}` : ""}`}
+            href={`/admin/inventory/stock?filter=${item.id}${keep}`}
             prefetch={false}
             className={item.id === filter ? "admin-tab is-active" : "admin-tab"}
             aria-current={item.id === filter ? "page" : undefined}
@@ -141,6 +183,12 @@ export default async function StockListPage({
                             unit={item.unit}
                           />
                         </span>
+                        {item.reorderThresholdMilli !== null ? (
+                          <span>
+                            حد الطلب{" "}
+                            <Quantity milli={item.reorderThresholdMilli} />
+                          </span>
+                        ) : null}
                         {item.reservedMilli > 0 ? (
                           <span>
                             محجوز <Quantity milli={item.reservedMilli} />
@@ -177,6 +225,7 @@ export default async function StockListPage({
                   <th>الكمية</th>
                   <th>محجوز</th>
                   <th>المتوفر</th>
+                  <th>حد الطلب</th>
                   {showCosts ? <th>متوسط التكلفة</th> : null}
                   <th>سعر البيع</th>
                   {showCosts ? <th>هامش تقديري للوحدة</th> : null}
@@ -223,6 +272,13 @@ export default async function StockListPage({
                         <Quantity milli={item.availableMilli} />
                       ) : (
                         "—"
+                      )}
+                    </td>
+                    <td>
+                      {item.reorderThresholdMilli === null ? (
+                        "—"
+                      ) : (
+                        <Quantity milli={item.reorderThresholdMilli} />
                       )}
                     </td>
                     {showCosts ? (

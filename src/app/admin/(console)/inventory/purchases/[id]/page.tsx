@@ -1,11 +1,18 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
 
 import { purchaseService } from "@/features/admin/application/admin-services";
 import { requireAdminSession } from "@/features/admin/auth/admin-session";
+import { can } from "@/features/admin/domain/permissions";
 import { formatAdminDateTime } from "@/features/admin/ui/format-admin-datetime";
-import { Money, PageHeader, Quantity } from "@/features/admin/ui/kit";
+import {
+  Money,
+  PageHeader,
+  Quantity,
+  StickyAction,
+} from "@/features/admin/ui/kit";
 import {
   paymentStatusLabels,
   purchaseSourceLabels,
@@ -22,6 +29,8 @@ export default async function PurchaseDetailPage({
   const actor = await requireAdminSession();
   const invoice = await purchaseService.getDetail(actor, (await params).id);
   if (!invoice) notFound();
+  const unpaid =
+    invoice.paymentStatus !== "paid" && can(actor, "suppliers.balances");
 
   return (
     <main className="admin-page admin-page--narrow">
@@ -70,6 +79,50 @@ export default async function PurchaseDetailPage({
                   <Money agorot={line.lineTotalAgorot} />
                 </span>
               )}
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      <section className="admin-panel" aria-labelledby="stock-effect-title">
+        <h2 id="stock-effect-title">أثرها على المخزون</h2>
+        <p className="admin-muted">
+          كما سُجّل في دفتر المخزون عند حفظ الفاتورة.
+        </p>
+        <ul className="admin-line-list">
+          {invoice.lines.map((line) => (
+            <li key={line.lineNo}>
+              <Link
+                href={`/admin/inventory/stock/${line.variantId}`}
+                prefetch={false}
+                className="admin-line"
+              >
+                <span className="admin-line-main">
+                  <strong>{line.name}</strong>
+                  {line.stockEffect ? (
+                    <small>
+                      الرصيد بعدها{" "}
+                      <Quantity milli={line.stockEffect.onHandAfterMilli} />
+                      {line.stockEffect.avgCostAfterAgorot === null ? null : (
+                        <>
+                          {" "}
+                          · متوسط التكلفة{" "}
+                          <Money agorot={line.stockEffect.avgCostAfterAgorot} />
+                        </>
+                      )}
+                    </small>
+                  ) : (
+                    <small>لا توجد حركة مخزون مسجّلة لهذا السطر.</small>
+                  )}
+                </span>
+                {line.stockEffect ? (
+                  <span className="admin-line-side">
+                    <bdi dir="ltr" className="admin-num">
+                      +<Quantity milli={line.stockEffect.addedMilli} />
+                    </bdi>
+                  </span>
+                ) : null}
+              </Link>
             </li>
           ))}
         </ul>
@@ -137,6 +190,18 @@ export default async function PurchaseDetailPage({
           <p className="admin-muted">المبالغ تظهر للمالك فقط.</p>
         )}
       </section>
+
+      {unpaid ? (
+        <StickyAction>
+          <Link
+            className="admin-btn admin-btn-primary admin-btn-block"
+            href={`/admin/inventory/suppliers/${invoice.supplierId}#payment`}
+            prefetch={false}
+          >
+            حساب المورد وتسجيل دفعة
+          </Link>
+        </StickyAction>
+      ) : null}
     </main>
   );
 }

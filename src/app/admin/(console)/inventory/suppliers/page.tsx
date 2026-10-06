@@ -6,7 +6,12 @@ import { connection } from "next/server";
 import { supplierService } from "@/features/admin/application/admin-services";
 import { requireAdminSession } from "@/features/admin/auth/admin-session";
 import { can } from "@/features/admin/domain/permissions";
-import { EmptyState, Money, PageHeader } from "@/features/admin/ui/kit";
+import {
+  EmptyState,
+  MetricCard,
+  Money,
+  PageHeader,
+} from "@/features/admin/ui/kit";
 import {
   SupplierCreateForm,
   SupplierPaymentForm,
@@ -19,6 +24,11 @@ export default async function SuppliersPage() {
   const actor = await requireAdminSession();
   const suppliers = await supplierService.list(actor);
   const canPay = can(actor, "suppliers.balances");
+  const owing = suppliers.filter((row) => (row.balanceAgorot ?? 0) > 0);
+  const totalOwed = owing.reduce(
+    (sum, row) => sum + (row.balanceAgorot ?? 0),
+    0,
+  );
 
   return (
     <main className="admin-page admin-page--narrow">
@@ -26,6 +36,20 @@ export default async function SuppliersPage() {
         title="الموردون"
         back={{ href: "/admin/inventory", label: "المخزون والمشتريات" }}
       />
+
+      {canPay && suppliers.length ? (
+        <section
+          className="admin-kpi-strip admin-kpi-strip--compact"
+          aria-label="مستحقات الموردين"
+        >
+          <MetricCard
+            label="المستحق للموردين"
+            value={<Money agorot={totalOwed} />}
+            tone={totalOwed > 0 ? "warning" : "neutral"}
+          />
+          <MetricCard label="موردون لهم مستحقات" value={owing.length} />
+        </section>
+      ) : null}
 
       {suppliers.length ? (
         <ul className="admin-supplier-list" aria-label="قائمة الموردين">
@@ -44,6 +68,19 @@ export default async function SuppliersPage() {
                   )}
                   <small>
                     {supplier.invoiceCount} فاتورة
+                    {supplier.lastInvoiceDate ? (
+                      <>
+                        {" "}
+                        · آخر شراء{" "}
+                        <bdi dir="ltr">{supplier.lastInvoiceDate}</bdi>
+                      </>
+                    ) : null}
+                    {supplier.spendAgorot ? (
+                      <>
+                        {" "}
+                        · مشتريات <Money agorot={supplier.spendAgorot} />
+                      </>
+                    ) : null}
                     {supplier.phone ? (
                       <>
                         {" "}
@@ -53,7 +90,13 @@ export default async function SuppliersPage() {
                   </small>
                 </span>
                 {supplier.balanceAgorot === null ? null : (
-                  <span className="admin-line-side">
+                  <span
+                    className={
+                      supplier.balanceAgorot > 0
+                        ? "admin-line-side admin-balance-due"
+                        : "admin-line-side"
+                    }
+                  >
                     <Money agorot={supplier.balanceAgorot} />
                     <small className="admin-muted">
                       {supplier.balanceAgorot > 0 ? "مستحق له" : "لا مستحقات"}

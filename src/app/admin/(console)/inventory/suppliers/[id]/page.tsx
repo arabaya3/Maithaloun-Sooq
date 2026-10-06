@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
 
@@ -9,7 +10,8 @@ import {
 import { requireAdminSession } from "@/features/admin/auth/admin-session";
 import { can } from "@/features/admin/domain/permissions";
 import { formatAdminDateTime } from "@/features/admin/ui/format-admin-datetime";
-import { Money, PageHeader } from "@/features/admin/ui/kit";
+import { Money, PageHeader, StickyAction } from "@/features/admin/ui/kit";
+import { WorkspaceNav } from "@/features/admin/ui/workspace-nav";
 import { SupplierPaymentForm } from "@/features/purchasing/ui/supplier-forms";
 import {
   SupplierArchiveForm,
@@ -21,6 +23,7 @@ import { addDays, todayInStoreZone } from "@/shared/lib/store-time";
 export const metadata: Metadata = { title: "المورد" };
 
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
+const DEFAULT_LABEL = "الافتراضي";
 
 export default async function SupplierDetailPage({
   params,
@@ -44,14 +47,40 @@ export default async function SupplierDetailPage({
     query.from && DATE.test(query.from) && query.from <= to
       ? query.from
       : addDays(to, -89);
-  const statement = showBalances
-    ? await supplierMaintenanceService.statement(supplier.id, from, to)
-    : null;
+  const [statement, invoices, aliases] = await Promise.all([
+    showBalances
+      ? supplierMaintenanceService.statement(supplier.id, from, to)
+      : null,
+    supplierMaintenanceService.purchaseHistory(supplier.id),
+    supplierMaintenanceService.aliases(supplier.id),
+  ]);
+  const owed = (supplier.balanceAgorot ?? 0) > 0;
+  const sections = [
+    ...(statement
+      ? [
+          { id: "account", label: "الحساب" },
+          { id: "statement", label: "كشف الحساب" },
+        ]
+      : []),
+    { id: "invoices", label: "الفواتير" },
+    { id: "aliases", label: "أسماء الأصناف" },
+    { id: "profile", label: "البيانات" },
+  ];
 
   return (
     <main className="admin-page admin-page--narrow">
       <PageHeader
         title={supplier.nameAr}
+        lede={
+          supplier.spendAgorot === null ? (
+            `${supplier.invoiceCount} فاتورة شراء`
+          ) : (
+            <>
+              {supplier.invoiceCount} فاتورة · مشتريات{" "}
+              <Money agorot={supplier.spendAgorot} />
+            </>
+          )
+        }
         back={{ href: "/admin/inventory/suppliers", label: "الموردون" }}
       />
       {!supplier.active ? (
@@ -60,36 +89,31 @@ export default async function SupplierDetailPage({
         </p>
       ) : null}
 
-      <section className="admin-panel" aria-labelledby="supplier-edit-title">
-        <h2 id="supplier-edit-title">بيانات المورد</h2>
-        <SupplierEditForm supplier={supplier} />
-        {canArchive ? (
-          <SupplierArchiveForm
-            supplierId={supplier.id}
-            active={supplier.active}
-          />
-        ) : null}
-      </section>
+      <WorkspaceNav label="أقسام ملف المورد" sections={sections} />
 
       {statement ? (
         <>
           <section
-            className="admin-panel"
+            id="account"
+            className="admin-panel admin-workspace-anchor"
             aria-labelledby="supplier-balance-title"
           >
             <h2 id="supplier-balance-title">
               المستحق للمورد: <Money agorot={supplier.balanceAgorot ?? 0} />
             </h2>
-            {(supplier.balanceAgorot ?? 0) > 0 ? (
-              <>
+            {owed ? (
+              <div id="payment" className="admin-workspace-anchor">
                 <SupplierPaymentForm supplierId={supplier.id} />
                 <SupplierCreditNoteForm supplierId={supplier.id} />
-              </>
-            ) : null}
+              </div>
+            ) : (
+              <p className="admin-muted">لا مستحقات لهذا المورد الآن.</p>
+            )}
           </section>
 
           <section
-            className="admin-panel"
+            id="statement"
+            className="admin-panel admin-workspace-anchor"
             aria-labelledby="supplier-statement-title"
           >
             <h2 id="supplier-statement-title">كشف الحساب</h2>
@@ -158,6 +182,107 @@ export default async function SupplierDetailPage({
             ) : null}
           </section>
         </>
+      ) : null}
+
+      <section
+        id="invoices"
+        className="admin-panel admin-workspace-anchor"
+        aria-labelledby="supplier-invoices-title"
+      >
+        <h2 id="supplier-invoices-title">فواتير الشراء</h2>
+        {invoices.length ? (
+          <ul className="admin-line-list">
+            {invoices.map((invoice) => (
+              <li key={invoice.id}>
+                <Link
+                  href={`/admin/inventory/purchases/${invoice.id}`}
+                  prefetch={false}
+                  className="admin-line"
+                >
+                  <span className="admin-line-main">
+                    <strong>
+                      <bdi dir="ltr">{invoice.invoiceDate}</bdi>
+                    </strong>
+                    {invoice.reference ? (
+                      <small>
+                        رقم <bdi dir="ltr">{invoice.reference}</bdi>
+                      </small>
+                    ) : null}
+                  </span>
+                  {showBalances ? (
+                    <span className="admin-line-side">
+                      <Money agorot={invoice.totalAgorot} />
+                    </span>
+                  ) : null}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="admin-muted">لا توجد فواتير شراء من هذا المورد بعد.</p>
+        )}
+      </section>
+
+      <section
+        id="aliases"
+        className="admin-panel admin-workspace-anchor"
+        aria-labelledby="supplier-aliases-title"
+      >
+        <h2 id="supplier-aliases-title">أسماء الأصناف عند المورد</h2>
+        {aliases.length ? (
+          <ul className="admin-line-list">
+            {aliases.map((alias) => (
+              <li key={alias.id}>
+                <Link
+                  href={`/admin/inventory/stock/${alias.variantId}`}
+                  prefetch={false}
+                  className="admin-line"
+                >
+                  <span className="admin-line-main">
+                    <strong>{alias.aliasText}</strong>
+                    <small>
+                      يُقرأ كـ {alias.productName}
+                      {alias.variantLabel === DEFAULT_LABEL
+                        ? ""
+                        : ` — ${alias.variantLabel}`}
+                    </small>
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="admin-muted">
+            يُحفظ الاسم هنا عندما تصحّحين ربطه بمنتج أثناء مراجعة فاتورة من هذا
+            المورد، ليُقرأ صحيحاً في المرة القادمة.
+          </p>
+        )}
+      </section>
+
+      <section
+        id="profile"
+        className="admin-panel admin-workspace-anchor"
+        aria-labelledby="supplier-edit-title"
+      >
+        <h2 id="supplier-edit-title">بيانات المورد</h2>
+        <SupplierEditForm supplier={supplier} />
+        {canArchive ? (
+          <SupplierArchiveForm
+            supplierId={supplier.id}
+            active={supplier.active}
+          />
+        ) : null}
+      </section>
+
+      {statement && owed ? (
+        <StickyAction>
+          <a
+            className="admin-btn admin-btn-primary admin-btn-block"
+            href="#payment"
+          >
+            تسجيل دفعة للمورد
+          </a>
+        </StickyAction>
       ) : null}
     </main>
   );

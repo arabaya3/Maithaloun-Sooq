@@ -169,6 +169,9 @@ test("owner records a manual purchase and sees stock on the phone", async ({
     page.getByRole("heading", { name: PRODUCT, level: 1 }),
   ).toBeVisible();
 
+  // On phones the adjustment opens in a bottom sheet.
+  await page.getByRole("button", { name: "تعديل الكمية أو حد الطلب" }).click();
+  await expect(page.getByRole("dialog", { name: "تعديل مخزون" })).toBeVisible();
   await page
     .getByRole("combobox", { name: "نوع التعديل" })
     .selectOption("damaged");

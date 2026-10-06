@@ -4,16 +4,22 @@ import { SlidersHorizontal, X } from "lucide-react";
 import { useId, useRef, type ReactNode } from "react";
 
 /**
- * Filters that open in a sheet on phones and sit inline from 1024px (spec §9).
- * The fields stay inside the surrounding form either way, so submitting works the same.
+ * Content that opens in a bottom sheet on phones and sits inline from 1024px (spec §9).
+ * Filter fields stay inside the surrounding form either way, so submitting works the same.
  */
 export function FilterSheet({
   title,
-  activeCount,
+  activeCount = 0,
+  label = "تصفية",
+  icon = <SlidersHorizontal size={18} aria-hidden="true" />,
   children,
 }: {
   title: string;
-  activeCount: number;
+  activeCount?: number;
+  /** Text on the phone button that opens the sheet. */
+  label?: string;
+  /** A rendered icon: server pages cannot pass a component to this client component. */
+  icon?: ReactNode;
   children: ReactNode;
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
@@ -26,8 +32,8 @@ export function FilterSheet({
         aria-haspopup="dialog"
         onClick={() => dialog.current?.showModal()}
       >
-        <SlidersHorizontal size={18} aria-hidden="true" />
-        {activeCount ? `تصفية (${activeCount})` : "تصفية"}
+        {icon}
+        {activeCount ? `${label} (${activeCount})` : label}
       </button>
       <dialog
         ref={dialog}

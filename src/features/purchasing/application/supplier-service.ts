@@ -50,6 +50,9 @@ export interface SupplierListItem {
   active: boolean;
   balanceAgorot: number | null;
   invoiceCount: number;
+  /** Sum of posted purchase invoices; shown only to those who see balances. */
+  spendAgorot: number | null;
+  lastInvoiceDate: string | null;
 }
 
 function isUniqueViolation(error: unknown): boolean {
@@ -90,12 +93,23 @@ export class SupplierService {
           select count(*)::int from ${schema.purchaseInvoices}
           where ${schema.purchaseInvoices.supplierId} = "suppliers"."id"
         )`,
+        spendAgorot: sql<number>`(
+          select coalesce(sum(${schema.purchaseInvoices.totalAgorot}), 0)::int
+          from ${schema.purchaseInvoices}
+          where ${schema.purchaseInvoices.supplierId} = "suppliers"."id"
+        )`,
+        lastInvoiceDate: sql<string | null>`(
+          select max(${schema.purchaseInvoices.invoiceDate})::text
+          from ${schema.purchaseInvoices}
+          where ${schema.purchaseInvoices.supplierId} = "suppliers"."id"
+        )`,
       })
       .from(schema.suppliers)
       .orderBy(desc(schema.suppliers.active), asc(schema.suppliers.nameAr));
     return rows.map((row) => ({
       ...row,
       balanceAgorot: showBalances ? row.balanceAgorot : null,
+      spendAgorot: showBalances ? row.spendAgorot : null,
     }));
   }
 
