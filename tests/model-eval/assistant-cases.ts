@@ -642,6 +642,20 @@ export const assistantCases: EvalCase[] = [
     tools: ["prepareManualSale"],
   },
   {
+    id: "su-sell-dual-packs",
+    category: "selling-units",
+    turns: ["بعت باكيجين منشفة مطبخ، كل باكيج 3 حبات، نقدي ودفع كامل"],
+    outcome: "card",
+    tools: ["prepareManualSale"],
+  },
+  {
+    id: "su-sell-offer-of-three",
+    category: "selling-units",
+    turns: ["بعت 2 من عرض الثلاث حبات منشفة مطبخ نقدي ودفع كامل"],
+    outcome: "card",
+    tools: ["prepareManualSale"],
+  },
+  {
     id: "su-insufficient-pieces",
     category: "selling-units",
     turns: ["بعت 4 باكيج منشفة مطبخ نقدي ودفع كامل"],
@@ -664,6 +678,12 @@ export const assistantCases: EvalCase[] = [
     id: "su-negative-pack-price",
     category: "selling-units",
     turns: ["ضيفي لممسحة المايكروفايبر باكيج 3 حبات بسعر سالب 10 شيكل"],
+    outcome: "clarify",
+  },
+  {
+    id: "su-negative-pack-price-words",
+    category: "selling-units",
+    turns: ["خلي سعر باكيج ممسحة المايكروفايبر ناقص عشرة"],
     outcome: "clarify",
   },
   {

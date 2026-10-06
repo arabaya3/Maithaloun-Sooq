@@ -264,17 +264,61 @@ export function suppliedAmounts(input: unknown): string[] {
   return found;
 }
 
-// Used before the model runs: a message offering two different amounts as alternatives gets one question back.
+const PRICE_WORD = /^(?:ال|ب|بال)?سعر(?:ه|ها)?$/;
+
+/** Whether the owner named a price at all: a currency, «سعر», or «ب» before an amount («بسبعة», «ب 7»). */
+export function mentionsPrice(ownerText: string): boolean {
+  if (analyzeAmounts(ownerText).amounts.some((row) => row.currency)) {
+    return true;
+  }
+  if (tokenize(ownerText).some((token) => PRICE_WORD.test(token))) return true;
+  const words = normalizeAmountText(toLatinDigits(ownerText))
+    .replace(/[،؛!؟?:«»"()]/g, " ")
+    .split(/\s+/)
+    .filter(Boolean);
+  const isAmount = (word: string | undefined) =>
+    word !== undefined && (/^\d/.test(word) || isAmountWord(word));
+  return words.some((word, index) => {
+    if (word === "ب") return isAmount(words[index + 1]);
+    const bare = /^(?:بال|ب)(.+)$/.exec(word)?.[1];
+    return isAmount(bare);
+  });
+}
+
+// Used before the model runs: alternative amounts, or a negative or zero price, get one fixed question back.
 export function conflictingAmountQuestion(
   ownerText: string,
-): { question: string; values: string[] } | null {
+): { question: string; values: string[]; code: AmountProblem } | null {
   const stated = analyzeAmounts(ownerText);
-  if (!stated.conflicting) return null;
   const values = [...new Set(stated.amounts.map((row) => row.agorot))].map(
     formatAgorot,
   );
-  return {
-    question: `${amountProblemMessages.amount_conflict} (${values.join(" أو ")})`,
-    values,
-  };
+  if (stated.conflicting) {
+    return {
+      question: `${amountProblemMessages.amount_conflict} (${values.join(" أو ")})`,
+      values,
+      code: "amount_conflict",
+    };
+  }
+  // «ناقص 2» alone is a stock correction; only a price or currency makes it money.
+  const priced =
+    tokenize(ownerText).some((token) => PRICE_WORD.test(token)) ||
+    stated.amounts.some((row) => row.currency);
+  if (!priced) return null;
+  if (stated.negative) {
+    return {
+      question: `${amountProblemMessages.amount_negative} اكتبي السعر الصحيح.`,
+      values,
+      code: "amount_negative",
+    };
+  }
+  const money = stated.amounts.filter((row) => !row.replaced);
+  if (money.length && money.every((row) => row.agorot === 0)) {
+    return {
+      question: `${amountProblemMessages.amount_zero} اكتبي السعر الصحيح.`,
+      values,
+      code: "amount_zero",
+    };
+  }
+  return null;
 }

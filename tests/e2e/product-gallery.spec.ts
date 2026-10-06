@@ -739,3 +739,71 @@ test("admin at 360 and 390: the owner can choose which variant opens first", asy
   expect(issues.consoleErrors).toEqual([]);
   expect(issues.failedRequests).toEqual([]);
 });
+
+test("a published product left incomplete is shown unavailable, and the admin lists what is missing", async ({
+  page,
+}) => {
+  const issues = trackPageIssues(page);
+  // A new option no variant has chosen yet: the in-between state of adding «العبوة» to a live product.
+  await withTestDb(
+    (sql) => sql`
+      with created as (
+        insert into product_options (product_id, name_ar, normalized_name, kind, sort_order)
+        select id, 'العبوة', 'العبوة', 'pack', 9 from products where domain_id = ${LOYAL.domainId}
+        returning id, product_id
+      )
+      insert into product_option_values (option_id, product_id, value_ar, normalized_value, sort_order)
+      select id, product_id, 'مفرد', 'مفرد', 0 from created`,
+  );
+  try {
+    for (const [width, height] of [
+      [360, 800],
+      [390, 844],
+      [768, 1024],
+      [1440, 900],
+    ] as const) {
+      await page.setViewportSize({ width, height });
+      await page.goto(`/products/${LOYAL.slug}`);
+      await expect(
+        page.getByText("غير متاح حالياً، نجهّز خيارات هذا المنتج"),
+      ).toBeVisible();
+      await expect(
+        page
+          .locator(".product-detail-actions")
+          .getByRole("button", { name: "المنتج غير متاح" }),
+      ).toBeDisabled();
+      await expectNoHorizontalOverflow(page);
+    }
+    const cart = JSON.parse(
+      (await page.evaluate(() =>
+        window.localStorage.getItem("souq-maythalun:cart:v3"),
+      )) ?? '{"lines":[]}',
+    ) as { lines: unknown[] };
+    expect(cart.lines).toEqual([]);
+
+    await login(page);
+    for (const [width, height] of [
+      [360, 800],
+      [1440, 900],
+    ] as const) {
+      await page.setViewportSize({ width, height });
+      await page.goto(`/admin/products/${LOYAL.domainId}`);
+      const warning = page.getByRole("region", {
+        name: "المنتج منشور لكنه غير مكتمل",
+      });
+      await expect(warning).toBeVisible();
+      await expect(warning.getByRole("listitem").first()).toContainText(
+        "ينقصه اختيار «العبوة»",
+      );
+      await expectNoHorizontalOverflow(page);
+    }
+  } finally {
+    await withTestDb(
+      (sql) => sql`
+        delete from product_options where name_ar = 'العبوة'
+          and product_id = (select id from products where domain_id = ${LOYAL.domainId})`,
+    );
+  }
+  expect(issues.consoleErrors).toEqual([]);
+  expect(issues.failedRequests).toEqual([]);
+});

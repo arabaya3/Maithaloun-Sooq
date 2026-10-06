@@ -1302,6 +1302,21 @@
   background: var(--admin-nav-selected);
 }
 
+.admin-media-message[data-tone="warning"] {
+  border: 1px solid var(--admin-danger);
+}
+
+.admin-incomplete-warning h2 {
+  margin: 0 0 0.25rem;
+  font-size: 1rem;
+}
+
+.admin-incomplete-warning ul {
+  margin: 0.4rem 0 0;
+  padding-inline-start: 1.25rem;
+  overflow-wrap: anywhere;
+}
+
 .admin-media-message[data-tone="error"] {
   color: var(--admin-danger);
   background: var(--admin-danger-bg);

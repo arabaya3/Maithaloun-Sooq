@@ -15,6 +15,8 @@ import {
 } from "@/features/catalog/domain/product-presentation";
 import * as schema from "@/server/db/schema";
 
+import { incompleteProductIds } from "./product-structure";
+
 // The product page loads gallery and options once; selection then runs on this data without further requests.
 export async function loadProductPresentation(
   database: PostgresJsDatabase<typeof schema>,
@@ -25,56 +27,58 @@ export async function loadProductPresentation(
     .from(schema.products)
     .where(eq(schema.products.domainId, productDomainId));
   if (!product) return emptyPresentation;
-  const [images, options, values, variants, links] = await Promise.all([
-    database
-      .select()
-      .from(schema.productImages)
-      .where(
-        and(
-          eq(schema.productImages.productId, product.id),
-          isNull(schema.productImages.archivedAt),
+  const [images, options, values, variants, links, incomplete] =
+    await Promise.all([
+      database
+        .select()
+        .from(schema.productImages)
+        .where(
+          and(
+            eq(schema.productImages.productId, product.id),
+            isNull(schema.productImages.archivedAt),
+          ),
+        )
+        .orderBy(
+          sql`${schema.productImages.isPrimary} DESC`,
+          asc(schema.productImages.sortOrder),
         ),
-      )
-      .orderBy(
-        sql`${schema.productImages.isPrimary} DESC`,
-        asc(schema.productImages.sortOrder),
-      ),
-    database
-      .select()
-      .from(schema.productOptions)
-      .where(
-        and(
-          eq(schema.productOptions.productId, product.id),
-          isNull(schema.productOptions.archivedAt),
+      database
+        .select()
+        .from(schema.productOptions)
+        .where(
+          and(
+            eq(schema.productOptions.productId, product.id),
+            isNull(schema.productOptions.archivedAt),
+          ),
         ),
-      ),
-    database
-      .select()
-      .from(schema.productOptionValues)
-      .where(
-        and(
-          eq(schema.productOptionValues.productId, product.id),
-          isNull(schema.productOptionValues.archivedAt),
+      database
+        .select()
+        .from(schema.productOptionValues)
+        .where(
+          and(
+            eq(schema.productOptionValues.productId, product.id),
+            isNull(schema.productOptionValues.archivedAt),
+          ),
         ),
-      ),
-    database
-      .select({
-        id: schema.productVariants.id,
-        domainId: schema.productVariants.domainId,
-        packCount: schema.productVariants.packCount,
-      })
-      .from(schema.productVariants)
-      .where(
-        and(
-          eq(schema.productVariants.productId, product.id),
-          isNull(schema.productVariants.archivedAt),
+      database
+        .select({
+          id: schema.productVariants.id,
+          domainId: schema.productVariants.domainId,
+          packCount: schema.productVariants.packCount,
+        })
+        .from(schema.productVariants)
+        .where(
+          and(
+            eq(schema.productVariants.productId, product.id),
+            isNull(schema.productVariants.archivedAt),
+          ),
         ),
-      ),
-    database
-      .select()
-      .from(schema.productVariantOptionValues)
-      .where(eq(schema.productVariantOptionValues.productId, product.id)),
-  ]);
+      database
+        .select()
+        .from(schema.productVariantOptionValues)
+        .where(eq(schema.productVariantOptionValues.productId, product.id)),
+      incompleteProductIds(database, [product.id]),
+    ]);
   const domainOf = new Map(variants.map((row) => [row.id, row.domainId]));
   const liveOptions: ProductOption[] = sortOptions(options).map((option) => ({
     id: option.id,
@@ -138,5 +142,6 @@ export async function loadProductPresentation(
     packCounts: Object.fromEntries(
       variants.map((row) => [row.domainId, row.packCount]),
     ),
+    incomplete: incomplete.has(product.id),
   };
 }

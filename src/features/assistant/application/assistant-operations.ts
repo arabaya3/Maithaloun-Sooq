@@ -33,6 +33,7 @@ import { calculateSale } from "@/features/sales/domain/sale-calculation";
 import { formatIls } from "@/shared/lib/format-currency";
 import { parseIlsToAgorot } from "@/shared/lib/parse-ils";
 import { matchSellingUnit } from "@/features/catalog/domain/selling-unit";
+import { normalizeArabicText } from "@/shared/lib/normalize-arabic";
 import { moneyRejection } from "@/features/assistant/domain/money-rejection";
 import type { InvoiceExtractor } from "@/server/ai/invoice-extractor";
 import * as schema from "@/server/db/schema";
@@ -923,9 +924,38 @@ export class AssistantOperations {
     const entries = catalogEntries(products);
     const merged = new Map<string, SaleInput["lines"][number]>();
     for (const [index, item] of input.items.entries()) {
-      const resolution = forChanges(
+      let resolution = forChanges(
         resolveCatalogEntity(item.product, entries, "variant"),
       );
+      let sellingOption = item.sellingOption;
+      // «عرض الثلاث حبات منشفة مطبخ»: the full product (and variant) name is there and the rest names
+      // exactly one unit of exactly one candidate; anything less stays a question.
+      if (!sellingOption && resolution.status === "ambiguous") {
+        const said = ` ${normalizeArabicText(item.product)} `;
+        const fits = resolution.candidates.flatMap((match) => {
+          const product = products.find((row) => row.id === match.productId);
+          const variant = product?.variants.find(
+            (row) => row.id === match.variantId,
+          );
+          if (!product || !variant) return [];
+          let rest = said;
+          for (const part of product.variants.length > 1
+            ? [product.nameAr, variant.labelAr]
+            : [product.nameAr]) {
+            const words = ` ${normalizeArabicText(part)} `;
+            if (!words.trim() || !rest.includes(words)) return [];
+            rest = rest.replace(words, " ");
+          }
+          rest = rest.trim();
+          return rest && matchSellingUnit(variant.sellingUnits, rest)
+            ? [{ match, rest }]
+            : [];
+        });
+        if (fits.length === 1) {
+          resolution = { status: "resolved", match: fits[0]!.match };
+          sellingOption = fits[0]!.rest;
+        }
+      }
       if (resolution.status === "not_found") {
         return rejected(
           "not_found",
@@ -956,11 +986,8 @@ export class AssistantOperations {
       if (!variant) return rejected("not_found", "المنتج غير موجود.");
       // A named way of selling (حبة، باكيج، كرتونة) makes the quantity a count of that unit.
       let unit: (typeof variant.sellingUnits)[number] | null = null;
-      if (item.sellingOption) {
-        const picked = matchSellingUnit(
-          variant.sellingUnits,
-          item.sellingOption,
-        );
+      if (sellingOption) {
+        const picked = matchSellingUnit(variant.sellingUnits, sellingOption);
         if (!picked) {
           return variant.sellingUnits.length
             ? {

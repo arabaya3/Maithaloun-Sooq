@@ -212,8 +212,8 @@ export function stockInterpretation(
 }
 
 /**
- * The unit someone named in words: an exact label, then the piece count said («باكيج 3»), then a
- * partial label. Returns null unless exactly one unit fits, so the caller asks instead of guessing.
+ * The unit someone named in words: an exact label, then the piece count said («باكيج 3», «عرض الثلاث
+ * حبات»), then a dual («باكيجين»), then a partial label. Returns null unless exactly one unit fits, so the caller asks instead of guessing.
  */
 export function matchSellingUnit<
   T extends { labelAr: string; unitsPerSale: number },
@@ -230,11 +230,25 @@ export function matchSellingUnit<
   if (!wanted) return null;
   const exact = units.filter((unit) => normalize(unit.labelAr) === wanted);
   if (exact.length === 1) return exact[0]!;
+  const words = wanted.split(" ");
   const digits = wanted.match(/\d+/)?.[0];
-  const byCount = digits
-    ? units.filter((unit) => unit.unitsPerSale === Number(digits))
-    : [];
-  if (byCount.length === 1) return byCount[0]!;
+  const count = digits
+    ? Number(digits)
+    : SPOKEN_COUNTS.find(([, names]) =>
+        names.some((name) => words.includes(name)),
+      )?.[0];
+  const kind = (unit: T) => normalize(unit.labelAr).split(" ")[0]!;
+  const namesKind = (unit: T) =>
+    words.some((word) => word === kind(unit) || word === `${kind(unit)}ين`);
+  if (count !== undefined) {
+    const byCount = units.filter((unit) => unit.unitsPerSale === count);
+    if (byCount.length === 1) return byCount[0]!;
+    const named = byCount.filter(namesKind);
+    return named.length === 1 ? named[0]! : null;
+  }
+  // «باكيجين» is two of the one pack called «باكيج».
+  const dual = units.filter((unit) => words.includes(`${kind(unit)}ين`));
+  if (dual.length) return dual.length === 1 ? dual[0]! : null;
   const partial = units.filter(
     (unit) =>
       normalize(unit.labelAr).includes(wanted) ||
@@ -256,16 +270,48 @@ const COUNT_WORDS: Record<number, readonly string[]> = {
   12: ["دزينه", "درزن", "اثنا عشر", "اطنعش"],
 };
 
+// Spoken pack sizes; «دزينة» is left out so a dozen is asked, never assumed.
+const SPOKEN_COUNTS = Object.entries(COUNT_WORDS)
+  .filter(([count]) => Number(count) <= 10)
+  .map(
+    ([count, names]) =>
+      [Number(count), names.map((name) => normalizeArabicText(name))] as const,
+  );
+
+// Words that always mean several pieces; «علبة» is left out because a box can be one piece.
+const MULTI_PIECE_WORDS = new Set(
+  [
+    "باكيج",
+    "باكج",
+    "بكج",
+    "كرتونة",
+    "كرتون",
+    "دزينة",
+    "درزن",
+    "حزمة",
+    "رزمة",
+    "طقم",
+    "pack",
+  ].map((word) => normalizeArabicText(word)),
+);
+
 /**
  * Whether a multi-piece label says how many pieces it holds («باكيج 3 حبات», «كرتونة ست حبات»).
- * A bare «باكيج» does not: the count must come from the owner, never be guessed.
+ * A bare «باكيج» does not, and neither does a «باكيج» set to one piece: the count must come from
+ * the owner, never be guessed.
  */
 export function labelStatesCount(
   labelAr: string,
   unitsPerSale: number,
 ): boolean {
-  if (unitsPerSale <= 1) return true;
   const words = normalizeArabicText(labelAr).split(" ");
+  if (unitsPerSale <= 1) {
+    return !words.some((word) =>
+      MULTI_PIECE_WORDS.has(
+        word.length > 3 && word.startsWith("ال") ? word.slice(2) : word,
+      ),
+    );
+  }
   if (words.includes(String(unitsPerSale))) return true;
   const named = (COUNT_WORDS[unitsPerSale] ?? []).map((word) =>
     normalizeArabicText(word),

@@ -296,7 +296,7 @@ describe.skipIf(!requested)("assistant real-model evaluation", () => {
         }
         continue;
       }
-      // Mirrors the chat route: alternative amounts get a fixed server question, never the model.
+      // Mirrors the chat route: alternative amounts or a negative or zero price get a fixed server question.
       const conflict = uploaded.length ? null : conflictingAmountQuestion(text);
       if (conflict) {
         history.push(

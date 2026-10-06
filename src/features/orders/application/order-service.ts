@@ -17,6 +17,7 @@ import type { CheckoutRequest } from "@/features/orders/domain/checkout-request"
 import type { OrderConfirmation } from "@/features/orders/domain/order-confirmation";
 import { priceSellingUnit } from "@/features/catalog/domain/offer-pricing";
 import { liveOffersForVariants } from "@/features/catalog/infrastructure/offer-queries";
+import { incompleteProductIds } from "@/features/catalog/infrastructure/product-structure";
 import {
   loadVariantCommerce,
   singlePiecePrice,
@@ -102,6 +103,10 @@ export class OrderService {
           transaction,
           variantRows.map((row) => row.variant.id),
         );
+        const incomplete = await incompleteProductIds(
+          transaction,
+          variantRows.map((row) => row.product.id),
+        );
         const offers = await liveOffersForVariants(
           transaction,
           variantRows.map((row) => ({
@@ -125,6 +130,7 @@ export class OrderService {
             row.variant.availability !== "available" ||
             row.variant.archivedAt ||
             row.product.archivedAt ||
+            incomplete.has(row.product.id) ||
             (row.product.publication !== "published" && !qaProbe)
           ) {
             throw new OrderCreationError("unavailable_product");

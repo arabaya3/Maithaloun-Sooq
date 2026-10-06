@@ -6,6 +6,8 @@ export interface ProductPresentation {
   options: ProductOption[];
   variantOptions: Record<string, OptionSelection>;
   packCounts: Record<string, number | null>;
+  /** Live variants do not each name one exact choice yet; the product is shown but cannot be bought. */
+  incomplete: boolean;
 }
 
 export const emptyPresentation: ProductPresentation = {
@@ -13,4 +15,5 @@ export const emptyPresentation: ProductPresentation = {
   options: [],
   variantOptions: {},
   packCounts: {},
+  incomplete: false,
 };

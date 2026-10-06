@@ -51,6 +51,8 @@ import {
   isExecutionDemand,
 } from "../domain/affirmation";
 import { amountRefusal, missingAmountClarification } from "./amount-refusal";
+import { mentionsPrice } from "../domain/amount-guard";
+import { parseMoneyInput } from "@/shared/lib/money-input";
 import { createCatalogTools } from "./catalog-tools";
 import { createPartyTools } from "./party-tools";
 import { createMediaTools } from "./media-tools";
@@ -848,7 +850,7 @@ export function createAssistantTools(context: AssistantToolContext) {
     }),
     prepareManualSale: tool({
       description:
-        "جهّز بطاقة بيع مباشر. الأسعار تُؤخذ من النظام إلا إذا ذكرت المستخدمة سعراً مختلفاً. إذا ذكرت طريقة بيع (حبة، باكيج، كرتونة) مرّرها في sellingOption وتصبح quantity عدد الباكيجات. payment: full دفع كامل، partial جزء (paidIls)، none على الحساب.",
+        "جهّز بطاقة بيع مباشر. الأسعار تُؤخذ من النظام إلا إذا ذكرت المستخدمة سعراً مختلفاً. إذا ذكرت طريقة بيع (حبة، باكيج، كرتونة) مرّرها في sellingOption وتصبح quantity عدد الباكيجات: «بعت باكيجين» = quantity 2 وsellingOption «باكيج». مرّر اسم المنتج كما قالته (مثل «منشفة مطبخ») واستدعِ الأداة مباشرة؛ الخادم يطابق المنتج والصنف وطريقة البيع ويسأل إن كان هناك أكثر من احتمال. payment: full دفع كامل، partial جزء (paidIls)، none على الحساب.",
       inputSchema: z
         .object({
           customer: z.string().trim().max(100).nullable(),
@@ -873,10 +875,22 @@ export function createAssistantTools(context: AssistantToolContext) {
           paidIls: money.optional(),
         })
         .strict(),
-      execute: (input) =>
-        prepare("prepareManualSale", input, () =>
+      execute: (raw) => {
+        // An unreadable price the owner never stated is dropped, so the card uses the system price she can see.
+        const input = mentionsPrice(context.ownerText?.() ?? "")
+          ? raw
+          : {
+              ...raw,
+              items: raw.items.map(({ unitPriceIls, ...item }) =>
+                unitPriceIls === undefined || parseMoneyInput(unitPriceIls).ok
+                  ? { ...item, unitPriceIls }
+                  : item,
+              ),
+            };
+        return prepare("prepareManualSale", input, () =>
           ops.prepareManualSale(actor, input),
-        ),
+        );
+      },
     }),
     prepareCustomerPayment: tool({
       description:

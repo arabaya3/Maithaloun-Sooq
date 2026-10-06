@@ -6,6 +6,7 @@ import {
   analyzeAmounts,
   checkStatedAmounts,
   conflictingAmountQuestion,
+  mentionsPrice,
   isAmbiguousSource,
   suppliedAmounts,
 } from "./amount-guard";
@@ -123,9 +124,50 @@ describe("pre-model conflict question", () => {
     ).toEqual({
       question: "ذكرتِ أكثر من مبلغ. أي مبلغ هو الصحيح؟ (50 ₪ أو 70 ₪)",
       values: ["50 ₪", "70 ₪"],
+      code: "amount_conflict",
     });
     expect(conflictingAmountQuestion("لا، خلي سعره 12 بدل 10")).toBeNull();
     expect(conflictingAmountQuestion("بعت 2 بسعر 7 ودفعت 14 شيكل")).toBeNull();
+  });
+
+  it("asks before the model for a negative, zero or alternative pack price", () => {
+    const code = (text: string) => conflictingAmountQuestion(text)?.code;
+    for (const text of [
+      "ضيفي لممسحة المايكروفايبر باكيج 3 حبات بسعر سالب 10 شيكل",
+      "سعر الباكيج سالب 10",
+      "خلي سعر الباكيج ناقص عشرة",
+      "سعر الباكيج -10",
+      "باكيج 3 حبات بعشرة شيكل بالسالب",
+    ]) {
+      expect(code(text), text).toBe("amount_negative");
+    }
+    expect(code("سعر الباكيج 0")).toBe("amount_zero");
+    expect(code("باكيج 3 حبات بسعر 10 أو 12")).toBe("amount_conflict");
+    expect(code("باكيج 3 حبات بسعر 10 شيكل")).toBeUndefined();
+    // Stock corrections are not prices.
+    expect(code("المخزون ناقص 2 حبات")).toBeUndefined();
+    expect(code("ناقص 3 من منشفة المطبخ")).toBeUndefined();
+  });
+});
+
+describe("price mention", () => {
+  it("tells a stated price from counts and pack sizes", () => {
+    for (const text of [
+      "بعت 2 منظف بسعر 7",
+      "بعت 2 منظف بسبعة",
+      "بعت 2 منظف ب 7",
+      "بعت 2 منظف 7 شيكل",
+      "بعت 2 منظف ب7",
+    ]) {
+      expect(mentionsPrice(text), text).toBe(true);
+    }
+    for (const text of [
+      "بعت 2 منظف عام، كل باكيج 3 حبات، نقدي ودفع كامل",
+      "بعت باكيجين منشفة مطبخ",
+      "بعت 2 من عرض الثلاث حبات",
+    ]) {
+      expect(mentionsPrice(text), text).toBe(false);
+    }
   });
 });
 

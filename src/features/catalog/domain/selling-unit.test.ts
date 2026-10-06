@@ -163,6 +163,22 @@ describe("selling unit choice", () => {
     expect(matchSellingUnit(units, "دزينة")).toBeNull();
     expect(matchSellingUnit(units, "")).toBeNull();
   });
+
+  it("reads spoken pack sizes and duals, and refuses when two packs fit", () => {
+    const units = [
+      { labelAr: "حبة واحدة", unitsPerSale: 1 },
+      { labelAr: "باكيج 3 حبات", unitsPerSale: 3 },
+      { labelAr: "كرتونة 12 حبة", unitsPerSale: 12 },
+    ];
+    expect(matchSellingUnit(units, "عرض الثلاث حبات")?.unitsPerSale).toBe(3);
+    expect(matchSellingUnit(units, "باكيجين")?.unitsPerSale).toBe(3);
+    expect(matchSellingUnit(units, "كل باكيج 3 حبات")?.unitsPerSale).toBe(3);
+    expect(matchSellingUnit(units, "باكيج 5 حبات")).toBeNull();
+    const twoPacks = [...units, { labelAr: "باكيج 6 حبات", unitsPerSale: 6 }];
+    expect(matchSellingUnit(twoPacks, "باكيج")).toBeNull();
+    expect(matchSellingUnit(twoPacks, "باكيجين")).toBeNull();
+    expect(matchSellingUnit(twoPacks, "عرض الست حبات")?.unitsPerSale).toBe(6);
+  });
 });
 
 describe("pack labels state their size", () => {
@@ -176,5 +192,9 @@ describe("pack labels state their size", () => {
     expect(labelStatesCount("باكيج 4 حبات", 3)).toBe(false);
     expect(labelStatesCount("كرتونة", 6)).toBe(false);
     expect(labelStatesCount("حبة واحدة", 1)).toBe(true);
+    expect(labelStatesCount("علبة", 1)).toBe(true);
+    // A pack word on a one-piece unit is a pack whose size was never said.
+    expect(labelStatesCount("باكيج", 1)).toBe(false);
+    expect(labelStatesCount("الكرتونة", 1)).toBe(false);
   });
 });

@@ -111,6 +111,7 @@ function presentation(archived: string[] = []): ProductPresentation {
         .map(([id, [color, size]]) => [id, { color, size }]),
     ),
     packCounts: {},
+    incomplete: false,
     gallery: [
       image("shared", "product", { isPrimary: true }),
       image("blue", "option_value", {
@@ -205,6 +206,25 @@ describe("product page selection", () => {
     expect(radio("اللون", "زهري")).toBeChecked();
     expect(radio("الحجم", "كبير")).toBeChecked();
     expect(screen.getByLabelText("السعر 19 ₪")).toBeInTheDocument();
+  });
+
+  it("shows a published product with incomplete variants as unavailable", () => {
+    const product = loyal();
+    renderWithProviders(
+      <ProductDetailPanel
+        product={product}
+        categoryLabel="المنزل"
+        presentation={{ ...presentation(), incomplete: true }}
+      />,
+      { products: [product] },
+    );
+    expect(
+      screen.getByText("غير متاح حالياً، نجهّز خيارات هذا المنتج"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "المنتج غير متاح" }),
+    ).toBeDisabled();
+    expect(window.localStorage.getItem(CART_STORAGE_KEY)).toBeNull();
   });
 
   it("adds exactly the variant on screen to the cart", async () => {

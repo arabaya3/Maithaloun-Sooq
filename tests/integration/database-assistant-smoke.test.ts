@@ -287,6 +287,80 @@ describe("amount guard (independent of the model)", () => {
     expect(await businessFingerprint(client)).toEqual(before);
   });
 
+  it("uses the system price when the model sends an unreadable price the owner never said", async () => {
+    const { result, cards } = await call(
+      "prepareManualSale",
+      {
+        customer: null,
+        items: [
+          {
+            product: "منظف عام",
+            quantity: "2",
+            unitPriceIls: "كل باكيج 3 حبات",
+          },
+        ],
+        payment: "full",
+      },
+      "بعت 2 منظف عام، كل باكيج 3 حبات، نقدي ودفع كامل",
+    );
+    expect(result).toMatchObject({ status: "awaiting_confirmation" });
+    expect(cards).toBe(1);
+    const unreadable = await call(
+      "prepareManualSale",
+      {
+        customer: null,
+        items: [{ product: "منظف عام", quantity: "2", unitPriceIls: "كم" }],
+        payment: "full",
+      },
+      "بعت 2 منظف عام بسعر 9 شيكل",
+    );
+    expect(unreadable.result).toMatchObject({ status: "rejected" });
+    expect(unreadable.cards).toBe(0);
+  });
+
+  it("never prepares or confirms a pack with a negative, zero or alternative price", async () => {
+    const before = await businessFingerprint(client);
+    const pack = (priceIls: string) => ({
+      product: "منظف عام",
+      options: [{ label: "باكيج 3 حبات", unitsPerSale: 3, priceIls }],
+    });
+    for (const [said, priceIls, code] of [
+      [
+        "ضيفي لمنظف عام باكيج 3 حبات بسعر سالب 10 شيكل",
+        "10",
+        "amount_negative",
+      ],
+      ["سعر الباكيج سالب 10", "10", "amount_negative"],
+      ["سعر الباكيج ناقص عشرة", "عشرة", "amount_negative"],
+      ["سعر الباكيج -10", "-10", "amount_negative"],
+      ["سعر الباكيج 0", "0", "amount_zero"],
+      ["باكيج 3 حبات بسعر 10 أو 12", "10", "amount_conflict"],
+    ] as const) {
+      const { result, cards } = await call(
+        "prepareSellingUnitsCreation",
+        pack(priceIls),
+        said,
+      );
+      expect(result, said).toMatchObject({ code });
+      expect(cards).toBe(0);
+    }
+    const prepared = await operations.sellingUnitOps.prepareCreate(
+      owner,
+      pack("10"),
+    );
+    if (prepared.status !== "ready") throw new Error(JSON.stringify(prepared));
+    const conversationId = await conversations.ensure(owner, null);
+    for (const said of [
+      "باكيج بسعر سالب 10 شيكل",
+      "باكيج بسعر 10 أو 12 شيكل",
+    ]) {
+      await expect(
+        confirmations.create(owner, conversationId, prepared, said),
+      ).rejects.toBeInstanceOf(AmbiguousAmountRefused);
+    }
+    expect(await businessFingerprint(client)).toEqual(before);
+  });
+
   it("never turns «سالب» into a positive price, in cards or drafts", async () => {
     const before = await businessFingerprint(client);
     for (const [owner, priceIls] of [
