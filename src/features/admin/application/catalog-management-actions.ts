@@ -36,6 +36,8 @@ const authoringMessages: Record<CatalogAuthoringError["code"], string> = {
   duplicate_variant: "يوجد صنف فعّال بنفس الاسم والخصائص.",
   duplicate_category: "يوجد قسم بنفس الاسم أو الرمز.",
   category_not_empty: "في القسم منتجات فعّالة. انقليها لقسم آخر قبل الأرشفة.",
+  category_has_offers:
+    "عرض فعّال مربوط بهذا القسم. عدّلي العرض أو أرشفيه أولاً حتى لا يتوقف دون علمك.",
   category_unavailable: "القسم غير متاح.",
   in_use: "العنصر مستخدم في سجلات سابقة.",
   default_variant: "لا يمكن تطبيق ذلك على الصنف الافتراضي.",
@@ -52,6 +54,12 @@ function authoringFailure(error: unknown): { ok: false; message: string } {
         ok: false,
         message:
           "المنتج بدون صورة حقيقية. فعّلي «النشر بصورة مؤقتة» أو أضيفي صورة أولاً.",
+      };
+    }
+    if (error.code === "category_has_offers" && error.detail) {
+      return {
+        ok: false,
+        message: `العرض «${error.detail}» مربوط بهذا القسم. عدّلي العرض أو أرشفيه أولاً حتى لا يتوقف دون علمك.`,
       };
     }
     if (
@@ -416,4 +424,62 @@ export async function setCategoryArchivedAction(
     return authoringFailure(error);
   }
   categoriesSaved(archive ? "archived" : "restored");
+}
+
+export async function moveCategoryAction(
+  _state: CatalogActionResult,
+  formData: FormData,
+): Promise<CatalogActionResult> {
+  const actor = await requireTrustedAdminMutation();
+  const code = categoryCode.safeParse(formData.get("code"));
+  const direction = z.enum(["up", "down"]).safeParse(formData.get("direction"));
+  if (!code.success || !direction.success)
+    return { ok: false, message: authoringMessages.invalid_input };
+  try {
+    await catalogAuthoringService.moveCategory(
+      actor,
+      code.data,
+      direction.data,
+    );
+  } catch (error) {
+    return authoringFailure(error);
+  }
+  categoriesSaved("reordered");
+}
+
+export async function mergeCategoryAction(
+  _state: CatalogActionResult,
+  formData: FormData,
+): Promise<CatalogActionResult> {
+  const actor = await requireTrustedAdminMutation();
+  const source = categoryCode.safeParse(formData.get("code"));
+  const target = categoryCode.safeParse(formData.get("targetCode"));
+  if (!source.success || !target.success || source.data === target.data) {
+    return { ok: false, message: "اختاري قسماً آخر لدمج المنتجات فيه." };
+  }
+  try {
+    await catalogAuthoringService.mergeCategories(actor, {
+      sourceCode: source.data,
+      targetCode: target.data,
+    });
+  } catch (error) {
+    return authoringFailure(error);
+  }
+  categoriesSaved("merged");
+}
+
+export async function deleteCategoryAction(
+  _state: CatalogActionResult,
+  formData: FormData,
+): Promise<CatalogActionResult> {
+  const actor = await requireTrustedAdminMutation();
+  const code = categoryCode.safeParse(formData.get("code"));
+  if (!code.success)
+    return { ok: false, message: authoringMessages.invalid_input };
+  try {
+    await catalogAuthoringService.deleteEmptyCategory(actor, code.data);
+  } catch (error) {
+    return authoringFailure(error);
+  }
+  categoriesSaved("deleted");
 }

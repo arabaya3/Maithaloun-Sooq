@@ -65,6 +65,7 @@ export type CatalogAuthoringErrorCode =
   | "duplicate_variant"
   | "duplicate_category"
   | "category_not_empty"
+  | "category_has_offers"
   | "category_unavailable"
   | "in_use"
   | "default_variant"
@@ -1964,6 +1965,75 @@ export class CatalogAuthoringService {
     });
   }
 
+  // Offers name a category by code; moving its products away would silently stop them applying.
+  private async assertNoOffersTarget(
+    transaction: Transaction,
+    code: string,
+  ): Promise<void> {
+    const [offer] = await transaction
+      .select({ nameAr: schema.offers.nameAr })
+      .from(schema.offerTargets)
+      .innerJoin(
+        schema.offers,
+        eq(schema.offers.id, schema.offerTargets.offerId),
+      )
+      .where(
+        and(
+          eq(schema.offerTargets.categoryCode, code),
+          isNull(schema.offers.archivedAt),
+        ),
+      )
+      .limit(1);
+    if (offer)
+      throw new CatalogAuthoringError("category_has_offers", offer.nameAr);
+  }
+
+  /**
+   * Moves one active category a step up or down the storefront order. The whole active list is
+   * renumbered in steps of 10 so equal or gapped sort orders from before still end in a strict order.
+   */
+  async moveCategory(
+    actor: AdminActor,
+    code: string,
+    direction: "up" | "down",
+  ): Promise<void> {
+    assertPermission(actor, "settings.manage");
+    await this.database.transaction(async (transaction) => {
+      const rows = await transaction
+        .select()
+        .from(schema.productCategories)
+        .where(isNull(schema.productCategories.archivedAt))
+        .orderBy(
+          asc(schema.productCategories.sortOrder),
+          asc(schema.productCategories.code),
+        )
+        .for("update");
+      const index = rows.findIndex((row) => row.code === code);
+      if (index < 0) throw new CatalogAuthoringError("not_found");
+      const swapWith = direction === "up" ? index - 1 : index + 1;
+      if (swapWith < 0 || swapWith >= rows.length) return;
+      const order = rows.map((row) => row.code);
+      [order[index], order[swapWith]] = [order[swapWith]!, order[index]!];
+      const now = new Date();
+      for (const [position, rowCode] of order.entries()) {
+        const sortOrder = (position + 1) * 10;
+        if (rows.find((row) => row.code === rowCode)?.sortOrder === sortOrder)
+          continue;
+        await transaction
+          .update(schema.productCategories)
+          .set({ sortOrder, updatedAt: now })
+          .where(eq(schema.productCategories.code, rowCode));
+      }
+      await this.audit(transaction, actor, {
+        actionType: "category_reorder",
+        entityType: "product_category",
+        entityId: code,
+        beforeState: { position: index + 1 },
+        afterState: { position: swapWith + 1 },
+      });
+    });
+  }
+
   async mergeCategories(
     actor: AdminActor,
     input: { sourceCode: string; targetCode: string },
@@ -1989,6 +2059,7 @@ export class CatalogAuthoringService {
       if (!source || !target || source.archivedAt || target.archivedAt) {
         throw new CatalogAuthoringError("not_found");
       }
+      await this.assertNoOffersTarget(transaction, source.code);
       const moved = await transaction
         .update(schema.products)
         .set({ categoryId: target.code, updatedAt: new Date() })
@@ -2025,6 +2096,7 @@ export class CatalogAuthoringService {
           .where(eq(schema.productCategories.code, code))
           .for("update");
         if (!category) throw new CatalogAuthoringError("not_found");
+        await this.assertNoOffersTarget(transaction, code);
         const [used] = await transaction
           .select({ value: count() })
           .from(schema.products)

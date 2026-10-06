@@ -149,6 +149,7 @@ function authoringMessage(error: CatalogAuthoringError): string {
     duplicate_variant: "يوجد صنف بنفس الاسم أو الخصائص لهذا المنتج.",
     duplicate_category: "يوجد قسم بنفس الاسم.",
     category_not_empty: "القسم فيه منتجات؛ انقليها أو ادمجي القسم أولاً.",
+    category_has_offers: "عرض فعّال مربوط بهذا القسم؛ عدّليه أو أرشفيه أولاً.",
     category_unavailable: "القسم غير موجود أو مؤرشف.",
     in_use: "مرتبط بسجلات تاريخية ولا يمكن حذفه؛ استخدمي الأرشفة.",
     default_variant:
