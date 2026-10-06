@@ -594,3 +594,43 @@
   padding-block: 0.25rem;
   align-items: center;
 }
+
+/* Editors use a bare .admin-btn or an unclassed submit; give both a real button look so no action reads as plain text. */
+.admin-app
+  .admin-btn:not(.admin-btn-primary):not(.admin-btn-secondary):not(
+    .admin-btn-ghost
+  ):not(.admin-btn-danger) {
+  border-color: var(--admin-border);
+  background: var(--admin-surface);
+  color: var(--admin-forest);
+}
+
+.admin-app
+  .admin-btn:not(.admin-btn-primary):not(.admin-btn-secondary):not(
+    .admin-btn-ghost
+  ):not(.admin-btn-danger):hover:not(:disabled) {
+  background: var(--admin-divider);
+}
+
+.admin-app .admin-form button[type="submit"]:not([class]) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--admin-control);
+  padding: 0 1.25rem;
+  border: 1px solid var(--admin-forest);
+  border-radius: var(--admin-radius-md);
+  background: var(--admin-forest);
+  color: #fff;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.admin-app .admin-form button[type="submit"]:not([class]):hover:not(:disabled) {
+  background: var(--admin-forest-hover);
+}
+
+.admin-app .admin-form button[type="submit"]:not([class]):disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
