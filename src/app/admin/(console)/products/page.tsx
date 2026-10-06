@@ -74,6 +74,7 @@ export default async function AdminProductsPage({
     category?: string;
     status?: string;
     availability?: string;
+    deleted?: string;
   }>;
 }) {
   await connection();
@@ -204,6 +205,12 @@ export default async function AdminProductsPage({
           </Link>
         }
       />
+
+      {params.deleted ? (
+        <p className="admin-media-message" data-tone="ok" role="status">
+          تم حذف «<bdi>{params.deleted.slice(0, 120)}</bdi>» نهائياً.
+        </p>
+      ) : null}
 
       <nav className="admin-status-tabs" aria-label="حالة المنتجات">
         {tabs.map(([id, label]) => (
