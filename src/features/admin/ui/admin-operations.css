@@ -33,13 +33,6 @@
 
 /* Mobile shell ------------------------------------------------------------- */
 
-.admin-mobile-header {
-  flex-direction: row;
-  align-items: center;
-  justify-content: space-between;
-  padding-top: calc(0.5rem + env(safe-area-inset-top));
-}
-
 .admin-mobile-header-action {
   display: inline-flex;
   align-items: center;
@@ -48,7 +41,20 @@
   height: var(--admin-touch);
   border: 1px solid var(--admin-border);
   border-radius: var(--admin-radius);
+  background: var(--admin-surface);
   color: var(--admin-text);
+  cursor: pointer;
+}
+
+.admin-mobile-header-action.is-primary {
+  border-color: var(--admin-forest);
+  background: var(--admin-forest);
+  color: #fff;
+}
+
+.admin-mobile-header-action:disabled {
+  opacity: 0.55;
+  cursor: progress;
 }
 
 .admin-bottom-nav {
@@ -81,30 +87,30 @@
   cursor: pointer;
 }
 
+/* Links and buttons alike: the admin reset gives buttons the body font size. */
+.admin-app .admin-bottom-nav-item,
 .admin-app a.admin-bottom-nav-item {
   color: var(--admin-muted);
+  font-size: 0.75rem;
+  font-weight: 600;
 }
 
+/* The active area: forest label with a mint pill behind its icon. */
 .admin-app a.admin-bottom-nav-item[aria-current="page"],
 .admin-bottom-nav-item[data-active] {
   color: var(--admin-forest);
-  box-shadow: inset 0 3px 0 var(--admin-forest);
-  border-radius: 0 0 var(--admin-radius) var(--admin-radius);
+  font-weight: 700;
 }
 
-.admin-bottom-nav-add {
-  color: var(--admin-forest);
-}
-
-.admin-bottom-nav-add-mark {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 2rem;
-  height: 2rem;
+.admin-bottom-nav-item svg {
+  box-sizing: content-box;
+  padding: 0.125rem 0.875rem;
   border-radius: 999px;
-  color: #fff;
-  background: var(--admin-forest);
+}
+
+.admin-app a.admin-bottom-nav-item[aria-current="page"] svg,
+.admin-bottom-nav-item[data-active] svg {
+  background: var(--admin-nav-selected);
 }
 
 @media (max-width: 63.99rem) {

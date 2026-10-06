@@ -42,17 +42,22 @@ test("owner records a manual purchase and sees stock on the phone", async ({
   await login(page);
 
   const nav = await bottomNav(page);
-  await expect(nav.getByRole("link")).toHaveText([
-    "الرئيسية",
-    "الطلبات",
+  // Five areas: اليوم is a link; the others open a sheet of their pages.
+  await expect(nav.getByRole("link")).toHaveText(["اليوم"]);
+  await expect(nav.getByRole("button")).toHaveText([
+    "البيع",
     "المخزون",
+    "الكتالوج",
+    "المزيد",
   ]);
   await page.screenshot({
     path: `${SHOTS}/admin-home-390.png`,
     fullPage: true,
   });
 
-  const addButton = nav.getByRole("button", { name: "إضافة" });
+  const addButton = page
+    .locator(".admin-mobile-header")
+    .getByRole("button", { name: "إضافة" });
   await addButton.click();
   const addSheet = page.getByRole("dialog", { name: "ماذا تريدين أن تضيفي؟" });
   await expect(
@@ -63,7 +68,11 @@ test("owner records a manual purchase and sees stock on the phone", async ({
   await expect(addSheet).toBeHidden();
   await expect(addButton).toBeFocused();
 
-  await nav.getByRole("link", { name: "المخزون" }).click();
+  await nav.getByRole("button", { name: "المخزون" }).click();
+  await page
+    .getByRole("dialog", { name: "المخزون" })
+    .getByRole("link", { name: "المخزون", exact: true })
+    .click();
   await expect(
     page.getByRole("heading", { name: "المخزون والمشتريات", level: 1 }),
   ).toBeVisible();

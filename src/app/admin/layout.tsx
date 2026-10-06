@@ -6,13 +6,32 @@ import { ADMIN_MANIFEST_PATH } from "@/features/pwa/admin-manifest";
 import "@/features/admin/ui/admin.css";
 import "@/features/admin/ui/admin-operations.css";
 
-// Noto Sans Arabic (OFL), the unchanged admin typeface.
-const adminFont = localFont({
-  src: "../fonts/noto-sans-arabic-subset.woff2",
-  weight: "400 900",
+// Cairo (OFL), the admin typeface. Each subset is its own family in one stack, so the browser takes Arabic,
+// Latin and ₪ (latin-ext) from the file that has them; only Arabic is preloaded.
+const cairoArabic = localFont({
+  src: "../fonts/cairo-arabic.woff2",
+  weight: "400 800",
   style: "normal",
-  display: "optional",
-  variable: "--font-arabic",
+  display: "swap",
+  variable: "--font-cairo-arabic",
+  adjustFontFallback: "Arial",
+});
+const cairoLatin = localFont({
+  src: "../fonts/cairo-latin.woff2",
+  weight: "400 800",
+  style: "normal",
+  display: "swap",
+  preload: false,
+  variable: "--font-cairo-latin",
+  adjustFontFallback: "Arial",
+});
+const cairoLatinExt = localFont({
+  src: "../fonts/cairo-latin-ext.woff2",
+  weight: "400 800",
+  style: "normal",
+  display: "swap",
+  preload: false,
+  variable: "--font-cairo-latin-ext",
   adjustFontFallback: "Arial",
 });
 
@@ -20,7 +39,7 @@ export const dynamic = "force-dynamic";
 
 // The on-screen keyboard shrinks the layout so the assistant composer stays visible.
 export const viewport: Viewport = {
-  themeColor: "#1F4D3A",
+  themeColor: "#164C3B",
   colorScheme: "light",
   width: "device-width",
   initialScale: 1,
@@ -45,7 +64,9 @@ export default function AdminRootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className={`${adminFont.variable} admin-font-scope font-scope`}>
+    <div
+      className={`${cairoArabic.variable} ${cairoLatin.variable} ${cairoLatinExt.variable} admin-font-scope font-scope`}
+    >
       {children}
     </div>
   );

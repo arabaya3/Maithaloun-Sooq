@@ -141,7 +141,7 @@ test("desktop: side panel keeps the page visible and nothing overflows", async (
   await login(page);
   const panel = await openAssistant(page);
   await expect(
-    page.getByRole("heading", { name: "لوحة المتابعة" }),
+    page.getByRole("heading", { name: "اليوم", level: 1 }),
   ).toBeVisible();
   const box = (await panel.boundingBox())!;
   expect(box.width).toBeLessThanOrEqual(440);

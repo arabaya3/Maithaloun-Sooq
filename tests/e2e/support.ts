@@ -64,7 +64,7 @@ export async function loginAs(
       .click({ force: true });
   }
   await expect(
-    page.getByRole("heading", { name: "لوحة المتابعة" }),
+    page.getByRole("heading", { name: "اليوم", level: 1 }),
   ).toBeVisible({ timeout: 20_000 });
 }
 

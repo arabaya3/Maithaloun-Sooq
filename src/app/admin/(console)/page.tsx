@@ -33,7 +33,7 @@ import { orderStatusLabels } from "@/features/orders/domain/order-status";
 import { formatIls } from "@/shared/lib/format-currency";
 
 export const metadata: Metadata = {
-  title: "لوحة المتابعة",
+  title: "اليوم",
 };
 
 export default async function AdminDashboardPage() {
@@ -91,7 +91,7 @@ export default async function AdminDashboardPage() {
     <main className="admin-page">
       <header className="admin-page-header">
         <div>
-          <h1>لوحة المتابعة</h1>
+          <h1>اليوم</h1>
           <p className="admin-lede">
             {todayLabel}
             {attentionCount > 0

@@ -36,7 +36,7 @@ test("manual credit sale, customer ledger and payment entry", async ({
   await login(page);
 
   await page
-    .getByRole("navigation", { name: "التنقل السفلي" })
+    .locator(".admin-mobile-header")
     .getByRole("button", { name: "إضافة" })
     .click();
   await page

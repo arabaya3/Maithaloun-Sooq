@@ -65,9 +65,10 @@
   }
 }
 
+/* Beside the RTL sidebar, never on top of it. */
 @media (min-width: 64rem) {
   .assistant-launcher {
-    right: 1.5rem;
+    right: calc(var(--admin-sidebar-width, 260px) + 1.5rem);
     bottom: 1.5rem;
   }
 }
