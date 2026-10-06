@@ -27,7 +27,8 @@ export class OfferError extends Error {
       | "invalid_price"
       | "conflict"
       | "in_use"
-      | "empty_target",
+      | "empty_target"
+      | "stale",
     readonly detail?: string,
   ) {
     super(code);
@@ -113,6 +114,7 @@ export class OfferService {
         labelAr: schema.productVariants.labelAr,
         variantCount: sql<number>`(select count(*)::int from ${schema.productVariants} v2 where v2.product_id = "products"."id" and v2.archived_at is null)`,
         nameAr: schema.products.nameAr,
+        latinName: schema.products.latinName,
         priceAgorot: schema.productVariants.priceAgorot,
         avgCostAgorot: schema.inventoryItems.avgCostAgorot,
       })
@@ -135,16 +137,20 @@ export class OfferService {
     const seen = new Set<string>();
     return rows
       .filter((row) => !seen.has(row.variantId) && seen.add(row.variantId))
-      .map((row) => ({
-        variantId: row.variantId,
-        label:
-          Number(row.variantCount) > 1
-            ? `${row.nameAr} — ${row.labelAr}`
-            : row.nameAr,
-        listPriceAgorot: row.priceAgorot,
-        finalPriceAgorot: null,
-        avgCostAgorot: row.avgCostAgorot,
-      }));
+      .map((row) => {
+        // Several products share an Arabic name (three floor cleaners); the Latin name tells them apart.
+        const name = row.latinName
+          ? `${row.nameAr} ${row.latinName}`
+          : row.nameAr;
+        return {
+          variantId: row.variantId,
+          label:
+            Number(row.variantCount) > 1 ? `${name} — ${row.labelAr}` : name,
+          listPriceAgorot: row.priceAgorot,
+          finalPriceAgorot: null,
+          avgCostAgorot: row.avgCostAgorot,
+        };
+      });
   }
 
   async preview(
@@ -270,9 +276,7 @@ export class OfferService {
     const filtered = needle
       ? rows.filter((row) => row.nameAr.includes(needle))
       : rows;
-    return Promise.all(
-      filtered.slice(0, 20).map((row) => this.summary(this.database, row)),
-    );
+    return Promise.all(filtered.map((row) => this.summary(this.database, row)));
   }
 
   async get(actor: AdminActor, offerId: string): Promise<OfferSummary | null> {
@@ -405,6 +409,8 @@ export class OfferService {
     actor: AdminActor,
     offerId: string,
     raw: OfferInput,
+    /** The updatedAt the editor loaded; a newer row means someone else saved in between. */
+    expectedVersion?: string,
   ): Promise<void> {
     assertPermission(actor, "settings.manage");
     const input = offerInputSchema.parse(raw);
@@ -416,6 +422,8 @@ export class OfferService {
         .where(eq(schema.offers.id, offerId))
         .for("update");
       if (!row || row.archivedAt) throw new OfferError("not_found");
+      if (expectedVersion && row.updatedAt.toISOString() !== expectedVersion)
+        throw new OfferError("stale");
       await this.validate(transaction, input, offerId);
       await transaction
         .update(schema.offers)

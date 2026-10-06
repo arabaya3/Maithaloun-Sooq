@@ -229,19 +229,23 @@ test("owner manages categories by hand", async ({ page }) => {
   await create.getByRole("button", { name: "إضافة القسم" }).click();
   await expect(page.getByRole("status")).toHaveText("تمت إضافة القسم.");
   const row = page.getByRole("listitem", { name: "القسم قسم اختبار الجودة" });
+  // Edits and actions sit behind each row's disclosure.
+  await row.getByText("تعديل وإجراءات").click();
   await row.getByLabel("الاسم").fill("قسم اختبار الجودة المعدل");
   await row.getByRole("button", { name: "حفظ القسم" }).click();
   await expect(page.getByRole("status")).toHaveText("تم حفظ القسم.");
   const renamed = page.getByRole("listitem", {
     name: "القسم قسم اختبار الجودة المعدل",
   });
+  await renamed.getByText("تعديل وإجراءات").click();
   await renamed.getByRole("button", { name: "أرشفة القسم" }).click();
   await expect(page.getByRole("status")).toHaveText("تمت أرشفة القسم.");
   await page.getByText(/^أقسام مؤرشفة/).click();
-  await page
-    .getByRole("listitem", { name: "القسم قسم اختبار الجودة المعدل" })
-    .getByRole("button", { name: "استعادة القسم" })
-    .click();
+  const archivedRow = page.getByRole("listitem", {
+    name: "القسم قسم اختبار الجودة المعدل",
+  });
+  await archivedRow.getByText("إجراءات", { exact: true }).click();
+  await archivedRow.getByRole("button", { name: "استعادة القسم" }).click();
   await expect(page.getByRole("status")).toHaveText("تمت استعادة القسم.");
 });
 

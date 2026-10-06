@@ -89,6 +89,7 @@ export function assistantFailure(error: unknown): {
       conflict: "يتعارض مع عرض مفعّل آخر على نفس الأصناف في نفس الفترة.",
       in_use: "العرض مستخدم في طلبات، لذلك لا يُحذف.",
       empty_target: "العرض لا يشمل أي صنف.",
+      stale: "تغيّر العرض منذ فتحه. أعيدي المحاولة.",
     };
     return { code, message: offerMessages[error.code] };
   }

@@ -17,6 +17,9 @@ const savedMessages: Record<string, string> = {
   updated: "تم حفظ القسم.",
   archived: "تمت أرشفة القسم.",
   restored: "تمت استعادة القسم.",
+  reordered: "تم تغيير ترتيب الأقسام في المتجر.",
+  merged: "تم دمج القسم ونقل منتجاته.",
+  deleted: "تم حذف القسم.",
 };
 
 export default async function CategoriesPage({
@@ -61,9 +64,16 @@ export default async function CategoriesPage({
       ) : null}
       <CategoryCreateForm />
       <h2>الأقسام الحالية ({active.length})</h2>
+      <p className="admin-muted">بنفس ترتيب ظهورها في المتجر.</p>
       <ul className="admin-supplier-list" aria-label="الأقسام الحالية">
-        {active.map((category) => (
-          <CategoryRow key={category.code} category={category} />
+        {active.map((category, index) => (
+          <CategoryRow
+            key={category.code}
+            category={category}
+            others={active.filter((other) => other.code !== category.code)}
+            first={index === 0}
+            last={index === active.length - 1}
+          />
         ))}
       </ul>
       {archived.length ? (
