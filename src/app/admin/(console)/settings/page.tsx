@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import Link from "next/link";
+import { ScrollText, Users } from "lucide-react";
 import { connection } from "next/server";
 import { redirect } from "next/navigation";
 
@@ -15,7 +17,7 @@ import {
   STANDARD_DELIVERY_FEE_AGOROT,
 } from "@/features/delivery/delivery-policy";
 import { formatIls } from "@/shared/lib/format-currency";
-import { OperatorAccountForm } from "@/features/admin/ui/operator-account-form";
+import { WorkspaceNav } from "@/features/admin/ui/workspace-nav";
 import { SummaryFrequencyForm } from "@/features/reminders/ui/reminder-controls";
 
 export const metadata: Metadata = {
@@ -48,13 +50,41 @@ export default async function AdminSettingsPage({
           </p>
         </div>
       </header>
+      <WorkspaceNav
+        label="أقسام الإعدادات"
+        sections={[
+          { id: "accounts", label: "الحسابات والسجل" },
+          { id: "delivery", label: "التوصيل" },
+          { id: "summary", label: "الملخص الدوري" },
+        ]}
+      />
+
+      <nav
+        id="accounts"
+        className="admin-action-grid admin-workspace-anchor"
+        aria-label="الحسابات والسجل"
+      >
+        <Link href="/admin/settings/users" prefetch={false}>
+          <Users size={22} aria-hidden="true" />
+          <span>المستخدمون والجلسات</span>
+        </Link>
+        <Link href="/admin/audit" prefetch={false}>
+          <ScrollText size={22} aria-hidden="true" />
+          <span>سجل التدقيق</span>
+        </Link>
+      </nav>
+
       {savedArea ? (
         <p className="admin-media-message" data-tone="ok" role="status">
           تم حفظ منطقة التوصيل.
         </p>
       ) : null}
 
-      <section className="admin-panel" aria-labelledby="delivery-policy-title">
+      <section
+        id="delivery"
+        className="admin-panel admin-workspace-anchor"
+        aria-labelledby="delivery-policy-title"
+      >
         <h2 id="delivery-policy-title">سياسة التوصيل</h2>
         <dl className="admin-definition-list admin-policy-list">
           <div>
@@ -81,7 +111,8 @@ export default async function AdminSettingsPage({
       </section>
 
       <section
-        className="admin-panel"
+        id="summary"
+        className="admin-panel admin-workspace-anchor"
         aria-labelledby="summary-frequency-title"
       >
         <h2 id="summary-frequency-title">ملخص الأعمال الدوري</h2>
@@ -90,14 +121,6 @@ export default async function AdminSettingsPage({
           كإشعار.
         </p>
         <SummaryFrequencyForm frequency={summaryFrequency} />
-      </section>
-
-      <section className="admin-panel" aria-labelledby="operator-account-title">
-        <h2 id="operator-account-title">حساب الموظفة</h2>
-        <p className="admin-muted">
-          أنشئ أو حدّث حساباً منفصلاً بدل مشاركة كلمة مرور المالك.
-        </p>
-        <OperatorAccountForm />
       </section>
 
       {active ? (

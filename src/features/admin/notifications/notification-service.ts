@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, desc, eq, gt, isNull, lt, or } from "drizzle-orm";
+import { and, desc, eq, gt, isNull, lt, notInArray, or } from "drizzle-orm";
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import webpush from "web-push";
 import { z } from "zod";
@@ -9,6 +9,7 @@ import {
   assertOperationsActor,
   type AdminActor,
 } from "@/features/admin/domain/admin-actor";
+import { can, type Permission } from "@/features/admin/domain/permissions";
 import type { PushDeliveryStatus } from "@/features/reminders/domain/schedule-constants";
 import * as schema from "@/server/db/schema";
 
@@ -22,6 +23,26 @@ const subscriptionSchema = z
     }),
   })
   .strict();
+
+/**
+ * Notification types that carry figures only some roles may see. The business summary states net
+ * sales and gross profit, so it reaches only those who can open reports, in the list and by push.
+ */
+const typePermissions: Readonly<Record<string, Permission>> = {
+  business_summary: "reports.view",
+};
+
+function hiddenTypes(actor: AdminActor): string[] {
+  return Object.entries(typePermissions)
+    .filter(([, permission]) => !can(actor, permission))
+    .map(([type]) => type);
+}
+
+export const notificationTypeLabels: Readonly<Record<string, string>> = {
+  order_created: "طلبات",
+  debt_reminder: "ديون",
+  business_summary: "ملخصات",
+};
 
 function pushConfiguration() {
   const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
@@ -38,11 +59,17 @@ export class AdminNotificationService {
     return pushConfiguration()?.publicKey ?? null;
   }
 
-  async list(actor: AdminActor, limit = 20) {
+  async list(
+    actor: AdminActor,
+    limit = 20,
+    filter: { unreadOnly?: boolean; type?: string } = {},
+  ) {
     assertOperationsActor(actor);
+    const hidden = hiddenTypes(actor);
     return this.database
       .select({
         id: schema.adminNotifications.id,
+        type: schema.adminNotifications.type,
         title: schema.adminNotifications.title,
         body: schema.adminNotifications.body,
         href: schema.adminNotifications.href,
@@ -60,8 +87,37 @@ export class AdminNotificationService {
           eq(schema.adminNotificationReads.adminUserId, actor.id),
         ),
       )
+      .where(
+        and(
+          hidden.length
+            ? notInArray(schema.adminNotifications.type, hidden)
+            : undefined,
+          filter.type
+            ? eq(schema.adminNotifications.type, filter.type)
+            : undefined,
+          filter.unreadOnly
+            ? isNull(schema.adminNotificationReads.readAt)
+            : undefined,
+        ),
+      )
       .orderBy(desc(schema.adminNotifications.createdAt))
       .limit(Math.min(Math.max(limit, 1), 50));
+  }
+
+  /** Marks every notification this person can see as read; returns how many were unread. */
+  async markAllRead(actor: AdminActor): Promise<number> {
+    const unread = await this.list(actor, 50, { unreadOnly: true });
+    if (!unread.length) return 0;
+    await this.database
+      .insert(schema.adminNotificationReads)
+      .values(
+        unread.map((row) => ({
+          notificationId: row.id,
+          adminUserId: actor.id,
+        })),
+      )
+      .onConflictDoNothing();
+    return unread.length;
   }
 
   async unreadCount(actor: AdminActor): Promise<number> {
@@ -83,11 +139,15 @@ export class AdminNotificationService {
     const parsed = z.string().uuid().safeParse(notificationId);
     if (!parsed.success) return "/admin/notifications";
     const [notification] = await this.database
-      .select({ href: schema.adminNotifications.href })
+      .select({
+        href: schema.adminNotifications.href,
+        type: schema.adminNotifications.type,
+      })
       .from(schema.adminNotifications)
       .where(eq(schema.adminNotifications.id, parsed.data))
       .limit(1);
-    if (!notification) return "/admin/notifications";
+    if (!notification || hiddenTypes(actor).includes(notification.type))
+      return "/admin/notifications";
     await this.markRead(actor, parsed.data);
     return notification.href.startsWith("/admin/")
       ? notification.href
@@ -184,19 +244,22 @@ export class AdminNotificationService {
     if (!created) {
       return { notificationId: null, created: false, pushStatus: null };
     }
-    const pushStatus = await this.pushToAll({
-      title: input.title,
-      body: input.body,
-      href: input.href,
-    });
+    const pushStatus = await this.pushToAll(
+      { title: input.title, body: input.body, href: input.href },
+      typePermissions[input.type],
+    );
     return { notificationId: created.id, created: true, pushStatus };
   }
 
-  private async pushToAll(payload: {
-    title: string;
-    body: string;
-    href: string;
-  }): Promise<PushDeliveryStatus> {
+  private async pushToAll(
+    payload: {
+      title: string;
+      body: string;
+      href: string;
+    },
+    /** When set, only devices of people holding this permission receive the push. */
+    permission?: Permission,
+  ): Promise<PushDeliveryStatus> {
     const config = pushConfiguration();
     if (!config) return "not_configured";
     webpush.setVapidDetails(
@@ -220,10 +283,13 @@ export class AdminNotificationService {
           ),
         ),
       );
-    if (!subscriptions.length) return "no_subscribers";
+    const recipients = permission
+      ? subscriptions.filter(({ admin_users: admin }) => can(admin, permission))
+      : subscriptions;
+    if (!recipients.length) return "no_subscribers";
 
     const results = await Promise.allSettled(
-      subscriptions.map(async ({ admin_push_subscriptions: subscription }) => {
+      recipients.map(async ({ admin_push_subscriptions: subscription }) => {
         try {
           await webpush.sendNotification(
             {

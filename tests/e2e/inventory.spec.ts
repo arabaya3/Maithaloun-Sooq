@@ -257,7 +257,7 @@ test("operator works with quantities but never sees costs or adjustments", async
   browser,
 }) => {
   await login(page);
-  await page.goto("/admin/settings");
+  await page.goto("/admin/settings/users");
   await page.getByLabel("اسم المستخدم").fill(OPERATOR.username);
   await page.getByLabel("اسم الموظفة").fill("موظفة الاختبار");
   await page.getByLabel("كلمة مرور جديدة").fill(OPERATOR.password);
