@@ -166,10 +166,12 @@ test("admin authentication, operations, and privacy controls", async ({
 
   await login(page);
   await expect(
-    page.getByRole("link", { name: /الطلبات الجديدة/ }).first(),
+    page.getByRole("heading", { name: "تحتاج إجراء الآن" }),
   ).toBeVisible();
   await expect(
-    page.getByRole("heading", { name: "طلبات تحتاج إجراء" }),
+    page
+      .getByRole("region", { name: "ملخص اليوم" })
+      .getByRole("link", { name: /تحتاج إجراء/ }),
   ).toBeVisible();
   await page.screenshot({
     path: "artifacts/admin-screenshots/dashboard-mobile.png",

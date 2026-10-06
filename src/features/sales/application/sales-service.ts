@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
 
 import type { AdminActor } from "@/features/admin/domain/admin-actor";
@@ -782,8 +782,20 @@ export class SalesService {
     });
   }
 
-  async listInvoices(actor: AdminActor, limit = 50) {
+  async listInvoices(
+    actor: AdminActor,
+    limit = 50,
+    filter: { since?: Date; invoiceNumber?: number } = {},
+  ) {
     assertPermission(actor, "sales.record");
+    const conditions = [
+      filter.since
+        ? gte(schema.customerInvoices.createdAt, filter.since)
+        : undefined,
+      filter.invoiceNumber !== undefined
+        ? eq(schema.customerInvoices.invoiceNumber, filter.invoiceNumber)
+        : undefined,
+    ].filter((condition) => condition !== undefined);
     const rows = await this.database
       .select({
         id: schema.customerInvoices.id,
@@ -797,6 +809,7 @@ export class SalesService {
         createdAt: schema.customerInvoices.createdAt,
       })
       .from(schema.customerInvoices)
+      .where(conditions.length ? and(...conditions) : undefined)
       .orderBy(desc(schema.customerInvoices.createdAt))
       .limit(Math.min(Math.max(limit, 1), 200));
     return rows.map((row) => ({

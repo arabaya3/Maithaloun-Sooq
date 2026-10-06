@@ -127,3 +127,72 @@ export function EmptyState({
     </div>
   );
 }
+
+/** One figure with its label; a link when the figure has a page behind it. */
+export function MetricCard({
+  label,
+  value,
+  support,
+  href,
+  Icon,
+  tone = "neutral",
+}: {
+  label: string;
+  value: ReactNode;
+  support?: ReactNode;
+  href?: string;
+  Icon?: LucideIcon;
+  tone?: "neutral" | "success" | "warning" | "danger";
+}) {
+  const body = (
+    <>
+      <span className="admin-kpi-label">
+        {Icon ? <Icon size={18} aria-hidden="true" /> : null}
+        {label}
+      </span>
+      <strong className="admin-kpi-value">{value}</strong>
+      {support ? <span className="admin-kpi-support">{support}</span> : null}
+    </>
+  );
+  return href ? (
+    <Link href={href} prefetch={false} className="admin-kpi" data-tone={tone}>
+      {body}
+    </Link>
+  ) : (
+    <div className="admin-kpi" data-tone={tone}>
+      {body}
+    </div>
+  );
+}
+
+/** The page's one primary action; sticky above the bottom navigation on phones, in flow on desktop. */
+export function StickyAction({ children }: { children: ReactNode }) {
+  return <div className="admin-sticky-action">{children}</div>;
+}
+
+/** A plain-Arabic failure with a retry; entered work is kept by the caller. */
+export function ErrorState({
+  title,
+  children,
+  reference,
+  action,
+}: {
+  title: string;
+  children?: ReactNode;
+  reference?: string;
+  action?: ReactNode;
+}) {
+  return (
+    <div className="admin-error-state" role="alert">
+      <XCircle size={28} aria-hidden="true" />
+      <p className="admin-empty-state-title">{title}</p>
+      {children}
+      {reference ? (
+        <p className="admin-muted">
+          رقم المرجع للدعم: <bdi dir="ltr">{reference}</bdi>
+        </p>
+      ) : null}
+      {action}
+    </div>
+  );
+}

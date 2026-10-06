@@ -14,6 +14,7 @@ import {
   type OrderStatus,
 } from "@/features/orders/domain/order-status";
 import * as schema from "@/server/db/schema";
+import { startOfStoreDay, todayInStoreZone } from "@/shared/lib/store-time";
 
 export interface AdminDashboardSummary {
   orders: Record<OrderStatus, number>;
@@ -29,8 +30,8 @@ export class AdminDashboardService {
   async getSummary(actor: AdminActor): Promise<AdminDashboardSummary> {
     assertOperationsActor(actor);
     const orderService = new AdminOrderService(this.database);
-    const startOfUtcDay = new Date();
-    startOfUtcDay.setUTCHours(0, 0, 0, 0);
+    // "Today" is the store day in Asia/Hebron, not the UTC day.
+    const startOfToday = startOfStoreDay(todayInStoreZone());
 
     const [orderRows, availabilityRows, deliveredTodayRows, actionableOrders] =
       await Promise.all([
@@ -56,7 +57,7 @@ export class AdminDashboardService {
             and(
               eq(schema.orders.status, "delivered"),
               eq(schema.orders.isTest, false),
-              gte(schema.orders.updatedAt, startOfUtcDay),
+              gte(schema.orders.updatedAt, startOfToday),
             ),
           ),
         orderService.listActionable(actor, 8),

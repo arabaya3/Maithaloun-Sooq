@@ -462,33 +462,6 @@ summary.admin-nav-group-label:hover {
   flex-wrap: wrap;
 }
 
-.admin-topbar-search {
-  display: none;
-  align-items: center;
-  gap: 0.4rem;
-  min-height: var(--admin-touch);
-  padding: 0 0.875rem;
-  border: 1px solid var(--admin-border);
-  border-radius: var(--admin-radius-md);
-  background: var(--admin-bg);
-  color: var(--admin-muted);
-}
-
-.admin-topbar-search input {
-  border: 0;
-  background: transparent;
-  min-width: 16rem;
-  font: inherit;
-  color: var(--admin-text);
-  outline: none;
-}
-
-@media (min-width: 48rem) {
-  .admin-topbar-search {
-    display: inline-flex;
-  }
-}
-
 .admin-nav-link-secondary {
   color: var(--admin-muted);
   font-size: 0.875rem;
@@ -1635,6 +1608,12 @@ summary.admin-nav-group-label:hover {
   color: var(--admin-forest);
   font-weight: 650;
   font-size: 0.8125rem;
+}
+
+/* Inside a primary button the label takes the button colour, never forest on forest. */
+.admin-btn-primary .admin-next-label {
+  color: inherit;
+  font-size: inherit;
 }
 
 .admin-next-idle {
