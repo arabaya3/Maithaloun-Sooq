@@ -101,7 +101,7 @@ test("manual credit sale, customer ledger and payment entry", async ({
   await expect(
     page.getByRole("heading", { name: CUSTOMER, level: 1 }),
   ).toBeVisible();
-  const account = page.getByRole("region", { name: "الحساب" });
+  const account = page.getByRole("region", { name: "الحساب", exact: true });
   await expect(account).toContainText("14 ₪");
   await expect(page.getByText("مدفوعة جزئياً")).toBeVisible();
   await expectNoHorizontalOverflow(page);

@@ -1,6 +1,6 @@
 import "server-only";
 
-import { asc, desc, eq, sql } from "drizzle-orm";
+import { asc, desc, eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
 
 import type { AdminActor } from "@/features/admin/domain/admin-actor";
@@ -9,10 +9,12 @@ import type { Database } from "@/features/inventory/application/stock-ledger";
 import { normalizePalestinianPhone } from "@/features/orders/domain/phone";
 import {
   allocateInvoices,
+  buildStatement,
   summarizeCustomer,
   type CustomerLedgerEntryType,
   type CustomerSummary,
   type InvoicePaymentState,
+  type StatementLine,
 } from "@/features/sales/domain/customer-balance";
 import { normalizeArabicText } from "@/shared/lib/normalize-arabic";
 import { toStoreDate, todayInStoreZone } from "@/shared/lib/store-time";
@@ -44,6 +46,8 @@ export interface CustomerListItem {
   hasPhone: boolean;
   balanceAgorot: number;
   lastActivityAt: string | null;
+  /** Days since the oldest invoice that is still not fully paid; null when nothing is owed. */
+  oldestUnpaidDays: number | null;
 }
 
 export interface CustomerDetail {
@@ -73,6 +77,8 @@ export interface CustomerDetail {
     isReversal: boolean;
     atSale: boolean;
   }>;
+  /** Every ledger entry with the running balance, oldest first. */
+  statement: StatementLine[];
 }
 
 function isUniqueViolation(error: unknown): boolean {
@@ -126,6 +132,46 @@ export class CustomerService {
       .where(eq(schema.customers.active, true))
       .orderBy(asc(schema.customers.name));
 
+    const owing = rows.filter((row) => row.balanceAgorot > 0);
+    // One query for everyone who owes; the same oldest-first allocation as the customer page.
+    const invoices = owing.length
+      ? await this.database
+          .select({
+            id: schema.customerInvoices.id,
+            customerId: schema.customerInvoices.customerId,
+            createdAt: schema.customerInvoices.createdAt,
+            totalAgorot: schema.customerInvoices.totalAgorot,
+            status: schema.customerInvoices.status,
+          })
+          .from(schema.customerInvoices)
+          .where(
+            inArray(
+              schema.customerInvoices.customerId,
+              owing.map((row) => row.id),
+            ),
+          )
+      : [];
+    const today = todayInStoreZone();
+    const oldestDays = new Map<string, number>();
+    for (const row of owing) {
+      const allocations = allocateInvoices(
+        invoices
+          .filter((invoice) => invoice.customerId === row.id)
+          .map((invoice) => ({
+            id: invoice.id,
+            date: toStoreDate(invoice.createdAt),
+            totalAgorot: invoice.totalAgorot,
+            status: invoice.status,
+          })),
+        row.balanceAgorot,
+        today,
+      );
+      const open = allocations.filter((entry) => entry.remainingAgorot > 0);
+      if (open.length) {
+        oldestDays.set(row.id, Math.max(...open.map((entry) => entry.ageDays)));
+      }
+    }
+
     const needle = query.search ? normalizeArabicText(query.search) : "";
     return rows
       .filter((row) => !needle || row.normalizedName.includes(needle))
@@ -138,6 +184,7 @@ export class CustomerService {
         lastActivityAt: row.lastActivityAt
           ? new Date(row.lastActivityAt).toISOString()
           : null,
+        oldestUnpaidDays: oldestDays.get(row.id) ?? null,
       }))
       .sort(
         (a, b) =>
@@ -171,9 +218,11 @@ export class CustomerService {
         .orderBy(desc(schema.customerInvoices.createdAt)),
       this.database
         .select({
+          id: schema.customerLedgerEntries.id,
           type: schema.customerLedgerEntries.type,
           amountAgorot: schema.customerLedgerEntries.amountAgorot,
           createdAt: schema.customerLedgerEntries.createdAt,
+          invoiceId: schema.customerLedgerEntries.invoiceId,
         })
         .from(schema.customerLedgerEntries)
         .where(eq(schema.customerLedgerEntries.customerId, customerId)),
@@ -243,6 +292,12 @@ export class CustomerService {
         atSale:
           payment.invoiceId !== null && payment.reversesPaymentId === null,
       })),
+      statement: buildStatement(
+        entries.map((entry) => ({
+          ...entry,
+          type: entry.type as CustomerLedgerEntryType,
+        })),
+      ),
     };
   }
 

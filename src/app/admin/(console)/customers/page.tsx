@@ -6,7 +6,17 @@ import { connection } from "next/server";
 import { customerService } from "@/features/admin/application/admin-services";
 import { requireAdminSession } from "@/features/admin/auth/admin-session";
 import { formatAdminDateTime } from "@/features/admin/ui/format-admin-datetime";
-import { EmptyState, Money, PageHeader } from "@/features/admin/ui/kit";
+import {
+  EmptyState,
+  MetricCard,
+  Money,
+  PageHeader,
+} from "@/features/admin/ui/kit";
+import {
+  agingBucket,
+  agingBucketLabels,
+  type AgingBucket,
+} from "@/features/sales/domain/customer-balance";
 import { CustomerDetailsForm } from "@/features/sales/ui/customer-forms";
 
 export const metadata: Metadata = { title: "الزبائن والديون" };
@@ -22,6 +32,17 @@ export default async function CustomersPage({
   const onlyOwing = params.filter === "owing";
   const search = (params.q ?? "").slice(0, 80);
   const customers = await customerService.list(actor, { onlyOwing, search });
+  const aging: Record<AgingBucket, number> = { current: 0, late: 0, old: 0 };
+  for (const customer of customers) {
+    if (customer.oldestUnpaidDays !== null) {
+      aging[agingBucket(customer.oldestUnpaidDays)] += 1;
+    }
+  }
+  const agingTone: Record<AgingBucket, "neutral" | "warning" | "danger"> = {
+    current: "neutral",
+    late: "warning",
+    old: "danger",
+  };
   const totalOwed = customers.reduce(
     (sum, customer) => sum + Math.max(customer.balanceAgorot, 0),
     0,
@@ -37,6 +58,20 @@ export default async function CustomersPage({
           </>
         }
       />
+
+      <section
+        className="admin-kpi-strip admin-kpi-strip--compact"
+        aria-label="عمر الديون"
+      >
+        {(Object.keys(aging) as AgingBucket[]).map((bucket) => (
+          <MetricCard
+            key={bucket}
+            label={`أقدم دين ${agingBucketLabels[bucket]}`}
+            value={aging[bucket] === 1 ? "زبون واحد" : `${aging[bucket]} زبائن`}
+            tone={aging[bucket] ? agingTone[bucket] : "neutral"}
+          />
+        ))}
+      </section>
 
       <form className="admin-search-bar" action="/admin/customers">
         {onlyOwing ? <input type="hidden" name="filter" value="owing" /> : null}
@@ -102,6 +137,16 @@ export default async function CustomersPage({
                           ? "له رصيد"
                           : "لا ديون"}
                     </small>
+                    {customer.oldestUnpaidDays !== null ? (
+                      <span
+                        className="admin-chip"
+                        data-tone={
+                          agingTone[agingBucket(customer.oldestUnpaidDays)]
+                        }
+                      >
+                        أقدم دين منذ {customer.oldestUnpaidDays} يوم
+                      </span>
+                    ) : null}
                   </span>
                 </Link>
               </li>

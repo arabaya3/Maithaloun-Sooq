@@ -155,3 +155,65 @@ export function summarizeCustomer(input: {
       : null,
   };
 }
+
+export type AgingBucket = "current" | "late" | "old";
+
+export const agingBucketLabels: Record<AgingBucket, string> = {
+  current: "حتى 30 يوماً",
+  late: "31 – 60 يوماً",
+  old: "أكثر من 60 يوماً",
+};
+
+/** Age of the oldest unpaid invoice, in the three bands the owner follows up by. */
+export function agingBucket(ageDays: number): AgingBucket {
+  if (ageDays > 60) return "old";
+  if (ageDays > 30) return "late";
+  return "current";
+}
+
+export const ledgerEntryLabels: Record<CustomerLedgerEntryType, string> = {
+  invoice: "فاتورة بيع",
+  payment: "دفعة",
+  payment_reversal: "عكس دفعة",
+  invoice_cancellation: "إلغاء فاتورة",
+  adjustment: "تسوية",
+};
+
+export interface StatementLine {
+  id: string;
+  at: string;
+  type: CustomerLedgerEntryType;
+  invoiceId: string | null;
+  amountAgorot: number;
+  /** Balance right after this entry, oldest first, so the last line equals the current balance. */
+  balanceAgorot: number;
+}
+
+export function buildStatement(
+  entries: ReadonlyArray<{
+    id: string;
+    type: CustomerLedgerEntryType;
+    amountAgorot: number;
+    createdAt: Date;
+    invoiceId: string | null;
+  }>,
+): StatementLine[] {
+  let balance = 0;
+  return [...entries]
+    .sort(
+      (a, b) =>
+        a.createdAt.getTime() - b.createdAt.getTime() ||
+        a.id.localeCompare(b.id),
+    )
+    .map((entry) => {
+      balance += entry.amountAgorot;
+      return {
+        id: entry.id,
+        at: entry.createdAt.toISOString(),
+        type: entry.type,
+        invoiceId: entry.invoiceId,
+        amountAgorot: entry.amountAgorot,
+        balanceAgorot: balance,
+      };
+    });
+}
