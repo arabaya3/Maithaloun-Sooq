@@ -38,7 +38,7 @@ test("owner imports a purchase from a spreadsheet after reviewing every row", as
   await login(page);
 
   await page
-    .getByRole("navigation", { name: "التنقل السفلي" })
+    .locator(".admin-mobile-header")
     .getByRole("button", { name: "إضافة" })
     .click();
   await page

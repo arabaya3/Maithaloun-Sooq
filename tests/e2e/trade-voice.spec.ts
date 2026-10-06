@@ -37,7 +37,7 @@ test("typed voice command: question, clarification, review and confirmed sale", 
   await login(page);
 
   await page
-    .getByRole("navigation", { name: "التنقل السفلي" })
+    .locator(".admin-mobile-header")
     .getByRole("button", { name: "إضافة" })
     .click();
   await page

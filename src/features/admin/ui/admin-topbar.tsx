@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { Plus, Search } from "lucide-react";
 
 const titles: Record<string, string> = {
-  "/admin": "لوحة المتابعة",
+  "/admin": "اليوم",
   "/admin/orders": "الطلبات",
   "/admin/products": "المنتجات",
   "/admin/products/new": "منتج جديد",

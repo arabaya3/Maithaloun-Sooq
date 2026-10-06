@@ -79,18 +79,33 @@ async function openMoreSheet(page: Page) {
 async function goAdminSection(page: Page, name: string) {
   const bottomNav = page.getByRole("navigation", { name: "التنقل السفلي" });
   if (await bottomNav.isVisible()) {
-    const direct = bottomNav.getByRole("link", { name, exact: true });
-    if ((await direct.count()) > 0) {
-      await direct.click();
-    } else {
-      const sheet = await openMoreSheet(page);
-      await sheet.getByRole("link", { name, exact: true }).click();
+    // Each area opens a sheet of its pages; look through them in order.
+    let found = false;
+    for (const area of ["البيع", "المخزون", "الكتالوج", "المزيد"]) {
+      await bottomNav.getByRole("button", { name: area }).click();
+      const sheet = page.getByRole("dialog", { name: area });
+      await expect(sheet).toBeVisible();
+      const link = sheet.getByRole("link", { name, exact: true });
+      if ((await link.count()) > 0) {
+        await link.click();
+        found = true;
+        break;
+      }
+      await page.keyboard.press("Escape");
+      await expect(sheet).toBeHidden();
     }
+    expect(found, name).toBe(true);
   } else {
-    await page
+    const link = page
       .locator(".admin-sidebar")
-      .getByRole("link", { name, exact: true })
-      .click();
+      .getByRole("link", { name, exact: true });
+    // Management pages sit in the collapsed «الإدارة» group.
+    if (!(await link.isVisible())) {
+      await page
+        .locator(".admin-sidebar summary", { hasText: "الإدارة" })
+        .click();
+    }
+    await link.click();
   }
   await expect(page.getByRole("heading", { name, level: 1 })).toBeVisible({
     timeout: 15_000,
@@ -107,7 +122,7 @@ async function login(page: Page) {
       .click({ force: true });
   }
   await expect(
-    page.getByRole("heading", { name: "لوحة المتابعة" }),
+    page.getByRole("heading", { name: "اليوم", level: 1 }),
   ).toBeVisible({ timeout: 15_000 });
 }
 
@@ -162,7 +177,7 @@ test("admin authentication, operations, and privacy controls", async ({
   });
   await page.reload();
   await expect(
-    page.getByRole("heading", { name: "لوحة المتابعة" }),
+    page.getByRole("heading", { name: "اليوم", level: 1 }),
   ).toBeVisible();
 
   await goAdminSection(page, "المنتجات");
@@ -434,7 +449,7 @@ test("admin desktop layout and screenshots", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await login(page);
   await expect(
-    page.getByRole("heading", { name: "لوحة المتابعة" }),
+    page.getByRole("heading", { name: "اليوم", level: 1 }),
   ).toBeVisible();
   await page.screenshot({
     path: "artifacts/admin-screenshots/dashboard-desktop.png",
@@ -475,6 +490,8 @@ test("admin desktop layout and screenshots", async ({ page }) => {
     path: "artifacts/admin-screenshots/product-editor-desktop.png",
     fullPage: true,
   });
+  // Settings live in the expandable «الإدارة» group of the sidebar.
+  await page.locator(".admin-sidebar summary", { hasText: "الإدارة" }).click();
   await page
     .locator(".admin-sidebar")
     .getByRole("link", { name: "إعدادات المتجر", exact: true })

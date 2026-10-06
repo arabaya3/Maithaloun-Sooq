@@ -39,7 +39,7 @@ test("operator photographs an invoice, reviews the reading and confirms it", asy
   await login(page);
 
   await page
-    .getByRole("navigation", { name: "التنقل السفلي" })
+    .locator(".admin-mobile-header")
     .getByRole("button", { name: "إضافة" })
     .click();
   await page

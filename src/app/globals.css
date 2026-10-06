@@ -131,7 +131,9 @@ input {
 }
 
 .admin-font-scope {
-  font-family: var(--font-arabic), var(--font-fallback);
+  font-family:
+    var(--font-cairo-arabic), var(--font-cairo-latin),
+    var(--font-cairo-latin-ext), var(--font-fallback);
 }
 
 body:not(:has(.admin-font-scope)) :where(h1, h2, h3) {
