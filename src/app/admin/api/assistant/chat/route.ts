@@ -161,11 +161,11 @@ export async function POST(request: Request) {
     }
   }
 
-  // Two different amounts offered as alternatives: ask which one, whatever the model would have done.
+  // Alternative amounts or a negative or zero price: ask, whatever the model would have done.
   const conflict = conflictingAmountQuestion(typed);
   if (conflict) {
-    return fixedReply(conflict.question, "assistant.chat.amount_conflict", {
-      code: "amount_conflict",
+    return fixedReply(conflict.question, `assistant.chat.${conflict.code}`, {
+      code: conflict.code,
       values: conflict.values,
     });
   }

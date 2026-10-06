@@ -17,6 +17,8 @@ export const categoryIconKeys = [
   "leaf",
 ] as const;
 export type CategoryIconKey = (typeof categoryIconKeys)[number];
+// Used when a category is created without an icon; the owner can change it later.
+export const DEFAULT_CATEGORY_ICON: CategoryIconKey = "package";
 
 export const categoryIconLabels: Record<CategoryIconKey, string> = {
   grid: "شبكة",

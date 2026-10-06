@@ -8,6 +8,10 @@ import {
   mappingMessages,
   structureMessages,
 } from "@/features/catalog/domain/product-media-validation";
+import { loadProductPresentation } from "@/features/catalog/infrastructure/product-presentation";
+import { incompleteProductIds } from "@/features/catalog/infrastructure/product-structure";
+import { checkoutRequestSchema } from "@/features/orders/domain/checkout-request";
+import { OrderService } from "@/features/orders/application/order-service";
 import * as schema from "@/server/db/schema";
 import {
   resetTestDatabase,
@@ -329,6 +333,29 @@ describe("editing a published product", () => {
       values: ["مفرد"],
     });
     expect((await problems()).join(" ")).toMatch(/ينقصه اختيار «العبوة»/);
+    // Customers see it as unavailable and cannot order any of its variants meanwhile.
+    const product = await variant(`${PRODUCT}--default`);
+    expect(await incompleteProductIds(db, [product.productId])).toEqual(
+      new Set([product.productId]),
+    );
+    expect((await loadProductPresentation(db, PRODUCT)).incomplete).toBe(true);
+    await expect(
+      new OrderService(db).create(
+        checkoutRequestSchema.parse({
+          idempotencyKey: crypto.randomUUID(),
+          customerName: "عميل تجريبي",
+          whatsappCountryCode: "970",
+          whatsappNationalNumber: "0591234567",
+          serviceAreaCode: "maythalun",
+          deliveryAddress: "عنوان محلي مفصل للاختبار",
+          paymentMethod: "cash_on_delivery",
+          honeypot: "",
+          items: [
+            { productId: PRODUCT, variantId: product.domainId, quantity: 1 },
+          ],
+        }),
+      ),
+    ).rejects.toMatchObject({ code: "unavailable_product" });
     await setPublication("draft");
     await expect(setPublication("published")).rejects.toMatchObject({
       code: "not_publishable",

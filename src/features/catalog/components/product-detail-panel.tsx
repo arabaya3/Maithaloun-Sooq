@@ -138,7 +138,9 @@ export function ProductDetailPanel({
   const shown = selectedVariant ?? initial;
   const name = getProductDisplayName(product);
   const available =
-    Boolean(selectedVariant) && isVariantAvailable(selectedVariant!);
+    !presentation.incomplete &&
+    Boolean(selectedVariant) &&
+    isVariantAvailable(selectedVariant!);
   const attributeSummary = options.length
     ? null
     : formatVariantAttributes(shown.attributes);
@@ -243,11 +245,13 @@ export function ProductDetailPanel({
         </h1>
         <OfferPrice className="product-detail-price" variant={priceShown} />
         <p className="availability-status" data-available={available}>
-          {!selectedVariant
-            ? "اختر من الخيارات لمعرفة التوفر"
-            : available
-              ? "متاح للإضافة إلى السلة"
-              : "غير متاح حالياً"}
+          {presentation.incomplete
+            ? "غير متاح حالياً، نجهّز خيارات هذا المنتج"
+            : !selectedVariant
+              ? "اختر من الخيارات لمعرفة التوفر"
+              : available
+                ? "متاح للإضافة إلى السلة"
+                : "غير متاح حالياً"}
         </p>
         {options.length ? (
           <OptionSelectors
@@ -288,7 +292,9 @@ export function ProductDetailPanel({
         <ProductSpecifications specifications={product.specifications} />
         <ProductDetailActions
           product={product}
-          variantId={selectedVariant?.id ?? null}
+          variantId={
+            presentation.incomplete ? shown.id : (selectedVariant?.id ?? null)
+          }
           sellingUnit={sellingUnit}
           available={available}
           resolveVariantId={() =>

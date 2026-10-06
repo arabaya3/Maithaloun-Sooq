@@ -23,12 +23,17 @@ const SUCCESS_CLAIMS = new RegExp(SUCCESS_CLAIM.source, "gu");
 const NEGATION_OR_CONDITION =
   /(?:^|\s)(?:ما|مش|مو|لم|لن|لا|ولا|إذا|اذا|لو|قبل|بدون|دون|كما|زي|مثل|متل)(?=\s|$)/u;
 
+// "ما بقدر أقول إنّي حذفته أو إنّو انحذف": a refusal to say it covers the claims that follow in its clause.
+const REFUSED_SAYING =
+  /(?:^|\s)(?:ما|مش|لا|لن)\s+(?:(?:بقدر|بقدرش|اقدر|أقدر|بستطيع|أستطيع|استطيع|رح|راح|بدي)\s+)?(?:أقول|اقول|بقول|أحكي|احكي|بحكي|أدّعي|أدعي|ادعي)\s+(?:إن|ان|إنه|انه|إنّه|إنّي|اني|إني|إنّو|انو|إنو)/u;
+
 function isClaimed(text: string, index: number): boolean {
   const clause =
     text
       .slice(0, index)
       .split(/[،,.!؟?:\n]/u)
       .at(-1) ?? "";
+  if (REFUSED_SAYING.test(clause)) return false;
   const nearby = clause.trim().split(/\s+/u).slice(-6).join(" ");
   return !NEGATION_OR_CONDITION.test(nearby);
 }

@@ -727,6 +727,27 @@ describe("categories", () => {
     ).toMatchObject({ status: "rejected", code: "category_not_empty" });
   });
 
+  it("prepares one card from a name alone, with the default icon", async () => {
+    const prepared = await ops.prepareCategoryCreation(owner, {
+      nameAr: "معطرات السيارة",
+    });
+    expect(prepared).toMatchObject({
+      status: "ready",
+      args: { nameAr: "معطرات السيارة", icon: "package", visible: true },
+    });
+    const create = await card(prepared);
+    await confirmations.confirm(owner, create);
+    const rows = await db
+      .select()
+      .from(productCategories)
+      .where(eq(productCategories.nameAr, "معطرات السيارة"));
+    expect(rows).toHaveLength(1);
+    expect(rows[0]!.icon).toBe("package");
+    expect(
+      await ops.prepareCategoryCreation(owner, { nameAr: "م" }),
+    ).toMatchObject({ status: "rejected", code: "invalid_input" });
+  });
+
   it("executes one card once under concurrent taps", async () => {
     const create = await card(
       await ops.prepareCategoryCreation(owner, {

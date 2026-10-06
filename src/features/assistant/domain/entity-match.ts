@@ -144,7 +144,20 @@ export function resolveCatalogEntity(
       .map(normalizeArabicText)
       .filter(Boolean);
 
-  const exact = catalog.filter((entry) => names(entry).includes(needle));
+  // «ممسحة المايكروفايبر» names «ممسحة مايكروفايبر»: the definite article alone never makes a name approximate.
+  const bare = (value: string) =>
+    value
+      .split(" ")
+      .map((word) =>
+        word.length > 3 && word.startsWith("ال") ? word.slice(2) : word,
+      )
+      .join(" ");
+  let exact = catalog.filter((entry) => names(entry).includes(needle));
+  if (!exact.length) {
+    exact = catalog.filter((entry) =>
+      names(entry).map(bare).includes(bare(needle)),
+    );
+  }
   if (exact.length) {
     return decide(
       exact.map((entry) => candidate(entry, 95, "exact_name")),

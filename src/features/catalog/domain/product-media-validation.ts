@@ -247,3 +247,18 @@ export function structureProblems(input: StructureInput): StructureProblem[] {
   }
   return problems;
 }
+
+// Problems that leave the customer's selection unable to name one exact variant; the stock-driven
+// unavailable default and image placement do not stop a purchase.
+const PURCHASE_BLOCKERS: ReadonlySet<StructureProblem["code"]> = new Set([
+  "no_default_variant",
+  "incomplete_variant",
+  "archived_value",
+  "duplicate_combination",
+]);
+
+export function purchaseBlockers(
+  problems: readonly StructureProblem[],
+): StructureProblem[] {
+  return problems.filter((problem) => PURCHASE_BLOCKERS.has(problem.code));
+}

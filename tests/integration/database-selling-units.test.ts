@@ -1265,6 +1265,94 @@ describe("assistant manual sales by selling unit", () => {
     });
   });
 
+  it("reads «باكيجين» and «عرض الثلاث حبات» as the one 3-pack", async () => {
+    await addPack();
+    await stock(10, BLUE, 200);
+    for (const said of ["باكيجين", "عرض الثلاث حبات"]) {
+      const prepared = await operations.prepareManualSale(
+        owner,
+        sale({ items: blueItem("2", said) }),
+      );
+      if (prepared.status !== "ready")
+        throw new Error(JSON.stringify(prepared));
+      expect(prepared.card.rows[0]!.after).toContain("باكيج 3 حبات × 2");
+      expect(prepared.card.rows[0]!.after).toContain("يخصم 6 من المخزون");
+    }
+    // The model may fold the offer into the product name; the full name is there and the rest is one unit.
+    const folded = await operations.prepareManualSale(
+      owner,
+      sale({
+        items: [{ product: "عرض الثلاث حبات ممسحة تنظيف أزرق", quantity: "2" }],
+      }),
+    );
+    if (folded.status !== "ready") throw new Error(JSON.stringify(folded));
+    expect(folded.card.rows[0]!.after).toContain("باكيج 3 حبات × 2");
+    expect(folded.card.rows[0]!.after).toContain("يخصم 6 من المخزون");
+  });
+
+  it("never turns the single piece into a «باكيج» of unstated size", async () => {
+    for (const change of [
+      { label: "باكيج", priceIls: "10" },
+      { label: "الكرتونة" },
+    ]) {
+      expect(
+        await operations.sellingUnitOps.prepareChange(owner, {
+          product: "ممسحة تنظيف",
+          variant: "أزرق",
+          option: "حبة",
+          change: "update",
+          ...change,
+        }),
+      ).toMatchObject({ status: "rejected", code: "units_unstated" });
+    }
+    expect(
+      await operations.sellingUnitOps.prepareCreate(owner, {
+        product: "ممسحة تنظيف",
+        variant: "أزرق",
+        options: [{ label: "باكيج", unitsPerSale: 1, priceIls: "10" }],
+      }),
+    ).toMatchObject({ status: "rejected", code: "units_unstated" });
+    expect(
+      await db.select().from(schema.adminAssistantConfirmations),
+    ).toHaveLength(0);
+  });
+
+  it("asks which pack when two fit, and prepares nothing", async () => {
+    await addPack();
+    await sellingUnits.create(owner, BLUE, {
+      labelAr: "باكيج 6 حبات",
+      unitsPerSale: 6,
+      priceAgorot: 1800,
+    });
+    await stock(20, BLUE, 200);
+    for (const said of ["باكيج", "باكيجين"]) {
+      const prepared = await operations.prepareManualSale(
+        owner,
+        sale({ items: blueItem("2", said) }),
+      );
+      expect(prepared).toMatchObject({
+        status: "needs_selection",
+        field: "items.0.sellingOption",
+      });
+      if (prepared.status !== "needs_selection") return;
+      const labels = prepared.options.map((option) => option.id);
+      expect(labels).toEqual(
+        expect.arrayContaining(["باكيج 3 حبات", "باكيج 6 حبات"]),
+      );
+    }
+    expect(
+      await operations.prepareManualSale(
+        owner,
+        sale({
+          items: [{ product: "باكيج ممسحة تنظيف أزرق", quantity: "2" }],
+        }),
+      ),
+    ).toMatchObject({ status: "needs_selection" });
+    expect(
+      await db.select().from(schema.adminAssistantConfirmations),
+    ).toHaveLength(0);
+  });
+
   it("records a named customer cash sale as invoice and payment with no debt", async () => {
     await addPack();
     await stock(10, BLUE, 200);

@@ -781,12 +781,13 @@ export function createCatalogTools(
         ),
     }),
     prepareCategoryCreation: tool({
-      description: "جهّز بطاقة إضافة قسم جديد مع أيقونة من القائمة المعتمدة.",
+      description:
+        "جهّز بطاقة إضافة قسم جديد. الاسم وحده يكفي؛ الأيقونة اختيارية من القائمة المعتمدة وإلا تُستخدم أيقونة عامة.",
       inputSchema: z
         .object({
           nameAr: text(80),
           description: z.string().trim().max(300).optional(),
-          icon,
+          icon: icon.optional(),
           visible: z.boolean().optional(),
           code: z.string().trim().max(40).optional(),
         })

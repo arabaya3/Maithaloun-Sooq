@@ -53,6 +53,25 @@ export default async function AdminProductEditPage({
       </p>
       <h1>تعديل المنتج</h1>
       <p className="admin-muted">{product.nameAr}</p>
+      {product.publication === "published" &&
+      publicationCheck?.problems.length ? (
+        <section
+          className="admin-media-message admin-incomplete-warning"
+          data-tone="warning"
+          aria-labelledby="incomplete-title"
+        >
+          <h2 id="incomplete-title">المنتج منشور لكنه غير مكتمل</h2>
+          <p>
+            قد يظهر للزبائن «غير متاح حالياً» حتى تُكملي هذه النقاط ثم تعيدي
+            النشر:
+          </p>
+          <ul>
+            {publicationCheck.problems.map((problem) => (
+              <li key={problem}>{problem}</li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
       {savedMessage ? (
         <p className="admin-media-message" data-tone="ok" role="status">
           {savedMessage}

@@ -170,6 +170,13 @@ describe("ambiguity for changes", () => {
     expect(forChanges(resolveCatalogEntity("فرشاة سجاد", catalog)).status).toBe(
       "resolved",
     );
+    // The definite article alone does not make a name approximate.
+    expect(
+      forChanges(resolveCatalogEntity("فرشاة السجاد", catalog)),
+    ).toMatchObject({
+      status: "resolved",
+      match: { productId: "carpet-brush" },
+    });
   });
 
   it("asks to confirm a unique partial match instead of calling it ambiguous", () => {

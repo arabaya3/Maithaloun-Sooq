@@ -16,6 +16,7 @@ import {
   categoryCodeSchema,
   categoryIconKeys,
   categoryIconLabels,
+  DEFAULT_CATEGORY_ICON,
   type AdminProductCategory,
   type CategoryIconKey,
 } from "@/features/catalog/domain/category";
@@ -1414,7 +1415,7 @@ export class CatalogOperations {
     input: {
       nameAr: string;
       description?: string;
-      icon: CategoryIconKey;
+      icon?: CategoryIconKey;
       visible?: boolean;
       code?: string;
     },
@@ -1439,6 +1440,7 @@ export class CatalogOperations {
       );
     }
     const visible = input.visible ?? true;
+    const icon = input.icon ?? DEFAULT_CATEGORY_ICON;
     return {
       status: "ready",
       operation: "categoryCreate",
@@ -1446,7 +1448,7 @@ export class CatalogOperations {
         code,
         nameAr,
         description: input.description?.trim() || null,
-        icon: input.icon,
+        icon,
         visible,
       },
       summary: `إضافة قسم ${nameAr}`,
@@ -1459,7 +1461,7 @@ export class CatalogOperations {
           {
             label: "الأيقونة",
             before: null,
-            after: categoryIconLabels[input.icon],
+            after: categoryIconLabels[icon],
           },
           {
             label: "الظهور",
