@@ -176,9 +176,15 @@ export interface DuplicateCandidate {
   href: string;
 }
 
+/** The step of the product flow (spec §8) a publishing problem belongs to. */
+export type ReadinessStep =
+  "identity" | "variants" | "images" | "selling_units";
+
 export interface PublicationCheck {
   ready: boolean;
   problems: string[];
+  /** The same problems, each tagged with the step that fixes it. */
+  issues: Array<{ step: ReadinessStep; message: string }>;
   acceptedPlaceholder: boolean;
 }
 
@@ -797,9 +803,15 @@ export class CatalogAuthoringService {
     /** Publishing with an availability also sets the default variant to it, so judge it as it will be. */
     availability?: "available" | "unavailable",
   ): Promise<PublicationCheck> {
-    const problems: string[] = [];
-    if (product.nameAr.trim().length < 2) problems.push("اسم المنتج غير صالح.");
-    if (product.priceAgorot <= 0) problems.push("لا يوجد سعر بيع.");
+    const issues: PublicationCheck["issues"] = [];
+    const add = (step: ReadinessStep, message: string) => {
+      if (!issues.some((issue) => issue.message === message)) {
+        issues.push({ step, message });
+      }
+    };
+    if (product.nameAr.trim().length < 2)
+      add("identity", "اسم المنتج غير صالح.");
+    if (product.priceAgorot <= 0) add("identity", "لا يوجد سعر بيع.");
     const variants = await executor
       .select()
       .from(schema.productVariants)
@@ -809,9 +821,9 @@ export class CatalogAuthoringService {
           isNull(schema.productVariants.archivedAt),
         ),
       );
-    if (!variants.length) problems.push("لا يوجد صنف صالح للبيع.");
+    if (!variants.length) add("variants", "لا يوجد صنف صالح للبيع.");
     if (!variants.some((variant) => variant.priceAgorot > 0)) {
-      problems.push("لا يوجد صنف له سعر بيع.");
+      add("variants", "لا يوجد صنف له سعر بيع.");
     }
     if (variants.length) {
       const sellable = await executor
@@ -829,7 +841,8 @@ export class CatalogAuthoringService {
       const withUnits = new Set(sellable.map((row) => row.variantId));
       for (const variant of variants) {
         if (!withUnits.has(variant.id)) {
-          problems.push(
+          add(
+            "selling_units",
             `«${variant.labelAr}»: ${sellingUnitMessages.required}`,
           );
         }
@@ -843,8 +856,8 @@ export class CatalogAuthoringService {
       .where(eq(schema.productCategories.code, product.categoryId))
       .limit(1);
     if (!category || category.archivedAt)
-      problems.push("القسم غير صالح أو مؤرشف.");
-    if (product.archivedAt) problems.push("المنتج مؤرشف؛ استرجعيه أولاً.");
+      add("identity", "القسم غير صالح أو مؤرشف.");
+    if (product.archivedAt) add("identity", "المنتج مؤرشف؛ استرجعيه أولاً.");
     // Publishing is stricter than saving a draft: every image must say which colour, scent or variant it shows.
     const loaded = await structureInputFor(executor as Transaction, product.id);
     const structure =
@@ -860,20 +873,20 @@ export class CatalogAuthoringService {
         : loaded;
     const mapping = mappingProblems(structure);
     if (mapping.length) {
-      problems.push(
-        mappingMessages.blocked,
-        ...new Set(mapping.map((problem) => problem.message)),
-      );
+      add("images", mappingMessages.blocked);
+      for (const problem of mapping) add("images", problem.message);
     }
     // The storefront must open on a real, buyable variant whose choices lead to exactly one variant.
-    problems.push(
-      ...new Set(
-        structureProblems(structure).map((problem) => problem.message),
-      ),
-    );
+    for (const problem of structureProblems(structure)) {
+      add(
+        problem.code === "primary_not_shared" ? "images" : "variants",
+        problem.message,
+      );
+    }
     return {
-      ready: problems.length === 0,
-      problems,
+      ready: issues.length === 0,
+      problems: issues.map((issue) => issue.message),
+      issues,
       acceptedPlaceholder: product.imageKind === "placeholder",
     };
   }

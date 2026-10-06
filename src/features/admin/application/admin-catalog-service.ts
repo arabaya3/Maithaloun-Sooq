@@ -319,6 +319,8 @@ export class AdminCatalogService {
         const [row] = await transaction
           .insert(schema.products)
           .values({
+            // A new product is a draft; only the explicit, checked publish step makes it public.
+            publication: "draft",
             domainId: parsed.data.domainId,
             slug: parsed.data.slug,
             nameAr: parsed.data.nameAr,
@@ -402,6 +404,8 @@ export class AdminCatalogService {
         const [row] = await transaction
           .insert(schema.products)
           .values({
+            // A new product is a draft; only the explicit, checked publish step makes it public.
+            publication: "draft",
             domainId: parsed.data.domainId,
             slug: parsed.data.slug,
             nameAr: parsed.data.nameAr,

@@ -224,6 +224,7 @@ test("product workspace at 360, 390, 768 and 1440: header, section bar, inventor
       "الأصناف والصور",
       "طرق البيع",
       "المخزون",
+      "الأرشفة والحذف",
     ]);
     // Every existing editor is still on the page.
     await expect(

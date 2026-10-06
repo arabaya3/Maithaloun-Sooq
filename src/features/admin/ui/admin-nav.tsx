@@ -231,7 +231,7 @@ const addTasks: AddTask[] = [
     Icon: ReceiptText,
   },
   {
-    href: "/admin/products/new",
+    href: "/admin/products/new/photo",
     label: "تصوير منتج",
     hint: "قراءة الاسم والحجم من الصورة",
     Icon: Camera,

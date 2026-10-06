@@ -166,6 +166,32 @@ describe("publishing a product with variants", () => {
     });
   });
 
+  it("tags every publishing problem with the step that fixes it", async () => {
+    await validProduct();
+    await options.addImages(owner, PRODUCT, [
+      { ...photo("loose"), target: { scope: "unassigned" } },
+    ]);
+    await options.createOption(owner, PRODUCT, {
+      nameAr: "العبوة",
+      kind: "pack",
+      values: ["مفرد"],
+    });
+    const check = (await authoring.publicationCheck(PRODUCT))!;
+    const steps = new Set(check.issues.map((issue) => issue.step));
+    expect(steps).toEqual(new Set(["images", "variants"]));
+    expect(check.issues.find((issue) => issue.step === "images")!.message).toBe(
+      mappingMessages.blocked,
+    );
+    expect(
+      check.issues
+        .filter((issue) => issue.step === "variants")
+        .every((issue) => /ينقصه اختيار «العبوة»/.test(issue.message)),
+    ).toBe(true);
+    // The flat list the publish button shows is exactly the tagged messages, without repeats.
+    expect(check.problems).toEqual(check.issues.map((issue) => issue.message));
+    expect(new Set(check.problems).size).toBe(check.problems.length);
+  });
+
   it("blocks a variant with a missing or archived option value", async () => {
     await validProduct();
     const pinkLarge = (await options.matrix(PRODUCT))!.variants.find(

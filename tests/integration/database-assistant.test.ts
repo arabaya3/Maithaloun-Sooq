@@ -466,6 +466,12 @@ describe("product lifecycle", () => {
       detailsStatus: "placeholder",
       placeholderVariant: "general-cleaner",
     });
+    // A new product starts as a draft; publishing is a separate, checked step.
+    const [created] = await db
+      .select({ publication: products.publication })
+      .from(products)
+      .where(eq(products.domainId, "test-product"));
+    expect(created!.publication).toBe("draft");
     const archiveOnly = await operations.prepareProductArchive(owner, {
       product: "منتج تجريبي",
       reason: "تجربة",

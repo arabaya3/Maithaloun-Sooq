@@ -13,8 +13,13 @@ import {
 } from "@/features/catalog/domain/category";
 import { productPublicationValues } from "@/features/catalog/domain/product-constants";
 
-import { catalogAuthoringService } from "./admin-services";
+import {
+  adminCatalogService,
+  catalogAuthoringService,
+  productMaintenanceService,
+} from "./admin-services";
 import { CatalogAuthoringError } from "./catalog-authoring-service";
+import { ProductMaintenanceError } from "./product-maintenance-service";
 
 export type CatalogActionResult = { ok: false; message: string } | null;
 
@@ -230,6 +235,93 @@ export async function restoreProductAction(
     return authoringFailure(error);
   }
   productSaved(product.data, "restored");
+}
+
+const maintenanceMessages: Record<ProductMaintenanceError["code"], string> = {
+  not_found: "المنتج غير موجود. حدّثي الصفحة.",
+  invalid_input: "اكتبي سبباً واضحاً من حرفين على الأقل.",
+  in_use: "المنتج مرتبط بسجلات، فلا يمكن حذفه نهائياً. أرشفيه بدلاً من ذلك.",
+  archived: "المنتج مؤرشف.",
+  reserved_stock: "للمنتج كمية محجوزة لطلبات مفتوحة.",
+  same_product: "لا يمكن دمج المنتج مع نفسه.",
+};
+
+function maintenanceFailure(error: unknown): { ok: false; message: string } {
+  if (error instanceof ProductMaintenanceError) {
+    return { ok: false, message: maintenanceMessages[error.code] };
+  }
+  return authoringFailure(error);
+}
+
+export async function archiveProductAction(
+  _state: CatalogActionResult,
+  formData: FormData,
+): Promise<CatalogActionResult> {
+  const actor = await requireTrustedAdminMutation();
+  const product = productId.safeParse(formData.get("domainId"));
+  if (!product.success) {
+    return { ok: false, message: authoringMessages.invalid_input };
+  }
+  try {
+    await productMaintenanceService.archive(actor, {
+      domainId: product.data,
+      reason: text(formData.get("reason")),
+    });
+  } catch (error) {
+    return maintenanceFailure(error);
+  }
+  productSaved(product.data, "archived");
+}
+
+/**
+ * Permanent delete: the server scans references again and requires the product's exact name, so a
+ * stale page or a slip of the finger can never remove a product that has history.
+ */
+export async function deleteProductAction(
+  _state: CatalogActionResult,
+  formData: FormData,
+): Promise<CatalogActionResult> {
+  const actor = await requireTrustedAdminMutation();
+  const product = productId.safeParse(formData.get("domainId"));
+  if (!product.success) {
+    return { ok: false, message: authoringMessages.invalid_input };
+  }
+  let name: string;
+  try {
+    const references = await productMaintenanceService.references(
+      actor,
+      product.data,
+    );
+    const current = await adminCatalogService.getByDomainId(
+      actor,
+      product.data,
+    );
+    if (!references || !current) {
+      return { ok: false, message: maintenanceMessages.not_found };
+    }
+    if (Object.values(references).some((count) => count > 0)) {
+      return { ok: false, message: maintenanceMessages.in_use };
+    }
+    name = current.nameAr;
+    if (text(formData.get("confirmName")) !== name.trim()) {
+      return {
+        ok: false,
+        message: "اكتبي اسم المنتج كما هو تماماً لتأكيد الحذف النهائي.",
+      };
+    }
+    const result = await productMaintenanceService.deleteUnreferenced(
+      actor,
+      product.data,
+    );
+    if (!result.deleted) {
+      return { ok: false, message: maintenanceMessages.not_found };
+    }
+  } catch (error) {
+    return maintenanceFailure(error);
+  }
+  revalidatePath("/");
+  revalidatePath("/admin/products");
+  redirect(`/admin/products?deleted=${encodeURIComponent(name)}`);
 }
 
 function categoriesSaved(saved: string): never {

@@ -9,6 +9,7 @@ import {
   adminCatalogService,
   catalogAuthoringService,
   inventoryService,
+  productMaintenanceService,
   productOptionsService,
   sellingUnitService,
 } from "@/features/admin/application/admin-services";
@@ -19,7 +20,10 @@ import { productSaveMessage } from "@/features/admin/domain/product-save-feedbac
 import { Money, Quantity, StockStatusPill } from "@/features/admin/ui/kit";
 import { ProductCatalogControls } from "@/features/admin/ui/product-catalog-controls";
 import { ProductForm } from "@/features/admin/ui/product-form";
+import { ProductDangerZone } from "@/features/admin/ui/product-danger-zone";
+import { ClearProductDraft } from "@/features/admin/ui/product-draft";
 import { ProductMediaEditor } from "@/features/admin/ui/product-media-editor";
+import { ProductReadiness } from "@/features/admin/ui/product-readiness";
 import { SellingUnitsEditor } from "@/features/admin/ui/selling-units-editor";
 import { WorkspaceNav } from "@/features/admin/ui/workspace-nav";
 import { getProductDisplayName } from "@/features/catalog/domain/product";
@@ -118,12 +122,16 @@ export default async function AdminProductEditPage({
   );
   if (!product) notFound();
   const canSeeStock = can(actor, "stock.view");
-  const [matrix, archivedVariants, publicationCheck, sellingUnits] =
+  const canManage = can(actor, "settings.manage");
+  const [matrix, archivedVariants, publicationCheck, sellingUnits, references] =
     await Promise.all([
       productOptionsService.matrix(product.id),
       catalogAuthoringService.archivedVariants(product.id),
       catalogAuthoringService.publicationCheck(product.id),
       sellingUnitService.listForProduct(product.id),
+      canManage
+        ? productMaintenanceService.references(actor, product.id)
+        : null,
     ]);
   const { saved, at } = await searchParams;
   const savedMessage = productSaveMessage(saved);
@@ -136,6 +144,7 @@ export default async function AdminProductEditPage({
     ...(matrix ? [{ id: "variants", label: "الأصناف والصور" }] : []),
     { id: "selling-units", label: "طرق البيع" },
     ...(canSeeStock ? [{ id: "inventory", label: "المخزون" }] : []),
+    ...(canManage ? [{ id: "danger", label: "الأرشفة والحذف" }] : []),
   ];
 
   return (
@@ -209,10 +218,21 @@ export default async function AdminProductEditPage({
           </ul>
         </section>
       ) : null}
+      {saved === "created" ? <ClearProductDraft /> : null}
       {savedMessage ? (
         <p className="admin-media-message" data-tone="ok" role="status">
           {savedMessage}
         </p>
+      ) : null}
+
+      {publicationCheck ? (
+        <ProductReadiness
+          check={publicationCheck}
+          publication={product.publication}
+          hasOptions={Boolean(
+            matrix?.options.some((option) => !option.archived),
+          )}
+        />
       ) : null}
 
       <WorkspaceNav sections={sections} label="أقسام المنتج" />
@@ -296,6 +316,16 @@ export default async function AdminProductEditPage({
             />
           </Suspense>
         </section>
+      ) : null}
+      {canManage && references ? (
+        <div id="danger" className="admin-workspace-anchor">
+          <ProductDangerZone
+            domainId={product.id}
+            name={product.nameAr}
+            references={references}
+            archived={product.archived}
+          />
+        </div>
       ) : null}
     </main>
   );
