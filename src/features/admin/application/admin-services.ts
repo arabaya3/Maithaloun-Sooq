@@ -22,6 +22,8 @@ import { getPrivateDocumentStore } from "@/server/storage/private-documents";
 
 import { AdminCatalogService } from "./admin-catalog-service";
 import { AdminDashboardService } from "./admin-dashboard-service";
+import { AdminSearchService } from "./admin-search-service";
+import { AdminTodayService } from "./admin-today-service";
 import { AdminDeliveryService } from "./admin-delivery-service";
 import { AdminOrderService } from "./admin-order-service";
 import { AdminNotificationService } from "../notifications/notification-service";
@@ -56,6 +58,21 @@ export const reportService = new ReportService(
   customerService,
   inventoryService,
 );
+export const adminSearchService = new AdminSearchService({
+  orders: adminOrderService,
+  inventory: inventoryService,
+  customers: customerService,
+  sales: salesService,
+  suppliers: supplierService,
+});
+export const adminTodayService = new AdminTodayService({
+  dashboard: adminDashboardService,
+  orders: adminOrderService,
+  sales: salesService,
+  purchases: purchaseService,
+  inventory: inventoryService,
+  reports: reportService,
+});
 export const extractionService = new ExtractionService(
   db,
   purchaseService,

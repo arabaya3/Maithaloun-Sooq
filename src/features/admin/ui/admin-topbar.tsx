@@ -2,7 +2,9 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Plus, Search } from "lucide-react";
+import { Plus } from "lucide-react";
+
+import { AdminGlobalSearch } from "./admin-global-search";
 
 const titles: Record<string, string> = {
   "/admin": "اليوم",
@@ -44,10 +46,7 @@ function resolveTitle(pathname: string): string {
 export function AdminTopbar() {
   const pathname = usePathname();
   const title = resolveTitle(pathname);
-  const showOrderSearch =
-    pathname === "/admin" || pathname.startsWith("/admin/orders");
-  const showAddProduct =
-    pathname === "/admin" || pathname.startsWith("/admin/products");
+  const showAddProduct = pathname.startsWith("/admin/products");
 
   return (
     <div className="admin-topbar">
@@ -55,25 +54,7 @@ export function AdminTopbar() {
         <p className="admin-topbar-title">{title}</p>
       </div>
       <div className="admin-topbar-actions">
-        {showOrderSearch ? (
-          <form
-            className="admin-topbar-search"
-            action="/admin/orders"
-            method="get"
-          >
-            <Search size={16} aria-hidden="true" />
-            <label className="sr-only" htmlFor="admin-global-order-search">
-              بحث الطلبات
-            </label>
-            <input
-              id="admin-global-order-search"
-              name="q"
-              type="search"
-              placeholder="ابحث عن طلب…"
-              dir="auto"
-            />
-          </form>
-        ) : null}
+        <AdminGlobalSearch />
         {showAddProduct ? (
           <Link
             href="/admin/products/new"

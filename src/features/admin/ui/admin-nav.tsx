@@ -19,6 +19,7 @@ import {
   PenLine,
   Plus,
   ReceiptText,
+  Search,
   Settings,
   Sheet as SheetIcon,
   ShoppingBag,
@@ -34,6 +35,8 @@ import { useState, useSyncExternalStore } from "react";
 import { logoutAction } from "@/features/admin/application/admin-actions";
 import type { AdminRole } from "@/features/admin/domain/admin-actor";
 import { Sheet } from "@/shared/ui/sheet";
+
+import { AdminGlobalSearch } from "./admin-global-search";
 
 const noSubscription = () => () => {};
 
@@ -397,11 +400,11 @@ export function AdminDesktopNav({
 export function AdminMobileHeader({ role }: { role: AdminRole }) {
   const pathname = usePathname();
   const hydrated = useHydrated();
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState<"add" | "search" | null>(null);
   const [openedAt, setOpenedAt] = useState(pathname);
   if (openedAt !== pathname) {
     setOpenedAt(pathname);
-    setOpen(false);
+    setOpen(null);
   }
   return (
     <header className="admin-mobile-header">
@@ -409,11 +412,21 @@ export function AdminMobileHeader({ role }: { role: AdminRole }) {
       <div className="admin-mobile-header-actions">
         <button
           type="button"
+          className="admin-mobile-header-action"
+          aria-haspopup="dialog"
+          aria-label="بحث"
+          disabled={!hydrated}
+          onClick={() => setOpen("search")}
+        >
+          <Search size={20} aria-hidden="true" />
+        </button>
+        <button
+          type="button"
           className="admin-mobile-header-action is-primary"
           aria-haspopup="dialog"
           aria-label="إضافة"
           disabled={!hydrated}
-          onClick={() => setOpen(true)}
+          onClick={() => setOpen("add")}
         >
           <Plus size={22} aria-hidden="true" />
         </button>
@@ -427,8 +440,18 @@ export function AdminMobileHeader({ role }: { role: AdminRole }) {
         </Link>
       </div>
       <Sheet
-        open={open}
-        onClose={() => setOpen(false)}
+        open={open === "search"}
+        onClose={() => setOpen(null)}
+        title="بحث في المتجر"
+      >
+        {/* Mounted only while open, so the page never holds two search boxes. */}
+        {open === "search" ? (
+          <AdminGlobalSearch autoFocus onNavigate={() => setOpen(null)} />
+        ) : null}
+      </Sheet>
+      <Sheet
+        open={open === "add"}
+        onClose={() => setOpen(null)}
         title="ماذا تريدين أن تضيفي؟"
       >
         <ul className="admin-task-sheet">
