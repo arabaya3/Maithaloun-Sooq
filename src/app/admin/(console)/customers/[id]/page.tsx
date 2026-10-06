@@ -28,12 +28,14 @@ import { ReminderControls } from "@/features/reminders/ui/reminder-controls";
 import {
   invoicePaymentStateLabels,
   type InvoicePaymentState,
+  ledgerEntryLabels,
 } from "@/features/sales/domain/customer-balance";
+import { WorkspaceNav } from "@/features/admin/ui/workspace-nav";
 import {
   CustomerDetailsForm,
-  CustomerPaymentForm,
   ReversePaymentForm,
 } from "@/features/sales/ui/customer-forms";
+import { CustomerPaymentForm } from "@/features/sales/ui/customer-payment-form";
 
 export const metadata: Metadata = { title: "ملف الزبون" };
 
@@ -58,6 +60,9 @@ export default async function CustomerProfilePage({
   const customer = await customerService.getDetail(actor, (await params).id);
   if (!customer) notFound();
   const { summary } = customer;
+  const invoiceNumbers = new Map(
+    customer.invoices.map((invoice) => [invoice.id, invoice.invoiceNumber]),
+  );
   const reminders = await reminderService.getView(actor, customer.id);
   const canManageReminders = can(actor, "reminders.manage");
   const canCorrect = can(actor, "ledger.correct");
@@ -75,13 +80,31 @@ export default async function CustomerProfilePage({
         }
         back={{ href: "/admin/customers", label: "الزبائن والديون" }}
       />
+      <WorkspaceNav
+        label="أقسام ملف الزبون"
+        sections={[
+          { id: "account", label: "الحساب" },
+          ...(summary.balanceAgorot > 0
+            ? [{ id: "payment", label: "تسجيل دفعة" }]
+            : []),
+          { id: "statement", label: "كشف الحساب" },
+          { id: "invoices", label: "الفواتير" },
+          { id: "payments", label: "الدفعات" },
+          { id: "reminders", label: "التذكير" },
+          { id: "profile", label: "البيانات" },
+        ]}
+      />
       {customer.address || customer.landmark ? (
         <p className="admin-customer-address">
           {[customer.address, customer.landmark].filter(Boolean).join(" — ")}
         </p>
       ) : null}
 
-      <section className="admin-panel" aria-labelledby="balance-title">
+      <section
+        id="account"
+        className="admin-panel admin-workspace-anchor"
+        aria-labelledby="balance-title"
+      >
         <h2 id="balance-title">الحساب</h2>
         <dl className="admin-figures">
           <div>
@@ -136,13 +159,84 @@ export default async function CustomerProfilePage({
       </section>
 
       {summary.balanceAgorot > 0 ? (
-        <section className="admin-panel" aria-labelledby="payment-title">
+        <section
+          id="payment"
+          className="admin-panel admin-workspace-anchor"
+          aria-labelledby="payment-title"
+        >
           <h2 id="payment-title">تسجيل دفعة</h2>
-          <CustomerPaymentForm customerId={customer.id} />
+          <CustomerPaymentForm
+            customerId={customer.id}
+            balanceAgorot={summary.balanceAgorot}
+          />
         </section>
       ) : null}
 
-      <section className="admin-panel" aria-labelledby="invoices-title">
+      <section
+        id="statement"
+        className="admin-panel admin-workspace-anchor"
+        aria-labelledby="statement-title"
+      >
+        <h2 id="statement-title">كشف الحساب</h2>
+        {customer.statement.length ? (
+          <div className="admin-table-wrap">
+            <table className="admin-data-table admin-statement">
+              <thead>
+                <tr>
+                  <th>التاريخ</th>
+                  <th>الحركة</th>
+                  <th>المبلغ</th>
+                  <th>الرصيد بعدها</th>
+                </tr>
+              </thead>
+              <tbody>
+                {[...customer.statement].reverse().map((line) => {
+                  const invoice = line.invoiceId
+                    ? invoiceNumbers.get(line.invoiceId)
+                    : undefined;
+                  return (
+                    <tr key={line.id}>
+                      <td>{formatAdminDateTime(line.at)}</td>
+                      <td>
+                        {ledgerEntryLabels[line.type]}
+                        {invoice !== undefined && line.invoiceId ? (
+                          <>
+                            {" "}
+                            <Link
+                              href={`/admin/sales/${line.invoiceId}`}
+                              prefetch={false}
+                            >
+                              رقم <bdi dir="ltr">{invoice}</bdi>
+                            </Link>
+                          </>
+                        ) : null}
+                      </td>
+                      <td className="admin-num">
+                        {line.amountAgorot > 0 ? "+ " : "− "}
+                        <Money agorot={Math.abs(line.amountAgorot)} />
+                      </td>
+                      <td className="admin-num">
+                        <Money agorot={line.balanceAgorot} />
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <p className="admin-muted">لا توجد حركات على حساب هذا الزبون.</p>
+        )}
+        <p className="admin-muted">
+          + تزيد ما على الزبون (بيع)، − تنقصه (دفعة أو إلغاء).
+        </p>
+      </section>
+
+      <section
+        id="invoices"
+        className="admin-panel admin-workspace-anchor"
+        aria-labelledby="invoices-title"
+      >
         <h2 id="invoices-title">الفواتير</h2>
         {customer.invoices.length ? (
           <ul className="admin-line-list">
@@ -185,7 +279,11 @@ export default async function CustomerProfilePage({
         )}
       </section>
 
-      <section className="admin-panel" aria-labelledby="payments-title">
+      <section
+        id="payments"
+        className="admin-panel admin-workspace-anchor"
+        aria-labelledby="payments-title"
+      >
         <h2 id="payments-title">الدفعات</h2>
         {customer.payments.length ? (
           <ul className="admin-line-list">
@@ -224,7 +322,11 @@ export default async function CustomerProfilePage({
         )}
       </section>
 
-      <section className="admin-panel" aria-labelledby="reminders-title">
+      <section
+        id="reminders"
+        className="admin-panel admin-workspace-anchor"
+        aria-labelledby="reminders-title"
+      >
         <h2 id="reminders-title">التذكير بالدين</h2>
         <p className="admin-muted">
           {reminders.disputed
@@ -264,7 +366,11 @@ export default async function CustomerProfilePage({
         ) : null}
       </section>
 
-      <section className="admin-panel" aria-labelledby="details-title">
+      <section
+        id="profile"
+        className="admin-panel admin-workspace-anchor"
+        aria-labelledby="details-title"
+      >
         <h2 id="details-title">بيانات الزبون</h2>
         {customer.aliases.length ? (
           <p className="admin-muted">

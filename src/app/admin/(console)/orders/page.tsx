@@ -6,6 +6,7 @@ import { connection } from "next/server";
 import { adminOrderService } from "@/features/admin/application/admin-services";
 import { requireAdminSession } from "@/features/admin/auth/admin-session";
 import { formatAdminDateTime } from "@/features/admin/ui/format-admin-datetime";
+import { FilterSheet } from "@/features/admin/ui/filter-sheet";
 import {
   AdminNextActionLabel,
   AdminStatusBadge,
@@ -131,31 +132,46 @@ export default async function AdminOrdersPage({
             placeholder="ابحث برقم الطلب أو اسم الزبون أو رقم الواتساب"
           />
         </div>
-        <label className="admin-toolbar-field" htmlFor="order-from">
-          <span>من</span>
-          <input
-            id="order-from"
-            name="from"
-            type="date"
-            defaultValue={params.from ?? ""}
-          />
-        </label>
-        <label className="admin-toolbar-field" htmlFor="order-to">
-          <span>إلى</span>
-          <input
-            id="order-to"
-            name="to"
-            type="date"
-            defaultValue={params.to ?? ""}
-          />
-        </label>
-        <label className="admin-toolbar-field" htmlFor="order-sort">
-          <span>ترتيب</span>
-          <select id="order-sort" name="sort" defaultValue={sort}>
-            <option value="newest">الأحدث</option>
-            <option value="oldest">الأقدم</option>
-          </select>
-        </label>
+        <FilterSheet
+          title="تصفية الطلبات"
+          activeCount={
+            [params.from, params.to, sort === "oldest" ? sort : ""].filter(
+              Boolean,
+            ).length
+          }
+        >
+          <label className="admin-toolbar-field" htmlFor="order-from">
+            <span>من</span>
+            <input
+              id="order-from"
+              name="from"
+              type="date"
+              defaultValue={params.from ?? ""}
+            />
+          </label>
+          <label className="admin-toolbar-field" htmlFor="order-to">
+            <span>إلى</span>
+            <input
+              id="order-to"
+              name="to"
+              type="date"
+              defaultValue={params.to ?? ""}
+            />
+          </label>
+          <label className="admin-toolbar-field" htmlFor="order-sort">
+            <span>ترتيب</span>
+            <select id="order-sort" name="sort" defaultValue={sort}>
+              <option value="newest">الأحدث</option>
+              <option value="oldest">الأقدم</option>
+            </select>
+          </label>
+          <button
+            type="submit"
+            className="admin-btn admin-btn-primary admin-filter-apply"
+          >
+            عرض النتائج
+          </button>
+        </FilterSheet>
         <div className="admin-toolbar-actions">
           <button type="submit" className="admin-btn admin-btn-secondary">
             تطبيق

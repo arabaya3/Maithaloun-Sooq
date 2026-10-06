@@ -818,6 +818,29 @@ export class SalesService {
     }));
   }
 
+  /** Posted counter invoices since a moment: how many, their total, cash taken at sale, and what went on account. */
+  async dayTotals(actor: AdminActor, since: Date) {
+    assertPermission(actor, "sales.record");
+    const [row] = await this.database
+      .select({
+        count: sql<number>`count(*)::int`,
+        totalAgorot: sql<number>`coalesce(sum(${schema.customerInvoices.totalAgorot}), 0)::int`,
+        paidAtSaleAgorot: sql<number>`coalesce(sum(${schema.customerInvoices.paidAtSaleAgorot}), 0)::int`,
+      })
+      .from(schema.customerInvoices)
+      .where(
+        and(
+          eq(schema.customerInvoices.status, "posted"),
+          gte(schema.customerInvoices.createdAt, since),
+        ),
+      );
+    const totals = row ?? { count: 0, totalAgorot: 0, paidAtSaleAgorot: 0 };
+    return {
+      ...totals,
+      onAccountAgorot: totals.totalAgorot - totals.paidAtSaleAgorot,
+    };
+  }
+
   async getInvoice(actor: AdminActor, invoiceId: string) {
     assertPermission(actor, "sales.record");
     if (!z.uuid().safeParse(invoiceId).success) return null;

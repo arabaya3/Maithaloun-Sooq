@@ -11,6 +11,12 @@ import { AdminStatusBadge } from "@/features/admin/ui/admin-status-badge";
 import { OrderItemStockNote } from "@/features/admin/ui/order-item-stock-note";
 import { sellingLineText } from "@/features/catalog/domain/selling-unit";
 import { OrderStatusForm } from "@/features/admin/ui/order-status-form";
+import {
+  getAllowedTransitions,
+  getPrimaryNextActionLabel,
+} from "@/features/orders/domain/order-status";
+import { StickyAction } from "@/features/admin/ui/kit";
+import { statusImpact } from "@/features/orders/domain/status-impact";
 import { orderStatusLabels } from "@/features/orders/domain/order-status";
 import { formatIls } from "@/shared/lib/format-currency";
 
@@ -35,6 +41,11 @@ export default async function AdminOrderDetailPage({
 
   const isFreeDelivery = order.deliveryFeeAgorot === 0;
   const qaCreated = (await searchParams).qa === "created";
+
+  // On phones the next step stays in reach; it jumps to the actions so the impact is read before committing.
+  const nextLabel = order.isTest
+    ? null
+    : getPrimaryNextActionLabel(order.status);
 
   return (
     <main className="admin-page admin-order-detail">
@@ -72,6 +83,18 @@ export default async function AdminOrderDetailPage({
             </div>
             <AdminStatusBadge status={order.status} />
           </header>
+          {nextLabel ? (
+            <div className="admin-order-next">
+              <StickyAction>
+                <a
+                  className="admin-btn admin-btn-primary admin-btn-block"
+                  href="#status-actions"
+                >
+                  الإجراء التالي: {nextLabel}
+                </a>
+              </StickyAction>
+            </div>
+          ) : null}
 
           <section className="admin-panel" aria-labelledby="customer-title">
             <div className="admin-panel-header">
@@ -250,6 +273,7 @@ export default async function AdminOrderDetailPage({
           </section>
 
           <section
+            id="status-actions"
             className="admin-panel admin-actions-panel admin-sticky-panel"
             aria-labelledby="status-actions-title"
           >
@@ -259,6 +283,24 @@ export default async function AdminOrderDetailPage({
               status={order.status}
               version={order.version}
               cancelOnly={order.isTest}
+              impacts={Object.fromEntries(
+                getAllowedTransitions(order.status).map((next) => [
+                  next,
+                  statusImpact(
+                    next,
+                    order.items.map((item) => ({
+                      name: item.variantLabel
+                        ? `${item.productName} — ${item.variantLabel}`
+                        : item.productName,
+                      pieces: item.baseUnits,
+                      tracked: item.stock.tracked,
+                      reservation: item.stock.reservation,
+                      availableMilli: item.stock.availableMilli,
+                    })),
+                    order.finalTotalAgorot,
+                  ),
+                ]),
+              )}
             />
           </section>
         </aside>

@@ -4,13 +4,12 @@ import { useActionState, useState } from "react";
 
 import {
   cancelInvoiceAction,
-  recordCustomerPaymentAction,
   reversePaymentAction,
   saveCustomerAction,
   type SalesFormState,
 } from "@/features/sales/application/sales-actions";
 
-function Result({ state }: { state: SalesFormState }) {
+export function Result({ state }: { state: SalesFormState }) {
   return state ? (
     <p
       className={state.ok ? "admin-form-success" : "admin-form-error"}
@@ -19,56 +18,6 @@ function Result({ state }: { state: SalesFormState }) {
       {state.message}
     </p>
   ) : null;
-}
-
-export function CustomerPaymentForm({ customerId }: { customerId: string }) {
-  const [state, action, pending] = useActionState(
-    recordCustomerPaymentAction,
-    null,
-  );
-  const [keyState, setKeyState] = useState<{
-    key: string | null;
-    usedFor: SalesFormState;
-  }>({ key: null, usedFor: state });
-  if (state?.ok && keyState.usedFor !== state) {
-    setKeyState({ key: null, usedFor: state });
-  }
-  function submit(formData: FormData) {
-    const key = keyState.key ?? crypto.randomUUID();
-    if (!keyState.key) setKeyState({ key, usedFor: keyState.usedFor });
-    formData.set("idempotencyKey", key);
-    action(formData);
-  }
-
-  return (
-    <form className="admin-form" action={submit}>
-      <input type="hidden" name="customerId" value={customerId} />
-      <div className="admin-field-grid">
-        <label>
-          المبلغ المستلم ₪
-          <input
-            name="amount"
-            required
-            inputMode="decimal"
-            dir="ltr"
-            placeholder="0.00"
-          />
-        </label>
-        <label>
-          ملاحظة (اختياري)
-          <input name="note" maxLength={240} />
-        </label>
-      </div>
-      <Result state={state} />
-      <button
-        type="submit"
-        className="admin-btn admin-btn-primary"
-        disabled={pending}
-      >
-        {pending ? "جارٍ الحفظ…" : "تسجيل دفعة"}
-      </button>
-    </form>
-  );
 }
 
 function ReasonedAction({

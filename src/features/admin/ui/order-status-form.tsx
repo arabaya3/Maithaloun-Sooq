@@ -9,18 +9,43 @@ import {
   orderStatusLabels,
   type OrderStatus,
 } from "@/features/orders/domain/order-status";
+import type { StatusImpact } from "@/features/orders/domain/status-impact";
+
+function ImpactNote({ impact, id }: { impact?: StatusImpact; id: string }) {
+  if (!impact) return null;
+  return (
+    <div
+      className="admin-impact"
+      id={id}
+      data-blocked={impact.blocked || undefined}
+    >
+      <p className="admin-impact-title">
+        {impact.blocked ? "لا يمكن التأكيد الآن:" : "ماذا سيحدث عند التأكيد:"}
+      </p>
+      <ul>
+        {impact.stock.map((line) => (
+          <li key={line}>{line}</li>
+        ))}
+        <li>{impact.money}</li>
+      </ul>
+    </div>
+  );
+}
 
 export function OrderStatusForm({
   publicReference,
   status,
   version,
   cancelOnly = false,
+  impacts = {},
 }: {
   publicReference: string;
   status: OrderStatus;
   version: number;
   // QA orders can only be closed; the server enforces the same rule.
   cancelOnly?: boolean;
+  /** Stock and money effect of each allowed next status, computed on the server. */
+  impacts?: Partial<Record<OrderStatus, StatusImpact>>;
 }) {
   const transitions = getAllowedTransitions(status).filter(
     (value) => !cancelOnly || value === "cancelled",
@@ -47,17 +72,25 @@ export function OrderStatusForm({
       <input type="hidden" name="expectedVersion" value={String(version)} />
       <div className="admin-status-actions">
         {advance.map((nextStatus) => (
-          <button
-            key={nextStatus}
-            type="submit"
-            name="nextStatus"
-            value={nextStatus}
-            disabled={pending}
-            className="admin-btn admin-btn-primary"
-          >
-            {getPrimaryNextActionLabel(status) ??
-              `نقل إلى ${orderStatusLabels[nextStatus]}`}
-          </button>
+          <div key={nextStatus} className="admin-status-step">
+            <ImpactNote
+              impact={impacts[nextStatus]}
+              id={`impact-${nextStatus}`}
+            />
+            <button
+              type="submit"
+              name="nextStatus"
+              value={nextStatus}
+              disabled={pending || impacts[nextStatus]?.blocked}
+              aria-describedby={
+                impacts[nextStatus] ? `impact-${nextStatus}` : undefined
+              }
+              className="admin-btn admin-btn-primary"
+            >
+              {getPrimaryNextActionLabel(status) ??
+                `نقل إلى ${orderStatusLabels[nextStatus]}`}
+            </button>
+          </div>
         ))}
       </div>
 
@@ -78,6 +111,7 @@ export function OrderStatusForm({
           ) : (
             <div className="admin-cancel-confirm">
               <p role="status">تأكيد إلغاء الطلب؟ لا يمكن التراجع.</p>
+              <ImpactNote impact={impacts.cancelled} id="impact-cancelled" />
               <button
                 type="submit"
                 name="nextStatus"

@@ -13,6 +13,7 @@ import {
   PageHeader,
   Quantity,
   StatusPill,
+  StickyAction,
 } from "@/features/admin/ui/kit";
 import {
   buildInvoiceShareText,
@@ -161,6 +162,23 @@ export default async function SaleInvoicePage({
             </p>
           )}
         </section>
+      ) : null}
+
+      {invoice.status === "posted" &&
+      invoice.customerId &&
+      remaining > 0 &&
+      can(actor, "payments.record") ? (
+        <div className="admin-no-print">
+          <StickyAction>
+            <Link
+              className="admin-btn admin-btn-primary admin-btn-block"
+              href={`/admin/customers/${invoice.customerId}#payment`}
+              prefetch={false}
+            >
+              حساب الزبون وتسجيل دفعة
+            </Link>
+          </StickyAction>
+        </div>
       ) : null}
 
       <div className="admin-form-actions admin-no-print">
