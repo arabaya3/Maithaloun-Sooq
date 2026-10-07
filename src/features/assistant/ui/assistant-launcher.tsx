@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import "./assistant.css";
 
@@ -48,6 +48,14 @@ export function AssistantLauncher() {
   const [open, setOpen] = useState(false);
   const [activity, setActivity] = useState(false);
   const launcherRef = useRef<HTMLButtonElement>(null);
+
+  // On desktop the workspace narrows beside the open panel instead of sitting under it.
+  useEffect(() => {
+    const root = document.documentElement;
+    if (open) root.setAttribute("data-assistant-open", "");
+    else root.removeAttribute("data-assistant-open");
+    return () => root.removeAttribute("data-assistant-open");
+  }, [open]);
 
   const close = useCallback(() => {
     setOpen(false);

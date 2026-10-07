@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ScrollText, Users } from "lucide-react";
+import { FlaskConical, ScrollText, Users } from "lucide-react";
 import { connection } from "next/server";
 import { redirect } from "next/navigation";
 
@@ -18,6 +18,7 @@ import {
 } from "@/features/delivery/delivery-policy";
 import { formatIls } from "@/shared/lib/format-currency";
 import { WorkspaceNav } from "@/features/admin/ui/workspace-nav";
+import { smokeTestEnabled } from "@/features/assistant/domain/smoke-test";
 import { SummaryFrequencyForm } from "@/features/reminders/ui/reminder-controls";
 
 export const metadata: Metadata = {
@@ -72,6 +73,13 @@ export default async function AdminSettingsPage({
           <ScrollText size={22} aria-hidden="true" />
           <span>سجل التدقيق</span>
         </Link>
+        {/* The assistant is switched off for now; its check appears only while explicitly enabled. */}
+        {smokeTestEnabled(process.env) ? (
+          <Link href="/admin/assistant-smoke" prefetch={false}>
+            <FlaskConical size={22} aria-hidden="true" />
+            <span>فحص المساعد</span>
+          </Link>
+        ) : null}
       </nav>
 
       {savedArea ? (

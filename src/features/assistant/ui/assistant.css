@@ -65,6 +65,33 @@
   }
 }
 
+/*
+ * Desktop: a full-height side panel of 420 to 480 px on the left, away from the RTL sidebar.
+ * The workspace narrows to make room, so the page stays visible and usable beside it.
+ */
+@media (min-width: 64rem) {
+  :root {
+    --assistant-panel-width: clamp(420px, 30vw, 480px);
+  }
+
+  .assistant-panel {
+    top: 0;
+    bottom: 0;
+    left: 0;
+    right: auto;
+    width: var(--assistant-panel-width);
+    height: 100dvh;
+    border-width: 0 0 0 1px;
+    border-inline-end: 1px solid var(--admin-border);
+    border-radius: 0;
+    box-shadow: 8px 0 32px rgb(24 32 29 / 12%);
+  }
+
+  html[data-assistant-open] .admin-main {
+    padding-left: var(--assistant-panel-width);
+  }
+}
+
 /* Beside the RTL sidebar, never on top of it. */
 @media (min-width: 64rem) {
   .assistant-launcher {
@@ -521,14 +548,62 @@
   }
 }
 
-.assistant-card-badge[data-phase="done"] {
+/* Each ending reads differently even without colour: its own word, icon and border. */
+.assistant-card-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.assistant-card-badge[data-ending="executed"] {
   color: var(--admin-success);
   background: var(--admin-success-bg);
 }
 
-.assistant-card-badge[data-phase="failed"] {
-  color: var(--admin-danger);
+.assistant-card-badge[data-ending="failed"] {
+  color: var(--admin-danger-text);
   background: var(--admin-danger-bg);
+}
+
+.assistant-card-badge[data-ending="cancelled"] {
+  color: var(--admin-muted);
+  background: var(--admin-divider);
+}
+
+.assistant-card-badge[data-ending="expired"],
+.assistant-card-badge[data-ending="stale"] {
+  color: var(--admin-text);
+  background: var(--admin-warning-bg);
+}
+
+.assistant-card-badge[data-ending="uncertain"] {
+  color: var(--admin-text);
+  background: var(--admin-warning-bg);
+  outline: 1px dashed var(--admin-warm);
+}
+
+.assistant-card[data-ending="executed"] {
+  border-inline-start-color: var(--admin-success);
+}
+
+.assistant-card[data-ending="cancelled"],
+.assistant-card[data-ending="expired"],
+.assistant-card[data-ending="stale"] {
+  border-style: dashed;
+  opacity: 0.92;
+}
+
+.assistant-card[data-ending="failed"] {
+  border-inline-start-color: var(--admin-danger);
+}
+
+.assistant-card-error[data-ending="cancelled"] {
+  color: var(--admin-muted);
+}
+
+.assistant-card-scope {
+  margin: 0;
+  font-size: 0.875rem;
 }
 
 .assistant-card[data-permanent] {

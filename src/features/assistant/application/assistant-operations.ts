@@ -28,7 +28,12 @@ import type {
   SaleInput,
   SalesService,
 } from "@/features/sales/application/sales-service";
-import { orderStatusLabels } from "@/features/orders/domain/order-status";
+import {
+  getPrimaryNextStatus,
+  orderStatusLabels,
+  type OrderStatus,
+} from "@/features/orders/domain/order-status";
+import { statusImpact } from "@/features/orders/domain/status-impact";
 import { calculateSale } from "@/features/sales/domain/sale-calculation";
 import { formatIls } from "@/shared/lib/format-currency";
 import { parseIlsToAgorot } from "@/shared/lib/parse-ils";
@@ -72,6 +77,8 @@ export interface ConfirmationCard {
   destructive: boolean;
   reversible?: boolean;
   dependencies?: string[];
+  /** How far the change reaches, e.g. how many records or lines it touches. */
+  scope?: string;
 }
 
 export type PrepareResult =
@@ -1302,6 +1309,195 @@ export class AssistantOperations {
     };
   }
 
+  /** Moves an order one step along its normal path; the card shows the same stock and money effect as the order page. */
+  async prepareOrderAdvance(
+    actor: AdminActor,
+    input: { reference: string },
+  ): Promise<PrepareResult> {
+    const reference = input.reference.trim();
+    const order = await this.services.orders.getByPublicReference(
+      actor,
+      reference,
+    );
+    if (!order)
+      return rejected(
+        "not_found",
+        `ما لقيت طلب برقم «${reference.slice(0, 30)}».`,
+      );
+    if (order.isTest)
+      return rejected(
+        "test_order",
+        "هذا طلب اختبار؛ يُلغى فقط من شاشة طلبات الاختبار.",
+      );
+    const next = getPrimaryNextStatus(order.status);
+    if (!next)
+      return rejected(
+        "invalid_transition",
+        `الطلب ${order.publicReference} حالته «${orderStatusLabels[order.status]}» ولا توجد خطوة تالية.`,
+      );
+    const impact = statusImpact(
+      next,
+      order.items.map((item) => ({
+        name: item.variantLabel
+          ? `${item.productName} — ${item.variantLabel}`
+          : item.productName,
+        pieces: item.baseUnits,
+        tracked: item.stock.tracked,
+        reservation: item.stock.reservation,
+        availableMilli: item.stock.availableMilli,
+      })),
+      order.finalTotalAgorot,
+    );
+    // The same shortage the confirm button is disabled for on the order page.
+    if (impact.blocked)
+      return rejected("insufficient_stock", impact.stock.join(" "));
+    return {
+      status: "ready",
+      operation: "orderAdvance",
+      args: { publicReference: order.publicReference, nextStatus: next },
+      summary: `نقل الطلب ${order.publicReference} إلى «${orderStatusLabels[next]}»`,
+      card: {
+        title: "تغيير حالة طلب",
+        target: {
+          label: `طلب ${order.publicReference}`,
+          href: `/admin/orders/${order.publicReference}`,
+        },
+        rows: [
+          {
+            label: "الحالة",
+            before: orderStatusLabels[order.status],
+            after: orderStatusLabels[next],
+          },
+        ],
+        impact: [...impact.stock, impact.money],
+        warnings: [],
+        scope: `${order.items.length} سطر في الطلب`,
+        confirmLabel: "تأكيد تغيير الحالة",
+        destructive: false,
+        reversible: false,
+      },
+    };
+  }
+
+  /** Moves a category one place in the storefront order. */
+  async prepareCategoryReorder(
+    actor: AdminActor,
+    input: { category: string; direction: "up" | "down" },
+  ): Promise<PrepareResult> {
+    if (!can(actor, "settings.manage"))
+      return rejected("forbidden", "ترتيب الأقسام للمالك فقط.");
+    const categories = await this.services.authoring.listCategories();
+    const needle = normalizeArabicText(input.category);
+    const matches = categories.filter(
+      (category) =>
+        category.code === input.category.trim() ||
+        normalizeArabicText(category.nameAr) === needle,
+    );
+    if (matches.length !== 1)
+      return rejected(
+        "not_found",
+        `ما لقيت قسماً واحداً باسم «${input.category.slice(0, 40)}».`,
+      );
+    const index = categories.indexOf(matches[0]!);
+    const swapWith = input.direction === "up" ? index - 1 : index + 1;
+    if (swapWith < 0 || swapWith >= categories.length)
+      return rejected(
+        "no_change",
+        input.direction === "up"
+          ? `«${matches[0]!.nameAr}» أول قسم أصلاً.`
+          : `«${matches[0]!.nameAr}» آخر قسم أصلاً.`,
+      );
+    const neighbour = categories[swapWith]!;
+    return {
+      status: "ready",
+      operation: "categoryReorder",
+      args: { code: matches[0]!.code, direction: input.direction },
+      summary: `تحريك قسم ${matches[0]!.nameAr}`,
+      card: {
+        title: "ترتيب الأقسام في المتجر",
+        target: { label: matches[0]!.nameAr, href: "/admin/categories" },
+        rows: [
+          {
+            label: "الترتيب",
+            before: String(index + 1),
+            after: String(swapWith + 1),
+          },
+          {
+            label: neighbour.nameAr,
+            before: String(swapWith + 1),
+            after: String(index + 1),
+          },
+        ],
+        impact: ["يتغير ترتيب ظهور القسمين في المتجر فقط."],
+        warnings: [],
+        scope: "قسمان يتبادلان المكان",
+        confirmLabel: "تأكيد الترتيب",
+        destructive: false,
+        reversible: true,
+      },
+    };
+  }
+
+  /** Cancels a counter sale: goods return to stock at their cost and the money is reversed. */
+  async prepareSaleInvoiceCancellation(
+    actor: AdminActor,
+    input: { invoiceNumber: string; reason: string },
+  ): Promise<PrepareResult> {
+    if (!can(actor, "ledger.correct"))
+      return rejected("forbidden", "إلغاء فواتير البيع للمالك فقط.");
+    const number = Number(input.invoiceNumber.replace(/[^\d]/g, ""));
+    if (!Number.isSafeInteger(number) || number < 1)
+      return rejected("not_found", "اذكري رقم فاتورة البيع، مثل 1001.");
+    const [listed] = await this.services.sales.listInvoices(actor, 1, {
+      invoiceNumber: number,
+    });
+    const invoice = listed
+      ? await this.services.sales.getInvoice(actor, listed.id)
+      : null;
+    if (!invoice)
+      return rejected("not_found", `ما لقيت فاتورة بيع رقم ${number}.`);
+    if (invoice.status === "cancelled")
+      return rejected("already_cancelled", `الفاتورة ${number} ملغاة أصلاً.`);
+    const reason = input.reason.trim().slice(0, 240);
+    if (reason.length < 2)
+      return rejected("missing_reason", "اذكري سبب إلغاء الفاتورة.");
+    return {
+      status: "ready",
+      operation: "saleInvoiceCancellation",
+      args: { invoiceId: invoice.id, reason },
+      summary: `إلغاء فاتورة البيع ${number}`,
+      card: {
+        title: "إلغاء فاتورة بيع",
+        target: {
+          label: `فاتورة رقم ${number}`,
+          href: `/admin/sales/${invoice.id}`,
+        },
+        rows: [
+          { label: "الحالة", before: "مسجّلة", after: "ملغاة" },
+          {
+            label: "قيمة الفاتورة",
+            before: null,
+            after: formatIls(invoice.totalAgorot),
+          },
+          { label: "السبب", before: null, after: reason },
+        ],
+        impact: [
+          "تعود كميات الأصناف المتتبَّعة إلى المخزون بتكلفتها الأصلية.",
+          invoice.customerId
+            ? `يُخصم ${formatIls(invoice.totalAgorot)} من رصيد الزبون.`
+            : invoice.paidAtSaleAgorot > 0
+              ? `يُسجَّل إرجاع ${formatIls(invoice.paidAtSaleAgorot)} نقداً.`
+              : "لا يوجد مبلغ لإرجاعه.",
+        ],
+        warnings: ["لا يمكن إعادة فتح الفاتورة بعد إلغائها."],
+        scope: `${invoice.lines.length} سطر في الفاتورة`,
+        confirmLabel: "تأكيد إلغاء الفاتورة",
+        destructive: true,
+        reversible: false,
+      },
+    };
+  }
+
   async preparePurchaseInvoiceImport(
     actor: AdminActor,
     input: { attachmentIds: string[] },
@@ -1738,7 +1934,91 @@ export class AssistantOperations {
       },
     };
 
+    const orderAdvance: Handler<{
+      publicReference: string;
+      nextStatus: OrderStatus;
+    }> = {
+      args: z.object({
+        publicReference: z.string(),
+        nextStatus: z.enum([
+          "confirmed",
+          "preparing",
+          "out_for_delivery",
+          "delivered",
+        ]),
+      }),
+      async version(actor, args) {
+        const order = await s.orders.getByPublicReference(
+          actor,
+          args.publicReference,
+        );
+        // A card for one step is stale once the order has moved on.
+        return order && getPrimaryNextStatus(order.status) === args.nextStatus
+          ? String(order.version)
+          : null;
+      },
+      async execute(actor, args, _key, version) {
+        await s.orders.changeStatus(actor, {
+          publicReference: args.publicReference,
+          nextStatus: args.nextStatus,
+          expectedVersion: Number(version),
+        });
+        return {
+          message: `أصبح الطلب ${args.publicReference} «${orderStatusLabels[args.nextStatus]}».`,
+          href: `/admin/orders/${args.publicReference}`,
+          ref: `order:${args.publicReference}`,
+        };
+      },
+    };
+
+    const categoryReorder: Handler<{
+      code: string;
+      direction: "up" | "down";
+    }> = {
+      args: z.object({
+        code: categoryCodeSchema,
+        direction: z.enum(["up", "down"]),
+      }),
+      async version() {
+        const categories = await s.authoring.listCategories();
+        return categories.map((category) => category.code).join(",");
+      },
+      async execute(actor, args) {
+        await s.authoring.moveCategory(actor, args.code, args.direction);
+        return {
+          message: "تم تغيير ترتيب الأقسام في المتجر.",
+          href: "/admin/categories",
+          ref: `product_category:${args.code}`,
+        };
+      },
+    };
+
+    const saleInvoiceCancellation: Handler<{
+      invoiceId: string;
+      reason: string;
+    }> = {
+      args: z.object({
+        invoiceId: z.uuid(),
+        reason: z.string().min(2).max(240),
+      }),
+      async version(actor, args) {
+        const invoice = await s.sales.getInvoice(actor, args.invoiceId);
+        return invoice?.status === "posted" ? "posted" : null;
+      },
+      async execute(actor, args) {
+        await s.sales.cancelInvoice(actor, args);
+        return {
+          message: "أُلغيت الفاتورة وعادت الكميات والمبالغ.",
+          href: `/admin/sales/${args.invoiceId}`,
+          ref: `customer_invoice:${args.invoiceId}`,
+        };
+      },
+    };
+
     return {
+      orderAdvance,
+      categoryReorder,
+      saleInvoiceCancellation,
       productUpdate,
       productImageReplacement,
       productArchive,
