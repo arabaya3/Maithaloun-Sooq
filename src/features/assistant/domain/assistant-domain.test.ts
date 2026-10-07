@@ -44,6 +44,8 @@ describe("assistant policy", () => {
       "prepareProductMerge",
       "prepareProductArchive",
       "prepareOrderCancellation",
+      "prepareOrderAdvance",
+      "prepareSaleInvoiceCancellation",
     ]) {
       expect(toolRisk(name)).toBe(3);
     }

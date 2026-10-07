@@ -3,9 +3,14 @@
 import Link from "next/link";
 import {
   AlertTriangle,
+  Ban,
   CheckCircle2,
+  CircleHelp,
+  Clock3,
   LoaderCircle,
+  RefreshCcw,
   XCircle,
+  type LucideIcon,
 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 
@@ -29,7 +34,34 @@ type Phase =
       view: ConfirmationView | null;
       message: string;
       href: string | null;
+      /** Set when the outcome is known on this device before the server is asked again. */
+      kind?: "cancelled" | "uncertain";
     };
+
+/** How a card ended; each has its own label, icon and colour so they are never confused. */
+type Ending =
+  "executed" | "cancelled" | "expired" | "stale" | "uncertain" | "failed";
+
+const endings: Record<Ending, { label: string; Icon: LucideIcon }> = {
+  executed: { label: "تمت", Icon: CheckCircle2 },
+  cancelled: { label: "أُلغيت", Icon: Ban },
+  expired: { label: "انتهت صلاحيتها", Icon: Clock3 },
+  stale: { label: "قديمة", Icon: RefreshCcw },
+  uncertain: { label: "غير مؤكدة", Icon: CircleHelp },
+  failed: { label: "لم تتم", Icon: XCircle },
+};
+
+function endingOf(phase: Phase): Ending | null {
+  if (phase.name === "done") return "executed";
+  if (phase.name !== "failed") return null;
+  if (phase.kind) return phase.kind;
+  const status = phase.view?.status;
+  if (status === "expired") return "expired";
+  if (status === "cancelled")
+    return phase.view?.reason === "stale" ? "stale" : "cancelled";
+  if (status === "executing") return "uncertain";
+  return "failed";
+}
 
 export function ConfirmationCard({
   confirmationId,
@@ -150,6 +182,7 @@ export function ConfirmationCard({
           view,
           message: "أُلغيت العملية ولم يتغيّر شيء.",
           href: null,
+          kind: "cancelled",
         });
       } else if (body.ok) {
         setPhase({
@@ -174,6 +207,7 @@ export function ConfirmationCard({
         message:
           "انقطع الاتصال أثناء التنفيذ. النتيجة غير مؤكدة؛ تحققي من السجل قبل المحاولة مرة أخرى.",
         href: view.card.target.href,
+        kind: "uncertain",
       });
     }
     window.dispatchEvent(
@@ -191,6 +225,8 @@ export function ConfirmationCard({
     );
   }
   const view = "view" in phase ? phase.view : null;
+  const ending = endingOf(phase);
+  const EndIcon = ending ? endings[ending].Icon : null;
   const card = view?.card;
   const permanent = Boolean(view && view.riskLevel >= 4);
   const expiresAt = view
@@ -205,19 +241,23 @@ export function ConfirmationCard({
       className="assistant-card"
       data-destructive={card?.destructive || undefined}
       data-permanent={permanent || undefined}
+      data-ending={ending ?? undefined}
       aria-label={card ? `${card.title}: ${card.target.label}` : "بطاقة تأكيد"}
     >
       {card ? (
         <>
           <header className="assistant-card-head">
-            <span className="assistant-card-badge" data-phase={phase.name}>
-              {phase.name === "done"
-                ? "تمت"
-                : phase.name === "failed"
-                  ? "لم تتم"
-                  : phase.name === "executing"
-                    ? "جارٍ التنفيذ"
-                    : "بانتظار تأكيدك"}
+            <span
+              className="assistant-card-badge"
+              data-phase={phase.name}
+              data-ending={ending ?? undefined}
+            >
+              {EndIcon ? <EndIcon size={14} aria-hidden="true" /> : null}
+              {ending
+                ? endings[ending].label
+                : phase.name === "executing"
+                  ? "جارٍ التنفيذ"
+                  : "بانتظار تأكيدك"}
             </span>
             {permanent ? (
               <p className="assistant-card-permanent" role="note">
@@ -270,6 +310,11 @@ export function ConfirmationCard({
                 </div>
               ))}
             </dl>
+          ) : null}
+          {card.scope ? (
+            <p className="assistant-card-scope">
+              <strong>النطاق:</strong> {card.scope}
+            </p>
           ) : null}
           {card.impact.length ? (
             <ul className="assistant-card-notes">
@@ -367,8 +412,13 @@ export function ConfirmationCard({
         </p>
       ) : null}
       {phase.name === "failed" ? (
-        <p className="assistant-card-error" role="alert">
-          <XCircle size={18} aria-hidden="true" /> {phase.message}
+        <p
+          className="assistant-card-error"
+          data-ending={ending ?? undefined}
+          role={ending === "cancelled" ? "status" : "alert"}
+        >
+          {EndIcon ? <EndIcon size={18} aria-hidden="true" /> : null}{" "}
+          {phase.message}
           {phase.href ? (
             <Link href={phase.href} prefetch={false}>
               فتح السجل

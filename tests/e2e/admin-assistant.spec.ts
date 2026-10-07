@@ -88,6 +88,11 @@ test("mobile: question, search, confirmed rename and image replacement", async (
     "/admin/products/carpet-brush",
   );
   expect((await productRow()).name).toBe(RENAMED);
+  await expect(card.locator(".assistant-card-badge")).toHaveText("تمت");
+  await expect(card).toHaveAttribute("data-ending", "executed");
+  // On a phone the panel covers the whole screen.
+  const full = (await panel.boundingBox())!;
+  expect(full.width).toBe(390);
   await page.screenshot({ path: `${SHOTS}/assistant-done-390.png` });
 
   const photo = await sharp({
@@ -143,11 +148,32 @@ test("desktop: side panel keeps the page visible and nothing overflows", async (
   await expect(
     page.getByRole("heading", { name: "اليوم", level: 1 }),
   ).toBeVisible();
+  // A full-height 420–480 px panel on the left; the workspace moves aside instead of hiding under it.
   const box = (await panel.boundingBox())!;
-  expect(box.width).toBeLessThanOrEqual(440);
-  expect(box.x + box.width).toBeGreaterThan(1300);
+  expect(box.width).toBeGreaterThanOrEqual(420);
+  expect(box.width).toBeLessThanOrEqual(480);
+  expect(box.x).toBe(0);
+  expect(box.height).toBe(900);
+  const workspace = page.locator("main.admin-page");
+  const beside = (await workspace.boundingBox())!;
+  expect(beside.x).toBeGreaterThanOrEqual(box.x + box.width);
   await expectNoHorizontalOverflow(page);
   await page.screenshot({ path: `${SHOTS}/assistant-1440.png` });
+
+  // A cancelled card reads differently from an executed one.
+  await ask(page, `غير اسم ${RENAMED} إلى فرشاة مؤقتة`);
+  const card = panel.getByRole("region", { name: `تعديل منتج: ${RENAMED}` });
+  await card.getByRole("button", { name: "إلغاء" }).click();
+  await expect(card.locator(".assistant-card-badge")).toHaveText("أُلغيت");
+  await expect(card).toHaveAttribute("data-ending", "cancelled");
+  expect((await productRow()).name).toBe(RENAMED);
+  await page.screenshot({ path: `${SHOTS}/assistant-cancelled-1440.png` });
+
+  await page.keyboard.press("Escape");
+  // Closing gives the workspace its full width back.
+  const after = (await workspace.boundingBox())!;
+  expect(after.x).toBeLessThan(beside.x);
+  expect(after.width).toBeGreaterThan(beside.width);
 });
 
 test("microphone: denied permission and unsupported browser are explained", async ({

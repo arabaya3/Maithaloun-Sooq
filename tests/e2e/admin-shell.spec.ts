@@ -154,7 +154,6 @@ test("phone: every area sheet lists its pages, closes with Escape and returns fo
       "تسجيل عملية بالصوت",
       "إعدادات المتجر",
       "سجل التدقيق",
-      "فحص المساعد",
       "العودة إلى المتجر",
     ],
   };

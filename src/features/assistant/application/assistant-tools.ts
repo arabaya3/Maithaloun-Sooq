@@ -921,6 +921,37 @@ export function createAssistantTools(context: AssistantToolContext) {
           ops.prepareOrderCancellation(actor, input),
         ),
     }),
+    prepareOrderAdvance: tool({
+      description:
+        "جهّز بطاقة نقل طلب برقمه إلى خطوته التالية (تأكيد، تجهيز، خروج للتوصيل، تسليم) مع أثرها على المخزون والمال. للإلغاء استخدمي prepareOrderCancellation.",
+      inputSchema: z.object({ reference: text(30) }).strict(),
+      execute: (input) =>
+        prepare("prepareOrderAdvance", input, () =>
+          ops.prepareOrderAdvance(actor, input),
+        ),
+    }),
+    prepareCategoryReorder: tool({
+      description:
+        "جهّز بطاقة تقديم قسم أو تأخيره خطوة واحدة في ترتيب ظهور الأقسام بالمتجر.",
+      inputSchema: z
+        .object({ category: text(80), direction: z.enum(["up", "down"]) })
+        .strict(),
+      execute: (input) =>
+        prepare("prepareCategoryReorder", input, () =>
+          ops.prepareCategoryReorder(actor, input),
+        ),
+    }),
+    prepareSaleInvoiceCancellation: tool({
+      description:
+        "جهّز بطاقة إلغاء فاتورة بيع مباشر برقمها وسببها؛ تعود الكميات للمخزون ويُعكس المبلغ. ليست لإلغاء طلبات المتجر.",
+      inputSchema: z
+        .object({ invoiceNumber: text(12), reason: text(240) })
+        .strict(),
+      execute: (input) =>
+        prepare("prepareSaleInvoiceCancellation", input, () =>
+          ops.prepareSaleInvoiceCancellation(actor, input),
+        ),
+    }),
     preparePurchaseInvoiceImport: tool({
       description:
         "جهّز بطاقة قراءة فاتورة شراء من الصور المرفقة (attachmentIds) ثم مراجعتها.",

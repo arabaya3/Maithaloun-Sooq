@@ -317,6 +317,12 @@ const fixtures = (): Record<string, Record<string, unknown>> => ({
     reference: orderReference,
     reason: "تجربة العقود",
   },
+  prepareOrderAdvance: { reference: orderReference },
+  prepareCategoryReorder: { category: "kitchen", direction: "down" },
+  prepareSaleInvoiceCancellation: {
+    invoiceNumber: "1001",
+    reason: "تجربة العقود",
+  },
   preparePurchaseInvoiceImport: { attachmentIds: [attachmentId] },
   getProductGallery: { product: PRODUCT },
   getProductImageMapping: { product: PRODUCT },

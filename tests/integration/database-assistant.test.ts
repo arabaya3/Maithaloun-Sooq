@@ -687,6 +687,142 @@ describe("inventory, sales and payments", () => {
     ).toMatchObject({ status: "rejected", code: "invalid_transition" });
   });
 
+  it("advances an order one step with the order page's impact, and a moved order makes the card stale", async () => {
+    await stockIn("dolphin-bleach--default", 10_000);
+    const order = await orderService.create(
+      checkoutRequest([{ productId: "dolphin-bleach", quantity: 2 }]),
+    );
+    const card = await prepared(
+      await operations.prepareOrderAdvance(owner, {
+        reference: order.publicReference,
+      }),
+    );
+    expect(card.view.card.rows[0]).toMatchObject({ after: "مؤكّد" });
+    expect(card.view.card.impact[0]).toMatch(/^يُحجز 2 من/);
+    expect(card.view.card.scope).toBe("1 سطر في الطلب");
+    // Something else moves the order first, so this card must not run.
+    const detail = (await orders.getByPublicReference(
+      owner,
+      order.publicReference,
+    ))!;
+    await orders.changeStatus(owner, {
+      publicReference: order.publicReference,
+      nextStatus: "confirmed",
+      expectedVersion: detail.version,
+    });
+    expect(await confirmations.confirm(owner, card)).toMatchObject({
+      ok: false,
+    });
+    // The refused card changed nothing: the order is exactly where the other change left it.
+    expect(
+      (await orders.getByPublicReference(owner, order.publicReference))!.status,
+    ).toBe("confirmed");
+
+    const next = await prepared(
+      await operations.prepareOrderAdvance(owner, {
+        reference: order.publicReference,
+      }),
+    );
+    expect(await confirmations.confirm(owner, next)).toMatchObject({
+      ok: true,
+    });
+    expect(
+      (await orders.getByPublicReference(owner, order.publicReference))!.status,
+    ).toBe("preparing");
+  });
+
+  it("refuses to prepare an advance the stock cannot cover", async () => {
+    await stockIn("dolphin-bleach--default", 3_000);
+    const order = await orderService.create(
+      checkoutRequest([{ productId: "dolphin-bleach", quantity: 2 }]),
+    );
+    await inventory.adjust(owner, {
+      idempotencyKey: crypto.randomUUID(),
+      variantId: "dolphin-bleach--default",
+      reason: "damaged",
+      quantityMilli: 2_000,
+    });
+    expect(
+      await operations.prepareOrderAdvance(owner, {
+        reference: order.publicReference,
+      }),
+    ).toMatchObject({ status: "rejected", code: "insufficient_stock" });
+  });
+
+  it("moves a category one place in the storefront order and refuses past the ends", async () => {
+    const before = (await authoring.listCategories()).map((row) => row.code);
+    const second = (await authoring.listCategories())[1]!;
+    const card = await prepared(
+      await operations.prepareCategoryReorder(owner, {
+        category: second.nameAr,
+        direction: "up",
+      }),
+    );
+    expect(await confirmations.confirm(owner, card)).toMatchObject({
+      ok: true,
+    });
+    expect((await authoring.listCategories()).map((row) => row.code)).toEqual([
+      before[1],
+      before[0],
+      ...before.slice(2),
+    ]);
+    expect(
+      await operations.prepareCategoryReorder(owner, {
+        category: second.nameAr,
+        direction: "up",
+      }),
+    ).toMatchObject({ status: "rejected", code: "no_change" });
+    expect(
+      await operations.prepareCategoryReorder(operator, {
+        category: second.nameAr,
+        direction: "down",
+      }),
+    ).toMatchObject({ status: "rejected", code: "forbidden" });
+  });
+
+  it("cancels a sale invoice by number: stock returns and the customer balance falls", async () => {
+    await stockIn("dolphin-bleach--default", 10_000);
+    await sales.post(owner, {
+      idempotencyKey: crypto.randomUUID(),
+      source: "manual",
+      customerName: "زبونة الإلغاء",
+      lines: [
+        {
+          variantId: "dolphin-bleach--default",
+          quantityMilli: 3_000,
+          unitPriceAgorot: 800,
+        },
+      ],
+      discountAgorot: 0,
+      paidAgorot: 0,
+    });
+    const [listed] = await sales.listInvoices(owner, 1);
+    const card = await prepared(
+      await operations.prepareSaleInvoiceCancellation(owner, {
+        invoiceNumber: `فاتورة ${listed!.invoiceNumber}`,
+        reason: "أعادت البضاعة",
+      }),
+    );
+    expect(card.view.card.impact[1]).toBe("يُخصم 24 ₪ من رصيد الزبون.");
+    expect((await onHand("dolphin-bleach--default")).onHandMilli).toBe(7_000);
+    expect(await confirmations.confirm(owner, card)).toMatchObject({
+      ok: true,
+    });
+    expect((await onHand("dolphin-bleach--default")).onHandMilli).toBe(10_000);
+    expect(
+      await operations.prepareSaleInvoiceCancellation(owner, {
+        invoiceNumber: String(listed!.invoiceNumber),
+        reason: "مرة ثانية",
+      }),
+    ).toMatchObject({ status: "rejected", code: "already_cancelled" });
+    expect(
+      await operations.prepareSaleInvoiceCancellation(operator, {
+        invoiceNumber: String(listed!.invoiceNumber),
+        reason: "تجربة",
+      }),
+    ).toMatchObject({ status: "rejected", code: "forbidden" });
+  });
+
   it("reads an invoice photo into a review job only after confirmation", async () => {
     const photo = await sharp({
       create: { width: 600, height: 800, channels: 3, background: "#ffffff" },
