@@ -223,6 +223,7 @@ function UnitRow({
       </p>
       {unit.archived ? null : (
         <form
+          className="admin-form"
           onSubmit={(event) => {
             event.preventDefault();
             setInvalid(undefined);

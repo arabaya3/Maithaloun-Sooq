@@ -138,6 +138,7 @@ export function ProductCaptureWizard() {
           type="file"
           accept="image/jpeg,image/png,image/webp"
           capture="environment"
+          aria-label="التقاط صورة المنتج"
           onChange={(event) => selectPhoto(event.target.files?.[0] ?? null)}
         />
         <input
@@ -145,6 +146,7 @@ export function ProductCaptureWizard() {
           className="sr-only"
           type="file"
           accept="image/jpeg,image/png,image/webp"
+          aria-label="اختيار صورة المنتج من المعرض"
           onChange={(event) => selectPhoto(event.target.files?.[0] ?? null)}
         />
 

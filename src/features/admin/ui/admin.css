@@ -882,7 +882,8 @@ summary.admin-nav-group-label:hover {
   gap: 1rem;
 }
 .admin-capture-heading > span {
-  color: var(--admin-warm);
+  /* The text shade of the warm tone; the brighter one is below AA on the canvas. */
+  color: var(--admin-warning);
   font-weight: 800;
   font-variant-numeric: tabular-nums;
 }
@@ -1240,16 +1241,6 @@ summary.admin-nav-group-label:hover {
   text-decoration: none;
   white-space: nowrap;
   cursor: pointer;
-}
-
-@media (min-width: 64rem) {
-  .admin-status-tabs a,
-  .admin-status-tabs button,
-  .admin-status-chips a,
-  .admin-status-chips button,
-  .admin-tab {
-    min-height: 2.25rem;
-  }
 }
 
 .admin-status-tabs a:hover,

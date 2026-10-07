@@ -203,7 +203,8 @@ export class AdminCatalogService {
       .from(schema.products)
       .where(isNotNull(schema.products.archivedAt))
       .orderBy(asc(schema.products.domainId));
-    return this.mapProducts(rows);
+    // Archiving a product often archives its variants too; the list still has to show it to restore.
+    return this.mapProducts(rows, { keepArchivedVariants: true });
   }
 
   async getByDomainId(
@@ -872,10 +873,11 @@ export class AdminCatalogService {
 
   private async mapProducts(
     rows: (typeof schema.products.$inferSelect)[],
+    options: { keepArchivedVariants?: boolean } = {},
   ): Promise<Product[]> {
     if (!rows.length) return [];
     const productIds = rows.map((row) => row.id);
-    const [variantRows, specRows] = await Promise.all([
+    const [loadedVariants, specRows] = await Promise.all([
       this.database
         .select()
         .from(schema.productVariants)
@@ -887,6 +889,24 @@ export class AdminCatalogService {
         .where(inArray(schema.productSpecifications.productId, productIds))
         .orderBy(asc(schema.productSpecifications.sortOrder)),
     ]);
+
+    // For archived products, a product whose every variant is archived is read with them as they were.
+    const variantRows = options.keepArchivedVariants
+      ? loadedVariants.map((variant) => {
+          const siblings = loadedVariants.filter(
+            (other) => other.productId === variant.productId,
+          );
+          if (siblings.some((other) => !other.archivedAt)) return variant;
+          // Read as they were for display; the first stands in as default when none is marked.
+          return {
+            ...variant,
+            archivedAt: null,
+            isDefault: siblings.some((other) => other.isDefault)
+              ? variant.isDefault
+              : siblings[0] === variant,
+          };
+        })
+      : loadedVariants;
 
     const variantsByProductId = new Map<
       string,
