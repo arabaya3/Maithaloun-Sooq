@@ -153,6 +153,7 @@ test("phone: every area sheet lists its pages, closes with Escape and returns fo
       "الإشعارات",
       "تسجيل عملية بالصوت",
       "إعدادات المتجر",
+      "سجل التدقيق",
       "فحص المساعد",
       "العودة إلى المتجر",
     ],

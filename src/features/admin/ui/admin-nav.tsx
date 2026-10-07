@@ -25,6 +25,7 @@ import {
   ShoppingBag,
   Store,
   Tags,
+  ScrollText,
   BadgePercent,
   Truck,
   Users,
@@ -208,6 +209,13 @@ const groups: NavGroup[] = [
         label: "إعدادات المتجر",
         match: "prefix",
         Icon: Settings,
+        ownerOnly: true,
+      },
+      {
+        href: "/admin/audit",
+        label: "سجل التدقيق",
+        match: "prefix",
+        Icon: ScrollText,
         ownerOnly: true,
       },
       {
