@@ -158,7 +158,13 @@ export default async function AdminOrderDetailPage({
 
           <section className="admin-panel" aria-labelledby="order-items-title">
             <h2 id="order-items-title">المنتجات</h2>
-            <div className="admin-table-wrap">
+            {/* Scrolls sideways on phones, so it can be reached and scrolled by keyboard. */}
+            <div
+              className="admin-table-wrap"
+              role="region"
+              aria-label="جدول منتجات الطلب"
+              tabIndex={0}
+            >
               <table className="admin-data-table">
                 <thead>
                   <tr>
