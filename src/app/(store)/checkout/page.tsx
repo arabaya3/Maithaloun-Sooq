@@ -6,6 +6,7 @@ import { getCustomerSession } from "@/features/accounts/application/customer-ses
 import { customerAccountsEnabled } from "@/features/accounts/domain/account-config";
 import { productRepository } from "@/features/catalog/infrastructure/product-repository";
 import { serviceAreaRepository } from "@/features/delivery/service-area-repository";
+import { storeContactService } from "@/features/orders/application/order-service-instance";
 import { CheckoutForm } from "@/features/orders/components/checkout-form";
 import { MobileNavigation } from "@/features/storefront/components/mobile-navigation";
 import { SiteHeader } from "@/features/storefront/components/site-header";
@@ -17,10 +18,11 @@ export const metadata: Metadata = {
 
 export default async function CheckoutPage() {
   await connection();
-  const [products, serviceAreas, customer] = await Promise.all([
+  const [products, serviceAreas, customer, storeWhatsApp] = await Promise.all([
     productRepository.list(),
     serviceAreaRepository.listEnabled(),
     getCustomerSession(),
+    storeContactService.whatsAppNumber(),
   ]);
   const profile = customer
     ? await customerAccountService.profile(customer.id)
@@ -35,9 +37,8 @@ export default async function CheckoutPage() {
             ? ("972" as const)
             : ("970" as const),
           nationalNumber: `0${contact.slice(4)}`,
-          deliveryAddress: address
-            ? [address.address, address.landmark].filter(Boolean).join(" — ")
-            : "",
+          deliveryAddress: address?.address ?? "",
+          landmark: address?.landmark ?? "",
         }
       : null;
 
@@ -50,6 +51,7 @@ export default async function CheckoutPage() {
           serviceAreas={serviceAreas}
           prefill={prefill}
           signInHint={customerAccountsEnabled() && !customer}
+          whatsAppOrdering={Boolean(storeWhatsApp)}
         />
       </main>
       <MobileNavigation />

@@ -1,6 +1,7 @@
 "use client";
 
 import { ArrowDown, ArrowUp } from "lucide-react";
+import Link from "next/link";
 import { useActionState } from "react";
 
 import {
@@ -239,6 +240,17 @@ export function CategoryRow({
                 ? " · ظاهر في المتجر"
                 : " · مخفي عن المتجر"}
           </small>
+          {!category.archived && category.productCount > 0 ? (
+            <>
+              <br />
+              <Link
+                href={`/admin/categories/${category.code}`}
+                prefetch={false}
+              >
+                نقل منتجات هذا القسم
+              </Link>
+            </>
+          ) : null}
         </p>
         {category.archived ? null : (
           <MoveButtons category={category} first={first} last={last} />

@@ -55,6 +55,7 @@ export interface TodayView {
 
 const orderTone: Record<OrderStatus, TodayTone> = {
   pending: "warning",
+  awaiting_whatsapp: "warning",
   confirmed: "neutral",
   preparing: "neutral",
   out_for_delivery: "neutral",

@@ -240,6 +240,32 @@ export function createMediaTools(
           ops.prepareOptionCreate(actor, input),
         ),
     }),
+    prepareOptionPlan: tool({
+      description:
+        "لمنتج بلا خيارات بعد: جهّز بطاقة واحدة تنشئ خياراته (مثل الرائحة والحجم) وقيمها والأصناف المطلوبة فقط، كما في خطوة «الخيارات والأصناف». combinations قائمة بالتركيبات الموجودة فعلاً، كل تركيبة قيمة لكل خيار بنفس ترتيب الخيارات؛ إن لم تذكر المستخدمة تركيبات تُقترح كلها وتراها في البطاقة. لا تخترع قيماً ولا تركيبات.",
+      inputSchema: z
+        .object({
+          product,
+          options: z
+            .array(
+              z
+                .object({
+                  name: optionName,
+                  kind,
+                  values: z.array(valueText).min(1).max(20),
+                })
+                .strict(),
+            )
+            .min(1)
+            .max(4),
+          combinations: z.array(z.array(valueText).max(4)).max(60).optional(),
+        })
+        .strict(),
+      execute: (input) =>
+        prepare("prepareOptionPlan", input, () =>
+          ops.prepareOptionPlan(actor, input),
+        ),
+    }),
     prepareProductOptionChange: tool({
       description:
         "جهّز بطاقة تغيير خيار موجود: rename (newName)، kind، archive، restore، reorder (order بأسماء كل الخيارات).",

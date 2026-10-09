@@ -19,6 +19,7 @@ import {
   normalizeWhatsAppPhone,
   type WhatsAppCountryCode,
 } from "./phone";
+import { checkoutChannels } from "./whatsapp-order";
 
 const optionalTrimmedString = (maximumLength: number, tooLong: string) =>
   z.preprocess(
@@ -78,7 +79,9 @@ export const checkoutRequestSchema = z
           .min(8, "أدخل العنوان بالتفصيل أو أقرب نقطة دالة.")
           .max(500, "العنوان أطول من المسموح."),
       ),
+    landmark: optionalTrimmedString(150, "أقرب معلم أطول من المسموح."),
     customerNote: optionalTrimmedString(500, "ملاحظة الطلب أطول من المسموح."),
+    checkoutChannel: z.enum(checkoutChannels).default("web"),
     paymentMethod: z.literal("cash_on_delivery"),
     honeypot: z.string().max(200).default(""),
     items: z
@@ -111,6 +114,13 @@ export const checkoutRequestSchema = z
         code: "custom",
         path: ["customerName"],
         message: "أدخل اسماً صالحاً.",
+      });
+    }
+    if (value.landmark && !isPlainDeliveryAddress(value.landmark)) {
+      context.addIssue({
+        code: "custom",
+        path: ["landmark"],
+        message: "أدخل أقرب معلم كنص عادي فقط.",
       });
     }
     if (!isPlainDeliveryAddress(value.deliveryAddress)) {
@@ -149,7 +159,8 @@ export const checkoutRequestSchema = z
       items: value.items,
       normalizedPhone: whatsappPhoneE164,
       address: value.deliveryAddress,
-      landmark: undefined as string | undefined,
+      landmark: value.landmark,
+      checkoutChannel: value.checkoutChannel,
     };
   });
 

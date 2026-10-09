@@ -431,3 +431,35 @@ export async function deleteCategoryAction(
   }
   categoriesSaved("deleted");
 }
+
+export type MoveProductsResult =
+  { ok: true; moved: number } | { ok: false; message: string } | null;
+
+/** Moves the chosen products in one transaction; each move is audited by the service. */
+export async function moveProductsAction(input: {
+  productDomainIds: string[];
+  targetCode: string;
+}): Promise<MoveProductsResult> {
+  const actor = await requireTrustedAdminMutation();
+  const ids = z
+    .array(productId)
+    .min(1)
+    .max(50)
+    .safeParse(input.productDomainIds);
+  const target = categoryCode.safeParse(input.targetCode);
+  if (!ids.success || !target.success) {
+    return { ok: false, message: "اختاري المنتجات والقسم الجديد." };
+  }
+  try {
+    const { moved } = await catalogAuthoringService.moveProducts(actor, {
+      productDomainIds: ids.data,
+      targetCode: target.data,
+    });
+    revalidatePath("/admin/categories", "layout");
+    revalidatePath("/admin/products");
+    revalidatePath("/", "layout");
+    return { ok: true, moved };
+  } catch (error) {
+    return authoringFailure(error);
+  }
+}

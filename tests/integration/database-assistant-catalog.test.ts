@@ -924,3 +924,74 @@ describe("server-side product draft", () => {
     expect(row?.status).toBe("expired");
   });
 });
+
+describe("wizard option plan through the assistant", () => {
+  const plan = {
+    product: "dolphin-bleach",
+    options: [
+      {
+        name: "الرائحة",
+        kind: "fragrance" as const,
+        values: ["لافندر", "ليمون"],
+      },
+      { name: "الحجم", kind: "size" as const, values: ["1 لتر", "2 لتر"] },
+    ],
+    combinations: [
+      ["لافندر", "1 لتر"],
+      ["ليمون", "1 لتر"],
+      ["ليمون", "2 لتر"],
+    ],
+  };
+
+  it("lists every combination on the card, changes nothing before confirmation, then creates exactly those", async () => {
+    const live = async () =>
+      (await operations.mediaOps.locate(owner, "dolphin-bleach")) as {
+        ok: true;
+        matrix: { variants: Array<{ archived: boolean; label: string }> };
+      };
+    const prepared = await card(
+      await operations.mediaOps.prepareOptionPlan(owner, plan),
+    );
+    expect(prepared.view.card.rows.map((row) => row.after)).toEqual(
+      expect.arrayContaining([
+        "لافندر، ليمون",
+        "1 لتر، 2 لتر",
+        "لافندر – 1 لتر",
+        "ليمون – 2 لتر",
+      ]),
+    );
+    expect(prepared.view.card.impact.join(" ")).toContain("3 من 4");
+    expect(
+      (await live()).matrix.variants.filter((variant) => !variant.archived),
+    ).toHaveLength(1);
+
+    expect(await confirmations.confirm(owner, prepared)).toMatchObject({
+      ok: true,
+      status: "completed",
+    });
+    const labels = (await live()).matrix.variants
+      .filter((variant) => !variant.archived)
+      .map((variant) => variant.label)
+      .sort();
+    expect(labels).toEqual(
+      ["لافندر · 1 لتر", "ليمون · 1 لتر", "ليمون · 2 لتر"].sort(),
+    );
+
+    // A second plan for the same product is refused before any card exists.
+    expect(
+      await operations.mediaOps.prepareOptionPlan(owner, plan),
+    ).toMatchObject({ status: "rejected" });
+  });
+
+  it("refuses a plan with a value missing from a combination, and an operator", async () => {
+    expect(
+      await operations.mediaOps.prepareOptionPlan(owner, {
+        ...plan,
+        combinations: [["لافندر", "3 لتر"]],
+      }),
+    ).toMatchObject({ status: "rejected" });
+    expect(
+      await operations.mediaOps.prepareOptionPlan(operator, plan),
+    ).toMatchObject({ status: "rejected" });
+  });
+});

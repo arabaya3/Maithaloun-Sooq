@@ -1,5 +1,7 @@
 export const orderStatuses = [
   "pending",
+  // Sent through WhatsApp: waits for the owner to confirm it in the chat; nothing is reserved yet.
+  "awaiting_whatsapp",
   "confirmed",
   "preparing",
   "out_for_delivery",
@@ -14,6 +16,7 @@ export type TerminalOrderStatus = (typeof terminalOrderStatuses)[number];
 
 const allowedTransitions: Record<OrderStatus, readonly OrderStatus[]> = {
   pending: ["confirmed", "cancelled"],
+  awaiting_whatsapp: ["confirmed", "cancelled"],
   confirmed: ["preparing", "cancelled"],
   preparing: ["out_for_delivery", "cancelled"],
   out_for_delivery: ["delivered", "cancelled"],
@@ -23,6 +26,7 @@ const allowedTransitions: Record<OrderStatus, readonly OrderStatus[]> = {
 
 export const orderStatusLabels: Record<OrderStatus, string> = {
   pending: "جديد",
+  awaiting_whatsapp: "بانتظار تأكيد واتساب",
   confirmed: "مؤكّد",
   preparing: "قيد التجهيز",
   out_for_delivery: "خرج للتوصيل",
@@ -40,6 +44,7 @@ export function getPrimaryNextStatus(status: OrderStatus): OrderStatus | null {
 
 export const primaryNextActionLabels: Partial<Record<OrderStatus, string>> = {
   pending: "تأكيد الطلب",
+  awaiting_whatsapp: "تأكيد الطلب",
   confirmed: "بدء التجهيز",
   preparing: "خرج للتوصيل",
   out_for_delivery: "تم التسليم",
