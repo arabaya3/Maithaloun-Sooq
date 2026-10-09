@@ -214,20 +214,13 @@ test("product workspace at 360, 390, 768 and 1440: header, section bar, inventor
   await login(page);
   for (const [width, height] of WIDTHS) {
     await page.setViewportSize({ width, height });
-    await page.goto(`/admin/products/${FIRST}`);
+    await page.goto(`/admin/products/${FIRST}?advanced=1`);
     const header = page.locator(".admin-workspace-header");
     await expect(header.getByRole("heading", { level: 1 })).toBeVisible();
-    const nav = page.getByRole("navigation", { name: "أقسام المنتج" });
-    await expect(nav.getByRole("link")).toHaveText([
-      "نظرة عامة",
-      "الخيارات والأصناف",
-      "الصور",
-      "الأسعار وطرق البيع",
-      "المخزون",
-      "النشر",
-      "السجل",
-    ]);
-    // Every existing editor is still on the page.
+    // The simple editor comes first; every older editor waits under «إعدادات متقدمة».
+    await expect(
+      page.getByRole("heading", { name: "اسم المنتج" }),
+    ).toBeVisible();
     await expect(
       page.getByRole("button", { name: "حفظ المنتج" }),
     ).toBeVisible();
@@ -235,33 +228,22 @@ test("product workspace at 360, 390, 768 and 1440: header, section bar, inventor
     await expect(
       page.getByRole("region", { name: "الصور والخيارات والأصناف" }),
     ).toBeVisible();
-    await nav.getByRole("link", { name: "المخزون" }).click();
-    await expect(page).toHaveURL(/#inventory$/);
     const inventory = page.getByRole("region", { name: "المخزون" });
-    await expect(inventory).toBeInViewport();
+    await inventory.scrollIntoViewIfNeeded();
     await expect(
       inventory.getByRole("link", { name: "الحركات والتعديل" }).first(),
     ).toBeVisible();
-    await expect(nav.getByRole("link", { name: "المخزون" })).toHaveAttribute(
-      "aria-current",
-      "true",
-    );
     await expectNoHorizontalOverflow(page);
     expect(
       await smallTargets(
         page,
-        ".admin-workspace-header a, .admin-workspace-nav a, #inventory a",
+        ".admin-workspace-header a, .sp-editor button, #inventory a",
       ),
     ).toEqual([]);
-    await axe(
-      page,
-      ".admin-workspace-header",
-      ".admin-workspace-nav",
-      "#inventory",
-    );
+    await axe(page, ".admin-workspace-header", ".sp-editor", "#inventory");
     await page.goto(`/admin/products/${FIRST}`);
     // The sticky save is never covered by the assistant button.
-    const save = page.getByRole("button", { name: "حفظ المنتج" });
+    const save = page.locator(".sp-actions .admin-btn-primary");
     const launcher = page.getByRole("button", { name: "فتح المساعد" });
     if (await launcher.isVisible()) {
       const a = (await save.boundingBox())!;

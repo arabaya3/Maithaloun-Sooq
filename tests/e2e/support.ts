@@ -68,6 +68,13 @@ export async function loginAs(
   ).toBeVisible({ timeout: 20_000 });
 }
 
+/** The product page keeps its older editors folded under «إعدادات متقدمة». */
+export async function openAdvanced(page: Page) {
+  const advanced = page.locator("details.sp-advanced");
+  if ((await advanced.getAttribute("open")) === null)
+    await advanced.locator(":scope > summary").click();
+}
+
 export async function login(page: Page) {
   await loginAs(page, {
     username: admin.TEST_ADMIN_USERNAME,
