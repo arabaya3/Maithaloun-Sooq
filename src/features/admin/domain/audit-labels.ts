@@ -28,6 +28,7 @@ const actionLabels: Readonly<Record<string, string>> = {
   product_publication: "تغيير نشر منتج",
   product_category_move: "نقل منتج لقسم آخر",
   category_reorder: "تغيير ترتيب الأقسام",
+  product_option_plan: "إنشاء الخيارات والأصناف",
   assistant_smoke_test: "فحص المساعد",
   qa_stock_simulation: "محاكاة مخزون للاختبار",
   qa_probe_create: "إنشاء فحص اختبار",

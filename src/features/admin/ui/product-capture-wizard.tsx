@@ -203,10 +203,7 @@ export function ProductCaptureWizard() {
           )}
           {busy ? "جارٍ قراءة المنتج…" : "قراءة بيانات المنتج"}
         </button>
-        <Link
-          className="admin-capture-manual"
-          href="/admin/products/new/manual"
-        >
+        <Link className="admin-capture-manual" href="/admin/products/new">
           إدخال المنتج يدوياً
         </Link>
       </section>

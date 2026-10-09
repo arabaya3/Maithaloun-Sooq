@@ -86,6 +86,8 @@ export const optionErrorMessages: Record<ProductOptionsError["code"], string> =
     has_images:
       "صور مرتبطة بهذه القيمة. انقلي الصور أو اجعليها صورة عامة أولاً.",
     primary_must_be_shared: "الصورة الرئيسية يجب أن تكون صورة عامة للمنتج.",
+    already_configured:
+      "لهذا المنتج خيارات أو أصناف من قبل؛ عدّليها من قسم الخيارات والأصناف.",
   };
 
 type Located = {

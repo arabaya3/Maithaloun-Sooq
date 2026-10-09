@@ -84,7 +84,6 @@ const actor: AdminActor = {
 };
 
 const {
-  createProductAction,
   updateOrderStatusAction,
   updateProductAction,
   updateServiceAreaAction,
@@ -161,27 +160,6 @@ describe("admin mutation actions", () => {
     expect(updateProductMock).toHaveBeenCalledOnce();
   });
 
-  it("redirects after a successful product creation", async () => {
-    createProductMock.mockResolvedValue({ id: "new-cleaner" });
-    const formData = new FormData();
-    formData.set("domainId", "new-cleaner");
-    formData.set("slug", "new-cleaner");
-    formData.set("nameAr", "منتج جديد");
-    formData.set("priceIls", "5.00");
-    formData.set("categoryId", "home");
-    formData.set("sortOrder", "20");
-    formData.set("detailsStatus", "placeholder");
-    formData.set("placeholderVariant", "brush");
-
-    await expect(createProductAction(formData)).rejects.toSatisfy(
-      (error: unknown) => {
-        expectSavedRedirect("/admin/products/new-cleaner", "created", error);
-        return true;
-      },
-    );
-    expect(createProductMock).toHaveBeenCalledOnce();
-  });
-
   it("redirects after a successful delivery-area update", async () => {
     updateServiceAreaMock.mockResolvedValue({
       code: "maythalun",
@@ -223,21 +201,6 @@ describe("admin mutation actions", () => {
     await expect(updateProductAction(badPrice)).resolves.toEqual({
       ok: false,
       message: "أدخل سعراً صالحاً بالشيكل.",
-    });
-
-    const duplicate = new FormData();
-    duplicate.set("domainId", "new-cleaner");
-    duplicate.set("slug", "new-cleaner");
-    duplicate.set("nameAr", "منتج");
-    duplicate.set("priceIls", "5.00");
-    duplicate.set("categoryId", "home");
-    duplicate.set("sortOrder", "1");
-    duplicate.set("detailsStatus", "placeholder");
-    duplicate.set("placeholderVariant", "brush");
-    createProductMock.mockRejectedValue(new AdminCatalogError("duplicate"));
-    await expect(createProductAction(duplicate)).resolves.toEqual({
-      ok: false,
-      message: "معرّف المنتج أو الرابط مستخدم مسبقاً.",
     });
 
     const badFee = new FormData();

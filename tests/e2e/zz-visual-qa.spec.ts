@@ -43,7 +43,7 @@ const staticPages = [
   { slug: "suppliers", path: "/admin/inventory/suppliers" },
   { slug: "products", path: "/admin/products" },
   { slug: "product-new", path: "/admin/products/new" },
-  { slug: "product-manual", path: "/admin/products/new/manual" },
+
   { slug: "product-photo", path: "/admin/products/new/photo" },
   { slug: "categories", path: "/admin/categories" },
   { slug: "offers", path: "/admin/offers" },
