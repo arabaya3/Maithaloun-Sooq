@@ -375,6 +375,10 @@ const fixtures = (): Record<string, Record<string, unknown>> => ({
     option: "الرائحة",
     value: "لافندر",
   },
+  prepareOptionPlan: {
+    product: PRODUCT,
+    options: [{ name: "الحجم", kind: "size", values: ["صغير", "كبير"] }],
+  },
   prepareVariantGeneration: {
     product: PRODUCT,
     mode: "missing",

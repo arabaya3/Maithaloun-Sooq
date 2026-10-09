@@ -924,9 +924,10 @@ select:focus-visible {
   padding-block: 1rem calc(var(--mobile-nav-height) + 2rem);
 }
 
+/* As tall as the screen, so the form replacing it does not push visible content. */
 .checkout-loading {
   display: grid;
-  min-height: 24rem;
+  min-height: max(24rem, 100dvh);
   place-items: center;
 }
 
