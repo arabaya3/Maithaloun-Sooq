@@ -1,11 +1,12 @@
 "use client";
 
-import { Camera, Plus, Trash2, X } from "lucide-react";
+import { Camera, Plus, Star, Trash2, Undo2, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
 
 import {
   removeSimpleImageAction,
+  reorderSimpleImagesAction,
   saveSimpleProductAction,
   setSimplePublicationAction,
 } from "@/features/admin/application/simple-product-actions";
@@ -139,6 +140,7 @@ function PhotoStrip({
   onAdd,
   onRemovePending,
   onDelete,
+  onMakeFirst,
   disabled,
 }: {
   label: string;
@@ -147,16 +149,33 @@ function PhotoStrip({
   onAdd: (files: File[]) => void;
   onRemovePending: (index: number) => void;
   onDelete: (image: SimpleImage) => void;
+  onMakeFirst: (image: SimpleImage) => void;
   disabled: boolean;
 }) {
   const input = useRef<HTMLInputElement>(null);
 
   return (
     <div className="sp-photos">
-      {images.map((image) => (
-        <figure key={image.id} className="sp-photo">
+      {images.map((image, index) => (
+        <figure
+          key={image.id}
+          className="sp-photo"
+          data-first={index === 0 ? "true" : undefined}
+        >
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={image.src} alt={image.alt} />
+          {index > 0 ? (
+            <button
+              type="button"
+              className="sp-photo-first"
+              aria-label={`اجعلها الصورة الأولى لـ ${label}`}
+              title="اجعلها الصورة الأولى"
+              onClick={() => onMakeFirst(image)}
+              disabled={disabled}
+            >
+              <Star size={14} aria-hidden="true" />
+            </button>
+          ) : null}
           <button
             type="button"
             className="sp-photo-remove"
@@ -299,6 +318,49 @@ export function SimpleProductEditor({
     });
   }
 
+  /** Moves one saved photo to the front of its own list, then saves the whole gallery order. */
+  function makeFirst(image: SimpleImage, rowKey: string | null) {
+    if (!initial.productId) return;
+    const front = (list: SimpleImage[]) => [
+      image,
+      ...list.filter((item) => item.id !== image.id),
+    ];
+    const nextGeneral = rowKey === null ? front(general) : general;
+    const nextRows = rows.map((row) =>
+      row.key === rowKey ? { ...row, images: front(row.images) } : row,
+    );
+    const order = [
+      ...nextGeneral,
+      ...nextRows.flatMap((row) => row.images),
+    ].map((item) => item.id);
+    startBusy(async () => {
+      const result = await reorderSimpleImagesAction({
+        productId: initial.productId!,
+        imageIds: order,
+      });
+      if (!result.ok) {
+        setMessage({ tone: "error", text: result.message });
+        return;
+      }
+      setGeneral(nextGeneral);
+      setRows(nextRows);
+    });
+  }
+
+  function discard() {
+    if (!window.confirm("تجاهل كل التغييرات غير المحفوظة؟")) return;
+    setNameAr(initial.nameAr);
+    setCategoryId(initial.categoryId);
+    setDescription(initial.description);
+    setKind(initial.kind);
+    setOptionName(initial.optionName);
+    setRows(initial.rows.length ? initial.rows.map(toEdit) : [emptyRow()]);
+    setGeneralPending([]);
+    setMessage(null);
+    setBadRow(null);
+    setDirty(false);
+  }
+
   function save(publish: boolean | null) {
     setMessage(null);
     setBadRow(null);
@@ -320,6 +382,7 @@ export function SimpleProductEditor({
           stockPieces: canStock ? row.stock : "",
           costIls: row.cost,
           available: row.available,
+          hasPhotos: row.images.length + row.pending.length > 0,
         })),
       });
       if (!result.ok) {
@@ -581,6 +644,7 @@ export function SimpleProductEditor({
                         pending: row.pending.filter((_, i) => i !== at),
                       })
                     }
+                    onMakeFirst={(image) => makeFirst(image, row.key)}
                     onDelete={(image) =>
                       deleteSaved(image, () =>
                         setRows((current) =>
@@ -689,7 +753,11 @@ export function SimpleProductEditor({
             className="sp-more"
             open={Boolean(general.length || generalPending.length)}
           >
-            <summary>صور عامة للمنتج كله (اختياري)</summary>
+            <summary>صورة وحدة لكل الأنواع (اختياري)</summary>
+            <p className="sp-muted">
+              إذا العبوة نفسها لكل الأنواع، ارفعي صورتها هون مرة وحدة. أي نوع ما
+              إله صورة خاصة بيظهر بهالصورة.
+            </p>
             <PhotoStrip
               label="المنتج"
               images={general}
@@ -707,6 +775,7 @@ export function SimpleProductEditor({
                   ),
                 )
               }
+              onMakeFirst={(image) => makeFirst(image, null)}
               onDelete={(image) =>
                 deleteSaved(image, () =>
                   setGeneral((current) =>
@@ -737,7 +806,20 @@ export function SimpleProductEditor({
           {step}
         </p>
       ) : null}
-      <div className="sp-actions admin-sticky-action">
+      <div
+        className="sp-actions admin-sticky-action"
+        data-dirty={dirty ? "true" : undefined}
+      >
+        {dirty && !busy ? (
+          <div className="sp-unsaved">
+            <span className="sp-unsaved-dot" aria-hidden="true" />
+            <span>تغييرات غير محفوظة</span>
+            <button type="button" className="sp-unsaved-undo" onClick={discard}>
+              <Undo2 size={16} aria-hidden="true" />
+              تراجع
+            </button>
+          </div>
+        ) : null}
         <div className="sp-actions-buttons">
           <button
             type="button"

@@ -95,6 +95,14 @@ test("اليوم at 360, 390, 768 and 1440: summary, needs action, timeline, act
       actions.getByRole("link", { name: "إضافة منتج" }),
     ).toBeVisible();
     await expect(actions.getByRole("link", { name: "بيع سريع" })).toBeVisible();
+    // Seven days of sales, a bar per day, and the week's best sellers.
+    const week = page.getByRole("region", { name: "آخر 7 أيام" });
+    await expect(week).toBeVisible({ timeout: 20_000 });
+    await expect(
+      week
+        .getByRole("list", { name: "المبيعات اليومية" })
+        .getByRole("listitem"),
+    ).toHaveCount(7);
 
     await expectNoHorizontalOverflow(page);
     expect(

@@ -42,6 +42,8 @@ const rowSchema = z.object({
   stockPieces: z.string().max(10),
   costIls: z.string().max(20),
   available: z.boolean(),
+  /** A type without its own photo shows the product's shared photo instead. */
+  hasPhotos: z.boolean().default(true),
 });
 
 const inputSchema = z.object({
@@ -365,6 +367,24 @@ export async function saveSimpleProductAction(
     return { ...authoringFailure(error), productId };
   }
 
+  // A type with no photo of its own uses the shared one, so publishing never waits on it.
+  if (multi) {
+    try {
+      for (const row of rows) {
+        const valueId = saved.get(row.key)!.valueId;
+        if (valueId)
+          await productOptionsService.setValueSharedImage(
+            actor,
+            valueId,
+            !row.hasPhotos,
+          );
+      }
+    } catch (error) {
+      const message = optionErrorMessage(error);
+      return { ok: false, productId, message: message ?? "تعذّر حفظ الصور." };
+    }
+  }
+
   // 3. Price and availability of each type; the first available one opens first for customers.
   try {
     for (const row of rows) {
@@ -445,6 +465,37 @@ async function removeImage(
     await getProductImageStore().remove?.(removed.src);
 }
 
+/** Saves the gallery order; photos the editor does not show keep their place at the end. */
+export async function reorderSimpleImagesAction(input: {
+  productId: string;
+  imageIds: string[];
+}): Promise<{ ok: true } | { ok: false; message: string }> {
+  const actor = await requireTrustedAdminMutation();
+  const parsed = z
+    .object({
+      productId: z.string().regex(/^[a-z0-9-]{1,80}$/),
+      imageIds: z.array(z.uuid()).max(8),
+    })
+    .safeParse(input);
+  if (!parsed.success) return { ok: false, message: "تعذّر ترتيب الصور." };
+  try {
+    const matrix = await productOptionsService.matrix(parsed.data.productId);
+    const active = (matrix?.images ?? [])
+      .filter((image) => !image.archived)
+      .map((image) => image.id);
+    const wanted = parsed.data.imageIds.filter((id) => active.includes(id));
+    await productOptionsService.reorderImages(actor, parsed.data.productId, [
+      ...wanted,
+      ...active.filter((id) => !wanted.includes(id)),
+    ]);
+  } catch {
+    return { ok: false, message: "تعذّر ترتيب الصور. حدّثي الصفحة." };
+  }
+  revalidatePath(`/admin/products/${parsed.data.productId}`);
+  revalidatePath("/", "layout");
+  return { ok: true };
+}
+
 /** Deletes one photo from the simple editor. */
 export async function removeSimpleImageAction(input: {
   productId: string;
@@ -493,6 +544,85 @@ export async function setSimplePublicationAction(input: {
   }
   revalidatePath("/admin/products");
   revalidatePath(`/admin/products/${input.productId}`);
+  revalidatePath("/", "layout");
+  return { ok: true };
+}
+
+/** The products list's quick edit: each type's price, and its counted stock when stock is tracked. */
+export async function quickEditProductAction(input: {
+  productId: string;
+  variants: Array<{ variantId: string; priceIls: string; stockPieces: string }>;
+}): Promise<{ ok: true } | { ok: false; message: string }> {
+  const actor = await requireTrustedAdminMutation();
+  const parsed = z
+    .object({
+      productId: z.string().regex(/^[a-z0-9-]{1,80}$/),
+      variants: z
+        .array(
+          z.object({
+            variantId: z.string().regex(/^[a-z0-9-]{1,100}$/),
+            priceIls: z.string().max(20),
+            stockPieces: z.string().max(10),
+          }),
+        )
+        .min(1)
+        .max(60),
+    })
+    .safeParse(input);
+  if (!parsed.success) return { ok: false, message: "تحقّقي من الحقول." };
+  const product = await adminCatalogService.getByDomainId(
+    actor,
+    parsed.data.productId,
+  );
+  if (!product) return { ok: false, message: "المنتج غير موجود." };
+  const own = new Map(product.variants.map((variant) => [variant.id, variant]));
+  const changes = [];
+  for (const row of parsed.data.variants) {
+    const variant = own.get(row.variantId);
+    if (!variant)
+      return { ok: false, message: "حدّثي الصفحة ثم حاولي مرة أخرى." };
+    const price = parseIlsToAgorot(row.priceIls.trim());
+    if (price === null || price <= 0)
+      return {
+        ok: false,
+        message: `اكتبي سعر «${variant.labelAr || product.nameAr}» بالشيكل.`,
+      };
+    const stock = row.stockPieces.trim();
+    if (stock && !/^\d{1,6}$/.test(stock))
+      return { ok: false, message: "الكمية عدد صحيح من القطع." };
+    changes.push({ variant, price, stock });
+  }
+  try {
+    for (const { variant, price } of changes)
+      if (variant.priceAgorot !== price)
+        await catalogAuthoringService.updateVariant(actor, variant.id, {
+          priceAgorot: price,
+        });
+  } catch (error) {
+    return authoringFailure(error);
+  }
+  try {
+    for (const { variant, stock } of changes) {
+      if (!stock) continue;
+      const current = await inventoryService.getVariantStock(actor, variant.id);
+      if (!current?.stock.tracked) continue;
+      if (current.stock.onHandMilli === Number(stock) * 1_000) continue;
+      await inventoryService.adjust(actor, {
+        idempotencyKey: randomUUID(),
+        variantId: variant.id,
+        reason: "correction",
+        quantityMilli: Number(stock) * 1_000,
+        note: "تعديل سريع من قائمة المنتجات",
+      });
+    }
+  } catch (error) {
+    return {
+      ok: false,
+      message: `حُفظت الأسعار، لكن لم تُحفظ الكمية: ${mapInventoryError(error)}`,
+    };
+  }
+  revalidatePath("/admin/products");
+  revalidatePath(`/admin/products/${parsed.data.productId}`);
   revalidatePath("/", "layout");
   return { ok: true };
 }
