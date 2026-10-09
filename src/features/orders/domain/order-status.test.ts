@@ -11,6 +11,8 @@ import {
 const allowed = [
   ["pending", "confirmed"],
   ["pending", "cancelled"],
+  ["awaiting_whatsapp", "confirmed"],
+  ["awaiting_whatsapp", "cancelled"],
   ["confirmed", "preparing"],
   ["confirmed", "cancelled"],
   ["preparing", "out_for_delivery"],

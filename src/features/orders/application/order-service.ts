@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, eq, inArray } from "drizzle-orm";
+import { and, asc, eq, inArray } from "drizzle-orm";
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 
 import { calculateLineSubtotal } from "@/features/cart/cart-store";
@@ -23,6 +23,7 @@ import {
   singlePiecePrice,
 } from "@/features/catalog/infrastructure/variant-commerce";
 import { unitsToMilli } from "@/features/inventory/domain/quantity";
+import { StoreContactService } from "@/features/orders/application/store-contact-service";
 import { orderLineSnapshots } from "@/features/orders/infrastructure/order-line-snapshots";
 import * as schema from "@/server/db/schema";
 
@@ -38,7 +39,23 @@ export type OrderCreationErrorCode =
   | "insufficient_stock"
   | "invalid_service_area"
   | "idempotency_conflict"
+  | "whatsapp_unavailable"
   | "database_error";
+
+export interface ConfirmationLine {
+  name: string;
+  options: string | null;
+  unit: string | null;
+  quantity: number;
+  unitPriceAgorot: number;
+  lineSubtotalAgorot: number;
+  image: { src: string; alt: string } | null;
+}
+
+export interface ConfirmationDetails {
+  channel: "web" | "whatsapp";
+  lines: ConfirmationLine[];
+}
 
 export class OrderCreationError extends Error {
   constructor(readonly code: OrderCreationErrorCode) {
@@ -76,6 +93,12 @@ export class OrderService {
 
         if (request.serviceAreaCode !== ACTIVE_SERVICE_AREA_CODE) {
           throw new OrderCreationError("invalid_service_area");
+        }
+        if (
+          request.checkoutChannel === "whatsapp" &&
+          !(await new StoreContactService(transaction).whatsAppNumber())
+        ) {
+          throw new OrderCreationError("whatsapp_unavailable");
         }
 
         const requestedVariantIds = request.items.map((item) => item.variantId);
@@ -230,7 +253,12 @@ export class OrderService {
             serviceAreaNameSnapshot: serviceArea.nameAr,
             address: request.deliveryAddress,
             deliveryAddress: request.deliveryAddress,
-            landmark: null,
+            landmark: request.landmark ?? null,
+            checkoutChannel: request.checkoutChannel,
+            status:
+              request.checkoutChannel === "whatsapp"
+                ? "awaiting_whatsapp"
+                : "pending",
             customerNote: request.customerNote,
             itemsSubtotalAgorot,
             deliveryFeeAgorot,
@@ -324,6 +352,43 @@ export class OrderService {
       .where(eq(schema.orders.publicReference, publicReference))
       .limit(1);
     return order ? this.toConfirmation(order, false) : null;
+  }
+
+  /** The order lines as the customer bought them, from the snapshots; never names, phones or addresses. */
+  async getConfirmationLines(
+    publicReference: string,
+  ): Promise<ConfirmationDetails | null> {
+    if (!/^MS-[A-Za-z0-9_-]{24}$/.test(publicReference)) return null;
+    const [order] = await this.database
+      .select({
+        id: schema.orders.id,
+        checkoutChannel: schema.orders.checkoutChannel,
+      })
+      .from(schema.orders)
+      .where(eq(schema.orders.publicReference, publicReference))
+      .limit(1);
+    if (!order) return null;
+    const rows = await this.database
+      .select()
+      .from(schema.orderItems)
+      .where(eq(schema.orderItems.orderId, order.id))
+      .orderBy(asc(schema.orderItems.productNameSnapshot));
+    return {
+      channel: order.checkoutChannel === "whatsapp" ? "whatsapp" : "web",
+      lines: rows.map((row) => ({
+        name: row.productNameSnapshot,
+        options: row.optionValuesSnapshot?.length
+          ? row.optionValuesSnapshot
+              .map((entry) => `${entry.option}: ${entry.value}`)
+              .join(" · ")
+          : row.variantLabelSnapshot,
+        unit: row.unitsPerSale > 1 ? row.sellingUnitLabelSnapshot : null,
+        quantity: row.quantity,
+        unitPriceAgorot: row.unitPriceAgorot,
+        lineSubtotalAgorot: row.lineSubtotalAgorot,
+        image: row.imageSnapshot ?? null,
+      })),
+    };
   }
 
   private async findByIdempotencyKey(

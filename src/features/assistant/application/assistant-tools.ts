@@ -461,6 +461,7 @@ export function createAssistantTools(context: AssistantToolContext) {
           status: z
             .enum([
               "pending",
+              "awaiting_whatsapp",
               "confirmed",
               "preparing",
               "out_for_delivery",

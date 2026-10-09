@@ -424,6 +424,7 @@ export class QaStockSimulationService {
       normalizedPhone: QA_ORDER_PHONE,
       address: "محاكاة داخلية — لا توصيل",
       landmark: undefined,
+      checkoutChannel: "web",
     });
     const place = (input: CheckoutRequest) =>
       orders.create(

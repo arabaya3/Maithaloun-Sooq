@@ -42,6 +42,7 @@ const failures: Record<OrderCreationError["code"], string> = {
   insufficient_stock: "الكمية أكبر من المخزون المتاح.",
   invalid_service_area: "منطقة التوصيل غير مفعّلة.",
   idempotency_conflict: "أُرسل الطلب مرتين. حدّثي الصفحة.",
+  whatsapp_unavailable: "رقم واتساب المتجر غير محدد في الإعدادات.",
   database_error: "تعذّر إنشاء طلب الاختبار.",
 };
 
@@ -101,6 +102,7 @@ export async function createQaOrderAction(
     normalizedPhone: QA_ORDER_PHONE,
     address: QA_ORDER_ADDRESS,
     landmark: undefined,
+    checkoutChannel: "web",
   };
 
   let reference: string;

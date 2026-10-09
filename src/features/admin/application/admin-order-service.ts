@@ -229,6 +229,7 @@ export class AdminOrderService {
 
     const result = {
       pending: 0,
+      awaiting_whatsapp: 0,
       confirmed: 0,
       preparing: 0,
       out_for_delivery: 0,
@@ -265,6 +266,7 @@ export class AdminOrderService {
           eq(schema.orders.isTest, false),
           or(
             eq(schema.orders.status, "pending"),
+            eq(schema.orders.status, "awaiting_whatsapp"),
             eq(schema.orders.status, "confirmed"),
             eq(schema.orders.status, "preparing"),
             eq(schema.orders.status, "out_for_delivery"),

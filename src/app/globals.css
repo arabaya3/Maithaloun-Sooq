@@ -1174,6 +1174,104 @@ select:focus-visible {
   cursor: not-allowed;
 }
 
+.checkout-summary > button.checkout-whatsapp {
+  margin-top: 0.5rem;
+  color: var(--green-900);
+  border: 2px solid var(--green-900);
+  background: var(--white);
+}
+
+.checkout-summary > button.checkout-whatsapp:disabled {
+  color: var(--muted);
+  border-color: #e1e4e1;
+}
+
+.order-confirmation-lines {
+  display: grid;
+  gap: 0.5rem;
+  margin: 1rem 0;
+  padding: 0;
+  list-style: none;
+  text-align: start;
+}
+
+.order-confirmation-lines li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 0.75rem;
+  align-items: center;
+  padding: 0.6rem 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.order-confirmation-lines li > span:first-child {
+  display: grid;
+  min-width: 0;
+}
+
+.order-confirmation-lines small {
+  color: var(--muted);
+}
+
+.whatsapp-handoff {
+  display: grid;
+  gap: 0.75rem;
+  margin: 1rem 0;
+  padding: 1rem;
+  text-align: start;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface-warm);
+}
+
+.whatsapp-handoff h2 {
+  margin: 0;
+  font-size: 1.15rem;
+}
+
+.whatsapp-handoff p {
+  margin: 0;
+}
+
+.whatsapp-handoff-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.whatsapp-handoff-actions > a,
+.whatsapp-handoff-actions > button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.75rem;
+  padding: 0 1rem;
+  color: var(--white);
+  border: 0;
+  border-radius: 0.5rem;
+  background: var(--green-900);
+  font: inherit;
+  font-weight: 700;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.whatsapp-handoff-actions > a + a,
+.whatsapp-handoff-actions > button {
+  color: var(--green-900);
+  border: 2px solid var(--green-900);
+  background: var(--white);
+}
+
+.whatsapp-handoff textarea {
+  width: 100%;
+  padding: 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  font: inherit;
+  resize: vertical;
+}
+
 .checkout-privacy {
   margin-bottom: 0;
   text-align: center;

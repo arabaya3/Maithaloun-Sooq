@@ -20,6 +20,8 @@ import { formatIls } from "@/shared/lib/format-currency";
 import { WorkspaceNav } from "@/features/admin/ui/workspace-nav";
 import { smokeTestEnabled } from "@/features/assistant/domain/smoke-test";
 import { SummaryFrequencyForm } from "@/features/reminders/ui/reminder-controls";
+import { storeContactService } from "@/features/orders/application/order-service-instance";
+import { StoreWhatsAppForm } from "@/features/orders/components/store-whatsapp-form";
 
 export const metadata: Metadata = {
   title: "إعدادات المتجر",
@@ -34,7 +36,10 @@ export default async function AdminSettingsPage({
   const actor = await requireAdminSession();
   if (actor.role !== "owner") redirect("/admin");
   const areas = await adminDeliveryService.list(actor);
-  const summaryFrequency = await summaryService.getFrequency();
+  const [summaryFrequency, storeWhatsApp] = await Promise.all([
+    summaryService.getFrequency(),
+    storeContactService.whatsAppNumber(),
+  ]);
   const active = areas.find((area) => area.code === ACTIVE_SERVICE_AREA_CODE);
   const savedArea = (await searchParams).saved === "delivery-area";
   const historical = areas.filter(
@@ -57,6 +62,7 @@ export default async function AdminSettingsPage({
           { id: "accounts", label: "الحسابات والسجل" },
           { id: "delivery", label: "التوصيل" },
           { id: "summary", label: "الملخص الدوري" },
+          { id: "whatsapp", label: "واتساب" },
         ]}
       />
 
@@ -129,6 +135,19 @@ export default async function AdminSettingsPage({
           كإشعار.
         </p>
         <SummaryFrequencyForm frequency={summaryFrequency} />
+      </section>
+
+      <section
+        id="whatsapp"
+        className="admin-panel admin-workspace-anchor"
+        aria-labelledby="store-whatsapp-title"
+      >
+        <h2 id="store-whatsapp-title">الطلب عبر واتساب</h2>
+        <p className="admin-muted">
+          عند تحديد رقم، يستطيع الزبون إرسال طلبه إلى هذا الرقم. يُحفظ الطلب
+          بحالة «بانتظار تأكيد واتساب» ولا يُحجز المخزون حتى تؤكديه.
+        </p>
+        <StoreWhatsAppForm current={storeWhatsApp} />
       </section>
 
       {active ? (
