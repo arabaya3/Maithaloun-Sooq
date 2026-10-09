@@ -81,7 +81,7 @@ test("P2: a 9.5 MB image shows a size error instead of crashing the admin page",
 }) => {
   test.setTimeout(120_000);
   await login(page);
-  await page.goto(`/admin/products/${PRODUCT.domainId}`);
+  await page.goto(`/admin/products/${PRODUCT.domainId}?advanced=1`);
   const editor = page.getByRole("region", { name: "الصور والخيارات والأصناف" });
   const big = Buffer.alloc(Math.round(9.5 * 1024 * 1024), 0xff);
   await editor.locator('input[name="images"]').setInputFiles({
@@ -167,7 +167,7 @@ test("P3: saving a product confirms it, and owner controls cover publication, SK
   const issues = trackPageIssues(page);
   await page.setViewportSize({ width: 390, height: 844 });
   await login(page);
-  await page.goto(`/admin/products/${PRODUCT.domainId}`);
+  await page.goto(`/admin/products/${PRODUCT.domainId}?advanced=1`);
   await page.getByLabel("الاسم اللاتيني اختياري").fill("Test Musk");
   await page.getByRole("button", { name: "حفظ المنتج" }).click();
   await expect(

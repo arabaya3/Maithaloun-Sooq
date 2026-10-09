@@ -1,0 +1,286 @@
+/* The one-screen product editor: name, then a list of types with photo, price and quantity. */
+.sp-page {
+  display: grid;
+  gap: 16px;
+}
+.sp-editor {
+  display: grid;
+  gap: 16px;
+}
+.sp-card {
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+  background: var(--admin-surface);
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius-lg);
+}
+.sp-card-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  font-size: 1.15rem;
+}
+.sp-num {
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--admin-forest);
+  color: #fff;
+  font-size: 0.95rem;
+}
+.sp-field {
+  display: grid;
+  gap: 6px;
+  font-weight: 600;
+}
+.sp-field input,
+.sp-field select,
+.sp-more textarea {
+  min-height: var(--admin-touch, 44px);
+  padding: 8px 12px;
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius);
+  background: var(--admin-bg);
+  color: var(--admin-text);
+  font: inherit;
+  font-weight: 400;
+  width: 100%;
+}
+.sp-more textarea {
+  margin-top: 8px;
+}
+.sp-more > summary,
+.sp-advanced > summary {
+  cursor: pointer;
+  color: var(--admin-forest);
+  font-weight: 600;
+  min-height: 32px;
+}
+.sp-kind {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+}
+.sp-kind legend {
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+.sp-kind-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.sp-chip {
+  position: relative;
+}
+.sp-chip input {
+  position: absolute;
+  opacity: 0;
+  inset: 0;
+  cursor: pointer;
+}
+.sp-chip span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 18px;
+  border: 1.5px solid var(--admin-border);
+  border-radius: 999px;
+  background: var(--admin-bg);
+}
+.sp-chip input:checked + span {
+  border-color: var(--admin-forest);
+  background: var(--admin-forest);
+  color: #fff;
+}
+.sp-chip input:focus-visible + span {
+  outline: 3px solid var(--admin-focus, var(--admin-forest));
+  outline-offset: 2px;
+}
+.sp-hint,
+.sp-muted {
+  margin: 0;
+  color: var(--admin-muted);
+}
+.sp-rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 12px;
+}
+.sp-row {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius-lg);
+  background: var(--admin-bg);
+}
+.sp-row[data-invalid="true"] {
+  border-color: var(--admin-danger);
+}
+.sp-row-head {
+  display: flex;
+  align-items: end;
+  gap: 8px;
+}
+.sp-row-name {
+  flex: 1;
+}
+.sp-icon-btn {
+  display: inline-grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius);
+  background: var(--admin-surface);
+  color: var(--admin-danger);
+  cursor: pointer;
+}
+.sp-row-numbers {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 10px;
+}
+.sp-photos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.sp-photo {
+  position: relative;
+  margin: 0;
+  width: 76px;
+  height: 76px;
+  border-radius: var(--admin-radius);
+  overflow: hidden;
+  border: 1px solid var(--admin-border);
+  background: #fff;
+}
+.sp-photo[data-pending="true"] {
+  border-style: dashed;
+  border-color: var(--admin-forest);
+}
+.sp-photo img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.sp-photo-remove {
+  position: absolute;
+  top: 3px;
+  inset-inline-end: 3px;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border: 0;
+  border-radius: 50%;
+  background: rgb(0 0 0 / 0.65);
+  color: #fff;
+  cursor: pointer;
+}
+.sp-photo-add {
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 2px;
+  width: 76px;
+  height: 76px;
+  border: 1.5px dashed var(--admin-forest);
+  border-radius: var(--admin-radius);
+  background: transparent;
+  color: var(--admin-forest);
+  font: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+.sp-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 32px;
+}
+.sp-switch input {
+  width: 20px;
+  height: 20px;
+  accent-color: var(--admin-forest);
+}
+.sp-add {
+  justify-self: start;
+}
+/* On phones the bar is the shared fixed sticky action; from 1024px it sticks to the bottom of the page. */
+.sp-actions {
+  display: grid;
+  gap: 8px;
+}
+@media (min-width: 64rem) {
+  .sp-actions {
+    position: sticky;
+    bottom: 0;
+    padding: 12px 0;
+    background: var(--admin-bg);
+    border-top: 1px solid var(--admin-divider, var(--admin-border));
+    z-index: 5;
+    /* Room for the assistant button, which floats at this edge. */
+    padding-inline-start: 5rem;
+  }
+}
+.sp-actions-buttons {
+  display: flex;
+  gap: 10px;
+}
+.sp-actions-buttons .admin-btn {
+  flex: 1 1 0;
+  min-width: 0;
+  white-space: normal;
+}
+.sp-note {
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: var(--admin-radius);
+  border: 1px solid var(--admin-border);
+}
+.sp-note ul {
+  margin: 6px 0 0;
+  padding-inline-start: 20px;
+}
+.sp-note-title {
+  margin: 0;
+  font-size: 1rem;
+}
+.sp-note[data-tone="ok"] {
+  background: var(--admin-success-bg);
+  border-color: var(--admin-success-border, var(--admin-success));
+}
+.sp-note[data-tone="warning"] {
+  background: var(--admin-warning-bg);
+  border-color: var(--admin-warning-border, var(--admin-warning));
+}
+.sp-note[data-tone="error"] {
+  background: var(--admin-danger-bg);
+  border-color: var(--admin-danger-border, var(--admin-danger));
+  color: var(--admin-danger-text, var(--admin-text));
+}
+.sp-advanced {
+  display: grid;
+  gap: 16px;
+  padding: 14px 18px;
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius-lg);
+  background: var(--admin-surface);
+}
+.sp-advanced[open] > summary {
+  margin-bottom: 8px;
+}
+.sp-alt {
+  text-align: center;
+}

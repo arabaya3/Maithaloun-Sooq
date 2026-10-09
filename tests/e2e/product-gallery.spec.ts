@@ -423,7 +423,7 @@ test("admin at 390: unmapped uploads block publishing; mapping blue and pink pub
   const { values } = await seed(DRAFT, "draft", false);
   await page.setViewportSize({ width: 390, height: 844 });
   await login(page);
-  await page.goto(`/admin/products/${DRAFT.domainId}`);
+  await page.goto(`/admin/products/${DRAFT.domainId}?advanced=1`);
   const editor = page.getByRole("region", { name: "الصور والخيارات والأصناف" });
   const status = editor.locator(
     ".admin-media-message:not(.admin-mapping-status)",
@@ -709,7 +709,7 @@ test("admin at 360 and 390: the owner can choose which variant opens first", asy
     [390, 844],
   ] as const) {
     await page.setViewportSize({ width, height });
-    await page.goto(`/admin/products/${LOYAL.domainId}`);
+    await page.goto(`/admin/products/${LOYAL.domainId}?advanced=1`);
     const editor = page.getByRole("region", {
       name: "الصور والخيارات والأصناف",
     });
@@ -787,7 +787,7 @@ test("a published product left incomplete is shown unavailable, and the admin li
       [1440, 900],
     ] as const) {
       await page.setViewportSize({ width, height });
-      await page.goto(`/admin/products/${LOYAL.domainId}`);
+      await page.goto(`/admin/products/${LOYAL.domainId}?advanced=1`);
       const warning = page.getByRole("region", {
         name: "المنتج منشور لكنه غير مكتمل",
       });
