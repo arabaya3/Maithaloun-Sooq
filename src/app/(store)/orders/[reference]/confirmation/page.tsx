@@ -6,7 +6,15 @@ import { connection } from "next/server";
 
 import { getCustomerSession } from "@/features/accounts/application/customer-session";
 import { customerAccountsEnabled } from "@/features/accounts/domain/account-config";
-import { orderService } from "@/features/orders/application/order-service-instance";
+import {
+  orderService,
+  storeContactService,
+} from "@/features/orders/application/order-service-instance";
+import { WhatsAppHandoff } from "@/features/orders/components/whatsapp-handoff";
+import {
+  whatsAppLinks,
+  whatsAppOrderMessage,
+} from "@/features/orders/domain/whatsapp-order";
 import { orderStatusLabels } from "@/features/orders/domain/order-status";
 import { formatIls } from "@/shared/lib/format-currency";
 
@@ -21,10 +29,24 @@ export default async function OrderConfirmationPage({
   params: Promise<{ reference: string }>;
 }) {
   await connection();
-  const confirmation = await orderService.getConfirmation(
-    (await params).reference,
-  );
-  if (!confirmation) notFound();
+  const reference = (await params).reference;
+  const [confirmation, details] = await Promise.all([
+    orderService.getConfirmation(reference),
+    orderService.getConfirmationLines(reference),
+  ]);
+  if (!confirmation || !details) notFound();
+  const awaitingWhatsApp = confirmation.status === "awaiting_whatsapp";
+  const storeNumber = awaitingWhatsApp
+    ? await storeContactService.whatsAppNumber()
+    : null;
+  const message = whatsAppOrderMessage({
+    publicReference: confirmation.publicReference,
+    lines: details.lines,
+    itemsSubtotalAgorot: confirmation.itemsSubtotalAgorot,
+    deliveryFeeAgorot: confirmation.deliveryFeeAgorot,
+    finalTotalAgorot: confirmation.finalTotalAgorot,
+  });
+  const links = storeNumber ? whatsAppLinks(storeNumber, message) : null;
   const suggestAccount =
     customerAccountsEnabled() && !(await getCustomerSession());
 
@@ -33,7 +55,11 @@ export default async function OrderConfirmationPage({
       <section aria-labelledby="confirmation-title">
         <CheckCircle2 aria-hidden="true" />
         <span className="eyebrow">تم استلام الطلب</span>
-        <h1 id="confirmation-title">شكراً، طلبك قيد المراجعة</h1>
+        <h1 id="confirmation-title">
+          {awaitingWhatsApp
+            ? "خطوة أخيرة: أرسل الطلب على واتساب"
+            : "شكراً، طلبك قيد المراجعة"}
+        </h1>
         <p>
           حالة الطلب: <strong>{orderStatusLabels[confirmation.status]}</strong>
         </p>
@@ -43,6 +69,32 @@ export default async function OrderConfirmationPage({
             <bdi dir="ltr">{confirmation.publicReference}</bdi>
           </strong>
         </div>
+        {links ? (
+          <WhatsAppHandoff
+            message={message}
+            appHref={links.app}
+            webHref={links.web}
+          />
+        ) : awaitingWhatsApp ? (
+          <p role="note">
+            حُفظ طلبك وسيتواصل معك المتجر لتأكيده. احتفظ برقم الطلب.
+          </p>
+        ) : null}
+        <ul className="order-confirmation-lines" aria-label="منتجات الطلب">
+          {details.lines.map((line, index) => (
+            <li key={index}>
+              <span>
+                <strong>
+                  <bdi dir="auto">{line.name}</bdi>
+                </strong>
+                {line.options ? <small>{line.options}</small> : null}
+                {line.unit ? <small>{line.unit}</small> : null}
+              </span>
+              <span>× {line.quantity}</span>
+              <bdi dir="ltr">{formatIls(line.lineSubtotalAgorot)}</bdi>
+            </li>
+          ))}
+        </ul>
         <dl>
           <div>
             <dt>مجموع المنتجات</dt>
@@ -58,6 +110,14 @@ export default async function OrderConfirmationPage({
                 : formatIls(confirmation.deliveryFeeAgorot)}
             </dd>
           </div>
+          {confirmation.finalTotalAgorot === null ? null : (
+            <div>
+              <dt>الإجمالي</dt>
+              <dd>
+                <bdi dir="ltr">{formatIls(confirmation.finalTotalAgorot)}</bdi>
+              </dd>
+            </div>
+          )}
           <div>
             <dt>طريقة الدفع</dt>
             <dd>نقداً عند الاستلام</dd>

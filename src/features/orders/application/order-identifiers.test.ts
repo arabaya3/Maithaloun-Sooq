@@ -95,3 +95,21 @@ describe("order identifiers", () => {
     );
   });
 });
+
+describe("landmark and WhatsApp in the fingerprint", () => {
+  it("keeps the hash of requests without them, and changes it when they are used", () => {
+    const plain = createOrderRequestFingerprint(request);
+    expect(
+      createOrderRequestFingerprint({ ...request, checkoutChannel: "web" }),
+    ).toBe(plain);
+    expect(
+      createOrderRequestFingerprint({ ...request, landmark: "قرب المسجد" }),
+    ).not.toBe(plain);
+    expect(
+      createOrderRequestFingerprint({
+        ...request,
+        checkoutChannel: "whatsapp",
+      }),
+    ).not.toBe(plain);
+  });
+});

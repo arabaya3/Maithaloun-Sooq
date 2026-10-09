@@ -26,6 +26,11 @@ export function createOrderRequestFingerprint(
           : { productId, variantId, quantity },
       )
       .sort((left, right) => left.productId.localeCompare(right.productId)),
+    // Added only when used, so requests from before these fields hash exactly as they did.
+    ...(request.landmark ? { landmark: request.landmark } : {}),
+    ...(request.checkoutChannel === "whatsapp"
+      ? { checkoutChannel: "whatsapp" }
+      : {}),
   };
 
   return createHash("sha256")

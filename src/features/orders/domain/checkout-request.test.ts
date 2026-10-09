@@ -185,3 +185,44 @@ describe("checkout request validation", () => {
     ).toBe(false);
   });
 });
+
+describe("landmark and channel", () => {
+  it("keeps an optional plain landmark and defaults to the website channel", () => {
+    const parsed = checkoutRequestSchema.parse({
+      ...validRequest,
+      landmark: "  قرب المسجد الكبير  ",
+    });
+    expect(parsed.landmark).toBe("قرب المسجد الكبير");
+    expect(parsed.checkoutChannel).toBe("web");
+    expect(
+      checkoutRequestSchema.parse({ ...validRequest, landmark: "" }).landmark,
+    ).toBeUndefined();
+  });
+
+  it("refuses markup in the landmark, an overlong one and an unknown channel", () => {
+    expect(
+      checkoutRequestSchema.safeParse({
+        ...validRequest,
+        landmark: "<b>قرب</b>",
+      }).success,
+    ).toBe(false);
+    expect(
+      checkoutRequestSchema.safeParse({
+        ...validRequest,
+        landmark: "م".repeat(151),
+      }).success,
+    ).toBe(false);
+    expect(
+      checkoutRequestSchema.safeParse({
+        ...validRequest,
+        checkoutChannel: "sms",
+      }).success,
+    ).toBe(false);
+    expect(
+      checkoutRequestSchema.parse({
+        ...validRequest,
+        checkoutChannel: "whatsapp",
+      }).checkoutChannel,
+    ).toBe("whatsapp");
+  });
+});
