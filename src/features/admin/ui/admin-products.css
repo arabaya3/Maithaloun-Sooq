@@ -634,3 +634,109 @@
   opacity: 0.6;
   cursor: progress;
 }
+
+/* Thumbnails, quick edit and bulk move on the products list. */
+.admin-product-name-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.625rem;
+  min-width: 0;
+}
+.admin-product-thumb {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius);
+  background: #fff;
+  color: var(--admin-muted);
+  overflow: hidden;
+}
+.admin-product-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.admin-product-item-side {
+  display: grid;
+  justify-items: end;
+  gap: 0.5rem;
+}
+.admin-quick-edit {
+  display: grid;
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+  padding: 0.75rem;
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius);
+  background: var(--admin-bg);
+}
+.admin-quick-edit ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.625rem;
+}
+.admin-quick-edit li {
+  display: grid;
+  grid-template-columns: minmax(6rem, 1fr) repeat(2, minmax(5rem, 7rem));
+  align-items: end;
+  gap: 0.5rem;
+}
+.admin-quick-edit-label {
+  align-self: center;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.admin-quick-edit label {
+  display: grid;
+  gap: 0.25rem;
+  font-size: 0.85rem;
+}
+.admin-quick-edit input {
+  min-height: var(--admin-touch, 44px);
+  padding: 0.375rem 0.625rem;
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius);
+  background: var(--admin-surface);
+  font: inherit;
+  width: 100%;
+}
+.admin-quick-edit-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+.admin-bulk-move {
+  display: inline-flex;
+  gap: 0.375rem;
+  align-items: center;
+}
+.admin-bulk-move select {
+  min-height: var(--admin-touch, 44px);
+  max-width: 11rem;
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius);
+  background: var(--admin-surface);
+  font: inherit;
+  padding: 0 0.5rem;
+}
+@media (max-width: 30rem) {
+  .admin-quick-edit li {
+    grid-template-columns: 1fr 1fr;
+  }
+  .admin-quick-edit-label {
+    grid-column: 1 / -1;
+  }
+}
+.admin-product-item > .admin-quick-edit {
+  grid-column: 1 / -1;
+  margin-top: 0;
+}
+.admin-quick-btn {
+  min-width: var(--admin-touch, 44px);
+  min-height: var(--admin-touch, 44px);
+  justify-content: center;
+}

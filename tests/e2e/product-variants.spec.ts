@@ -324,7 +324,7 @@ test("admin at 390: three scents with three images, by hand", async ({
   });
   await page.setViewportSize({ width: 390, height: 844 });
   await login(page);
-  await page.goto(`/admin/products/${MANUAL.domainId}`);
+  await page.goto(`/admin/products/${MANUAL.domainId}?advanced=1`);
   const editor = page.getByRole("region", { name: "الصور والخيارات والأصناف" });
   const status = editor.getByRole("status");
 

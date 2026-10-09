@@ -6,6 +6,7 @@ import {
   getPrimaryNextActionLabel,
   orderStatusLabels,
 } from "../../src/features/orders/domain/order-status";
+import { openAdvanced } from "./support";
 import { parseTestEnv } from "../../src/server/env/env-schema";
 import { parseTestAdminEnv } from "../../src/test/test-admin";
 
@@ -187,6 +188,7 @@ test("admin authentication, operations, and privacy controls", async ({
     .getByRole("link", { name: /منظف عام/ })
     .first()
     .click();
+  await openAdvanced(page);
   await page.screenshot({
     path: "artifacts/admin-screenshots/product-editor-mobile.png",
     fullPage: true,
@@ -221,6 +223,7 @@ test("admin authentication, operations, and privacy controls", async ({
     .getByRole("link", { name: /منظف عام/ })
     .first()
     .click();
+  await openAdvanced(page);
   await page.locator("#product-price").fill("7.00");
   await page.locator("#product-availability").selectOption("available");
   await page.getByRole("button", { name: "حفظ المنتج" }).click();
@@ -247,28 +250,19 @@ test("admin authentication, operations, and privacy controls", async ({
 
   await goAdminSection(page, "المنتجات");
   await page.getByRole("link", { name: "إضافة منتج" }).click();
-  // «إضافة منتج» opens the wizard directly, no route-choice page in between.
-  await expect(
-    page.getByRole("list", { name: "خطوات إضافة المنتج" }),
-  ).toBeVisible();
+  // «إضافة منتج» opens the one-screen product editor directly.
+  await expect(page.getByLabel("الاسم", { exact: true })).toBeVisible();
   await page.screenshot({
-    path: "artifacts/admin-screenshots/product-create-wizard-mobile.png",
+    path: "artifacts/admin-screenshots/product-create-mobile.png",
     fullPage: true,
   });
-  await page.getByLabel("اسم المنتج بالعربية").fill("منتج إضافة سريعة");
+  await page.getByLabel("الاسم", { exact: true }).fill("منتج إضافة سريعة");
   await page.getByLabel("القسم").selectOption({ index: 1 });
-  await page.getByLabel("سعر البيع ₪").fill("4.50");
-  await page.getByRole("button", { name: "التالي: الخيارات والمخزون" }).click();
-  await expect(
-    page.getByRole("heading", {
-      name: "هل لهذا المنتج روائح، أحجام أو ألوان مختلفة؟",
-    }),
-  ).toBeVisible({ timeout: 15_000 });
-  await page.getByRole("radio", { name: "منتج بخيار واحد" }).check();
-  await page.getByRole("button", { name: "التالي: الصور" }).click();
-  await expect(page).toHaveURL(
-    /\/admin\/products\/[a-z0-9-]+\?guide=images#wizard-images$/,
-  );
+  await page.getByLabel("السعر ₪").fill("4.50");
+  await page.getByRole("button", { name: "حفظ كمسودة" }).click();
+  await expect(page).toHaveURL(/\/admin\/products\/[a-z0-9-]+\?saved=ok$/, {
+    timeout: 30_000,
+  });
   await expect(
     page.locator(".admin-workspace-header").getByText("تعديل المنتج"),
   ).toBeVisible({ timeout: 15_000 });

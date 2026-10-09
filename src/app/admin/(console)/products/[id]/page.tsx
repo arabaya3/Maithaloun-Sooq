@@ -18,33 +18,17 @@ import { requireAdminSession } from "@/features/admin/auth/admin-session";
 import type { AdminActor } from "@/features/admin/domain/admin-actor";
 import { can } from "@/features/admin/domain/permissions";
 import { productSaveMessage } from "@/features/admin/domain/product-save-feedback";
-import {
-  Money,
-  Quantity,
-  StickyAction,
-  StockStatusPill,
-} from "@/features/admin/ui/kit";
+import { Money, Quantity, StockStatusPill } from "@/features/admin/ui/kit";
 import { ProductCatalogControls } from "@/features/admin/ui/product-catalog-controls";
-import { ProductForm } from "@/features/admin/ui/product-form";
 import { AuditTimeline } from "@/features/admin/ui/audit-timeline";
-import { wizardStepHref } from "@/features/admin/domain/product-wizard-steps";
-import { WizardProgress } from "@/features/admin/ui/product-wizard";
 import { ProductDangerZone } from "@/features/admin/ui/product-danger-zone";
 import { ClearProductDraft } from "@/features/admin/ui/product-draft";
-import { ImageMappingCards } from "@/features/admin/ui/image-mapping-cards";
 import { ProductMediaEditor } from "@/features/admin/ui/product-media-editor";
 import { ProductReadiness } from "@/features/admin/ui/product-readiness";
-import {
-  PublishReview,
-  type ReviewSummary,
-} from "@/features/admin/ui/publish-review";
+import { ProductForm } from "@/features/admin/ui/product-form";
 import { SellingUnitsEditor } from "@/features/admin/ui/selling-units-editor";
-import {
-  VariantCards,
-  type VariantCardData,
-} from "@/features/admin/ui/variant-cards";
-import type { PublishChoice } from "@/features/admin/application/product-wizard-actions";
-import { WorkspaceNav } from "@/features/admin/ui/workspace-nav";
+import { simpleEditorState } from "@/features/admin/domain/simple-product";
+import { SimpleProductEditor } from "@/features/admin/ui/simple-product-editor";
 import { getProductDisplayName } from "@/features/catalog/domain/product";
 
 export const metadata: Metadata = {
@@ -133,8 +117,7 @@ export default async function AdminProductEditPage({
   params: Promise<{ id: string }>;
   searchParams: Promise<{
     saved?: string | string[];
-    at?: string | string[];
-    guide?: string | string[];
+    advanced?: string | string[];
   }>;
 }) {
   await connection();
@@ -154,6 +137,7 @@ export default async function AdminProductEditPage({
     sellingUnits,
     references,
     history,
+    stockRows,
   ] = await Promise.all([
     productOptionsService.matrix(product.id),
     catalogAuthoringService.archivedVariants(product.id),
@@ -166,107 +150,33 @@ export default async function AdminProductEditPage({
           entityId: product.id,
         })
       : null,
-  ]);
-  const { saved, at, guide } = await searchParams;
-  // Wizard steps 3–5 continue here, on the product's own workspace.
-  const guideStep =
-    guide === "images"
-      ? 3
-      : guide === "prices"
-        ? 4
-        : guide === "review"
-          ? 5
-          : null;
-  const savedMessage = productSaveMessage(saved);
-  const problems = publicationCheck?.problems ?? [];
-  const showCosts = can(actor, "stock.costs");
-  const canAdjust = can(actor, "stock.adjust");
-  const liveVariants = matrix?.variants.filter((variant) => !variant.archived);
-  const [stockRows, categories] = await Promise.all([
-    guideStep && guideStep >= 4 && canSeeStock
+    canSeeStock
       ? inventoryService
           .listStock(actor)
           .then((rows) => rows.filter((row) => row.productId === product.id))
       : [],
-    guideStep === 5 ? catalogAuthoringService.listCategories(false) : [],
   ]);
-  const stockOf = (variantId: string) =>
-    stockRows.find((row) => row.variantId === variantId);
-  const pieces = (milli: number | null | undefined) =>
-    milli === null || milli === undefined ? null : Math.floor(milli / 1000);
-  const variantCards: VariantCardData[] = (liveVariants ?? []).map(
-    (variant) => {
-      const stock = stockOf(variant.id);
-      return {
-        id: variant.id,
-        label: variant.label,
-        priceAgorot: variant.priceAgorot,
-        available: variant.availability === "available",
-        isDefault: variant.isDefault,
-        sku: variant.sku,
-        barcode: variant.barcode,
-        tracked: stock?.tracked ?? false,
-        onHandPieces: stock?.tracked ? pieces(stock.onHandMilli) : null,
-        thresholdPieces: pieces(stock?.reorderThresholdMilli),
-      };
-    },
-  );
-  const reviewSummary: ReviewSummary | null =
-    guideStep === 5 && matrix
-      ? {
-          name: product.nameAr,
-          category:
-            categories.find((category) => category.code === product.categoryId)
-              ?.nameAr ?? "—",
-          options: matrix.options
-            .filter((option) => !option.archived)
-            .map((option) => ({
-              name: option.nameAr,
-              values: option.values.map((value) => value.valueAr),
-            })),
-          variants: variantCards.map((variant) => ({
-            label: variant.label || "الصنف الأساسي",
-            price: `${(variant.priceAgorot / 100).toFixed(2)} ₪`,
-            stock: variant.tracked
-              ? `${variant.onHandPieces ?? 0} قطعة`
-              : "لم يُسجَّل",
-            available: variant.available,
-          })),
-          images: {
-            total: matrix.images.filter((image) => !image.archived).length,
-            unassigned: matrix.images.filter(
-              (image) => !image.archived && image.scope === "unassigned",
-            ).length,
-          },
-          sellingUnits: sellingUnits.reduce(
-            (sum, variant) => sum + variant.units.length,
-            0,
-          ),
-        }
-      : null;
-  const currentChoice: PublishChoice =
-    product.publication === "published"
-      ? product.availability === "available"
-        ? "published"
-        : "published_unavailable"
-      : product.publication;
-
-  const sections = [
-    { id: "overview", label: "نظرة عامة" },
-    ...(matrix
-      ? [
-          { id: "variants", label: "الخيارات والأصناف" },
-          { id: "images", label: "الصور" },
-        ]
-      : []),
-    { id: "selling-units", label: "الأسعار وطرق البيع" },
-    ...(canSeeStock ? [{ id: "inventory", label: "المخزون" }] : []),
-    { id: "publication", label: "النشر" },
-    ...(history ? [{ id: "history", label: "السجل" }] : []),
-  ];
+  const { saved, advanced } = await searchParams;
+  const savedMessage =
+    saved === "ok"
+      ? "تم حفظ المنتج."
+      : saved === "partial"
+        ? null
+        : productSaveMessage(saved);
+  const problems = publicationCheck?.problems ?? [];
+  const showCosts = can(actor, "stock.costs");
+  const simple = matrix
+    ? simpleEditorState(
+        matrix,
+        new Set(
+          stockRows.filter((row) => row.tracked).map((row) => row.variantId),
+        ),
+      )
+    : null;
+  const published = product.publication === "published";
 
   return (
-    <main className="admin-page admin-workspace">
+    <main className="admin-page admin-page--narrow admin-workspace sp-page">
       <header className="admin-workspace-header">
         <Link
           href="/admin/products"
@@ -284,29 +194,17 @@ export default async function AdminProductEditPage({
           <span className="admin-chip-row">
             <span
               className="admin-chip"
-              data-tone={
-                product.publication === "published" ? "success" : "neutral"
-              }
+              data-tone={published ? "success" : "neutral"}
             >
               {product.archived
                 ? "مؤرشف"
-                : publicationLabels[product.publication]}
+                : published
+                  ? "ظاهر في المتجر"
+                  : publicationLabels[product.publication]}
             </span>
-            {product.availability === "available" ? null : (
-              <span className="admin-chip" data-tone="warning">
-                غير متاح
-              </span>
-            )}
-            {problems.length ? (
-              <span className="admin-chip" data-tone="danger">
-                {problems.length === 1
-                  ? "نقطة واحدة قبل النشر"
-                  : `${problems.length} نقاط قبل النشر`}
-              </span>
-            ) : null}
           </span>
         </div>
-        {product.publication === "published" && !product.archived ? (
+        {published && !product.archived ? (
           <Link
             href={`/products/${product.slug}`}
             prefetch={false}
@@ -318,17 +216,29 @@ export default async function AdminProductEditPage({
         ) : null}
       </header>
 
-      {product.publication === "published" && problems.length ? (
+      {saved === "created" || saved === "ok" ? <ClearProductDraft /> : null}
+      {savedMessage ? (
+        <p className="sp-note" data-tone="ok" role="status">
+          {savedMessage}
+        </p>
+      ) : null}
+      {saved === "partial" ? (
+        <p className="sp-note" data-tone="warning" role="alert">
+          حُفظ المنتج كمسودة، لكن لم يكتمل كل شيء. راجعي الصور والأسعار ثم اضغطي
+          حفظ مرة أخرى.
+        </p>
+      ) : null}
+      {problems.length && (published || saved) ? (
         <section
-          className="admin-media-message admin-incomplete-warning"
+          className="sp-note"
           data-tone="warning"
           aria-labelledby="incomplete-title"
         >
-          <h2 id="incomplete-title">المنتج منشور لكنه غير مكتمل</h2>
-          <p>
-            قد يظهر للزبائن «غير متاح حالياً» حتى تُكملي هذه النقاط ثم تعيدي
-            النشر:
-          </p>
+          <h2 id="incomplete-title" className="sp-note-title">
+            {published
+              ? "المنتج منشور لكن ينقصه:"
+              : "حتى يظهر في المتجر ينقصه:"}
+          </h2>
           <ul>
             {problems.map((problem) => (
               <li key={problem}>{problem}</li>
@@ -336,199 +246,165 @@ export default async function AdminProductEditPage({
           </ul>
         </section>
       ) : null}
-      {saved === "created" ? <ClearProductDraft /> : null}
-      {savedMessage ? (
-        <p className="admin-media-message" data-tone="ok" role="status">
-          {savedMessage}
-        </p>
-      ) : null}
 
-      {guideStep ? (
-        <section
-          className="admin-wizard-guide"
-          aria-label="إكمال المنتج الجديد"
-        >
-          <WizardProgress current={guideStep} productId={product.id} />
-          <p className="admin-muted">
-            {guideStep === 3
-              ? "أضيفي الصور واربطي كل صورة بالرائحة أو الحجم أو اللون الذي تخصه."
-              : guideStep === 4
-                ? "سجّلي سعر كل صنف ورموزه وكميته الافتتاحية، ثم طرق البيع إن وُجدت."
-                : "راجعي ما ينقص قبل النشر، ثم اختاري حالة المنتج."}
-          </p>
-        </section>
-      ) : null}
-      {guideStep === 3 && matrix ? <ImageMappingCards matrix={matrix} /> : null}
-      {guideStep === 4 && variantCards.length ? (
-        <VariantCards
-          productDomainId={product.id}
-          variants={variantCards}
-          canStock={canAdjust}
-        />
-      ) : null}
-      {reviewSummary ? (
-        <PublishReview
-          productDomainId={product.id}
-          summary={reviewSummary}
-          problems={problems}
-          previewHref={`/products/${product.slug}`}
-          current={currentChoice}
-          placeholder={publicationCheck?.acceptedPlaceholder ?? false}
+      {canManage && simple && !product.archived ? (
+        <SimpleProductEditor
+          key={product.id}
+          canStock={can(actor, "stock.adjust")}
+          lockedMessage={
+            simple.locked
+              ? "لهذا المنتج أكثر من نوع اختلاف (مثل رائحة وحجم معاً). عدّلي الأنواع وصورها من «إعدادات متقدمة» في الأسفل."
+              : undefined
+          }
+          initial={{
+            productId: product.id,
+            nameAr: product.nameAr,
+            categoryId: product.categoryId,
+            description: product.description ?? "",
+            kind: simple.kind,
+            optionName: simple.optionName,
+            rows: simple.rows,
+            generalImages: simple.generalImages,
+            published,
+          }}
         />
       ) : null}
 
-      <WorkspaceNav sections={sections} label="أقسام المنتج" />
-
-      <section
-        id="overview"
-        className="admin-workspace-section"
-        aria-labelledby="workspace-overview-title"
+      <details
+        className="sp-advanced"
+        open={
+          Boolean(advanced) ||
+          !canManage ||
+          Boolean(simple?.locked) ||
+          product.archived
+        }
       >
-        <h2
-          id="workspace-overview-title"
-          className="admin-workspace-section-title"
-        >
-          نظرة عامة
-        </h2>
-        <ProductForm
-          key={typeof at === "string" ? at : "initial"}
-          product={product}
-          sortOrder={product.sortOrder}
-          mode="edit"
-        />
-      </section>
+        <summary>إعدادات متقدمة</summary>
+        <p className="sp-muted">
+          الباركود، العبوات والكراتين، المخزون، النشر، والحذف. لا تحتاجينها
+          لإضافة منتج عادي.
+        </p>
 
-      {/* These editors name their own region and heading; the wrappers are only jump targets. */}
-      {matrix ? (
-        <div id="variants" className="admin-workspace-anchor">
-          <ProductMediaEditor
-            matrix={matrix}
-            storefrontHref={`/products/${product.slug}`}
-          />
-        </div>
-      ) : null}
-
-      <div id="selling-units" className="admin-workspace-anchor">
-        <SellingUnitsEditor
-          productDomainId={product.id}
-          variants={sellingUnits}
-        />
-      </div>
-
-      {canSeeStock ? (
         <section
-          id="inventory"
+          id="overview"
           className="admin-workspace-section"
-          aria-labelledby="workspace-inventory-title"
+          aria-labelledby="workspace-overview-title"
         >
           <h2
-            id="workspace-inventory-title"
+            id="workspace-overview-title"
             className="admin-workspace-section-title"
           >
-            المخزون
+            تفاصيل إضافية
           </h2>
-          <Suspense
-            fallback={
-              <div
-                className="admin-skeleton admin-skeleton-stock"
-                aria-hidden="true"
-              />
-            }
-          >
-            <InventorySummary
-              actor={actor}
-              productId={product.id}
-              showCosts={showCosts}
+          <ProductForm
+            product={product}
+            sortOrder={product.sortOrder}
+            mode="edit"
+          />
+        </section>
+
+        {matrix ? (
+          <div id="variants" className="admin-workspace-anchor">
+            <ProductMediaEditor
+              matrix={matrix}
+              storefrontHref={`/products/${product.slug}`}
             />
-          </Suspense>
-        </section>
-      ) : null}
-      <div id="publication" className="admin-workspace-anchor">
-        {publicationCheck ? (
-          <ProductReadiness
-            check={publicationCheck}
-            publication={product.publication}
-            hasOptions={Boolean(
-              matrix?.options.some((option) => !option.archived),
-            )}
-          />
+          </div>
         ) : null}
-        <ProductCatalogControls
-          domainId={product.id}
-          publication={product.publication}
-          problems={problems}
-          placeholderImage={publicationCheck?.acceptedPlaceholder ?? false}
-          variants={product.variants.map((variant) => ({
-            id: variant.id,
-            labelAr: variant.labelAr,
-            sku: variant.sku,
-            barcode: variant.barcode,
-          }))}
-          archivedVariants={archivedVariants}
-        />
-      </div>
 
-      {canManage && references ? (
-        <div id="danger" className="admin-workspace-anchor">
-          <ProductDangerZone
-            domainId={product.id}
-            name={product.nameAr}
-            references={references}
-            archived={product.archived}
+        <div id="selling-units" className="admin-workspace-anchor">
+          <SellingUnitsEditor
+            productDomainId={product.id}
+            variants={sellingUnits}
           />
         </div>
-      ) : null}
-      {history ? (
-        <section
-          id="history"
-          className="admin-workspace-section"
-          aria-labelledby="workspace-history-title"
-        >
-          <h2
-            id="workspace-history-title"
-            className="admin-workspace-section-title"
-          >
-            السجل
-          </h2>
-          {history.entries.length ? (
-            <AuditTimeline entries={history.entries.slice(0, 10)} />
-          ) : (
-            <p className="admin-muted">لا توجد تغييرات مسجّلة بعد.</p>
-          )}
-          <Link href="/admin/audit?entity=product" prefetch={false}>
-            كل سجل المنتجات
-          </Link>
-        </section>
-      ) : null}
 
-      {guideStep ? (
-        <StickyAction>
-          <div className="admin-wizard-nav">
-            <Link
-              href={wizardStepHref(guideStep - 1, product.id)!}
-              prefetch={false}
-              className="admin-btn admin-btn-secondary"
+        {canSeeStock ? (
+          <section
+            id="inventory"
+            className="admin-workspace-section"
+            aria-labelledby="workspace-inventory-title"
+          >
+            <h2
+              id="workspace-inventory-title"
+              className="admin-workspace-section-title"
             >
-              السابق
-            </Link>
-            <Link
-              href={
-                guideStep < 5
-                  ? wizardStepHref(guideStep + 1, product.id)!
-                  : "/admin/products"
+              المخزون
+            </h2>
+            <Suspense
+              fallback={
+                <div
+                  className="admin-skeleton admin-skeleton-stock"
+                  aria-hidden="true"
+                />
               }
-              prefetch={false}
-              className="admin-btn admin-btn-primary"
             >
-              {guideStep === 3
-                ? "التالي: الأسعار والمخزون"
-                : guideStep === 4
-                  ? "التالي: المراجعة"
-                  : "إنهاء والعودة إلى المنتجات"}
-            </Link>
+              <InventorySummary
+                actor={actor}
+                productId={product.id}
+                showCosts={showCosts}
+              />
+            </Suspense>
+          </section>
+        ) : null}
+        <div id="publication" className="admin-workspace-anchor">
+          {publicationCheck ? (
+            <ProductReadiness
+              check={publicationCheck}
+              publication={product.publication}
+              hasOptions={Boolean(
+                matrix?.options.some((option) => !option.archived),
+              )}
+            />
+          ) : null}
+          <ProductCatalogControls
+            domainId={product.id}
+            publication={product.publication}
+            problems={problems}
+            placeholderImage={publicationCheck?.acceptedPlaceholder ?? false}
+            variants={product.variants.map((variant) => ({
+              id: variant.id,
+              labelAr: variant.labelAr,
+              sku: variant.sku,
+              barcode: variant.barcode,
+            }))}
+            archivedVariants={archivedVariants}
+          />
+        </div>
+
+        {canManage && references ? (
+          <div id="danger" className="admin-workspace-anchor">
+            <ProductDangerZone
+              domainId={product.id}
+              name={product.nameAr}
+              references={references}
+              archived={product.archived}
+            />
           </div>
-        </StickyAction>
-      ) : null}
+        ) : null}
+        {history ? (
+          <section
+            id="history"
+            className="admin-workspace-section"
+            aria-labelledby="workspace-history-title"
+          >
+            <h2
+              id="workspace-history-title"
+              className="admin-workspace-section-title"
+            >
+              السجل
+            </h2>
+            {history.entries.length ? (
+              <AuditTimeline entries={history.entries.slice(0, 10)} />
+            ) : (
+              <p className="admin-muted">لا توجد تغييرات مسجّلة بعد.</p>
+            )}
+            <Link href="/admin/audit?entity=product" prefetch={false}>
+              كل سجل المنتجات
+            </Link>
+          </section>
+        ) : null}
+      </details>
     </main>
   );
 }

@@ -387,7 +387,7 @@ test("the owner edits ways of buying with specific errors and cannot publish a v
   const issues = trackPageIssues(page);
   await page.setViewportSize({ width: 390, height: 844 });
   await login(page);
-  await page.goto(`/admin/products/${STORE.domainId}`);
+  await page.goto(`/admin/products/${STORE.domainId}?advanced=1`);
   const section = page.getByRole("region", { name: "طرق البيع" });
   await expect(section).toBeVisible();
   await section.locator("summary", { hasText: "أخضر" }).click();

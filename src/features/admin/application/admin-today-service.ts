@@ -11,7 +11,11 @@ import type { PurchaseService } from "@/features/purchasing/application/purchase
 import { paymentStatusLabels } from "@/features/purchasing/domain/purchase-constants";
 import type { ReportService } from "@/features/reports/application/report-service";
 import type { SalesService } from "@/features/sales/application/sales-service";
-import { startOfStoreDay, todayInStoreZone } from "@/shared/lib/store-time";
+import {
+  addDays,
+  startOfStoreDay,
+  todayInStoreZone,
+} from "@/shared/lib/store-time";
 
 /** A pending order waiting longer than this is raised as an alert. */
 export const PENDING_ALERT_MINUTES = 30;
@@ -40,6 +44,14 @@ export type TodayMoney = {
   netSalesAgorot: number;
   grossProfitAgorot: number;
   costComplete: boolean;
+} | null;
+
+export type TodayWeek = {
+  days: Array<{ date: string; netSalesAgorot: number }>;
+  totalAgorot: number;
+  todayAgorot: number;
+  yesterdayAgorot: number;
+  top: Array<{ name: string; quantityMilli: number; netSalesAgorot: number }>;
 } | null;
 
 export interface TodayView {
@@ -185,6 +197,31 @@ export class AdminTodayService {
       netSalesAgorot: report.metrics.netSalesAgorot,
       grossProfitAgorot: report.metrics.grossProfitAgorot,
       costComplete: report.metrics.costComplete,
+    };
+  }
+
+  /** The last seven store days: daily net sales and the best-selling products, from one report. */
+  async getWeek(actor: AdminActor, now = new Date()): Promise<TodayWeek> {
+    if (!can(actor, "reports.view")) return null;
+    const today = todayInStoreZone(now);
+    const report = await this.services.reports.getReport(actor, {
+      from: addDays(today, -6),
+      to: today,
+    });
+    const days = report.profitSeries.map((point) => ({
+      date: point.from,
+      netSalesAgorot: point.netSalesAgorot,
+    }));
+    return {
+      days,
+      totalAgorot: report.metrics.netSalesAgorot,
+      todayAgorot: days.at(-1)?.netSalesAgorot ?? 0,
+      yesterdayAgorot: days.at(-2)?.netSalesAgorot ?? 0,
+      top: report.byProduct.slice(0, 5).map((item) => ({
+        name: item.name,
+        quantityMilli: item.quantityMilli,
+        netSalesAgorot: item.netSalesAgorot,
+      })),
     };
   }
 
