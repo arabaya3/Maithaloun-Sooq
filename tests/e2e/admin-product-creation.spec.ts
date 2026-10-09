@@ -1,5 +1,6 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
+import sharp from "sharp";
 
 import {
   expectNoHorizontalOverflow,
@@ -22,10 +23,19 @@ test.describe.configure({ mode: "serial" });
 
 let domainId = "";
 
+// Stock history is never deleted; a product with stock records is archived and hidden instead.
 test.afterAll(async () => {
-  await withTestDb(
-    (sql) => sql`delete from products where name_ar like ${NAME + "%"}`,
-  );
+  await withTestDb(async (sql) => {
+    await sql`
+      update products p set archived_at = now(), publication = 'hidden'
+      where p.name_ar like ${NAME + "%"} and exists (
+        select 1 from inventory_items i join product_variants v on v.id = i.variant_id
+        where v.product_id = p.id)`;
+    await sql`
+      delete from products p where p.name_ar like ${NAME + "%"} and not exists (
+        select 1 from inventory_items i join product_variants v on v.id = i.variant_id
+        where v.product_id = p.id)`;
+  });
 });
 
 async function axe(page: Page, selector: string) {
@@ -39,6 +49,12 @@ async function axe(page: Page, selector: string) {
       nodes: violation.nodes.map((node) => node.target.join(" ")),
     })),
   ).toEqual([]);
+}
+
+async function photo(background: string) {
+  return sharp({ create: { width: 600, height: 400, channels: 3, background } })
+    .png()
+    .toBuffer();
 }
 
 async function smallTargets(page: Page, selector: string) {
@@ -140,7 +156,7 @@ test("phone: wizard keeps typing through a refusal and a reload, then builds exa
   });
   await page.getByRole("button", { name: "التالي: الصور" }).click();
   await expect(page).toHaveURL(
-    new RegExp(`/admin/products/${domainId}\\?guide=images#images$`),
+    new RegExp(`/admin/products/${domainId}\\?guide=images#wizard-images$`),
     {
       timeout: 15_000,
     },
@@ -171,15 +187,82 @@ test("phone: wizard keeps typing through a refusal and a reload, then builds exa
     "النشر",
     "السجل",
   ]);
-  await page.screenshot({ path: `${SHOTS}/workspace-guide-390.png` });
+  // Step 3: pictures are uploaded unassigned, then each is mapped on purpose.
+  const mapping = page.getByRole("region", { name: "صور المنتج وربطها" });
+  await mapping.getByLabel("اختيار من المعرض").setInputFiles([
+    {
+      name: "rose.png",
+      mimeType: "image/png",
+      buffer: await photo("#ff88bb"),
+    },
+  ]);
+  await expect(mapping.getByRole("status")).toHaveText(
+    "رُفعت الصور. اربطي كل صورة بما تُظهره.",
+  );
+  await mapping.getByLabel("هذه الصورة تُظهر").selectOption({
+    label: "الورد الأبيض",
+  });
+  await expect(mapping.getByRole("status")).toHaveText("حُفظ ربط الصورة.");
+  await mapping.getByRole("checkbox", { name: /الرائحة: لافندر/ }).check();
+  await expect(mapping.getByRole("status")).toHaveText("حُفظ الاختيار.");
+  await expectNoHorizontalOverflow(page);
+  await axe(page, "#wizard-images");
+  await page.screenshot({
+    path: `${SHOTS}/wizard-images-390.png`,
+    fullPage: true,
+  });
+
+  // Step 4: each variant keeps its own price and identifiers; opening stock is covered in zz-wizard-stock.
   await page.getByRole("link", { name: "التالي: الأسعار والمخزون" }).click();
-  await expect(page).toHaveURL(/guide=prices#selling-units$/);
+  await expect(page).toHaveURL(/guide=prices#wizard-prices$/);
+  const card = page.getByRole("form", { name: "لافندر · 750 مل" });
+  await card.getByLabel("السعر (₪)").fill("7.50");
+  await card.getByLabel("رمز SKU").fill("WIZ-LAV-750");
+  await card.getByRole("button", { name: "حفظ الصنف" }).click();
+  await expect(card.getByRole("status")).toHaveText("حُفظ هذا الصنف.");
+  const prices = await withTestDb(
+    (sql) => sql<{ label: string; price: number; sku: string | null }[]>`
+      select v.label_ar as label, v.price_agorot as price, v.sku
+      from product_variants v join products p on p.id = v.product_id
+      where p.domain_id = ${domainId} and v.archived_at is null order by v.label_ar`,
+  );
+  expect(prices.map((row) => [row.label, row.price, row.sku])).toEqual([
+    ["الورد الأبيض · 1 لتر", 600, null],
+    ["الورد الأبيض · 750 مل", 600, null],
+    ["لافندر · 750 مل", 750, "WIZ-LAV-750"],
+  ]);
+  await expectNoHorizontalOverflow(page);
+  await axe(page, "#wizard-prices");
+  await page.screenshot({
+    path: `${SHOTS}/wizard-prices-390.png`,
+    fullPage: true,
+  });
+
+  // Step 5: a readable summary, then the owner's choice; the server repeats every check.
   await page.getByRole("link", { name: "التالي: المراجعة" }).click();
-  await expect(page).toHaveURL(/guide=review#publication$/);
+  await expect(page).toHaveURL(/guide=review#wizard-review$/);
+  const review = page.getByRole("region", { name: "مراجعة المنتج" });
+  await expect(review.getByRole("table")).toContainText("لافندر · 750 مل");
+  await expect(review.getByRole("table")).toContainText("7.50 ₪");
+  await expect(
+    review.getByRole("link", { name: "معاينة صفحة المنتج في المتجر" }),
+  ).toBeVisible();
+  await review.getByRole("radio", { name: /منشور ومتوفر/ }).check();
+  await expect(review.getByRole("note")).toContainText("الصورة الرئيسية");
+  await review
+    .getByRole("checkbox", { name: "أقبل النشر بصورة مؤقتة إن لم توجد صورة" })
+    .check();
+  await review.getByRole("button", { name: "حفظ الحالة" }).click();
+  await expect(review.getByRole("status")).toHaveText("حُفظت حالة المنتج.");
   await expect(page.getByRole("region", { name: "السجل" })).toContainText(
     "إنشاء الخيارات والأصناف",
   );
   await expectNoHorizontalOverflow(page);
+  await axe(page, "#wizard-review");
+  await page.screenshot({
+    path: `${SHOTS}/wizard-review-390.png`,
+    fullPage: true,
+  });
 
   // Coming back to step 2 shows what was created instead of building it twice.
   await page.goto(`/admin/products/new?product=${domainId}&step=2`);
@@ -188,6 +271,78 @@ test("phone: wizard keeps typing through a refusal and a reload, then builds exa
   await expect(page.getByText(/لديك مسودة محفوظة/)).toHaveCount(0);
   expect(issues.consoleErrors).toEqual([]);
   expect(issues.failedRequests).toEqual([]);
+});
+
+test("phone storefront: sold-out values close, moves are explained, a removed variant stays in the cart", async ({
+  page,
+}) => {
+  const issues = trackPageIssues(page);
+  await page.setViewportSize({ width: 390, height: 844 });
+  const [{ slug }] = await withTestDb(
+    (sql) => sql<{ slug: string }[]>`
+      select slug from products where domain_id = ${domainId}`,
+  );
+  const setAvailability = (label: string, availability: string) =>
+    withTestDb(
+      (sql) => sql`
+        update product_variants v set availability = ${availability}
+        from products p where p.id = v.product_id
+        and p.domain_id = ${domainId} and v.label_ar = ${label}`,
+    );
+  for (const label of ["لافندر · 750 مل", "الورد الأبيض · 1 لتر"])
+    await setAvailability(label, "available");
+  await setAvailability("الورد الأبيض · 750 مل", "unavailable");
+
+  await page.goto(`/products/${slug}`);
+  const scent = page.getByRole("radiogroup", { name: "الرائحة" });
+  const size = page.getByRole("radiogroup", { name: "الحجم" });
+  await expect(scent.getByRole("radio", { name: "لافندر" })).toHaveAttribute(
+    "aria-checked",
+    "true",
+  );
+  // Lavender has no 1 litre, so choosing it moves to the white rose and says so.
+  await size.getByRole("radio", { name: "1 لتر" }).click();
+  await expect(page.locator(".variant-adjusted-note")).toHaveText(
+    "غيّرنا الرائحة: الورد الأبيض لأن الاختيار السابق غير متوفر مع هذا الخيار.",
+  );
+  await expect(
+    scent.getByRole("radio", { name: "الورد الأبيض" }),
+  ).toHaveAttribute("aria-checked", "true");
+  await page
+    .locator(".product-detail-actions")
+    .getByRole("button", { name: "أضف إلى السلة" })
+    .click();
+  await page.screenshot({
+    path: `${SHOTS}/store-adjusted-390.png`,
+    fullPage: true,
+  });
+
+  // With every white rose sold out, the value is closed and labelled.
+  await setAvailability("الورد الأبيض · 1 لتر", "unavailable");
+  await page.goto(`/products/${slug}`);
+  const rose = scent.getByRole("radio", { name: /الورد الأبيض/ });
+  await expect(rose).toBeDisabled();
+  await expect(rose).toContainText("غير متوفر");
+  await expect(page.locator(".availability-status")).toHaveText(
+    "متاح للإضافة إلى السلة",
+  );
+
+  // The variant in the cart is removed: the line stays, explains itself and blocks checkout.
+  await withTestDb(
+    (sql) => sql`
+      update product_variants v set archived_at = now()
+      from products p where p.id = v.product_id
+      and p.domain_id = ${domainId} and v.label_ar = 'الورد الأبيض · 1 لتر'`,
+  );
+  await page.goto("/cart");
+  const removed = page.locator(".cart-line-removed");
+  await expect(removed).toContainText(NAME);
+  await expect(removed).toContainText("لم يعد يُباع");
+  await expectNoHorizontalOverflow(page);
+  await page.screenshot({ path: `${SHOTS}/cart-removed-390.png` });
+  await removed.getByRole("button", { name: "حذف من السلة" }).click();
+  await expect(page.getByRole("heading", { name: "سلتك فارغة" })).toBeVisible();
+  expect(issues.consoleErrors).toEqual([]);
 });
 
 test("phone: publishing follows the server rules; archive and permanent delete are explicit", async ({

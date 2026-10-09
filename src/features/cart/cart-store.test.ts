@@ -112,6 +112,19 @@ describe("cart store", () => {
     ).toEqual([{ ...single, quantity: 1 }]);
   });
 
+  it("keeps a line whose variant was removed so the shopper sees why", () => {
+    const removed = {
+      ...single,
+      variantId: "general-cleaner--old-size",
+      quantity: 2,
+    };
+    expect(
+      parsePersistedCart(v3([{ ...single, quantity: 1 }, removed]), catalog)
+        .lines,
+    ).toEqual([{ ...single, quantity: 1 }, removed]);
+    expect(isCartLineCurrent(catalog, removed)).toBe(false);
+  });
+
   it("keeps a single and a pack of the same variant as separate lines", () => {
     const restored = parsePersistedCart(
       v3([

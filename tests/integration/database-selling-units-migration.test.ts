@@ -55,15 +55,18 @@ describe("0020 selling units migration", () => {
     await client.unsafe("DROP SCHEMA IF EXISTS public CASCADE");
     await client.unsafe("DROP SCHEMA IF EXISTS drizzle CASCADE");
     await client.unsafe("CREATE SCHEMA public");
+    // Later migrations are additive and covered by their own tests; this one replays up to 0020.
     const files = (await readdir("drizzle"))
-      .filter((name) => name.endsWith(".sql"))
+      .filter((name) => name.endsWith(".sql") && name <= SELLING_UNITS)
       .sort();
-    // The order the migrator runs: #41's image scopes, then selling units, and nothing after.
+    // The order the migrator runs: #41's image scopes, then selling units.
     expect(files.slice(-2)).toEqual([IMAGE_SCOPES, SELLING_UNITS]);
     const journal = JSON.parse(
       await readFile("drizzle/meta/_journal.json", "utf8"),
     ) as { entries: Array<{ idx: number; tag: string }> };
-    expect(journal.entries.slice(-2)).toEqual([
+    expect(
+      journal.entries.filter((entry) => entry.idx <= 20).slice(-2),
+    ).toEqual([
       expect.objectContaining({ idx: 19, tag: "0019_product_image_scopes" }),
       expect.objectContaining({ idx: 20, tag: "0020_selling_units" }),
     ]);

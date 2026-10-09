@@ -164,3 +164,137 @@ a.admin-step-link {
   background: var(--admin-surface);
   color: var(--admin-text);
 }
+
+.admin-wizard-variant-cards > ul,
+.admin-image-mapping-list {
+  display: grid;
+  gap: 1rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 18rem), 1fr));
+}
+
+.admin-wizard-variant-card,
+.admin-image-mapping-card,
+.admin-publish-review {
+  display: grid;
+  gap: 0.6rem;
+  padding: 1rem;
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius);
+  background: var(--admin-surface);
+}
+
+.admin-wizard-variant-card form,
+.admin-publish-review form {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.admin-wizard-variant-card h3 {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0;
+  font-size: 1rem;
+}
+
+.admin-wizard-variant-card-grid {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.admin-wizard-variant-card-grid p {
+  margin: 0 0 0.35rem;
+}
+
+.admin-wizard-variant-card input:not([type="checkbox"]),
+.admin-image-mapping-card select {
+  width: 100%;
+  min-height: var(--admin-touch);
+  padding: 0.45rem 0.7rem;
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius);
+  background: var(--admin-surface);
+  color: var(--admin-text);
+}
+
+.admin-wizard-variant-card-toggles {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.admin-wizard-variant-card-toggles label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: var(--admin-touch);
+}
+
+.admin-choice span {
+  display: grid;
+}
+
+.admin-image-mapping {
+  display: grid;
+  gap: 1rem;
+}
+
+.admin-image-mapping-upload {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.admin-image-mapping-upload label {
+  cursor: pointer;
+}
+
+.admin-image-mapping-card img {
+  width: 100%;
+  height: 10rem;
+  object-fit: contain;
+  border-radius: var(--admin-radius);
+  background: var(--admin-bg);
+}
+
+.admin-review-summary {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0;
+}
+
+.admin-review-summary div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.admin-review-summary dt {
+  min-width: 6rem;
+  color: var(--admin-muted);
+}
+
+.admin-review-summary dd {
+  margin: 0;
+}
+
+.admin-review-problems ul {
+  margin: 0.25rem 0 0;
+  padding-inline-start: 1.25rem;
+}
+
+.admin-publish-review fieldset {
+  display: grid;
+  gap: 0.25rem;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.admin-image-mapping-upload label:focus-within {
+  outline: 2px solid var(--admin-focus);
+  outline-offset: 2px;
+}

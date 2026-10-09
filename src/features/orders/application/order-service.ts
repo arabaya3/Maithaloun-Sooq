@@ -23,6 +23,7 @@ import {
   singlePiecePrice,
 } from "@/features/catalog/infrastructure/variant-commerce";
 import { unitsToMilli } from "@/features/inventory/domain/quantity";
+import { orderLineSnapshots } from "@/features/orders/infrastructure/order-line-snapshots";
 import * as schema from "@/server/db/schema";
 
 import {
@@ -188,6 +189,11 @@ export class OrderService {
           }
         }
 
+        const snapshots = await orderLineSnapshots(
+          transaction,
+          resolvedItems.map((item) => item.variant),
+        );
+
         const itemsSubtotalAgorot = resolvedItems.reduce(
           (total, item) => total + item.lineSubtotalAgorot,
           0,
@@ -263,6 +269,9 @@ export class OrderService {
               productNameSnapshot,
               variantLabelSnapshot: item.variant.labelAr,
               variantAttributesSnapshot: item.attributes,
+              imageSnapshot: snapshots.get(item.variant.id)?.image ?? null,
+              optionValuesSnapshot:
+                snapshots.get(item.variant.id)?.optionValues ?? null,
               variantSkuSnapshot: item.variant.sku,
               variantBarcodeSnapshot: item.variant.barcode,
               unitPriceAgorot: item.priced.unitPriceAgorot,

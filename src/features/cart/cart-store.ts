@@ -154,8 +154,8 @@ function withoutDuplicates(lines: CartLine[]): CartLine[] | null {
 }
 
 /**
- * Persisted carts are untrusted: shape, bounds and identifiers are checked, lines for products or
- * variants that left the catalog are dropped, and a line whose unit changed is kept for review
+ * Persisted carts are untrusted: shape, bounds and identifiers are checked, lines for products that
+ * left the catalog are dropped, and a line whose unit changed is kept for review
  * rather than silently converted.
  */
 export function parsePersistedCart(
@@ -188,9 +188,8 @@ function parseV3(raw: string | null, catalog: CartCatalog): CartState | null {
   if (!parsed.success) return null;
   if (!withoutDuplicates(parsed.data.lines)) return null;
   return {
-    lines: parsed.data.lines.filter((line) =>
-      catalogVariant(catalog, line.productId, line.variantId),
-    ),
+    // A removed variant stays visible in the cart with an explanation; only a removed product drops the line.
+    lines: parsed.data.lines.filter((line) => catalog.has(line.productId)),
   };
 }
 

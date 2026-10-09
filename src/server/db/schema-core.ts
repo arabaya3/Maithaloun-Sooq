@@ -583,6 +583,15 @@ export const orderItems = pgTable(
     variantAttributesSnapshot: jsonb(
       "variant_attributes_snapshot",
     ).$type<Record<string, string> | null>(),
+    // What the customer saw when ordering; null on lines from before these snapshots existed.
+    imageSnapshot: jsonb("image_snapshot").$type<{
+      src: string;
+      alt: string;
+    } | null>(),
+    optionValuesSnapshot: jsonb("option_values_snapshot").$type<Array<{
+      option: string;
+      value: string;
+    }> | null>(),
     variantSkuSnapshot: varchar("variant_sku_snapshot", { length: 64 }),
     variantBarcodeSnapshot: varchar("variant_barcode_snapshot", {
       length: 64,

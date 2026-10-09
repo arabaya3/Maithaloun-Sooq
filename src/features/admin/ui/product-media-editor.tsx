@@ -33,7 +33,7 @@ import {
 } from "@/features/catalog/domain/product-media-validation";
 import { formatIls } from "@/shared/lib/format-currency";
 
-async function postGalleryImage(
+export async function postGalleryImage(
   productDomainId: string,
   file: File,
   alt: string,

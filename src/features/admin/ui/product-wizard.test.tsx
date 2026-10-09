@@ -33,10 +33,10 @@ describe("product wizard navigation", () => {
       "/admin/products/new?product=soap-1a2b&step=2",
     );
     expect(wizardStepHref(3, "soap-1a2b")).toBe(
-      "/admin/products/soap-1a2b?guide=images#images",
+      "/admin/products/soap-1a2b?guide=images#wizard-images",
     );
     expect(wizardStepHref(5, "soap-1a2b")).toBe(
-      "/admin/products/soap-1a2b?guide=review#publication",
+      "/admin/products/soap-1a2b?guide=review#wizard-review",
     );
   });
 
@@ -136,7 +136,7 @@ describe("options step", () => {
     });
     await waitFor(() =>
       expect(push).toHaveBeenCalledWith(
-        "/admin/products/spray-1a2b?guide=images#images",
+        "/admin/products/spray-1a2b?guide=images#wizard-images",
       ),
     );
   });
@@ -179,7 +179,7 @@ describe("options step", () => {
     await user.click(screen.getByRole("button", { name: "التالي: الصور" }));
     expect(planAction).not.toHaveBeenCalled();
     expect(push).toHaveBeenCalledWith(
-      "/admin/products/spray-1a2b?guide=images#images",
+      "/admin/products/spray-1a2b?guide=images#wizard-images",
     );
   });
 });

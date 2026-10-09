@@ -3858,6 +3858,15 @@ html[data-launch="skip"] .launch-splash {
 
 .variant-option[data-state="unavailable"] {
   color: var(--text-muted);
+  cursor: not-allowed;
+}
+
+.variant-adjusted-note {
+  margin: 0;
+  padding: 0.5rem 0.75rem;
+  border-radius: 10px;
+  background: var(--surface-warm);
+  font-size: 0.875rem;
 }
 
 .variant-option-note {
