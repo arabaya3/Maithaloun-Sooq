@@ -1,9 +1,9 @@
 export const wizardSteps = [
   { id: 1, label: "المعلومات الأساسية", anchor: "overview" },
   { id: 2, label: "الخيارات والأصناف", anchor: "variants" },
-  { id: 3, label: "الصور", anchor: "images" },
-  { id: 4, label: "الأسعار والمخزون", anchor: "selling-units" },
-  { id: 5, label: "المراجعة والنشر", anchor: "publication" },
+  { id: 3, label: "الصور", anchor: "wizard-images" },
+  { id: 4, label: "الأسعار والمخزون", anchor: "wizard-prices" },
+  { id: 5, label: "المراجعة والنشر", anchor: "wizard-review" },
 ] as const;
 
 const guideByStep: Record<number, string> = {

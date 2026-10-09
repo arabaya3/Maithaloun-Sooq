@@ -189,13 +189,14 @@ export function valueStates(
             variant.optionValues[otherOption] === otherValue,
         ),
       );
+      // A value is only closed when every variant carrying it is sold out; otherwise choosing it moves to one in stock.
       states[option.id]![value.id] = !withValue.length
         ? "impossible"
-        : !compatible.length
-          ? "adjusts"
+        : !withValue.some((variant) => variant.available)
+          ? "unavailable"
           : compatible.some((variant) => variant.available)
             ? "selectable"
-            : "unavailable";
+            : "adjusts";
     }
   }
   return states;
@@ -263,9 +264,35 @@ export function nextSelection<T extends SelectableVariant>(
   valueId: string,
 ): OptionSelection {
   const wanted = { ...selection, [optionId]: valueId };
-  if (variantForSelection(options, variants, wanted)) return wanted;
-  const best = closestVariant(variants, selection, optionId, valueId);
+  if (variantForSelection(options, variants, wanted)?.available) return wanted;
+  const best =
+    closestVariant(
+      variants.filter((variant) => variant.available),
+      selection,
+      optionId,
+      valueId,
+    ) ?? closestVariant(variants, selection, optionId, valueId);
   return best ? { ...best.optionValues } : selection;
+}
+
+/** Names the choices that changed beyond the one the shopper tapped, for a visible note. */
+export function adjustedChoices(
+  options: readonly ProductOption[],
+  before: OptionSelection,
+  after: OptionSelection,
+  tappedOptionId: string,
+): string[] {
+  return options
+    .filter(
+      (option) =>
+        option.id !== tappedOptionId &&
+        before[option.id] &&
+        before[option.id] !== after[option.id],
+    )
+    .map((option) => {
+      const value = option.values.find((item) => item.id === after[option.id]);
+      return value ? `${option.nameAr}: ${value.valueAr}` : option.nameAr;
+    });
 }
 
 export function packLabel(packCount: number | null | undefined): string | null {

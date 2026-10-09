@@ -97,3 +97,17 @@ export function cartMerchandiseSubtotal(lines: readonly ResolvedCartLine[]) {
     0,
   );
 }
+
+/** Lines whose product is still sold but whose exact variant was removed; shown, never priced or ordered. */
+export function removedCartLines(
+  lines: readonly CartLine[],
+  productsById: ReadonlyMap<string, Product>,
+): Array<{ line: CartLine; product: Product }> {
+  return lines.flatMap((line) => {
+    const product = productsById.get(line.productId);
+    if (!product) return [];
+    return product.variants.some((variant) => variant.id === line.variantId)
+      ? []
+      : [{ line, product }];
+  });
+}

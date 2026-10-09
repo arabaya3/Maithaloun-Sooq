@@ -6,6 +6,7 @@ import {
   type GalleryImage,
 } from "./product-gallery";
 import {
+  adjustedChoices,
   cartesian,
   combinationKey,
   duplicateCombinations,
@@ -118,12 +119,12 @@ describe("combinations", () => {
 });
 
 describe("storefront selection", () => {
-  it("marks values that move other choices, and unavailable values, for the current choice", () => {
+  it("closes a value only when every variant with it is sold out", () => {
     const states = valueStates(options, variants, { "o-size": "750" });
     expect(states["o-scent"]).toEqual({
       lav: "selectable",
       rose: "adjusts",
-      musk: "adjusts",
+      musk: "unavailable",
     });
     expect(
       valueStates(options, variants, { "o-size": "450" })["o-scent"]!.musk,
@@ -181,7 +182,7 @@ describe("storefront selection", () => {
     ).toEqual(current);
   });
 
-  it("prefers the default variant, then an available one, when moving", () => {
+  it("moves to an in-stock variant first, then the default", () => {
     const sparse = [
       {
         id: "a",
@@ -211,7 +212,36 @@ describe("storefront selection", () => {
         "o-scent",
         "rose",
       ),
+    ).toEqual({ "o-scent": "rose", "o-size": "750" });
+    const soldOut = sparse.map((variant) => ({ ...variant, available: false }));
+    expect(
+      nextSelection(
+        options,
+        [{ ...soldOut[0]!, isDefault: true }, soldOut[1]!],
+        { "o-scent": "lav", "o-size": "999" },
+        "o-scent",
+        "rose",
+      ),
     ).toEqual({ "o-scent": "rose", "o-size": "450" });
+  });
+
+  it("names the other choices a move changed", () => {
+    expect(
+      adjustedChoices(
+        options,
+        { "o-scent": "lav", "o-size": "450" },
+        { "o-scent": "rose", "o-size": "750" },
+        "o-scent",
+      ),
+    ).toEqual(["الحجم: 750 مل"]);
+    expect(
+      adjustedChoices(
+        options,
+        { "o-scent": "lav" },
+        { "o-scent": "rose" },
+        "o-scent",
+      ),
+    ).toEqual([]);
   });
 
   it("describes packs without changing stock units", () => {

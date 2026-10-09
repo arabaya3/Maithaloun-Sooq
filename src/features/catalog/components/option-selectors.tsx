@@ -56,7 +56,7 @@ export function OptionSelectors({
                     aria-checked={selected}
                     data-selected={selected}
                     data-state={state}
-                    disabled={state === "impossible"}
+                    disabled={state === "impossible" || state === "unavailable"}
                     onClick={() => onSelect(option.id, value.id)}
                   >
                     {value.valueAr}

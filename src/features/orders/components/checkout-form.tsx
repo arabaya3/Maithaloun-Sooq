@@ -6,6 +6,7 @@ import { useMemo, useRef, useState, type FormEvent } from "react";
 
 import {
   cartMerchandiseSubtotal,
+  removedCartLines,
   resolveCartLines,
 } from "@/features/cart/cart-lines";
 import { cartLineKey } from "@/features/cart/cart-store";
@@ -65,9 +66,10 @@ export function CheckoutForm({
     [products],
   );
   const resolvedLines = resolveCartLines(lines, productsById);
-  const hasUnavailableProduct = resolvedLines.some(
-    (line) => line.status === "unavailable" || line.status === "limited",
-  );
+  const hasUnavailableProduct =
+    resolvedLines.some(
+      (line) => line.status === "unavailable" || line.status === "limited",
+    ) || removedCartLines(lines, productsById).length > 0;
   const needsUnitReview = resolvedLines.some(
     (line) => line.status === "review",
   );

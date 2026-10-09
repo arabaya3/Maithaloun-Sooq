@@ -25,6 +25,7 @@ import {
   selectionForImage,
 } from "@/features/catalog/domain/product-media";
 import {
+  adjustedChoices,
   nextSelection,
   packLabel,
   variantForSelection,
@@ -115,6 +116,7 @@ export function ProductDetailPanel({
   const [variantId, setVariantId] = useState(initial.id);
   const [selection, setSelection] = useState<OptionSelection>(initialSelection);
   const [imageId, setImageId] = useState<string | null>(initialImageId);
+  const [adjusted, setAdjusted] = useState<string | null>(null);
   // The chosen way of buying, plus its size so an equivalent unit survives a colour or size change.
   const [chosenUnit, setChosenUnit] = useState<{
     id: string;
@@ -191,6 +193,12 @@ export function ProductDetailPanel({
       valueId,
     );
     const match = variantForSelection(options, selectable, next);
+    const changed = adjustedChoices(options, selection, next, optionId);
+    setAdjusted(
+      changed.length
+        ? `غيّرنا ${changed.join("، ")} لأن الاختيار السابق غير متوفر مع هذا الخيار.`
+        : null,
+    );
     setSelection(next);
     setImageId(pickImage(match?.id ?? null, next));
     if (match) rememberVariant(match.id, product.defaultVariantId);
@@ -260,7 +268,13 @@ export function ProductDetailPanel({
             selection={selection}
             onSelect={chooseValue}
           />
-        ) : (
+        ) : null}
+        {options.length && adjusted ? (
+          <p className="variant-adjusted-note" role="status">
+            {adjusted}
+          </p>
+        ) : null}
+        {options.length ? null : (
           <VariantSelector
             variants={product.variants}
             selectedVariantId={shown.id}

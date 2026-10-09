@@ -7,6 +7,7 @@ import { useMemo, useState } from "react";
 import { QuantityControl } from "@/features/cart/components/quantity-control";
 import {
   cartMerchandiseSubtotal,
+  removedCartLines,
   resolveCartLines,
 } from "@/features/cart/cart-lines";
 import { cartLineKey } from "@/features/cart/cart-store";
@@ -41,7 +42,10 @@ export function CartPage({ products }: { products: readonly Product[] }) {
   );
   const resolvedLines = resolveCartLines(lines, productsById);
   const merchandiseSubtotal = cartMerchandiseSubtotal(resolvedLines);
-  const needsAttention = resolvedLines.some((line) => line.status !== "ok");
+  const removedLines = removedCartLines(lines, productsById);
+  const needsAttention =
+    removedLines.length > 0 ||
+    resolvedLines.some((line) => line.status !== "ok");
   const deliveryFeeAgorot = calculateDeliveryFeeAgorot(merchandiseSubtotal);
   const orderTotal = merchandiseSubtotal + deliveryFeeAgorot;
   const freeDeliveryMessage = getFreeDeliveryMessage(merchandiseSubtotal);
@@ -56,7 +60,7 @@ export function CartPage({ products }: { products: readonly Product[] }) {
     );
   }
 
-  if (!resolvedLines.length) {
+  if (!resolvedLines.length && !removedLines.length) {
     return (
       <section className="cart-empty" aria-labelledby="empty-cart-title">
         <ShoppingBasket aria-hidden="true" />
@@ -279,6 +283,29 @@ export function CartPage({ products }: { products: readonly Product[] }) {
               );
             },
           )}
+          {removedLines.map(({ line, product }) => (
+            <article
+              key={cartLineKey(line)}
+              className="cart-line cart-line-removed"
+              aria-label={getProductDisplayName(product)}
+            >
+              <div className="cart-line-details">
+                <h2>
+                  <bdi dir="auto">{getProductDisplayName(product)}</bdi>
+                </h2>
+                <p className="unavailable-message" role="status">
+                  الصنف الذي اخترته من هذا المنتج لم يعد يُباع. احذفه ثم اختر
+                  صنفًا آخر من صفحة المنتج.
+                </p>
+                <div className="cart-line-review-options">
+                  <Link href={`/products/${product.slug}`}>اختيار صنف آخر</Link>
+                  <button type="button" onClick={() => removeItem(line)}>
+                    حذف من السلة
+                  </button>
+                </div>
+              </div>
+            </article>
+          ))}
         </div>
       </section>
 

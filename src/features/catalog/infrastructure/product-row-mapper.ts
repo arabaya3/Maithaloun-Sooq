@@ -150,7 +150,11 @@ export function mapProductRow(
     priceAgorot: defaultVariant.priceAgorot,
     categoryId: row.categoryId,
     image: defaultVariant.image,
-    availability: defaultVariant.availability,
+    availability: mappedVariants.some(
+      (variant) => variant.availability === "available",
+    )
+      ? "available"
+      : "unavailable",
     publication: row.publication,
     description: row.description ?? undefined,
     usageNotes: row.usageNotes ?? undefined,

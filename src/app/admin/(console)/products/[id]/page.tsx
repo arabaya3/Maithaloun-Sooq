@@ -31,9 +31,19 @@ import { wizardStepHref } from "@/features/admin/domain/product-wizard-steps";
 import { WizardProgress } from "@/features/admin/ui/product-wizard";
 import { ProductDangerZone } from "@/features/admin/ui/product-danger-zone";
 import { ClearProductDraft } from "@/features/admin/ui/product-draft";
+import { ImageMappingCards } from "@/features/admin/ui/image-mapping-cards";
 import { ProductMediaEditor } from "@/features/admin/ui/product-media-editor";
 import { ProductReadiness } from "@/features/admin/ui/product-readiness";
+import {
+  PublishReview,
+  type ReviewSummary,
+} from "@/features/admin/ui/publish-review";
 import { SellingUnitsEditor } from "@/features/admin/ui/selling-units-editor";
+import {
+  VariantCards,
+  type VariantCardData,
+} from "@/features/admin/ui/variant-cards";
+import type { PublishChoice } from "@/features/admin/application/product-wizard-actions";
 import { WorkspaceNav } from "@/features/admin/ui/workspace-nav";
 import { getProductDisplayName } from "@/features/catalog/domain/product";
 
@@ -170,6 +180,76 @@ export default async function AdminProductEditPage({
   const savedMessage = productSaveMessage(saved);
   const problems = publicationCheck?.problems ?? [];
   const showCosts = can(actor, "stock.costs");
+  const canAdjust = can(actor, "stock.adjust");
+  const liveVariants = matrix?.variants.filter((variant) => !variant.archived);
+  const [stockRows, categories] = await Promise.all([
+    guideStep && guideStep >= 4 && canSeeStock
+      ? inventoryService
+          .listStock(actor)
+          .then((rows) => rows.filter((row) => row.productId === product.id))
+      : [],
+    guideStep === 5 ? catalogAuthoringService.listCategories(false) : [],
+  ]);
+  const stockOf = (variantId: string) =>
+    stockRows.find((row) => row.variantId === variantId);
+  const pieces = (milli: number | null | undefined) =>
+    milli === null || milli === undefined ? null : Math.floor(milli / 1000);
+  const variantCards: VariantCardData[] = (liveVariants ?? []).map(
+    (variant) => {
+      const stock = stockOf(variant.id);
+      return {
+        id: variant.id,
+        label: variant.label,
+        priceAgorot: variant.priceAgorot,
+        available: variant.availability === "available",
+        isDefault: variant.isDefault,
+        sku: variant.sku,
+        barcode: variant.barcode,
+        tracked: stock?.tracked ?? false,
+        onHandPieces: stock?.tracked ? pieces(stock.onHandMilli) : null,
+        thresholdPieces: pieces(stock?.reorderThresholdMilli),
+      };
+    },
+  );
+  const reviewSummary: ReviewSummary | null =
+    guideStep === 5 && matrix
+      ? {
+          name: product.nameAr,
+          category:
+            categories.find((category) => category.code === product.categoryId)
+              ?.nameAr ?? "—",
+          options: matrix.options
+            .filter((option) => !option.archived)
+            .map((option) => ({
+              name: option.nameAr,
+              values: option.values.map((value) => value.valueAr),
+            })),
+          variants: variantCards.map((variant) => ({
+            label: variant.label || "الصنف الأساسي",
+            price: `${(variant.priceAgorot / 100).toFixed(2)} ₪`,
+            stock: variant.tracked
+              ? `${variant.onHandPieces ?? 0} قطعة`
+              : "لم يُسجَّل",
+            available: variant.available,
+          })),
+          images: {
+            total: matrix.images.filter((image) => !image.archived).length,
+            unassigned: matrix.images.filter(
+              (image) => !image.archived && image.scope === "unassigned",
+            ).length,
+          },
+          sellingUnits: sellingUnits.reduce(
+            (sum, variant) => sum + variant.units.length,
+            0,
+          ),
+        }
+      : null;
+  const currentChoice: PublishChoice =
+    product.publication === "published"
+      ? product.availability === "available"
+        ? "published"
+        : "published_unavailable"
+      : product.publication;
 
   const sections = [
     { id: "overview", label: "نظرة عامة" },
@@ -273,10 +353,28 @@ export default async function AdminProductEditPage({
             {guideStep === 3
               ? "أضيفي الصور واربطي كل صورة بالرائحة أو الحجم أو اللون الذي تخصه."
               : guideStep === 4
-                ? "راجعي سعر كل صنف وطرق البيع، ثم سجّلي الكمية الافتتاحية لكل صنف من قسم المخزون."
+                ? "سجّلي سعر كل صنف ورموزه وكميته الافتتاحية، ثم طرق البيع إن وُجدت."
                 : "راجعي ما ينقص قبل النشر، ثم اختاري حالة المنتج."}
           </p>
         </section>
+      ) : null}
+      {guideStep === 3 && matrix ? <ImageMappingCards matrix={matrix} /> : null}
+      {guideStep === 4 && variantCards.length ? (
+        <VariantCards
+          productDomainId={product.id}
+          variants={variantCards}
+          canStock={canAdjust}
+        />
+      ) : null}
+      {reviewSummary ? (
+        <PublishReview
+          productDomainId={product.id}
+          summary={reviewSummary}
+          problems={problems}
+          previewHref={`/products/${product.slug}`}
+          current={currentChoice}
+          placeholder={publicationCheck?.acceptedPlaceholder ?? false}
+        />
       ) : null}
 
       <WorkspaceNav sections={sections} label="أقسام المنتج" />

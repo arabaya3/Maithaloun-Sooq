@@ -267,7 +267,7 @@ test("admin authentication, operations, and privacy controls", async ({
   await page.getByRole("radio", { name: "منتج بخيار واحد" }).check();
   await page.getByRole("button", { name: "التالي: الصور" }).click();
   await expect(page).toHaveURL(
-    /\/admin\/products\/[a-z0-9-]+\?guide=images#images$/,
+    /\/admin\/products\/[a-z0-9-]+\?guide=images#wizard-images$/,
   );
   await expect(
     page.locator(".admin-workspace-header").getByText("تعديل المنتج"),
