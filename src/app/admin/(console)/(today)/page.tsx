@@ -114,6 +114,89 @@ async function MoneyCards({ actor }: { actor: AdminActor }) {
   );
 }
 
+const weekdayFormat = new Intl.DateTimeFormat("ar-PS-u-nu-latn", {
+  weekday: "short",
+  timeZone: "UTC",
+});
+
+/** Seven days of sales as plain bars, with the numbers written out for screen readers and print. */
+async function WeekCard({ actor }: { actor: AdminActor }) {
+  const week = await adminTodayService.getWeek(actor);
+  if (!week) return null;
+  const max = Math.max(1, ...week.days.map((day) => day.netSalesAgorot));
+  const change = week.todayAgorot - week.yesterdayAgorot;
+  return (
+    <section
+      className="admin-today-card admin-week"
+      aria-labelledby="week-title"
+    >
+      <div className="admin-today-card-head">
+        <h2 id="week-title">آخر 7 أيام</h2>
+        <Link href="/admin/reports" prefetch={false}>
+          التقارير
+          <ChevronLeft size={16} aria-hidden="true" />
+        </Link>
+      </div>
+      <div className="admin-week-summary">
+        <p>
+          <span className="admin-muted">مبيعات الأسبوع</span>
+          <strong className="admin-num">{formatIls(week.totalAgorot)}</strong>
+        </p>
+        <p>
+          <span className="admin-muted">اليوم مقارنة بالأمس</span>
+          <strong
+            className="admin-num"
+            data-tone={change > 0 ? "up" : change < 0 ? "down" : undefined}
+          >
+            {change === 0
+              ? "نفس الأمس"
+              : `${change > 0 ? "▲" : "▼"} ${formatIls(Math.abs(change))}`}
+          </strong>
+        </p>
+      </div>
+      <ol className="admin-week-bars" aria-label="المبيعات اليومية">
+        {week.days.map((day, index) => {
+          const label = weekdayFormat.format(new Date(`${day.date}T12:00:00Z`));
+          return (
+            <li
+              key={day.date}
+              aria-label={`${label}: ${formatIls(day.netSalesAgorot)}`}
+              data-today={index === week.days.length - 1 ? "true" : undefined}
+            >
+              <span
+                className="admin-week-bar"
+                style={{
+                  height: `${Math.max(3, Math.round((day.netSalesAgorot / max) * 100))}%`,
+                }}
+                aria-hidden="true"
+              />
+              <span className="admin-week-day" aria-hidden="true">
+                {label}
+              </span>
+            </li>
+          );
+        })}
+      </ol>
+      <h3 className="admin-week-top-title">الأكثر مبيعاً هذا الأسبوع</h3>
+      {week.top.length ? (
+        <ol className="admin-week-top">
+          {week.top.map((item) => (
+            <li key={item.name}>
+              <bdi>{item.name}</bdi>
+              <span className="admin-muted admin-num">
+                {Math.round(item.quantityMilli / 1000)} قطعة ·{" "}
+                {formatIls(item.netSalesAgorot)}
+              </span>
+            </li>
+          ))}
+        </ol>
+      ) : (
+        <p className="admin-muted">لا توجد مبيعات في آخر 7 أيام.</p>
+      )}
+    </section>
+  );
+}
+
 function AlertList({
   alerts,
   settled = false,
@@ -266,6 +349,18 @@ export default async function AdminTodayPage() {
 
       <div className="admin-today-grid">
         <div className="admin-today-main">
+          {can(actor, "reports.view") ? (
+            <Suspense
+              fallback={
+                <div
+                  className="admin-today-card admin-skeleton admin-skeleton-week"
+                  aria-hidden="true"
+                />
+              }
+            >
+              <WeekCard actor={actor} />
+            </Suspense>
+          ) : null}
           <section
             className="admin-today-card"
             aria-labelledby="needs-action-title"

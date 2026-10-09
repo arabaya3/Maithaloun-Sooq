@@ -23,6 +23,7 @@ import {
 import { assignableCategories } from "@/features/catalog/infrastructure/category-repository";
 import { formatIls } from "@/shared/lib/format-currency";
 import { normalizeArabicText } from "@/shared/lib/normalize-arabic";
+import { formatAgorotAsIlsInput } from "@/shared/lib/parse-ils";
 
 export const metadata: Metadata = {
   title: "المنتجات",
@@ -94,13 +95,12 @@ export default async function AdminProductsPage({
       adminCatalogService.list(actor),
       adminCatalogService.listArchived(actor),
       assignableCategories(),
-      can(actor, "stock.view")
-        ? inventoryService.listStock(actor, { filter: "attention" })
-        : [],
+      can(actor, "stock.view") ? inventoryService.listStock(actor) : [],
       catalogAuthoringService.incompleteDomainIds(),
     ],
   );
   const stockState = new Map<string, "out" | "low">();
+  const stockOf = new Map(stock.map((item) => [item.variantId, item]));
   for (const item of stock) {
     if (item.status === "out") stockState.set(item.productId, "out");
     else if (item.status === "low" && !stockState.has(item.productId)) {
@@ -138,6 +138,26 @@ export default async function AdminProductsPage({
       category: categoryName(product.categoryId),
       price: priceLabel(product),
       variantCount: product.variants.length || 1,
+      imageSrc: product.image.kind === "image" ? product.image.src : null,
+      stockPieces: stockOf.size
+        ? product.variants.some((variant) => stockOf.get(variant.id)?.tracked)
+          ? product.variants.reduce(
+              (sum, variant) =>
+                sum +
+                Math.floor((stockOf.get(variant.id)?.onHandMilli ?? 0) / 1000),
+              0,
+            )
+          : null
+        : undefined,
+      variants: product.variants.map((variant) => {
+        const item = stockOf.get(variant.id);
+        return {
+          id: variant.id,
+          label: variant.labelAr,
+          priceIls: formatAgorotAsIlsInput(variant.priceAgorot),
+          onHand: item?.tracked ? Math.floor(item.onHandMilli / 1000) : null,
+        };
+      }),
       publication: product.publication,
       available: product.availability === "available",
       flags,
@@ -296,7 +316,15 @@ export default async function AdminProductsPage({
       ) : tab === "archived" ? (
         <ArchivedProductList rows={archivedVisible} canManage={canManage} />
       ) : (
-        <ProductList rows={visible} canManage={canManage} />
+        <ProductList
+          rows={visible}
+          canManage={canManage}
+          canStock={can(actor, "stock.adjust")}
+          categories={categories.map((entry) => ({
+            code: entry.code,
+            nameAr: entry.nameAr,
+          }))}
+        />
       )}
     </main>
   );

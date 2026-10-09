@@ -204,3 +204,111 @@ test("phone: rename, remove and add a scent; the removed scent's photo leaves wi
   );
   expect(images[0]!.total).toBe(3);
 });
+
+test("phone: unsaved changes are announced and can be undone; a photo can be made first", async ({
+  page,
+}) => {
+  test.setTimeout(120_000);
+  await page.setViewportSize({ width: 390, height: 844 });
+  page.on("dialog", (dialog) => dialog.accept());
+  await login(page);
+  await page.goto(`/admin/products/${domainId}`);
+  const name = page.getByLabel("الاسم", { exact: true });
+  await name.fill(`${NAME} معدّل`);
+  await expect(page.getByText("تغييرات غير محفوظة")).toBeVisible();
+  await page.getByRole("button", { name: "تراجع" }).click();
+  await expect(name).toHaveValue(NAME);
+  await expect(page.getByText("تغييرات غير محفوظة")).toHaveCount(0);
+
+  // A second photo on lavender, then made the first one.
+  await page
+    .locator('input[type="file"]')
+    .nth(0)
+    .setInputFiles(await photo("#3a2f6b"));
+  await page.getByRole("button", { name: "حفظ", exact: true }).click();
+  await expect(page.getByText("تم الحفظ.")).toBeVisible({ timeout: 60_000 });
+  await page.reload();
+  await page
+    .getByRole("button", { name: "اجعلها الصورة الأولى لـ لافندر" })
+    .click();
+  await expect(
+    page.getByRole("button", { name: "اجعلها الصورة الأولى لـ لافندر" }),
+  ).toHaveCount(1);
+  await expect
+    .poll(async () =>
+      (
+        await withTestDb(
+          (sql) => sql<{ alt: string }[]>`
+      select i.alt_ar as alt from product_images i
+      join products p on p.id = i.product_id
+      join product_option_values v on v.id = i.option_value_id
+      where p.domain_id = ${domainId} and v.value_ar = 'لافندر' and i.archived_at is null
+      order by i.sort_order`,
+        )
+      ).map((row) => row.alt),
+    )
+    .toEqual(["3a2f6b", "9b7fd1"]);
+});
+
+test("phone: one shared photo covers every scent, so the product publishes without a photo per scent", async ({
+  page,
+}) => {
+  test.setTimeout(120_000);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await login(page);
+  await page.goto("/admin/products/new");
+  await page.getByLabel("الاسم", { exact: true }).fill(`${NAME} عبوة واحدة`);
+  await page.getByLabel("القسم").selectOption({ index: 1 });
+  await page.getByLabel("روائح", { exact: true }).check();
+  const names = page.getByPlaceholder("مثل: لافندر");
+  await names.nth(0).fill("تفاح");
+  await names.nth(1).fill("خوخ");
+  await page.getByLabel("السعر ₪").nth(0).fill("5");
+  await page.getByLabel("السعر ₪").nth(1).fill("5");
+  await page.getByText("صورة وحدة لكل الأنواع (اختياري)").click();
+  await page.getByLabel("صور المنتج").setInputFiles(await photo("#cccccc"));
+  await page.getByRole("button", { name: "حفظ ونشر في المتجر" }).click();
+  await expect(page).toHaveURL(/\?saved=ok$/, { timeout: 60_000 });
+  await expect(page.getByText("ظاهر في المتجر")).toBeVisible();
+});
+
+test("products list: quick edit changes a price in place, and the selection moves to another category", async ({
+  page,
+}) => {
+  test.setTimeout(120_000);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await login(page);
+  await page.goto(`/admin/products?q=${encodeURIComponent(NAME)}`);
+  const cards = page.locator(".admin-product-cards");
+  const card = cards
+    .locator(".admin-product-item")
+    .filter({ hasText: "3 أنواع" });
+  await card.getByRole("button", { name: /^تعديل سريع/ }).click();
+  const form = card.locator("form.admin-quick-edit");
+  await form.getByLabel("السعر ₪").first().fill("11");
+  await form.getByRole("button", { name: "حفظ" }).click();
+  await expect(form).toHaveCount(0, { timeout: 30_000 });
+  const prices = await withTestDb(
+    (sql) => sql<{ price: number }[]>`
+      select v.price_agorot as price from product_variants v
+      join products p on p.id = v.product_id
+      where p.domain_id = ${domainId} and v.archived_at is null
+      order by v.sort_order limit 1`,
+  );
+  expect(prices[0]!.price).toBe(1100);
+
+  await cards.locator('input[type="checkbox"]').first().check();
+  const select = page.locator("#bulk-move-category");
+  await select.selectOption({ index: 2 });
+  const target = await select.inputValue();
+  await page.getByRole("button", { name: "نقل", exact: true }).click();
+  await expect(page.getByText("تم نقل منتج واحد.")).toBeVisible({
+    timeout: 30_000,
+  });
+  const moved = await withTestDb(
+    (sql) => sql<{ total: number }[]>`
+      select count(*)::int as total from products
+      where name_ar like ${NAME + "%"} and category_id = ${target}`,
+  );
+  expect(moved[0]!.total).toBeGreaterThan(0);
+});

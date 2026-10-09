@@ -284,3 +284,57 @@
 .sp-alt {
   text-align: center;
 }
+.sp-photo[data-first="true"] {
+  outline: 2px solid var(--admin-forest);
+  outline-offset: 1px;
+}
+.sp-photo-first {
+  position: absolute;
+  bottom: 3px;
+  inset-inline-end: 3px;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border: 0;
+  border-radius: 50%;
+  background: rgb(255 255 255 / 0.9);
+  color: var(--admin-forest);
+  cursor: pointer;
+}
+.sp-unsaved {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  color: var(--admin-warning-text, var(--admin-text));
+}
+.sp-unsaved-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--admin-warning);
+}
+.sp-unsaved-undo {
+  margin-inline-start: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 36px;
+  padding: 0 10px;
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius);
+  background: var(--admin-surface);
+  color: var(--admin-text);
+  font: inherit;
+  cursor: pointer;
+}
+/* The unsaved-changes line makes the phone bar taller; the assistant floats above it. */
+@media (max-width: 63.99rem) {
+  .admin-app:has(.sp-actions[data-dirty]) .assistant-launcher {
+    bottom: calc(13rem + env(safe-area-inset-bottom));
+  }
+  .admin-body:has(.sp-actions[data-dirty]) {
+    padding-bottom: calc(13rem + env(safe-area-inset-bottom));
+  }
+}
