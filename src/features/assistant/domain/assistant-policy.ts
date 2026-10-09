@@ -111,6 +111,7 @@ export const mediaOperations = [
   "valueDelete",
   "variantsGenerate",
   "variantOptions",
+  "optionPlanApply",
   "productSetCreate",
 ] as const;
 export type MediaOperation = (typeof mediaOperations)[number];
@@ -175,6 +176,7 @@ export const operationRisk: Record<AssistantOperation, 2 | 3 | 4> = {
   valueRestore: 2,
   valueDelete: 4,
   variantsGenerate: 2,
+  optionPlanApply: 2,
   variantOptions: 2,
   productSetCreate: 3,
   sellingUnitsCreate: 2,
@@ -274,6 +276,7 @@ export const prepareToolRisk = {
   prepareOptionValueChange: 2,
   prepareOptionValueDeletion: 4,
   prepareVariantGeneration: 2,
+  prepareOptionPlan: 2,
   prepareVariantChoices: 2,
   prepareSellingUnitsCreation: 2,
   prepareSellingUnitChange: 2,

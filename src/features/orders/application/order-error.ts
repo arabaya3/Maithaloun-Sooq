@@ -40,6 +40,12 @@ export function mapOrderCreationError(
       message: "منطقة التوصيل المحددة غير متاحة حالياً.",
     };
   }
+  if (code === "whatsapp_unavailable") {
+    return {
+      status: 409,
+      message: "الطلب عبر واتساب غير متاح الآن. أكمل الطلب من الموقع مباشرة.",
+    };
+  }
   if (code === "idempotency_conflict") {
     return {
       status: 409,

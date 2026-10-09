@@ -298,3 +298,28 @@ a.admin-step-link {
   outline: 2px solid var(--admin-focus);
   outline-offset: 2px;
 }
+
+.admin-category-mover {
+  display: grid;
+  gap: 1rem;
+}
+
+.admin-category-mover-target {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.admin-category-mover-target select {
+  min-height: var(--admin-touch);
+  padding: 0.45rem 0.7rem;
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius);
+  background: var(--admin-surface);
+  color: var(--admin-text);
+}
+
+.admin-category-mover-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}

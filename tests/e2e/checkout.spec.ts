@@ -110,9 +110,13 @@ test("validates and creates a cash-on-delivery order with +970", async ({
   await expect(
     page.getByRole("heading", { name: "شكراً، طلبك قيد المراجعة" }),
   ).toBeVisible();
-  await expect(page.getByText("5 ₪")).toBeVisible();
-  await expect(page.getByText("نقداً عند الاستلام")).toBeVisible();
-  await expect(page.getByText("7 ₪")).toBeVisible();
+  const totals = page.locator(".order-confirmation-page dl");
+  await expect(totals.getByText("5 ₪")).toBeVisible();
+  await expect(totals.getByText("نقداً عند الاستلام")).toBeVisible();
+  await expect(totals.getByText("7 ₪")).toBeVisible();
+  await expect(
+    page.getByRole("list", { name: "منتجات الطلب" }).getByRole("listitem"),
+  ).toHaveCount(1);
   await expect(page.getByText("عميل تجريبي")).toHaveCount(0);
   await expect(page.getByText("0591234567")).toHaveCount(0);
 

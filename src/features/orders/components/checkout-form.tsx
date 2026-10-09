@@ -38,6 +38,7 @@ export interface CheckoutPrefill {
   countryCode: "970" | "972";
   nationalNumber: string;
   deliveryAddress: string;
+  landmark?: string;
 }
 
 export function CheckoutForm({
@@ -45,15 +46,21 @@ export function CheckoutForm({
   serviceAreas,
   prefill = null,
   signInHint = false,
+  whatsAppOrdering = false,
 }: {
   products: readonly Product[];
   serviceAreas: readonly ServiceArea[];
   prefill?: CheckoutPrefill | null;
   signInHint?: boolean;
+  whatsAppOrdering?: boolean;
 }) {
   const router = useRouter();
   const { lines, ready, clearCart } = useCart();
-  const [idempotencyKey] = useState(() => crypto.randomUUID());
+  // One key per way of sending, so trying the other channel after a failure is a new attempt.
+  const [idempotencyKeys] = useState(() => ({
+    web: crypto.randomUUID(),
+    whatsapp: crypto.randomUUID(),
+  }));
   const [submitting, setSubmitting] = useState(false);
   const [generalError, setGeneralError] = useState("");
   const [fieldErrors, setFieldErrors] = useState<
@@ -111,8 +118,15 @@ export function CheckoutForm({
     }
 
     const form = new FormData(event.currentTarget);
+    const submitter = (event.nativeEvent as SubmitEvent).submitter;
+    const checkoutChannel =
+      whatsAppOrdering && submitter?.getAttribute("value") === "whatsapp"
+        ? "whatsapp"
+        : "web";
     const requestBody = {
-      idempotencyKey,
+      idempotencyKey: idempotencyKeys[checkoutChannel],
+      checkoutChannel,
+      landmark: form.get("landmark"),
       customerName: form.get("customerName"),
       whatsappCountryCode: form.get("whatsappCountryCode"),
       whatsappNationalNumber: form.get("whatsappNationalNumber"),
@@ -304,6 +318,31 @@ export function CheckoutForm({
           ) : null}
         </div>
 
+        <div className="checkout-field">
+          <label htmlFor="checkout-landmark">
+            أقرب معلم <small>اختياري</small>
+          </label>
+          <input
+            id="checkout-landmark"
+            name="landmark"
+            maxLength={150}
+            autoComplete="off"
+            defaultValue={prefill?.landmark}
+            aria-invalid={Boolean(fieldErrors.landmark)}
+            aria-describedby={
+              fieldErrors.landmark
+                ? "landmark-help landmark-error"
+                : "landmark-help"
+            }
+          />
+          <small id="landmark-help" className="checkout-field-help">
+            مثل: قرب المسجد الكبير أو مقابل المدرسة.
+          </small>
+          {fieldErrors.landmark ? (
+            <small id="landmark-error">{fieldErrors.landmark[0]}</small>
+          ) : null}
+        </div>
+
         <label className="checkout-field">
           <span>
             ملاحظات الطلب <small>اختياري</small>
@@ -426,9 +465,25 @@ export function CheckoutForm({
             {freeDeliveryMessage}
           </p>
         ) : null}
-        <button type="submit" disabled={!canSubmit || submitting}>
+        <button
+          type="submit"
+          name="channel"
+          value="web"
+          disabled={!canSubmit || submitting}
+        >
           {submitting ? "جارٍ إرسال الطلب…" : "تأكيد الطلب"}
         </button>
+        {whatsAppOrdering ? (
+          <button
+            type="submit"
+            name="channel"
+            value="whatsapp"
+            className="checkout-whatsapp"
+            disabled={!canSubmit || submitting}
+          >
+            إرسال الطلب عبر واتساب
+          </button>
+        ) : null}
         <p className="checkout-privacy">
           تُستخدم هذه البيانات لتنفيذ هذا الطلب فقط.
         </p>

@@ -1966,6 +1966,24 @@ export class CatalogAuthoringService {
   }
 
   // Offers name a category by code; moving its products away would silently stop them applying.
+  /** Unarchived offers that name a category; products moved out of it stop receiving them. */
+  async offersNamingCategory(code: string): Promise<string[]> {
+    const rows = await this.database
+      .select({ nameAr: schema.offers.nameAr })
+      .from(schema.offerTargets)
+      .innerJoin(
+        schema.offers,
+        eq(schema.offers.id, schema.offerTargets.offerId),
+      )
+      .where(
+        and(
+          eq(schema.offerTargets.categoryCode, code),
+          isNull(schema.offers.archivedAt),
+        ),
+      );
+    return [...new Set(rows.map((row) => row.nameAr))];
+  }
+
   private async assertNoOffersTarget(
     transaction: Transaction,
     code: string,

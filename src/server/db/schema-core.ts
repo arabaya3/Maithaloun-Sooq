@@ -422,6 +422,10 @@ export const orders = pgTable(
     address: varchar("address", { length: 500 }).notNull(),
     deliveryAddress: varchar("delivery_address", { length: 500 }),
     landmark: varchar("landmark", { length: 150 }),
+    // How the customer sent the order; WhatsApp orders wait for confirmation in the chat.
+    checkoutChannel: varchar("checkout_channel", { length: 16 })
+      .default("web")
+      .notNull(),
     customerNote: varchar("customer_note", { length: 500 }),
     itemsSubtotalAgorot: integer("items_subtotal_agorot").notNull(),
     deliveryFeeAgorot: integer("delivery_fee_agorot"),
