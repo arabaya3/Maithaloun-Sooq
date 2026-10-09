@@ -16,13 +16,16 @@ const WIDTHS = [
   [1440, 900],
 ] as const;
 const NAME = "منتج تجربة الإنشاء";
+const SINGLE = `${NAME} المفرد`;
 
 test.describe.configure({ mode: "serial" });
 
 let domainId = "";
 
 test.afterAll(async () => {
-  await withTestDb((sql) => sql`delete from products where name_ar = ${NAME}`);
+  await withTestDb(
+    (sql) => sql`delete from products where name_ar like ${NAME + "%"}`,
+  );
 });
 
 async function axe(page: Page, selector: string) {
@@ -50,7 +53,7 @@ async function smallTargets(page: Page, selector: string) {
   );
 }
 
-test("new product: three large routes at 360, 390, 768 and 1440", async ({
+test("new product opens the wizard at 360, 390, 768 and 1440", async ({
   page,
 }) => {
   const issues = trackPageIssues(page);
@@ -58,66 +61,133 @@ test("new product: three large routes at 360, 390, 768 and 1440", async ({
   for (const [width, height] of WIDTHS) {
     await page.setViewportSize({ width, height });
     await page.goto("/admin/products/new");
-    const cards = page.locator(".admin-route-card");
-    await expect(cards).toHaveCount(3);
-    await expect(cards.nth(0)).toHaveAttribute(
-      "href",
-      "/admin/products/new/photo",
+    const steps = page.getByRole("list", { name: "خطوات إضافة المنتج" });
+    await expect(steps.getByRole("listitem")).toHaveCount(5);
+    await expect(steps.locator("[aria-current=step]")).toContainText(
+      "المعلومات الأساسية",
     );
-    await expect(cards.nth(1)).toHaveAttribute(
-      "href",
-      "/admin/products/new/manual",
-    );
-    await expect(cards.nth(2)).toHaveAttribute(
-      "href",
-      "/admin/inventory/capture",
-    );
+    const other = page.getByRole("navigation", { name: "طرق أخرى للبدء" });
+    await expect(other.getByRole("link")).toHaveCount(2);
     await expectNoHorizontalOverflow(page);
-    expect(await smallTargets(page, ".admin-create-routes a")).toEqual([]);
-    await axe(page, ".admin-create-routes");
-    await page.screenshot({ path: `${SHOTS}/routes-${width}.png` });
+    expect(
+      await smallTargets(
+        page,
+        ".admin-wizard a, .admin-wizard button, .admin-wizard input, .admin-wizard select",
+      ),
+    ).toEqual([]);
+    await axe(page, "main");
+    await page.screenshot({
+      path: `${SHOTS}/wizard-${width}.png`,
+      fullPage: true,
+    });
   }
-  await page.locator(".admin-route-card").first().click();
-  await expect(
-    page.getByRole("heading", { name: "إضافة منتج", level: 1 }),
-  ).toBeVisible();
+  // The old manual route still works for bookmarks.
+  await page.goto("/admin/products/new/manual");
+  await expect(page).toHaveURL(/\/admin\/products\/new$/);
   expect(issues.consoleErrors).toEqual([]);
 });
 
-test("phone: the manual draft survives a reload, creates a draft product and is cleared", async ({
+test("phone: wizard keeps typing through a refusal and a reload, then builds exact variants", async ({
   page,
 }) => {
+  test.setTimeout(120_000);
+  const issues = trackPageIssues(page);
   await page.setViewportSize({ width: 390, height: 844 });
   await login(page);
-  await page.goto("/admin/products/new/manual");
-  await page.locator("#product-name-ar").fill(NAME);
-  await page.locator("#product-price").fill("6.00");
+  await page.goto("/admin/products/new");
+  await page.getByLabel("اسم المنتج بالعربية").fill(NAME);
+  await page.getByLabel("القسم").selectOption({ index: 1 });
+  await page.getByLabel("سعر البيع ₪").fill("عشرة دولار");
+  await page.getByRole("button", { name: "التالي: الخيارات والمخزون" }).click();
+  await expect(
+    page.getByText("اكتبي سعر البيع بالشيكل، مثل 12 أو 12.50."),
+  ).toBeVisible();
+  await expect(page.getByLabel("سعر البيع ₪")).toBeFocused();
+  await expect(page.getByLabel("اسم المنتج بالعربية")).toHaveValue(NAME);
+  await page.screenshot({ path: `${SHOTS}/wizard-error-390.png` });
+
+  // A reload never loses what was typed.
+  await page.getByLabel("سعر البيع ₪").fill("6.00");
   await expect(page.getByText(/حُفظت المسودة على هذا الجهاز/)).toBeVisible();
-
-  // A reload (or a failed save) never loses what was typed.
   await page.reload();
-  await expect(page.getByText(/لديك مسودة محفوظة/)).toBeVisible();
-  await page.screenshot({ path: `${SHOTS}/draft-offer-390.png` });
   await page.getByRole("button", { name: "استعادة المسودة" }).click();
-  await expect(page.locator("#product-name-ar")).toHaveValue(NAME);
-  await expect(page.locator("#product-price")).toHaveValue("6.00");
+  await expect(page.getByLabel("اسم المنتج بالعربية")).toHaveValue(NAME);
+  await expect(page.getByLabel("سعر البيع ₪")).toHaveValue("6.00");
 
-  await page.getByRole("button", { name: "إنشاء المنتج" }).click();
-  await expect(page).toHaveURL(/\/admin\/products\/[a-z0-9-]+\?saved=created/, {
-    timeout: 15_000,
-  });
-  domainId = /\/admin\/products\/([a-z0-9-]+)\?/.exec(page.url())![1]!;
-  const readiness = page.getByRole("region", { name: "جاهزية المنتج" });
-  await expect(readiness).toBeVisible();
-  await expect(readiness).toContainText(/من \d مكتملة/);
-  await expect(readiness.getByText(/صورة مؤقتة/)).toBeVisible();
+  await page.getByRole("button", { name: "التالي: الخيارات والمخزون" }).click();
+  await expect(page).toHaveURL(
+    /\/admin\/products\/new\?product=[a-z0-9-]+&step=2$/,
+    {
+      timeout: 15_000,
+    },
+  );
+  domainId = /product=([a-z0-9-]+)/.exec(page.url())![1]!;
+  await expect(page.getByText(/آخر حفظ/).first()).toBeVisible();
+
+  await page.getByRole("radio", { name: "أكثر من نوع من الخيارات" }).check();
+  await page.getByLabel("أضيفي قيمة لـ الرائحة").fill("لافندر، الورد الأبيض");
+  await page.getByLabel("أضيفي قيمة لـ الرائحة").press("Enter");
+  await page.getByLabel("أضيفي قيمة لـ الحجم").fill("750 مل، 1 لتر");
+  await page.getByLabel("أضيفي قيمة لـ الحجم").press("Enter");
+  const list = page.getByRole("group", { name: /الأصناف التي ستُنشأ/ });
+  await expect(list.getByRole("checkbox")).toHaveCount(4);
+  await list.getByRole("checkbox", { name: "لافندر – 1 لتر" }).uncheck();
+  await expect(list).toContainText("(3 من 4)");
   await expectNoHorizontalOverflow(page);
-  await page.screenshot({ path: `${SHOTS}/readiness-390.png` });
+  await page.screenshot({
+    path: `${SHOTS}/wizard-options-390.png`,
+    fullPage: true,
+  });
+  await page.getByRole("button", { name: "التالي: الصور" }).click();
+  await expect(page).toHaveURL(
+    new RegExp(`/admin/products/${domainId}\\?guide=images#images$`),
+    {
+      timeout: 15_000,
+    },
+  );
 
-  // The finished draft is not offered again.
-  await page.goto("/admin/products/new/manual");
-  await expect(page.locator("#product-name-ar")).toBeVisible();
+  const variants = await withTestDb(
+    (sql) => sql<{ label: string; is_default: boolean }[]>`
+      select v.label_ar as label, v.is_default from product_variants v
+      join products p on p.id = v.product_id
+      where p.domain_id = ${domainId} and v.archived_at is null order by v.sort_order`,
+  );
+  expect(variants.map((row) => row.label).sort()).toEqual(
+    ["الورد الأبيض · 1 لتر", "الورد الأبيض · 750 مل", "لافندر · 750 مل"].sort(),
+  );
+  expect(variants.filter((row) => row.is_default)).toHaveLength(1);
+
+  // Steps 3–5 continue in the product's own workspace.
+  const guide = page.getByRole("region", { name: "إكمال المنتج الجديد" });
+  await expect(guide.locator("[aria-current=step]")).toContainText("الصور");
+  await expect(
+    page.getByRole("navigation", { name: "أقسام المنتج" }).getByRole("link"),
+  ).toHaveText([
+    "نظرة عامة",
+    "الخيارات والأصناف",
+    "الصور",
+    "الأسعار وطرق البيع",
+    "المخزون",
+    "النشر",
+    "السجل",
+  ]);
+  await page.screenshot({ path: `${SHOTS}/workspace-guide-390.png` });
+  await page.getByRole("link", { name: "التالي: الأسعار والمخزون" }).click();
+  await expect(page).toHaveURL(/guide=prices#selling-units$/);
+  await page.getByRole("link", { name: "التالي: المراجعة" }).click();
+  await expect(page).toHaveURL(/guide=review#publication$/);
+  await expect(page.getByRole("region", { name: "السجل" })).toContainText(
+    "إنشاء الخيارات والأصناف",
+  );
+  await expectNoHorizontalOverflow(page);
+
+  // Coming back to step 2 shows what was created instead of building it twice.
+  await page.goto(`/admin/products/new?product=${domainId}&step=2`);
+  await expect(page.getByText("للمنتج 3 صنف", { exact: false })).toBeVisible();
+  await page.goto("/admin/products/new");
   await expect(page.getByText(/لديك مسودة محفوظة/)).toHaveCount(0);
+  expect(issues.consoleErrors).toEqual([]);
+  expect(issues.failedRequests).toEqual([]);
 });
 
 test("phone: publishing follows the server rules; archive and permanent delete are explicit", async ({
@@ -126,6 +196,14 @@ test("phone: publishing follows the server rules; archive and permanent delete a
   test.setTimeout(90_000);
   await page.setViewportSize({ width: 390, height: 844 });
   await login(page);
+  // Publishing rules are checked on a one-variant product of its own, made through the wizard.
+  await page.goto("/admin/products/new");
+  await page.getByLabel("اسم المنتج بالعربية").fill(SINGLE);
+  await page.getByLabel("القسم").selectOption({ index: 1 });
+  await page.getByLabel("سعر البيع ₪").fill("6.00");
+  await page.getByRole("button", { name: "التالي: الخيارات والمخزون" }).click();
+  await expect(page).toHaveURL(/step=2$/, { timeout: 15_000 });
+  domainId = /product=([a-z0-9-]+)/.exec(page.url())![1]!;
   await page.goto(`/admin/products/${domainId}#publication`);
   const publication = page.getByRole("region", { name: "حالة النشر" });
 
@@ -170,10 +248,10 @@ test("phone: publishing follows the server rules; archive and permanent delete a
   const confirm = page.getByLabel(/للتأكيد اكتبي اسم المنتج/);
   await confirm.fill("منتج تجربة");
   await expect(remove).toBeDisabled();
-  await confirm.fill(NAME);
+  await confirm.fill(SINGLE);
   await remove.click();
   await expect(page).toHaveURL(/\/admin\/products\?deleted=/);
-  await expect(page.getByText(`تم حذف «${NAME}» نهائياً.`)).toBeVisible();
+  await expect(page.getByText(`تم حذف «${SINGLE}» نهائياً.`)).toBeVisible();
   const rows = await withTestDb(
     (sql) => sql`select 1 from products where domain_id = ${domainId}`,
   );

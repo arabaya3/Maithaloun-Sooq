@@ -220,11 +220,12 @@ test("product workspace at 360, 390, 768 and 1440: header, section bar, inventor
     const nav = page.getByRole("navigation", { name: "أقسام المنتج" });
     await expect(nav.getByRole("link")).toHaveText([
       "نظرة عامة",
-      "النشر",
-      "الأصناف والصور",
-      "طرق البيع",
+      "الخيارات والأصناف",
+      "الصور",
+      "الأسعار وطرق البيع",
       "المخزون",
-      "الأرشفة والحذف",
+      "النشر",
+      "السجل",
     ]);
     // Every existing editor is still on the page.
     await expect(

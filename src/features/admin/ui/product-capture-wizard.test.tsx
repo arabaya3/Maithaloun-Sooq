@@ -21,7 +21,7 @@ describe("ProductCaptureWizard", () => {
     expect(screen.getByRole("button", { name: /التقاط صورة/ })).toBeVisible();
     expect(
       screen.getByRole("link", { name: "إدخال المنتج يدوياً" }),
-    ).toHaveAttribute("href", "/admin/products/new/manual");
+    ).toHaveAttribute("href", "/admin/products/new");
   });
 
   it("fills the review form from the analyzed photo while leaving price empty", async () => {

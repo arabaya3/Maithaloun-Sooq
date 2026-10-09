@@ -194,43 +194,6 @@ export async function updateProductAction(
   redirect(savedProductPath(domainId, "product"));
 }
 
-export async function createProductAction(
-  formData: FormData,
-): Promise<{ ok: false; message: string } | null> {
-  const actor = await requireTrustedAdminMutation();
-  const domainId = String(formData.get("domainId") ?? "");
-  const priceAgorot = parseIlsToAgorot(String(formData.get("priceIls") ?? ""));
-  if (priceAgorot === null || priceAgorot <= 0) {
-    return { ok: false, message: "أدخل سعراً صالحاً بالشيكل." };
-  }
-
-  try {
-    await adminCatalogService.create(actor, {
-      domainId,
-      slug: String(formData.get("slug") ?? ""),
-      nameAr: String(formData.get("nameAr") ?? ""),
-      latinName: optional(formData.get("latinName")),
-      priceAgorot,
-      categoryId: String(formData.get("categoryId") ?? "") as never,
-      availability: "unavailable",
-      sortOrder: Number(formData.get("sortOrder")),
-      description: optional(formData.get("description")),
-      usageNotes: optional(formData.get("usageNotes")),
-      unit: optional(formData.get("unit")),
-      detailsStatus: String(formData.get("detailsStatus") ?? "") as never,
-      placeholderVariant: String(
-        formData.get("placeholderVariant") ?? "",
-      ) as never,
-    });
-  } catch (error) {
-    return { ok: false, message: mapProductAdminError(error) };
-  }
-
-  revalidatePath("/");
-  revalidatePath("/admin/products");
-  redirect(savedProductPath(domainId, "created"));
-}
-
 export async function createCapturedProductAction(
   _previous: { ok: false; message: string } | null,
   formData: FormData,

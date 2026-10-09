@@ -247,57 +247,28 @@ test("admin authentication, operations, and privacy controls", async ({
 
   await goAdminSection(page, "المنتجات");
   await page.getByRole("link", { name: "إضافة منتج" }).click();
-  await page.getByRole("link", { name: "إدخال المنتج يدوياً" }).click();
+  // «إضافة منتج» opens the wizard directly, no route-choice page in between.
   await expect(
-    page.getByText("هذا المنتج له أكثر من حجم أو وزن"),
-  ).toBeVisible();
-  await page.screenshot({
-    path: "artifacts/admin-screenshots/product-create-quick-mobile.png",
-    fullPage: true,
-  });
-  const quickId = `e2e-quick-${Date.now().toString(36)}`;
-  await page.locator("#product-name-ar").fill("منتج إضافة سريعة");
-  await page
-    .locator("summary")
-    .filter({ hasText: "معرّف الرابط والاسم اللاتيني" })
-    .click();
-  await page.locator("#product-latin-name").fill(quickId);
-  await page.locator("#product-price").fill("4.50");
-  await page.getByRole("button", { name: "إنشاء المنتج" }).click();
-  await expect(
-    page.locator(".admin-workspace-header").getByText("تعديل المنتج"),
-  ).toBeVisible({ timeout: 15_000 });
-  await expect(page.locator("#product-name-ar")).toHaveValue(
-    "منتج إضافة سريعة",
-  );
-
-  await goAdminSection(page, "المنتجات");
-  await page.getByRole("link", { name: "إضافة منتج" }).click();
-  await page.getByRole("link", { name: "إدخال المنتج يدوياً" }).click();
-  await page.getByRole("checkbox", { name: /أكثر من حجم أو وزن/ }).check();
-  await expect(
-    page.getByRole("heading", { name: "المعلومات الأساسية" }),
+    page.getByRole("list", { name: "خطوات إضافة المنتج" }),
   ).toBeVisible();
   await page.screenshot({
     path: "artifacts/admin-screenshots/product-create-wizard-mobile.png",
     fullPage: true,
   });
-  const wizardId = `e2e-wiz-${Date.now().toString(36)}`;
-  await page.locator("#wiz-name-ar").fill("منتج متعدد الأحجام");
-  await page.locator("#wiz-price").fill("9.00");
-  await page.locator("#wiz-latin").fill(wizardId);
-  await page.getByRole("button", { name: "التالي" }).click();
+  await page.getByLabel("اسم المنتج بالعربية").fill("منتج إضافة سريعة");
+  await page.getByLabel("القسم").selectOption({ index: 1 });
+  await page.getByLabel("سعر البيع ₪").fill("4.50");
+  await page.getByRole("button", { name: "التالي: الخيارات والمخزون" }).click();
   await expect(
-    page.getByRole("heading", { name: "الأحجام والأوزان" }),
-  ).toBeVisible();
-  await page.locator("#wiz-unit").fill("١.٢٥ كغم");
-  await page.getByRole("button", { name: "التالي" }).click();
-  await expect(
-    page.getByRole("heading", { name: "صورة المنتج" }),
-  ).toBeVisible();
-  await page.getByRole("button", { name: "التالي" }).click();
-  await expect(page.getByRole("heading", { name: "المراجعة" })).toBeVisible();
-  await page.getByRole("button", { name: "إنشاء المنتج" }).click();
+    page.getByRole("heading", {
+      name: "هل لهذا المنتج روائح، أحجام أو ألوان مختلفة؟",
+    }),
+  ).toBeVisible({ timeout: 15_000 });
+  await page.getByRole("radio", { name: "منتج بخيار واحد" }).check();
+  await page.getByRole("button", { name: "التالي: الصور" }).click();
+  await expect(page).toHaveURL(
+    /\/admin\/products\/[a-z0-9-]+\?guide=images#images$/,
+  );
   await expect(
     page.locator(".admin-workspace-header").getByText("تعديل المنتج"),
   ).toBeVisible({ timeout: 15_000 });

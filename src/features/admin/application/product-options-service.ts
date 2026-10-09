@@ -64,7 +64,8 @@ export type ProductOptionsErrorCode =
   | "primary_required"
   | "default_variant"
   | "has_images"
-  | "primary_must_be_shared";
+  | "primary_must_be_shared"
+  | "already_configured";
 
 export class ProductOptionsError extends Error {
   constructor(
@@ -154,6 +155,26 @@ export const productSetSchema = z
   })
   .strict();
 export type ProductSetInput = z.input<typeof productSetSchema>;
+
+export const optionPlanSchema = z
+  .object({
+    options: z
+      .array(
+        z
+          .object({
+            nameAr: optionNameSchema,
+            kind: z.enum(optionKinds),
+            values: z.array(optionValueTextSchema).min(1).max(MAX_VALUES),
+          })
+          .strict(),
+      )
+      .min(1)
+      .max(MAX_OPTIONS),
+    /** Each combination lists one value per option, in the options' order. */
+    combinations: z.array(z.array(optionValueTextSchema)).min(1).max(60),
+  })
+  .strict();
+export type OptionPlanInput = z.input<typeof optionPlanSchema>;
 
 export interface MatrixVariant {
   id: string;
@@ -437,6 +458,144 @@ export class ProductOptionsService {
       .update(JSON.stringify(matrix))
       .digest("hex")
       .slice(0, 32);
+  }
+
+  /**
+   * The wizard's options step: options, values and the chosen exact combinations in one transaction.
+   * The product's existing default variant takes the first combination, so it stays the default and
+   * keeps any stock or history it already has.
+   */
+  async applyOptionPlan(
+    actor: AdminActor,
+    productDomainId: string,
+    input: OptionPlanInput,
+    idempotencyKey: string,
+  ): Promise<{ variantIds: string[] }> {
+    assertPermission(actor, "settings.manage");
+    const plan = optionPlanSchema.parse(input);
+    for (const option of plan.options) {
+      const normalized = option.values.map(normalizeOptionText);
+      if (new Set(normalized).size !== normalized.length)
+        throw new ProductOptionsError("duplicate_value", option.nameAr);
+    }
+    const names = plan.options.map((option) =>
+      normalizeOptionText(option.nameAr),
+    );
+    if (new Set(names).size !== names.length)
+      throw new ProductOptionsError("duplicate_option");
+    try {
+      return await this.database.transaction(async (transaction) => {
+        const product = await this.lockProduct(transaction, productDomainId);
+        const [existingOption] = await transaction
+          .select({ id: schema.productOptions.id })
+          .from(schema.productOptions)
+          .where(eq(schema.productOptions.productId, product.id))
+          .limit(1);
+        const variants = await transaction
+          .select()
+          .from(schema.productVariants)
+          .where(
+            and(
+              eq(schema.productVariants.productId, product.id),
+              isNull(schema.productVariants.archivedAt),
+            ),
+          );
+        const base = variants.find((variant) => variant.isDefault);
+        if (existingOption || variants.length !== 1 || !base)
+          throw new ProductOptionsError("already_configured");
+
+        for (const [sortOrder, option] of plan.options.entries()) {
+          const [created] = await transaction
+            .insert(schema.productOptions)
+            .values({
+              productId: product.id,
+              nameAr: option.nameAr,
+              normalizedName: normalizeOptionText(option.nameAr),
+              kind: option.kind,
+              sortOrder,
+            })
+            .returning({ id: schema.productOptions.id });
+          await transaction.insert(schema.productOptionValues).values(
+            option.values.map((valueAr, valueOrder) => ({
+              optionId: created!.id,
+              productId: product.id,
+              valueAr,
+              normalizedValue: normalizeOptionText(valueAr),
+              sortOrder: valueOrder,
+            })),
+          );
+        }
+        const options = await this.liveOptions(transaction, product.id);
+        const selections = plan.combinations.map((combination) => {
+          const selection: Record<string, string> = {};
+          for (const [index, option] of options.entries()) {
+            const wanted = normalizeOptionText(combination[index] ?? "");
+            const value = option.values.find(
+              (item) => normalizeOptionText(item.valueAr) === wanted,
+            );
+            if (!value)
+              throw new ProductOptionsError(
+                "incomplete_combination",
+                option.nameAr,
+              );
+            selection[option.id] = value.id;
+          }
+          return selection;
+        });
+        const keys = selections.map((selection) => combinationKey(selection));
+        if (new Set(keys).size !== keys.length)
+          throw new ProductOptionsError("duplicate_combination");
+
+        const [first, ...rest] = selections;
+        await this.writeSelection(
+          transaction,
+          product.id,
+          base.id,
+          options,
+          first!,
+        );
+        await transaction
+          .update(schema.productVariants)
+          .set({
+            labelAr: selectionLabel(options, first!).slice(0, 120),
+            attributes: selectionAttributes(options, first!),
+            combinationKey: combinationKey(first!),
+            updatedAt: new Date(),
+          })
+          .where(eq(schema.productVariants.id, base.id));
+        await this.authoring.lockIdentifiers(transaction);
+        const created = rest.length
+          ? await this.insertVariants(
+              transaction,
+              actor,
+              product,
+              options,
+              rest.map((selection) =>
+                generatedVariantSchema.parse({
+                  selection,
+                  priceAgorot: base.priceAgorot,
+                  available: base.availability === "available",
+                }),
+              ),
+              idempotencyKey,
+            )
+          : [];
+        await syncImageMirrors(transaction, product.id);
+        await this.audit(
+          transaction,
+          actor,
+          "product_option_plan",
+          product.domainId,
+          { options: options.length, variants: selections.length },
+        );
+        return { variantIds: [base.domainId, ...created] };
+      });
+    } catch (error) {
+      if (isUnique(error, "product_variants_active_combination_uidx"))
+        throw new ProductOptionsError("duplicate_combination");
+      if (isUnique(error)) throw new ProductOptionsError("duplicate_option");
+      throw error;
+    }
   }
 
   async createOption(

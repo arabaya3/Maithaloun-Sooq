@@ -11,7 +11,10 @@ import { parseMoneyInput } from "@/shared/lib/money-input";
 import { getProductImageStore } from "@/server/storage/product-images";
 
 import { CatalogAuthoringError } from "./catalog-authoring-service";
-import { ProductOptionsError } from "./product-options-service";
+import {
+  ProductOptionsError,
+  type OptionPlanInput,
+} from "./product-options-service";
 import {
   catalogAuthoringService,
   productOptionsService,
@@ -35,6 +38,8 @@ const messages: Record<ProductOptionsError["code"], string> = {
   has_images:
     "صور مرتبطة بهذه القيمة. انقل الصور إلى قيمة أخرى أو اجعلها صورة عامة أولاً.",
   primary_must_be_shared: "الصورة الرئيسية يجب أن تكون صورة عامة للمنتج.",
+  already_configured:
+    "لهذا المنتج خيارات أو أصناف من قبل؛ عدّليها من قسم الخيارات والأصناف.",
 };
 
 async function run(
@@ -45,7 +50,12 @@ async function run(
     await action();
   } catch (error) {
     if (error instanceof ProductOptionsError) {
-      return { ok: false, message: messages[error.code] };
+      return {
+        ok: false,
+        message: error.detail
+          ? `${messages[error.code]} («${error.detail}»)`
+          : messages[error.code],
+      };
     }
     if (
       error instanceof CatalogAuthoringError &&
@@ -313,5 +323,18 @@ export async function generateMissingVariantsAction(input: {
         .map((selection) => ({ selection, priceAgorot: price.agorot })),
       crypto.randomUUID(),
     ),
+  );
+}
+
+export async function applyOptionPlanAction(input: {
+  productDomainId: string;
+  plan: OptionPlanInput;
+  idempotencyKey: string;
+}): Promise<MediaActionResult> {
+  const actor = await requireTrustedAdminMutation();
+  const domainId = productId.parse(input.productDomainId);
+  const key = uuid.parse(input.idempotencyKey);
+  return run(domainId, () =>
+    productOptionsService.applyOptionPlan(actor, domainId, input.plan, key),
   );
 }

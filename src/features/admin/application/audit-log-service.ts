@@ -37,7 +37,12 @@ export class AuditLogService {
   /** The audit trail, newest first. Owner only: it names every account and what it changed. */
   async list(
     actor: AdminActor,
-    query: { actorId?: string; entityType?: string; before?: string } = {},
+    query: {
+      actorId?: string;
+      entityType?: string;
+      entityId?: string;
+      before?: string;
+    } = {},
   ): Promise<AuditLogPage> {
     assertOwnerActor(actor);
     const actorId = z.uuid().safeParse(query.actorId);
@@ -46,6 +51,10 @@ export class AuditLogService {
       .regex(/^[a-z_]{2,40}$/)
       .safeParse(query.entityType);
     const before = z.iso.datetime().safeParse(query.before);
+    const entityId = z
+      .string()
+      .regex(/^[a-z0-9-]{1,80}$/)
+      .safeParse(query.entityId);
     const rows = await this.database
       .select({
         id: schema.adminAuditEvents.id,
@@ -69,6 +78,9 @@ export class AuditLogService {
             : undefined,
           entityType.success
             ? eq(schema.adminAuditEvents.entityType, entityType.data)
+            : undefined,
+          entityId.success
+            ? eq(schema.adminAuditEvents.entityId, entityId.data)
             : undefined,
           before.success
             ? lt(schema.adminAuditEvents.createdAt, new Date(before.data))

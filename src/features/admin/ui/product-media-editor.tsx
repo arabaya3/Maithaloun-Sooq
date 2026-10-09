@@ -519,7 +519,11 @@ export function ProductMediaEditor({
         </details>
       ) : null}
 
-      <details className="admin-media-section" open>
+      <details
+        id="images"
+        className="admin-media-section admin-workspace-anchor"
+        open
+      >
         <summary>٣. الصور ({activeImages.length} من 8)</summary>
         {unassigned.length ? (
           <section
