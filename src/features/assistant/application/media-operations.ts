@@ -5,12 +5,19 @@ import { z } from "zod";
 
 import {
   ProductOptionsError,
+  optionPlanSchema,
   productSetSchema,
+  type OptionPlanInput,
   type ProductMatrix,
   type ProductOptionsService,
   type ProductSetInput,
 } from "@/features/admin/application/product-options-service";
 import type { AdminActor } from "@/features/admin/domain/admin-actor";
+import {
+  allCombinations,
+  combinationText,
+  planProblem,
+} from "@/features/admin/domain/option-plan";
 import { can } from "@/features/admin/domain/permissions";
 import type { Product } from "@/features/catalog/domain/product";
 import { MAX_PRODUCT_IMAGES } from "@/features/catalog/domain/product-gallery";
@@ -1240,6 +1247,77 @@ export class MediaOperations {
     );
   }
 
+  /** The wizard's step 2 for a product without options: options, values and exactly the listed variants. */
+  async prepareOptionPlan(
+    actor: AdminActor,
+    input: {
+      product: string;
+      options: Array<{
+        name: string;
+        kind: "fragrance" | "size" | "color" | "pack" | "other";
+        values: string[];
+      }>;
+      combinations?: string[][];
+    },
+  ): Promise<PrepareResult> {
+    const denied = this.ownerOnly(actor);
+    if (denied) return denied;
+    const located = await this.locate(actor, input.product);
+    if (!located.ok) return located.result;
+    if (located.matrix.options.some((option) => !option.archived))
+      return rejected(
+        "already_configured",
+        "للمنتج خيارات مسبقاً؛ عدّليها أو أضيفي قيماً بدل إنشاء خطة جديدة.",
+      );
+    const planned = input.options.map((option, index) => ({
+      key: String(index),
+      nameAr: option.name.trim(),
+      kind: option.kind,
+      values: option.values.map((value) => value.trim()),
+    }));
+    const combinations = input.combinations?.length
+      ? input.combinations.map((row) => row.map((value) => value.trim()))
+      : allCombinations(planned);
+    const problem = planProblem(planned, combinations);
+    if (problem) return rejected("invalid_plan", problem);
+    return this.card(
+      located,
+      "optionPlanApply",
+      {
+        plan: {
+          options: planned.map(({ nameAr, kind, values }) => ({
+            nameAr,
+            kind,
+            values,
+          })),
+          combinations,
+        },
+      },
+      "إنشاء الخيارات والأصناف",
+      `${combinations.length} أصناف لـ ${located.product.nameAr}`,
+      [
+        ...planned.map((option) => ({
+          label: option.nameAr,
+          before: null,
+          after: option.values.join("، "),
+        })),
+        ...combinations.map((row) => ({
+          label: "صنف",
+          before: null,
+          after: combinationText(row),
+        })),
+      ],
+      {
+        impact: [
+          "يبقى الصنف الحالي افتراضياً بمخزونه، ويأخذ أول تركيبة.",
+          "الأصناف الجديدة بسعر المنتج وبدون مخزون؛ لا يُنسخ المخزون بين الأصناف.",
+          `لن تُنشأ إلا التركيبات المذكورة (${combinations.length} من ${allCombinations(planned).length}).`,
+        ],
+        confirmLabel: "تأكيد الإنشاء",
+      },
+    );
+  }
+
   async prepareVariantChoices(
     actor: AdminActor,
     input: {
@@ -1757,6 +1835,22 @@ export class MediaOperations {
         selection: Record<string, string>;
         packCount: number | null;
       }>,
+      optionPlanApply: {
+        args: base.extend({ plan: optionPlanSchema }),
+        version,
+        async execute(actor, args, key) {
+          const result = await options.applyOptionPlan(
+            actor,
+            args.domainId,
+            args.plan,
+            key,
+          );
+          return done(
+            `تم إنشاء ${result.variantIds.length} أصناف.`,
+            args.domainId,
+          );
+        },
+      } satisfies Handler<{ domainId: string; plan: OptionPlanInput }>,
       productSetCreate: {
         args: z.object({
           set: z.record(z.string(), z.unknown()),
