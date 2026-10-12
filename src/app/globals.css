@@ -3772,6 +3772,8 @@ html[data-launch="skip"] .launch-splash {
 .product-gallery-stage {
   position: relative;
   display: grid;
+  /* One track sized to the square frame, so a tall photo's max-height resolves and it is never cropped. */
+  grid-template: minmax(0, 1fr) / minmax(0, 1fr);
   overflow: hidden;
   place-items: center;
   width: 100%;

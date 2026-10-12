@@ -415,6 +415,55 @@ test("gallery fits 360, 390, 768 and 1440: no overflow, no overlap, 44px targets
   expect(issues.failedRequests).toEqual([]);
 });
 
+test("a tall bottle photo is shown whole inside the square frame, never cropped", async ({
+  page,
+}) => {
+  const saved = await withTestDb(
+    (sql) => sql<{ id: string; src: string; width: number; height: number }[]>`
+      select i.id, i.src, i.width, i.height from product_images i
+      join products p on p.id = i.product_id where p.domain_id = ${LOYAL.domainId}`,
+  );
+  await withTestDb(
+    (sql) => sql`
+      update product_images set src = '/products/home-secret.webp', width = 405, height = 720
+      where id in ${sql(saved.map((row) => row.id))}`,
+  );
+  try {
+    for (const [width, height] of [
+      [390, 844],
+      [1440, 900],
+    ] as const) {
+      await page.setViewportSize({ width, height });
+      await page.goto(`/products/${LOYAL.slug}`);
+      const image = page.locator(".product-gallery-image");
+      await expect(image).toBeVisible();
+      await expect
+        .poll(() =>
+          image.evaluate((node) => (node as HTMLImageElement).complete),
+        )
+        .toBe(true);
+      const frame = (await page
+        .locator(".product-gallery-stage")
+        .boundingBox())!;
+      const shown = (await image.boundingBox())!;
+      expect(shown.y).toBeGreaterThanOrEqual(frame.y - 0.5);
+      expect(shown.y + shown.height).toBeLessThanOrEqual(
+        frame.y + frame.height + 0.5,
+      );
+      expect(shown.x).toBeGreaterThanOrEqual(frame.x - 0.5);
+      expect(shown.x + shown.width).toBeLessThanOrEqual(
+        frame.x + frame.width + 0.5,
+      );
+    }
+  } finally {
+    await withTestDb(async (sql) => {
+      for (const row of saved)
+        await sql`update product_images set src = ${row.src}, width = ${row.width}, height = ${row.height}
+          where id = ${row.id}`;
+    });
+  }
+});
+
 test("admin at 390: unmapped uploads block publishing; mapping blue and pink publishes; a failed mapping keeps the choice", async ({
   page,
 }) => {
