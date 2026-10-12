@@ -171,6 +171,73 @@
   gap: 0.5rem;
 }
 
+.admin-confirm-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  background: rgb(14 31 43 / 58%);
+  backdrop-filter: blur(3px);
+}
+
+.admin-confirm-dialog {
+  width: min(100%, 31rem);
+  display: grid;
+  gap: 1rem;
+  padding: 1.25rem;
+  border: 1px solid var(--admin-danger-border);
+  border-radius: 1.25rem;
+  background: var(--admin-surface);
+  box-shadow: 0 1.5rem 4rem rgb(14 31 43 / 24%);
+}
+
+.admin-confirm-dialog h2,
+.admin-confirm-dialog p {
+  margin: 0;
+}
+
+.admin-confirm-dialog p {
+  margin-block-start: 0.4rem;
+  line-height: 1.7;
+}
+
+.admin-confirm-icon {
+  width: 3rem;
+  height: 3rem;
+  display: grid;
+  place-items: center;
+  border-radius: 1rem;
+  color: var(--admin-danger-text);
+  background: var(--admin-danger-bg);
+}
+
+.admin-confirm-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+  padding: 0.85rem;
+  border: 1px solid var(--admin-danger-border);
+  border-radius: 0.85rem;
+  background: var(--admin-danger-bg);
+  line-height: 1.55;
+}
+
+.admin-confirm-check input {
+  width: 1.2rem;
+  height: 1.2rem;
+  flex: 0 0 auto;
+  margin-block-start: 0.15rem;
+  accent-color: var(--admin-danger);
+}
+
+.admin-confirm-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+}
+
 /* Product workspace */
 .admin-workspace-header {
   display: grid;
