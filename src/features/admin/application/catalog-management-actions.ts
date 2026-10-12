@@ -542,3 +542,40 @@ export async function moveProductsAction(input: {
     return authoringFailure(error);
   }
 }
+
+export type QuickCategoryResult =
+  { ok: true; code: string; nameAr: string } | { ok: false; message: string };
+
+/** Adds a visible category from the product editor without leaving it; details are edited on the categories page. */
+export async function quickCreateCategoryAction(
+  nameInput: string,
+): Promise<QuickCategoryResult> {
+  const actor = await requireTrustedAdminMutation();
+  const nameAr = nameInput.trim().replace(/\s+/g, " ");
+  if (nameAr.length < 2 || nameAr.length > 80) {
+    return { ok: false, message: "اكتبي اسم قسم من 2 إلى 80 حرفاً." };
+  }
+  try {
+    const existing = await catalogAuthoringService.listCategories(true);
+    const same = existing.find(
+      (row) => !row.archived && row.nameAr.trim() === nameAr,
+    );
+    if (same) return { ok: true, code: same.code, nameAr: same.nameAr };
+    const code = categoryCodeFrom(
+      nameAr,
+      new Set(existing.map((row) => row.code)),
+    );
+    await catalogAuthoringService.createCategory(actor, {
+      code,
+      nameAr,
+      description: null,
+      icon: categoryIconKeys[0],
+      visible: true,
+    });
+    revalidatePath("/admin", "layout");
+    revalidatePath("/", "layout");
+    return { ok: true, code, nameAr };
+  } catch (error) {
+    return authoringFailure(error);
+  }
+}
