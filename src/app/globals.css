@@ -629,6 +629,43 @@ select:focus-visible {
   line-height: 1.9;
 }
 
+.product-description p,
+.product-description ul,
+.product-description ol {
+  margin: 0 0 0.75rem;
+}
+
+.product-description ul,
+.product-description ol {
+  padding-inline-start: 1.25rem;
+}
+
+.product-description ul {
+  list-style: disc;
+}
+
+.product-description ol {
+  list-style: decimal;
+}
+
+.product-description li + li {
+  margin-top: 0.25rem;
+}
+
+.product-description > :last-child {
+  margin-bottom: 0;
+}
+
+.product-detail-below {
+  padding: 0 1.25rem 1.25rem;
+}
+
+.product-detail-below .product-description {
+  margin: 0;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+}
+
 .product-detail-content section h2 {
   margin-bottom: 0.4rem;
   font-size: 1.05rem;
@@ -1465,6 +1502,24 @@ select:focus-visible {
 
   .product-detail {
     grid-template-columns: minmax(0, 46%) minmax(0, 1fr);
+  }
+
+  /* Several photos: the description fills the space under the gallery; the buying panel spans both rows. */
+  .product-detail--described > .product-gallery {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .product-detail--described > .product-detail-content {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+    justify-content: flex-start;
+  }
+
+  .product-detail--described > .product-detail-below {
+    grid-column: 1;
+    grid-row: 2;
+    padding: 0 var(--space-4) var(--space-4);
   }
 
   .product-detail-media {
