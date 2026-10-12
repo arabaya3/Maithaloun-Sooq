@@ -5,6 +5,9 @@ import { AuthorizationError } from "@/features/admin/domain/admin-actor";
 import { CatalogAuthoringError } from "./catalog-authoring-service";
 
 const setPublication = vi.fn();
+const references = vi.fn();
+const archive = vi.fn();
+const deleteUnreferenced = vi.fn();
 const revalidatePath = vi.fn();
 const requireTrustedAdminMutation = vi.fn();
 
@@ -19,9 +22,15 @@ vi.mock("./admin-services", () => ({
   catalogAuthoringService: {
     setPublication: (...args: unknown[]) => setPublication(...args),
   },
+  productMaintenanceService: {
+    references: (...args: unknown[]) => references(...args),
+    archive: (...args: unknown[]) => archive(...args),
+    deleteUnreferenced: (...args: unknown[]) => deleteUnreferenced(...args),
+  },
 }));
 
-const { bulkPublicationAction } = await import("./catalog-management-actions");
+const { bulkPublicationAction, bulkDeleteProductsAction } =
+  await import("./catalog-management-actions");
 
 function form(ids: string[], publication: string) {
   const data = new FormData();
@@ -37,6 +46,52 @@ beforeEach(() => {
     id: "owner",
     role: "owner",
     active: true,
+  });
+  references.mockReset();
+  archive.mockReset();
+  deleteUnreferenced.mockReset().mockResolvedValue({ deleted: true });
+});
+
+describe("bulk product deletion", () => {
+  it("permanently deletes unused products and archives products with history", async () => {
+    references.mockImplementation(async (_actor, domainId) =>
+      domainId === "used"
+        ? { orders: 1, purchases: 0, sales: 0, stockMovements: 0 }
+        : { orders: 0, purchases: 0, sales: 0, stockMovements: 0 },
+    );
+
+    await expect(
+      bulkDeleteProductsAction({
+        domainIds: ["unused", "used"],
+        acknowledged: true,
+      }),
+    ).resolves.toEqual({
+      ok: true,
+      deleted: 1,
+      archived: 1,
+      failed: [],
+    });
+    expect(deleteUnreferenced).toHaveBeenCalledWith(
+      expect.objectContaining({ role: "owner" }),
+      "unused",
+    );
+    expect(archive).toHaveBeenCalledWith(expect.anything(), {
+      domainId: "used",
+      reason: "حذف جماعي من قائمة المنتجات",
+    });
+    expect(revalidatePath).toHaveBeenCalledWith("/admin/products");
+  });
+
+  it("requires an explicit acknowledgement before touching products", async () => {
+    await expect(
+      bulkDeleteProductsAction({
+        domainIds: ["unused"],
+        acknowledged: false,
+      }),
+    ).resolves.toMatchObject({ ok: false });
+    expect(references).not.toHaveBeenCalled();
+    expect(deleteUnreferenced).not.toHaveBeenCalled();
+    expect(archive).not.toHaveBeenCalled();
   });
 });
 
