@@ -1505,6 +1505,11 @@ select:focus-visible {
   }
 
   /* Several photos: the description fills the space under the gallery; the buying panel spans both rows. */
+  /* The first row only fits the gallery; the buying panel's extra height goes to the description row. */
+  .product-detail--described {
+    grid-template-rows: auto 1fr;
+  }
+
   .product-detail--described > .product-gallery {
     grid-column: 1;
     grid-row: 1;
@@ -1519,6 +1524,7 @@ select:focus-visible {
   .product-detail--described > .product-detail-below {
     grid-column: 1;
     grid-row: 2;
+    align-self: start;
     padding: 0 var(--space-4) var(--space-4);
   }
 

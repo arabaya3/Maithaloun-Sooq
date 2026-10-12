@@ -493,6 +493,9 @@ test("with several photos the formatted description sits under them, beside the 
     const buy = (await page.locator(".product-detail-content").boundingBox())!;
     // Under the photos, in the same column, and not inside the buying panel.
     expect(text.y).toBeGreaterThanOrEqual(gallery.y + gallery.height - 1);
+    // Right under the photo frame, with no empty band between them.
+    const frame = (await page.locator(".product-gallery-stage").boundingBox())!;
+    expect(text.y - (frame.y + frame.height)).toBeLessThan(48);
     expect(Math.abs(text.x - gallery.x)).toBeLessThan(gallery.width / 2);
     expect(text.x + text.width <= buy.x || text.x >= buy.x + buy.width).toBe(
       true,

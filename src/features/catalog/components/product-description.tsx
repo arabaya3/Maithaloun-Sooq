@@ -11,7 +11,9 @@ const NUMBER = /^\s*\d+[.)-]\s+/;
 /** Turns the owner's plain text into blocks: blank lines split paragraphs, «-» or «1.» lines become lists. */
 export function descriptionBlocks(text: string): Block[] {
   const blocks: Block[] = [];
-  for (const chunk of text.replace(/\r\n?/g, "\n").split(/\n\s*\n/)) {
+  // Text pasted from elsewhere sometimes carries a literal «\n» meant as a line break.
+  const normalized = text.replace(/\r\n?/g, "\n").replace(/\\n/g, "\n");
+  for (const chunk of normalized.split(/\n\s*\n/)) {
     for (const raw of chunk.split("\n")) {
       const line = raw.trimEnd();
       if (!line.trim()) continue;
