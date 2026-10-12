@@ -129,6 +129,85 @@ export type BulkPublicationResult =
 
 const BULK_LIMIT = 100;
 
+export type BulkDeleteProductsResult =
+  | { ok: false; message: string }
+  | {
+      ok: true;
+      deleted: number;
+      archived: number;
+      failed: Array<{ domainId: string; message: string }>;
+    };
+
+const bulkDeleteInput = z
+  .object({
+    domainIds: z.array(productId).min(1).max(BULK_LIMIT),
+    acknowledged: z.literal(true),
+  })
+  .strict();
+
+/**
+ * Removes a selection safely: products with business history are archived so their immutable
+ * records remain readable; only products with no references are permanently deleted.
+ */
+export async function bulkDeleteProductsAction(
+  input: unknown,
+): Promise<BulkDeleteProductsResult> {
+  const actor = await requireTrustedAdminMutation();
+  const parsed = bulkDeleteInput.safeParse(input);
+  if (!parsed.success) {
+    return {
+      ok: false,
+      message: "حددي المنتجات وأكّدي فهمك قبل المتابعة.",
+    };
+  }
+
+  const ids = [...new Set(parsed.data.domainIds)];
+  let deleted = 0;
+  let archived = 0;
+  const failed: Array<{ domainId: string; message: string }> = [];
+
+  for (const domainId of ids) {
+    try {
+      const references = await productMaintenanceService.references(
+        actor,
+        domainId,
+      );
+      if (!references) {
+        failed.push({ domainId, message: maintenanceMessages.not_found });
+        continue;
+      }
+      if (Object.values(references).some((count) => count > 0)) {
+        await productMaintenanceService.archive(actor, {
+          domainId,
+          reason: "حذف جماعي من قائمة المنتجات",
+        });
+        archived += 1;
+      } else {
+        const result = await productMaintenanceService.deleteUnreferenced(
+          actor,
+          domainId,
+        );
+        if (!result.deleted) {
+          failed.push({ domainId, message: maintenanceMessages.not_found });
+          continue;
+        }
+        deleted += 1;
+      }
+    } catch (error) {
+      if (error instanceof AuthorizationError) {
+        return { ok: false, message: "هذا الإجراء للمالك فقط." };
+      }
+      failed.push({ domainId, message: maintenanceFailure(error).message });
+    }
+  }
+
+  if (deleted || archived) {
+    revalidatePath("/");
+    revalidatePath("/admin/products");
+  }
+  return { ok: true, deleted, archived, failed };
+}
+
 /**
  * Changes publication product by product, each in its own transaction with the full publish check,
  * so one product that is not ready never blocks or rolls back the others.
