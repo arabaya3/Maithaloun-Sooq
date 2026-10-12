@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 
 import { OfferPrice } from "@/features/catalog/components/offer-price";
 import { OptionSelectors } from "@/features/catalog/components/option-selectors";
+import { ProductDescription } from "@/features/catalog/components/product-description";
 import { ProductDetailActions } from "@/features/catalog/components/product-detail-actions";
 import {
   ProductGallery,
@@ -216,8 +217,25 @@ export function ProductDetailPanel({
     rememberVariant(picked.variantId, product.defaultVariantId);
   }
 
+  // With several photos the description sits under them on wide screens, beside the buying panel.
+  const describedBelow = gallery.length > 1;
+  const description = (
+    <ProductDescription
+      text={
+        product.description ??
+        "تتوفر معلومات المنتج الأساسية المعروضة حالياً، وستُضاف التفاصيل بعد اعتمادها."
+      }
+    />
+  );
+
   return (
-    <article className="product-detail">
+    <article
+      className={
+        describedBelow
+          ? "product-detail product-detail--described"
+          : "product-detail"
+      }
+    >
       {gallery.length > 1 ? (
         <ProductGallery
           images={gallery}
@@ -293,10 +311,7 @@ export function ProductDetailPanel({
             onSelect={chooseUnit}
           />
         ) : null}
-        <p className="product-description">
-          {product.description ??
-            "تتوفر معلومات المنتج الأساسية المعروضة حالياً، وستُضاف التفاصيل بعد اعتمادها."}
-        </p>
+        {describedBelow ? null : description}
         {product.usageNotes ? (
           <section aria-labelledby="usage-title">
             <h2 id="usage-title">ملاحظات الاستخدام</h2>
@@ -319,6 +334,9 @@ export function ProductDetailPanel({
           }
         />
       </div>
+      {describedBelow ? (
+        <div className="product-detail-below">{description}</div>
+      ) : null}
     </article>
   );
 }

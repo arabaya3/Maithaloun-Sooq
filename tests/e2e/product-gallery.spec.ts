@@ -464,6 +464,64 @@ test("a tall bottle photo is shown whole inside the square frame, never cropped"
   }
 });
 
+test("with several photos the formatted description sits under them, beside the buying panel", async ({
+  page,
+}) => {
+  const [before] = await withTestDb(
+    (sql) => sql<{ description: string | null }[]>`
+      select description from products where domain_id = ${LOYAL.domainId}`,
+  );
+  await withTestDb(
+    (sql) => sql`
+      update products set description = ${"معطر لطيف للبيت.\nرائحة تدوم طويلاً.\n\nالمميزات:\n- آمن على الأسطح\n- رائحة منعشة"}
+      where domain_id = ${LOYAL.domainId}`,
+  );
+  try {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto(`/products/${LOYAL.slug}`);
+    const below = page.locator(".product-detail-below .product-description");
+    await expect(below.locator("p").first()).toContainText(
+      "رائحة تدوم طويلاً.",
+    );
+    await expect(below.locator("p").first().locator("br")).toHaveCount(1);
+    await expect(below.getByRole("listitem")).toHaveText([
+      "آمن على الأسطح",
+      "رائحة منعشة",
+    ]);
+    const gallery = (await page.locator(".product-gallery").boundingBox())!;
+    const text = (await below.boundingBox())!;
+    const buy = (await page.locator(".product-detail-content").boundingBox())!;
+    // Under the photos, in the same column, and not inside the buying panel.
+    expect(text.y).toBeGreaterThanOrEqual(gallery.y + gallery.height - 1);
+    expect(Math.abs(text.x - gallery.x)).toBeLessThan(gallery.width / 2);
+    expect(text.x + text.width <= buy.x || text.x >= buy.x + buy.width).toBe(
+      true,
+    );
+    await expect(
+      page.locator(".product-detail-content .product-description"),
+    ).toHaveCount(0);
+    await expectNoHorizontalOverflow(page);
+    await page.screenshot({
+      path: "artifacts/store-ops/description-1440.png",
+      fullPage: true,
+    });
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.reload();
+    await expect(below.getByRole("listitem")).toHaveCount(2);
+    await expectNoHorizontalOverflow(page);
+    await page.screenshot({
+      path: "artifacts/store-ops/description-390.png",
+      fullPage: true,
+    });
+  } finally {
+    await withTestDb(
+      (sql) => sql`
+        update products set description = ${before!.description}
+        where domain_id = ${LOYAL.domainId}`,
+    );
+  }
+});
+
 test("admin at 390: unmapped uploads block publishing; mapping blue and pink publishes; a failed mapping keeps the choice", async ({
   page,
 }) => {
