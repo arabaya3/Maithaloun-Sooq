@@ -139,7 +139,6 @@ export default async function StockDetailPage({
               tracked={stock.tracked}
               unit={stock.unit}
               onHandMilli={stock.onHandMilli}
-              avgCostAgorot={stock.avgCostAgorot}
             />
             {stock.tracked ? (
               <ReorderThresholdForm

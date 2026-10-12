@@ -717,11 +717,6 @@ export function SimpleProductEditor({
                           dir="ltr"
                           placeholder="8"
                         />
-                        {row.onHand === null ? null : (
-                          <small className="admin-muted">
-                            إذا تركتِها فارغة تُحسب بمتوسط التكلفة الحالي.
-                          </small>
-                        )}
                       </label>
                     ) : null}
                   </div>
