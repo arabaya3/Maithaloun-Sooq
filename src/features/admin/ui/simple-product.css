@@ -338,3 +338,33 @@
     padding-bottom: calc(13rem + env(safe-area-inset-bottom));
   }
 }
+
+.sp-quick-category {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: -4px;
+}
+.sp-quick-category input {
+  flex: 1 1 12rem;
+  min-height: var(--admin-touch);
+  padding: 0.45rem 0.7rem;
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius);
+  background: var(--admin-surface);
+  color: var(--admin-text);
+}
+.sp-quick-category a,
+.sp-link-button {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--admin-touch);
+  padding: 0 4px;
+  border: 0;
+  background: none;
+  color: var(--admin-forest);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}

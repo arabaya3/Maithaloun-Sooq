@@ -95,7 +95,22 @@ test("phone: three scents, each with its own photo, price and stock, published i
   await login(page);
   await page.goto("/admin/products/new");
   await page.getByLabel("الاسم", { exact: true }).fill(NAME);
-  await page.getByLabel("القسم").selectOption({ index: 1 });
+  // A new category is added from the product itself, chosen at once, and the typed name stays.
+  await page.getByRole("button", { name: "+ قسم جديد" }).click();
+  await page.getByLabel("اسم القسم الجديد").fill("معطرات تجربة المحرر");
+  await page
+    .getByRole("group", { name: "قسم جديد" })
+    .getByRole("button", { name: "إضافة" })
+    .click();
+  await expect(page.getByLabel("القسم").locator("option:checked")).toHaveText(
+    "معطرات تجربة المحرر",
+  );
+  await expect(page.getByLabel("الاسم", { exact: true })).toHaveValue(NAME);
+  const [category] = await withTestDb(
+    (sql) => sql<{ visible: boolean }[]>`
+      select visible from product_categories where name_ar = 'معطرات تجربة المحرر'`,
+  );
+  expect(category).toEqual({ visible: true });
   await page.getByLabel("روائح", { exact: true }).check();
 
   const names = page.getByPlaceholder("مثل: لافندر");

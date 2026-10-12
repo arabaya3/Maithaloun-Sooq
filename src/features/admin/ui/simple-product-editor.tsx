@@ -19,6 +19,7 @@ import {
   type SimpleKind,
 } from "@/features/admin/domain/simple-product";
 import { CategoryOptions } from "@/features/admin/ui/admin-categories";
+import { QuickCategory } from "@/features/admin/ui/quick-category";
 import { MAX_OPTION_VALUES } from "@/features/catalog/domain/product-options";
 import { MAX_PRODUCT_IMAGES } from "@/features/catalog/domain/product-gallery";
 
@@ -486,6 +487,9 @@ export function SimpleProductEditor({
             <CategoryOptions />
           </select>
         </label>
+        <QuickCategory
+          onCreated={(code) => change(() => setCategoryId(code))}
+        />
         <details className="sp-more" open={Boolean(initial.description)}>
           <summary>وصف قصير (اختياري)</summary>
           <textarea
