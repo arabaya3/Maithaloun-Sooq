@@ -8,10 +8,12 @@ import { useActionState, useState, useTransition } from "react";
 import { quickEditProductAction } from "@/features/admin/application/simple-product-actions";
 
 import {
+  bulkDeleteProductsAction,
   bulkPublicationAction,
   moveProductsAction,
   restoreProductAction,
   type BulkPublicationResult,
+  type BulkDeleteProductsResult,
   type CatalogActionResult,
 } from "@/features/admin/application/catalog-management-actions";
 
@@ -311,6 +313,11 @@ export function ProductList({
     text: string;
   } | null>(null);
   const [moving, startMove] = useTransition();
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleteAcknowledged, setDeleteAcknowledged] = useState(false);
+  const [deleteResult, setDeleteResult] =
+    useState<BulkDeleteProductsResult | null>(null);
+  const [deleting, startDelete] = useTransition();
   const [state, action, pending] = useActionState(
     async (previous: BulkPublicationResult, formData: FormData) => {
       const result = await bulkPublicationAction(previous, formData);
@@ -356,6 +363,25 @@ export function ProductList({
       });
       setSelected(new Set());
       setTarget("");
+      router.refresh();
+    });
+  }
+
+  function deleteSelected() {
+    if (!deleteAcknowledged) return;
+    setDeleteResult(null);
+    startDelete(async () => {
+      const result = await bulkDeleteProductsAction({
+        domainIds: visibleSelected.map((row) => row.id),
+        acknowledged: true,
+      });
+      setDeleteResult(result);
+      if (!result.ok) return;
+      if (!result.failed.length) {
+        setSelected(new Set());
+        setDeleteOpen(false);
+        setDeleteAcknowledged(false);
+      }
       router.refresh();
     });
   }
@@ -636,6 +662,19 @@ export function ProductList({
             ) : null}
             <button
               type="button"
+              className="admin-btn admin-btn-danger admin-btn-sm"
+              disabled={pending || moving || deleting}
+              onClick={() => {
+                setDeleteResult(null);
+                setDeleteAcknowledged(false);
+                setDeleteOpen(true);
+              }}
+            >
+              <Trash2 size={16} aria-hidden="true" />
+              حذف المحدد
+            </button>
+            <button
+              type="button"
               className="admin-btn admin-btn-ghost admin-btn-sm"
               onClick={() => setSelected(new Set())}
             >
@@ -643,6 +682,84 @@ export function ProductList({
             </button>
           </div>
         </form>
+      ) : null}
+
+      {deleteOpen ? (
+        <div className="admin-confirm-backdrop" role="presentation">
+          <section
+            className="admin-confirm-dialog"
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="bulk-delete-title"
+            aria-describedby="bulk-delete-description"
+          >
+            <span className="admin-confirm-icon" aria-hidden="true">
+              <Trash2 size={24} />
+            </span>
+            <div>
+              <h2 id="bulk-delete-title">حذف المنتجات المحددة؟</h2>
+              <p id="bulk-delete-description">
+                سيُحذف المنتج غير المرتبط بأي سجل نهائياً. أما المنتج المرتبط
+                بطلب أو فاتورة أو حركة مخزون فسيُؤرشف للحفاظ على السجلات.
+              </p>
+              <p className="admin-muted">
+                المحدد الآن: {visibleSelected.length} منتجات.
+              </p>
+            </div>
+            <label className="admin-confirm-check">
+              <input
+                type="checkbox"
+                checked={deleteAcknowledged}
+                onChange={(event) =>
+                  setDeleteAcknowledged(event.target.checked)
+                }
+              />
+              أفهم أن المنتجات غير المرتبطة ستُحذف نهائياً ولا يمكن استعادتها.
+            </label>
+            {deleteResult ? (
+              <div
+                className="admin-media-message"
+                data-tone={deleteResult.ok ? "ok" : "error"}
+                role={deleteResult.ok ? "status" : "alert"}
+              >
+                {deleteResult.ok
+                  ? `حُذف ${deleteResult.deleted} وأُرشف ${deleteResult.archived}.${
+                      deleteResult.failed.length
+                        ? ` تعذّر تنفيذ ${deleteResult.failed.length}.`
+                        : ""
+                    }`
+                  : deleteResult.message}
+              </div>
+            ) : null}
+            <div className="admin-confirm-actions">
+              <button
+                type="button"
+                className="admin-btn admin-btn-danger"
+                disabled={!deleteAcknowledged || deleting}
+                onClick={deleteSelected}
+              >
+                {deleting ? (
+                  <LoaderCircle
+                    size={16}
+                    className="admin-spin"
+                    aria-hidden="true"
+                  />
+                ) : (
+                  <Trash2 size={16} aria-hidden="true" />
+                )}
+                تأكيد الحذف
+              </button>
+              <button
+                type="button"
+                className="admin-btn admin-btn-secondary"
+                disabled={deleting}
+                onClick={() => setDeleteOpen(false)}
+              >
+                إلغاء
+              </button>
+            </div>
+          </section>
+        </div>
       ) : null}
     </>
   );
