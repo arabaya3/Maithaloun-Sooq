@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ImageOff, LoaderCircle, Pencil } from "lucide-react";
+import { ImageOff, LoaderCircle, Pencil, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useActionState, useState, useTransition } from "react";
 
@@ -454,17 +454,27 @@ export function ProductList({
                 </td>
                 {canManage ? (
                   <td>
-                    <button
-                      type="button"
-                      className="admin-btn admin-btn-ghost admin-btn-sm admin-quick-btn"
-                      aria-label={`تعديل سريع: ${row.name}`}
-                      aria-expanded={editing === row.id}
-                      onClick={() =>
-                        setEditing(editing === row.id ? null : row.id)
-                      }
-                    >
-                      <Pencil size={16} aria-hidden="true" />
-                    </button>
+                    <span className="admin-product-row-actions">
+                      <button
+                        type="button"
+                        className="admin-btn admin-btn-ghost admin-btn-sm admin-quick-btn"
+                        aria-label={`تعديل سريع: ${row.name}`}
+                        aria-expanded={editing === row.id}
+                        onClick={() =>
+                          setEditing(editing === row.id ? null : row.id)
+                        }
+                      >
+                        <Pencil size={16} aria-hidden="true" />
+                      </button>
+                      <Link
+                        href={`/admin/products/${row.id}#danger`}
+                        prefetch={false}
+                        className="admin-btn admin-btn-ghost admin-btn-sm admin-quick-btn admin-delete-shortcut"
+                        aria-label={`حذف أو أرشفة: ${row.name}`}
+                      >
+                        <Trash2 size={16} aria-hidden="true" />
+                      </Link>
+                    </span>
                   </td>
                 ) : null}
               </tr>
@@ -524,6 +534,14 @@ export function ProductList({
                     >
                       <Pencil size={16} aria-hidden="true" />
                     </button>
+                    <Link
+                      href={`/admin/products/${row.id}#danger`}
+                      prefetch={false}
+                      className="admin-btn admin-btn-ghost admin-btn-sm admin-quick-btn admin-delete-shortcut"
+                      aria-label={`حذف أو أرشفة: ${row.name}`}
+                    >
+                      <Trash2 size={16} aria-hidden="true" />
+                    </Link>
                     <QuickState row={row} action={action} pending={pending} />
                   </>
                 ) : null}
