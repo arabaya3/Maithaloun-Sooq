@@ -57,6 +57,10 @@ export async function loginAs(
 ) {
   await page.goto("/admin");
   if (page.url().includes("/admin/login")) {
+    // Every sign-in counts toward the login limit; the suite signs in far more often than a person would.
+    await withTestDb(
+      (sql) => sql`delete from rate_limit_buckets where scope like 'login-%'`,
+    );
     await page.getByLabel("اسم المستخدم").fill(credentials.username);
     await page.getByLabel("كلمة المرور").fill(credentials.password);
     await page
