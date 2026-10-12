@@ -1,7 +1,7 @@
 import { z } from "zod";
 
-export const MAX_PRODUCT_IMAGES = 8;
-export const MAX_VARIANT_IMAGES = 5;
+export const MAX_PRODUCT_IMAGES = 30;
+export const MAX_VARIANT_IMAGES = 10;
 
 export const galleryImageScopes = [
   "unassigned",

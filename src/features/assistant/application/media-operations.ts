@@ -20,7 +20,10 @@ import {
 } from "@/features/admin/domain/option-plan";
 import { can } from "@/features/admin/domain/permissions";
 import type { Product } from "@/features/catalog/domain/product";
-import { MAX_PRODUCT_IMAGES } from "@/features/catalog/domain/product-gallery";
+import {
+  MAX_PRODUCT_IMAGES,
+  MAX_VARIANT_IMAGES,
+} from "@/features/catalog/domain/product-gallery";
 import { imageScopeLabel } from "@/features/catalog/domain/product-media";
 import { mappingMessages } from "@/features/catalog/domain/product-media-validation";
 import {
@@ -31,6 +34,9 @@ import {
   combinationKey,
   normalizeOptionText,
   optionKindLabels,
+  MAX_GENERATED_VARIANTS,
+  MAX_OPTION_VALUES,
+  MAX_PRODUCT_OPTIONS,
   sameOptionText,
   optionKinds,
   selectionLabel,
@@ -87,6 +93,11 @@ export const optionErrorMessages: Record<ProductOptionsError["code"], string> =
     in_use: "مستخدم في أصناف حالية، لذلك لا يُزال الآن.",
     archived: "هذا العنصر مؤرشف.",
     too_many: "وصلت للحد الأقصى المسموح.",
+    same_kind_option:
+      "يوجد خيار من نفس النوع. أضيفي القيمة الجديدة داخله بدل إنشاء خيار جديد.",
+    too_many_options: `الحد ${MAX_PRODUCT_OPTIONS} أنواع خيارات للمنتج. الروائح أو الأحجام الإضافية تُضاف كقيم داخل نفس الخيار، مثل «الرائحة».`,
+    too_many_values: `وصل هذا الخيار إلى ${MAX_OPTION_VALUES} قيمة، وهو الحد.`,
+    too_many_variant_images: `لهذا الصنف ${MAX_VARIANT_IMAGES} صور، وهو الحد.`,
     gallery_full: "المعرض ممتلئ (8 صور كحد أقصى).",
     primary_required: "يجب أن تبقى صورة رئيسية.",
     default_variant: "لا يمكن تطبيق ذلك على الصنف الافتراضي.",
@@ -1654,7 +1665,7 @@ export class MediaOperations {
         args: base.extend({
           nameAr: z.string().min(1).max(40),
           kind: z.enum(optionKinds),
-          values: z.array(z.string().min(1).max(60)).max(20),
+          values: z.array(z.string().min(1).max(60)).max(MAX_OPTION_VALUES),
         }),
         version,
         async execute(actor, args) {
@@ -1720,7 +1731,10 @@ export class MediaOperations {
       } satisfies Handler<{ domainId: string; optionId: string }>,
       valueAdd: {
         args: optionArgs.extend({
-          values: z.array(z.string().min(1).max(60)).min(1).max(20),
+          values: z
+            .array(z.string().min(1).max(60))
+            .min(1)
+            .max(MAX_OPTION_VALUES),
         }),
         version,
         async execute(actor, args) {
@@ -1792,7 +1806,7 @@ export class MediaOperations {
               }),
             )
             .min(1)
-            .max(60),
+            .max(MAX_GENERATED_VARIANTS),
         }),
         version,
         async execute(actor, args, key) {

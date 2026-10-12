@@ -138,7 +138,7 @@ test("P2: a 9.5 MB image shows a size error instead of crashing the admin page",
   await expect(editor.getByRole("status")).toHaveText("تمت إضافة الصورة.", {
     timeout: 30_000,
   });
-  await expect(editor.getByText("الصور (1 من 8)")).toBeVisible();
+  await expect(editor.getByText("الصور (1 من 30)")).toBeVisible();
 
   // Without a session the request is turned away before the handler; nothing is stored.
   const unauthenticated = await page.context().browser()!.newContext();
