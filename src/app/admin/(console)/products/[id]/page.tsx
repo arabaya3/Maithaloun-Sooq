@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import { Suspense } from "react";
-import { ArrowRight, ExternalLink } from "lucide-react";
+import { ArrowRight, ExternalLink, Trash2 } from "lucide-react";
 
 import {
   adminCatalogService,
@@ -214,6 +214,15 @@ export default async function AdminProductEditPage({
             عرض في المتجر
           </Link>
         ) : null}
+        {canManage ? (
+          <a
+            href="#danger"
+            className="admin-btn admin-btn-danger admin-btn-sm admin-workspace-delete"
+          >
+            <Trash2 size={16} aria-hidden="true" />
+            حذف أو أرشفة
+          </a>
+        ) : null}
       </header>
 
       {saved === "created" || saved === "ok" ? <ClearProductDraft /> : null}
@@ -372,16 +381,6 @@ export default async function AdminProductEditPage({
           />
         </div>
 
-        {canManage && references ? (
-          <div id="danger" className="admin-workspace-anchor">
-            <ProductDangerZone
-              domainId={product.id}
-              name={product.nameAr}
-              references={references}
-              archived={product.archived}
-            />
-          </div>
-        ) : null}
         {history ? (
           <section
             id="history"
@@ -405,6 +404,17 @@ export default async function AdminProductEditPage({
           </section>
         ) : null}
       </details>
+
+      {canManage && references ? (
+        <div id="danger" className="admin-workspace-anchor" tabIndex={-1}>
+          <ProductDangerZone
+            domainId={product.id}
+            name={product.nameAr}
+            references={references}
+            archived={product.archived}
+          />
+        </div>
+      ) : null}
     </main>
   );
 }
