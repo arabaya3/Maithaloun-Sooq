@@ -740,3 +740,14 @@
   min-height: var(--admin-touch, 44px);
   justify-content: center;
 }
+.admin-product-row-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+.admin-delete-shortcut {
+  color: var(--admin-danger);
+}
+.admin-delete-shortcut:hover {
+  background: var(--admin-danger-bg);
+}
