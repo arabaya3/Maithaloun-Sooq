@@ -356,7 +356,7 @@ test("admin at 390: three scents with three images, by hand", async ({
     { name: "musk.png", mimeType: "image/png", buffer: await photo("#8a6a3a") },
   ]);
   await editor.getByRole("button", { name: "رفع الصور" }).click();
-  await expect(editor.getByText("الصور (3 من 8)")).toBeVisible();
+  await expect(editor.getByText("الصور (3 من 30)")).toBeVisible();
   const items = editor.locator(".admin-gallery-item");
   for (const [index, label] of ["لافندر", "ورد أبيض", "مسك"].entries()) {
     await items

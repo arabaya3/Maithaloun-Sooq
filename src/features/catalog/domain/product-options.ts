@@ -43,7 +43,10 @@ export type ProductOption = z.infer<typeof productOptionSchema>;
 /** optionId → valueId */
 export type OptionSelection = Readonly<Record<string, string>>;
 
-export const MAX_GENERATED_VARIANTS = 60;
+// Generous on purpose: an owner can list every fragrance or size; the bounds only keep one page fast.
+export const MAX_PRODUCT_OPTIONS = 6;
+export const MAX_OPTION_VALUES = 100;
+export const MAX_GENERATED_VARIANTS = 300;
 
 export function normalizeOptionText(value: string): string {
   return normalizeArabicText(value).slice(0, 60);

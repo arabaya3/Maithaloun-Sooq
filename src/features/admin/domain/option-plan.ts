@@ -1,4 +1,7 @@
 import {
+  MAX_GENERATED_VARIANTS,
+  MAX_OPTION_VALUES,
+  MAX_PRODUCT_OPTIONS,
   normalizeOptionText,
   type OptionKind,
 } from "@/features/catalog/domain/product-options";
@@ -29,9 +32,9 @@ export const optionPresets: ReadonlyArray<{
   { kind: "color", nameAr: "اللون" },
 ];
 
-export const MAX_PLANNED_OPTIONS = 4;
-export const MAX_PLANNED_VALUES = 20;
-export const MAX_PLANNED_VARIANTS = 60;
+export const MAX_PLANNED_OPTIONS = MAX_PRODUCT_OPTIONS;
+export const MAX_PLANNED_VALUES = MAX_OPTION_VALUES;
+export const MAX_PLANNED_VARIANTS = MAX_GENERATED_VARIANTS;
 
 /** The options a shape starts with; "several" starts with fragrance and size, the most common pair. */
 export function optionsForShape(shape: OptionShape): PlannedOption[] {

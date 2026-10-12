@@ -7,7 +7,10 @@ import { z } from "zod";
 
 import { requireTrustedAdminMutation } from "@/features/admin/auth/admin-session";
 import { newProductId } from "@/features/admin/domain/product-identity";
+import { MAX_PRODUCT_IMAGES } from "@/features/catalog/domain/product-gallery";
 import {
+  MAX_GENERATED_VARIANTS,
+  MAX_OPTION_VALUES,
   normalizeOptionText,
   optionKindLabels,
 } from "@/features/catalog/domain/product-options";
@@ -56,7 +59,7 @@ const inputSchema = z.object({
   description: z.string().trim().max(4_000),
   kind: z.enum(simpleKinds),
   optionName: z.string().trim().max(40),
-  rows: z.array(rowSchema).min(1).max(20),
+  rows: z.array(rowSchema).min(1).max(MAX_OPTION_VALUES),
 });
 
 export type SimpleProductInput = z.input<typeof inputSchema>;
@@ -417,8 +420,15 @@ export async function saveSimpleProductAction(
       const tracked = Boolean(current?.stock.tracked);
       const quantity = Number(text);
       if (!tracked && quantity === 0) continue;
-      const cost = parseIlsToAgorot(row.costIls.trim());
-      if (!tracked && (cost === null || cost <= 0)) {
+      const costText = row.costIls.trim();
+      const cost = costText ? parseIlsToAgorot(costText) : null;
+      if (costText && (cost === null || cost <= 0)) {
+        stockProblems.push(
+          `«${row.label || input.nameAr}»: اكتبي تكلفة القطعة بالشيكل، مثل 12.`,
+        );
+        continue;
+      }
+      if (!tracked && cost === null) {
         stockProblems.push(
           `«${row.label || input.nameAr}»: اكتبي تكلفة القطعة لتسجيل الكمية.`,
         );
@@ -429,7 +439,8 @@ export async function saveSimpleProductAction(
         variantId,
         reason: tracked ? "correction" : "opening_balance",
         quantityMilli: quantity * 1_000,
-        ...(tracked ? {} : { unitCostAgorot: cost! }),
+        // A typed cost always wins; an untyped count values added pieces at the current average.
+        ...(cost !== null ? { unitCostAgorot: cost } : {}),
         note: tracked ? "تعديل من صفحة المنتج" : "رصيد افتتاحي من صفحة المنتج",
       });
     } catch (error) {
@@ -474,7 +485,7 @@ export async function reorderSimpleImagesAction(input: {
   const parsed = z
     .object({
       productId: z.string().regex(/^[a-z0-9-]{1,80}$/),
-      imageIds: z.array(z.uuid()).max(8),
+      imageIds: z.array(z.uuid()).max(MAX_PRODUCT_IMAGES),
     })
     .safeParse(input);
   if (!parsed.success) return { ok: false, message: "تعذّر ترتيب الصور." };
@@ -566,7 +577,7 @@ export async function quickEditProductAction(input: {
           }),
         )
         .min(1)
-        .max(60),
+        .max(MAX_GENERATED_VARIANTS),
     })
     .safeParse(input);
   if (!parsed.success) return { ok: false, message: "تحقّقي من الحقول." };

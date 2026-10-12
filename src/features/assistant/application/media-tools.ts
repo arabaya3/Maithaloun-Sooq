@@ -4,7 +4,11 @@ import { tool } from "ai";
 import { z } from "zod";
 
 import { can } from "@/features/admin/domain/permissions";
-import { optionKinds } from "@/features/catalog/domain/product-options";
+import {
+  MAX_GENERATED_VARIANTS,
+  MAX_PRODUCT_OPTIONS,
+  optionKinds,
+} from "@/features/catalog/domain/product-options";
 
 import type { PrepareResult } from "./assistant-operations";
 import type {
@@ -258,7 +262,10 @@ export function createMediaTools(
             )
             .min(1)
             .max(4),
-          combinations: z.array(z.array(valueText).max(4)).max(60).optional(),
+          combinations: z
+            .array(z.array(valueText).max(MAX_PRODUCT_OPTIONS))
+            .max(MAX_GENERATED_VARIANTS)
+            .optional(),
         })
         .strict(),
       execute: (input) =>
@@ -329,7 +336,10 @@ export function createMediaTools(
         .object({
           product,
           mode: z.enum(["missing", "listed"]),
-          combinations: z.array(combination).max(60).optional(),
+          combinations: z
+            .array(combination)
+            .max(MAX_GENERATED_VARIANTS)
+            .optional(),
           priceIls: money,
           packCount: z.number().int().min(1).max(1_000).optional(),
         })

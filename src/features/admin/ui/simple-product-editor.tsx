@@ -19,6 +19,7 @@ import {
   type SimpleKind,
 } from "@/features/admin/domain/simple-product";
 import { CategoryOptions } from "@/features/admin/ui/admin-categories";
+import { MAX_OPTION_VALUES } from "@/features/catalog/domain/product-options";
 import { MAX_PRODUCT_IMAGES } from "@/features/catalog/domain/product-gallery";
 
 export interface SimpleImage {
@@ -696,11 +697,13 @@ export function SimpleProductEditor({
                         />
                       </label>
                     ) : null}
-                    {canStock &&
-                    row.onHand === null &&
-                    Number(row.stock) > 0 ? (
+                    {canStock && Number(row.stock) > (row.onHand ?? 0) ? (
                       <label className="sp-field">
-                        <span>تكلفة القطعة ₪</span>
+                        <span>
+                          {row.onHand === null
+                            ? "تكلفة القطعة ₪"
+                            : "تكلفة القطع الزائدة ₪ (اختياري)"}
+                        </span>
                         <input
                           value={row.cost}
                           onChange={(event) =>
@@ -710,6 +713,11 @@ export function SimpleProductEditor({
                           dir="ltr"
                           placeholder="8"
                         />
+                        {row.onHand === null ? null : (
+                          <small className="admin-muted">
+                            إذا تركتِها فارغة تُحسب بمتوسط التكلفة الحالي.
+                          </small>
+                        )}
                       </label>
                     ) : null}
                   </div>
@@ -731,7 +739,7 @@ export function SimpleProductEditor({
               <button
                 type="button"
                 className="admin-btn admin-btn-secondary sp-add"
-                disabled={busy || rows.length >= 20}
+                disabled={busy || rows.length >= MAX_OPTION_VALUES}
                 onClick={() =>
                   change(() =>
                     setRows((current) => [

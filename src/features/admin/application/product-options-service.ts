@@ -23,6 +23,9 @@ import {
   type MappingProblem,
 } from "@/features/catalog/domain/product-media-validation";
 import {
+  MAX_GENERATED_VARIANTS,
+  MAX_OPTION_VALUES,
+  MAX_PRODUCT_OPTIONS,
   combinationKey,
   duplicateCombinations,
   incompleteVariants,
@@ -60,6 +63,10 @@ export type ProductOptionsErrorCode =
   | "in_use"
   | "archived"
   | "too_many"
+  | "too_many_options"
+  | "same_kind_option"
+  | "too_many_values"
+  | "too_many_variant_images"
   | "gallery_full"
   | "primary_required"
   | "default_variant"
@@ -76,8 +83,13 @@ export class ProductOptionsError extends Error {
   }
 }
 
-const MAX_OPTIONS = 4;
-const MAX_VALUES = 20;
+const MAX_OPTIONS = MAX_PRODUCT_OPTIONS;
+const VISUAL_OR_SIZE_KINDS: ReadonlySet<string> = new Set([
+  "fragrance",
+  "size",
+  "color",
+]);
+const MAX_VALUES = MAX_OPTION_VALUES;
 
 export const optionNameSchema = z.string().trim().min(1).max(40);
 export const optionValueTextSchema = z.string().trim().min(1).max(60);
@@ -137,7 +149,7 @@ export const productSetSchema = z
           .strict(),
       )
       .min(1)
-      .max(60),
+      .max(MAX_GENERATED_VARIANTS),
     images: z
       .array(
         z
@@ -171,7 +183,10 @@ export const optionPlanSchema = z
       .min(1)
       .max(MAX_OPTIONS),
     /** Each combination lists one value per option, in the options' order. */
-    combinations: z.array(z.array(optionValueTextSchema)).min(1).max(60),
+    combinations: z
+      .array(z.array(optionValueTextSchema))
+      .min(1)
+      .max(MAX_GENERATED_VARIANTS),
   })
   .strict();
 export type OptionPlanInput = z.input<typeof optionPlanSchema>;
@@ -624,7 +639,7 @@ export class ProductOptionsService {
           .from(schema.productOptions)
           .where(eq(schema.productOptions.productId, product.id));
         if (existing.filter((row) => !row.archivedAt).length >= MAX_OPTIONS) {
-          throw new ProductOptionsError("too_many");
+          throw new ProductOptionsError("too_many_options");
         }
         if (
           existing.some(
@@ -632,6 +647,16 @@ export class ProductOptionsService {
           )
         ) {
           throw new ProductOptionsError("duplicate_option", nameAr);
+        }
+        // A second fragrance, size or colour option is almost always a value typed in the wrong place.
+        const sameKind = existing.find(
+          (row) =>
+            !row.archivedAt &&
+            row.kind === input.kind &&
+            VISUAL_OR_SIZE_KINDS.has(input.kind),
+        );
+        if (sameKind) {
+          throw new ProductOptionsError("same_kind_option", sameKind.nameAr);
         }
         const [option] = await transaction
           .insert(schema.productOptions)
@@ -922,7 +947,7 @@ export class ProductOptionsService {
           .from(schema.productOptionValues)
           .where(eq(schema.productOptionValues.optionId, option.id));
         if (existing.length >= MAX_VALUES)
-          throw new ProductOptionsError("too_many");
+          throw new ProductOptionsError("too_many_values", option.nameAr);
         if (
           existing.some(
             (row) => row.normalizedValue === normalizeOptionText(value),
@@ -1311,7 +1336,11 @@ export class ProductOptionsService {
     idempotencyKey: string,
   ): Promise<{ variantIds: string[] }> {
     assertPermission(actor, "settings.manage");
-    const parsed = z.array(generatedVariantSchema).min(1).max(60).parse(rows);
+    const parsed = z
+      .array(generatedVariantSchema)
+      .min(1)
+      .max(MAX_GENERATED_VARIANTS)
+      .parse(rows);
     if (parsed.some((row) => row.openingStock))
       assertPermission(actor, "stock.adjust");
     try {
@@ -1876,7 +1905,7 @@ export class ProductOptionsService {
         ),
       );
     if ((row?.total ?? 0) >= MAX_VARIANT_IMAGES)
-      throw new ProductOptionsError("too_many");
+      throw new ProductOptionsError("too_many_variant_images");
   }
 
   async reorderImages(

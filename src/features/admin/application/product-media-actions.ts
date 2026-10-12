@@ -6,7 +6,16 @@ import { z } from "zod";
 import { requireTrustedAdminMutation } from "@/features/admin/auth/admin-session";
 import { AuthorizationError } from "@/features/admin/domain/admin-actor";
 import { parseImageTarget } from "@/features/admin/domain/image-target";
-import { optionKinds } from "@/features/catalog/domain/product-options";
+import {
+  MAX_PRODUCT_IMAGES,
+  MAX_VARIANT_IMAGES,
+} from "@/features/catalog/domain/product-gallery";
+import {
+  MAX_GENERATED_VARIANTS,
+  MAX_OPTION_VALUES,
+  MAX_PRODUCT_OPTIONS,
+  optionKinds,
+} from "@/features/catalog/domain/product-options";
 import { parseMoneyInput } from "@/shared/lib/money-input";
 import { getProductImageStore } from "@/server/storage/product-images";
 
@@ -32,7 +41,12 @@ const messages: Record<ProductOptionsError["code"], string> = {
   in_use: "مستخدم في أصناف حالية، لذلك لا يمكن إزالته الآن.",
   archived: "هذا العنصر مؤرشف.",
   too_many: "وصلت للحد الأقصى المسموح.",
-  gallery_full: "المعرض ممتلئ (8 صور كحد أقصى).",
+  same_kind_option:
+    "يوجد خيار من نفس النوع. أضيفي القيمة الجديدة داخله بدل إنشاء خيار جديد.",
+  too_many_options: `الحد ${MAX_PRODUCT_OPTIONS} أنواع خيارات للمنتج. الروائح أو الأحجام الإضافية تُضاف كقيم داخل نفس الخيار، مثل «الرائحة».`,
+  too_many_values: `وصل هذا الخيار إلى ${MAX_OPTION_VALUES} قيمة، وهو الحد.`,
+  too_many_variant_images: `لهذا الصنف ${MAX_VARIANT_IMAGES} صور، وهو الحد.`,
+  gallery_full: `المعرض ممتلئ (${MAX_PRODUCT_IMAGES} صورة كحد أقصى).`,
   primary_required: "يجب أن تبقى صورة رئيسية.",
   default_variant: "لا يمكن تطبيق ذلك على الصنف الافتراضي.",
   has_images:
@@ -318,7 +332,7 @@ export async function generateMissingVariantsAction(input: {
       z
         .array(z.record(uuid, uuid))
         .min(1)
-        .max(60)
+        .max(MAX_GENERATED_VARIANTS)
         .parse(input.combinations)
         .map((selection) => ({ selection, priceAgorot: price.agorot })),
       crypto.randomUUID(),

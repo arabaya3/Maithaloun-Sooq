@@ -3,6 +3,7 @@ import { z } from "zod";
 import {
   cartesian,
   MAX_GENERATED_VARIANTS,
+  MAX_OPTION_VALUES,
   normalizeOptionText,
   optionKinds,
   sameOptionText,
@@ -54,7 +55,10 @@ export const draftOptionsSchema = z
       .object({
         nameAr: z.string().trim().min(1).max(40),
         kind: z.enum(optionKinds),
-        values: z.array(z.string().trim().min(1).max(60)).min(1).max(20),
+        values: z
+          .array(z.string().trim().min(1).max(60))
+          .min(1)
+          .max(MAX_OPTION_VALUES),
       })
       .strict(),
   )

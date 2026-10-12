@@ -76,7 +76,7 @@ describe("multi-variant draft", () => {
     const many = Array.from({ length: 4 }, (_, index) => ({
       nameAr: `خيار ${index}`,
       kind: "other" as const,
-      values: ["أ", "ب", "ج"],
+      values: ["أ", "ب", "ج", "د", "ه", "و"],
     }));
     expect(setDraftOptions(emptyVariantDraft(), many).error).toMatch(/أكثر من/);
   });

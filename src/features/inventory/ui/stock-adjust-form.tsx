@@ -63,11 +63,13 @@ export function StockAdjustForm({
   tracked,
   unit,
   onHandMilli,
+  avgCostAgorot = null,
 }: {
   variantId: string;
   tracked: boolean;
   unit: StockUnit;
   onHandMilli: number;
+  avgCostAgorot?: number | null;
 }) {
   const [reason, setReason] = useState<AdjustmentReason>(
     tracked ? "correction" : "opening_balance",
@@ -150,6 +152,13 @@ export function StockAdjustForm({
               dir="ltr"
               placeholder="0.00"
             />
+            {option.needsCost === "optional" ? (
+              <small className="admin-muted">
+                {avgCostAgorot === null
+                  ? "مطلوب إذا زادت الكمية."
+                  : `إذا زادت الكمية وتركتِه فارغاً تُحسب القطع الجديدة بمتوسط التكلفة الحالي ${(avgCostAgorot / 100).toFixed(2).replace(/\.00$/, "")} ₪.`}
+              </small>
+            ) : null}
           </label>
         )}
       </div>

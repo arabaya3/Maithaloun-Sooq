@@ -159,6 +159,24 @@ test("phone: three scents, each with its own photo, price and stock, published i
     ["ورد", 1450, 0, 1],
   ]);
 
+  // Counting more pieces of a tracked scent uses the cost typed for them, not the old average.
+  await page.getByLabel("الكمية (الآن 4)").fill("5");
+  await page.getByLabel("تكلفة القطع الزائدة ₪ (اختياري)").fill("10");
+  await page.getByRole("button", { name: "حفظ", exact: true }).click();
+  await expect
+    .poll(async () => {
+      const [row] = await withTestDb(
+        (sql) => sql<{ on_hand: number; avg: number }[]>`
+          select i.on_hand_milli as on_hand, i.avg_cost_agorot as avg
+          from inventory_items i join product_variants v on v.id = i.variant_id
+          join products p on p.id = v.product_id
+          where p.domain_id = ${domainId} and v.label_ar = 'ليمون'`,
+      );
+      return row;
+    })
+    // Four pieces at 7 and one more at the typed 10: (4×7 + 10) ÷ 5 = 7.60.
+    .toEqual({ on_hand: 5000, avg: 760 });
+
   // Customers choose a scent and see its photo.
   await page.goto(`/products/${domainId}`);
   await expect(

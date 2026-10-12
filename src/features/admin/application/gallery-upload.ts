@@ -11,6 +11,7 @@ import {
   getProductImageStore,
   prepareGalleryImage,
 } from "@/server/storage/product-images";
+import { MAX_PRODUCT_IMAGES } from "@/features/catalog/domain/product-gallery";
 
 import { productOptionsService } from "./admin-services";
 import { ProductOptionsError } from "./product-options-service";
@@ -20,8 +21,8 @@ export type GalleryUploadResult =
 
 const optionMessages: Partial<Record<ProductOptionsError["code"], string>> = {
   not_found: "المنتج غير موجود. حدّث الصفحة.",
-  gallery_full: "المعرض ممتلئ (8 صور كحد أقصى).",
-  too_many: "المعرض ممتلئ (8 صور كحد أقصى).",
+  gallery_full: `المعرض ممتلئ (${MAX_PRODUCT_IMAGES} صورة كحد أقصى).`,
+  too_many: `المعرض ممتلئ (${MAX_PRODUCT_IMAGES} صورة كحد أقصى).`,
   archived: "الخيار أو الصنف المختار لم يعد موجوداً. اختر ربطاً آخر.",
 };
 

@@ -438,7 +438,7 @@ test("admin at 390: unmapped uploads block publishing; mapping blue and pink pub
     { name: "box.png", mimeType: "image/png", buffer: await photo("#dddddd") },
   ]);
   await editor.getByRole("button", { name: "رفع الصور" }).click();
-  await expect(editor.getByText("٣. الصور (3 من 8)")).toBeVisible();
+  await expect(editor.getByText("٣. الصور (3 من 30)")).toBeVisible();
   const unassigned = editor.getByRole("region", { name: /غير مربوط/ });
   await expect(unassigned.locator("li")).toHaveCount(3);
   await expect(

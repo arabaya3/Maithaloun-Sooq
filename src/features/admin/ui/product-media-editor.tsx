@@ -26,6 +26,7 @@ import {
   galleryFileProblem,
   galleryUploadMessages,
 } from "@/features/admin/domain/gallery-upload-limits";
+import { MAX_PRODUCT_IMAGES } from "@/features/catalog/domain/product-gallery";
 import { imageTargetValue } from "@/features/admin/domain/image-target";
 import {
   VISUAL_OPTION_KINDS,
@@ -157,7 +158,7 @@ export function ProductMediaEditor({
     const files = data
       .getAll("images")
       .filter((item): item is File => item instanceof File && item.size > 0)
-      .slice(0, 8 - activeImages.length);
+      .slice(0, MAX_PRODUCT_IMAGES - activeImages.length);
     if (!files.length) {
       setMessage({ tone: "error", text: "اختر صورة واحدة على الأقل." });
       return;
@@ -524,7 +525,9 @@ export function ProductMediaEditor({
         className="admin-media-section admin-workspace-anchor"
         open
       >
-        <summary>٣. الصور ({activeImages.length} من 8)</summary>
+        <summary>
+          ٣. الصور ({activeImages.length} من {MAX_PRODUCT_IMAGES})
+        </summary>
         {unassigned.length ? (
           <section
             className="admin-unassigned"
@@ -645,7 +648,7 @@ export function ProductMediaEditor({
             </li>
           ))}
         </ol>
-        {activeImages.length < 8 ? (
+        {activeImages.length < MAX_PRODUCT_IMAGES ? (
           <form className="admin-form admin-media-form" onSubmit={upload}>
             <label>
               <span>إضافة صور (JPEG أو PNG أو WebP)</span>

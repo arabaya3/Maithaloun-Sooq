@@ -20,6 +20,7 @@ import { AttachmentService } from "@/features/assistant/application/attachment-s
 import { ConfirmationService } from "@/features/assistant/application/confirmation-service";
 import { ConversationRepository } from "@/features/assistant/application/conversation-repository";
 import { ToolRunLog } from "@/features/assistant/application/tool-run-log";
+import { MAX_PRODUCT_IMAGES } from "@/features/catalog/domain/product-gallery";
 import { PostgresProductRepository } from "@/features/catalog/infrastructure/postgres-product-repository";
 import { InventoryService } from "@/features/inventory/application/inventory-service";
 import { OfferService } from "@/features/offers/application/offer-service";
@@ -296,13 +297,16 @@ describe("gallery", () => {
     ).rejects.toMatchObject({ code: "not_found" });
   });
 
-  it("caps the gallery at eight images", async () => {
-    const images = Array.from({ length: 9 }, (_, index) => ({
-      src: `https://example.com/${index}.webp`,
-      alt: "صورة",
-      width: 10,
-      height: 10,
-    }));
+  it("caps the gallery at its stated limit", async () => {
+    const images = Array.from(
+      { length: MAX_PRODUCT_IMAGES + 1 },
+      (_, index) => ({
+        src: `https://example.com/${index}.webp`,
+        alt: "صورة",
+        width: 10,
+        height: 10,
+      }),
+    );
     await expect(
       options.addImages(owner, "general-cleaner", images),
     ).rejects.toMatchObject({ code: "gallery_full" });
