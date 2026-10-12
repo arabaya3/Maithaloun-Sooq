@@ -18,6 +18,15 @@ describe("product description formatting", () => {
     ]);
   });
 
+  it("reads a pasted literal \\n as a line break", () => {
+    expect(
+      descriptionBlocks("منظف قوي.\\nطريقة الاستعمال:\\n- رشّه\\n- امسحه"),
+    ).toEqual([
+      { kind: "paragraph", lines: ["منظف قوي.", "طريقة الاستعمال:"] },
+      { kind: "bullets", items: ["رشّه", "امسحه"] },
+    ]);
+  });
+
   it("treats plain one-line text as one paragraph and never renders markup", () => {
     expect(descriptionBlocks("  نص واحد  ")).toEqual([
       { kind: "paragraph", lines: ["نص واحد"] },
