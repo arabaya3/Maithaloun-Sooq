@@ -789,7 +789,7 @@ test("a published product left incomplete is shown unavailable, and the admin li
       await page.setViewportSize({ width, height });
       await page.goto(`/admin/products/${LOYAL.domainId}?advanced=1`);
       const warning = page.getByRole("region", {
-        name: "المنتج منشور لكنه غير مكتمل",
+        name: "المنتج منشور لكن ينقصه:",
       });
       await expect(warning).toBeVisible();
       await expect(warning.getByRole("listitem").first()).toContainText(
