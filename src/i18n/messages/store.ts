@@ -22,7 +22,7 @@ const ar = {
   shopOffers: "تسوّق العروض",
   shopCategory: "تسوّق القسم",
   whyStore: "لماذا MAYTHA",
-  benefitGenuineText: "من ماركات بتعرفها",
+  benefitBrandsText: "للتنظيف والعناية بالبيت",
   benefitDeliveryText: (free: string, fee: string) =>
     `مجاني من ${free}، وإلا ${fee}`,
   benefitCash: "نقداً عند التوصيل",
@@ -78,7 +78,7 @@ const en: typeof ar = {
   shopOffers: "Shop offers",
   shopCategory: "Shop now",
   whyStore: "Why MAYTHA",
-  benefitGenuineText: "From brands you know",
+  benefitBrandsText: "For cleaning and caring for your home",
   benefitDeliveryText: (free: string, fee: string) =>
     `Free from ${free}, otherwise ${fee}`,
   benefitCash: "Pay in cash when it arrives",

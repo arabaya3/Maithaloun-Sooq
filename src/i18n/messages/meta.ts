@@ -1,6 +1,6 @@
 const ar = {
   siteDescription:
-    "MAYTHA HOME & CARE — منتجات أصلية للتنظيف والعناية من ماركات بتعرفها، مع توصيل داخل ميثلون.",
+    "MAYTHA HOME & CARE — منتجات التنظيف والعناية من ماركات بتعرفها وبتثق فيها، مع توصيل داخل ميثلون.",
   categoriesTitle: "الأقسام",
   categoriesDescription: "تصفّح أقسام MAYTHA واختر ما يحتاجه البيت.",
   categoryMissing: "القسم غير موجود",
@@ -24,7 +24,7 @@ const ar = {
 
 const en: typeof ar = {
   siteDescription:
-    "MAYTHA HOME & CARE — genuine cleaning and personal care products from brands you know, delivered within Maythaloun.",
+    "MAYTHA HOME & CARE — cleaning and personal care from brands you know and trust, delivered within Maythaloun.",
   categoriesTitle: "Categories",
   categoriesDescription:
     "Browse MAYTHA categories and find what your home needs.",

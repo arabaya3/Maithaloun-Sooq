@@ -23,7 +23,7 @@ export function Hero({ products }: { products: readonly Product[] }) {
         <ul className="hero-facts">
           <li>
             <BadgeCheck aria-hidden="true" />
-            {m.common.genuineProducts}
+            {m.common.trustedBrands}
           </li>
           <li>
             <Truck aria-hidden="true" />

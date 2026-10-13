@@ -164,8 +164,8 @@ export function StoreBenefits() {
   const benefits = [
     {
       icon: BadgeCheck,
-      title: m.common.genuineProducts,
-      text: m.store.benefitGenuineText,
+      title: m.common.trustedBrands,
+      text: m.store.benefitBrandsText,
     },
     {
       icon: Truck,

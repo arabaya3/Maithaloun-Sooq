@@ -86,9 +86,7 @@ describe("storefront", () => {
         name: "ماركات أصلية لبيت أنظف وحياة أجمل",
       }),
     ).toBeInTheDocument();
-    expect(
-      screen.getByText("منتجات أصلية من ماركات بتعرفها وبتثق فيها."),
-    ).toBeInTheDocument();
+    expect(screen.getByText("ماركات بتعرفها وبتثق فيها.")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "تسوّق الآن" })).toHaveAttribute(
       "href",
       "#catalog",

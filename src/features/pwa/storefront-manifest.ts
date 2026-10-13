@@ -6,7 +6,7 @@ export const storefrontManifest: MetadataRoute.Manifest = {
   id: "/",
   name: "MAYTHA",
   short_name: "MAYTHA",
-  description: "منتجات أصلية للتنظيف والعناية من ماركات بتعرفها.",
+  description: "منتجات التنظيف والعناية من ماركات بتعرفها وبتثق فيها.",
   start_url: "/",
   scope: "/",
   display: "standalone",

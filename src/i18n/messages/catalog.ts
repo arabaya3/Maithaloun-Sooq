@@ -56,7 +56,7 @@ const ar = {
   trustLabel: "التوصيل والدفع",
   trustDelivery: (free: string) => `توصيل داخل ميثلون، مجاني من ${free}`,
   trustCash: "الدفع نقداً عند الاستلام",
-  trustGenuine: "منتجات أصلية",
+  trustBrands: "ماركات بتعرفها وبتثق فيها",
   breadcrumb: "مسار التنقل",
   backToProducts: "العودة إلى المنتجات",
   sameCategory: "من الفئة نفسها",
@@ -122,7 +122,7 @@ const en: typeof ar = {
   trustDelivery: (free: string) =>
     `Delivery within Maythaloun, free from ${free}`,
   trustCash: "Cash on delivery",
-  trustGenuine: "Genuine products",
+  trustBrands: "Brands you know and trust",
   breadcrumb: "Breadcrumb",
   backToProducts: "Back to products",
   sameCategory: "From the same category",

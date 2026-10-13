@@ -1,5 +1,7 @@
 // Store information pages. Only owner-approved policies and facts the code enforces;
 // anything still undecided (hours, contact details, retention periods) is left out.
+// Pending legal sign-off before publishing: the cross-border disclosures (privacy), the replacement
+// delivery promise (returns) and the pricing-error and terms-update clauses (terms).
 
 export interface InfoSection {
   title: string;
@@ -60,6 +62,7 @@ const ar = {
         paragraphs: [
           "بعد كل طلب نتواصل معك على رقم الواتساب الذي أدخلته لتأكيد الطلب وتفاصيل التوصيل داخل ميثلون.",
           "لأي سؤال أو طلب يخص طلبك، مثل الإلغاء أو الإبلاغ عن منتج تالف، راسلنا {contact} واذكر رقم الطلب.",
+          "واتساب هو وسيلة التواصل مع المتجر حالياً، ونرد على الرسائل في أقرب وقت ممكن.",
         ],
       },
     ],
@@ -78,8 +81,8 @@ const ar = {
       {
         title: "تكلفة التوصيل",
         paragraphs: [
-          "التوصيل مجاني عندما يبلغ مجموع المنتجات في طلبك {free} أو أكثر.",
-          "إذا كان المجموع أقل من ذلك، تكلفة التوصيل {fee}.",
+          "التوصيل مجاني عندما يبلغ مجموع المنتجات في طلبك {free} أو أكثر، دون احتساب رسوم التوصيل.",
+          "إذا كان مجموع المنتجات أقل من ذلك، تكلفة التوصيل {fee}.",
           "تظهر تكلفة التوصيل والإجمالي في السلة وصفحة الطلب قبل إرساله، وهي نفسها التي تُحسب على طلبك.",
         ],
       },
@@ -103,7 +106,7 @@ const ar = {
       {
         title: "ما نقدّمه",
         paragraphs: [
-          "الحل الذي نقترحه هو استبدال المنتج.",
+          "بعد التحقق من أن المنتج تالف أو غير الذي طلبته، نستبدله لك ونوصل البديل دون أي رسوم توصيل إضافية.",
           "إذا كان المنتج مفتوحاً، ننظر في كل حالة على حدة متى كان المنتج تالفاً أو غير المطلوب.",
         ],
       },
@@ -137,9 +140,9 @@ const ar = {
       {
         title: "من يعالج البيانات",
         paragraphs: [
-          "يعمل الموقع على خدمات سحابية لاستضافة الموقع ولتخزين قاعدة البيانات والصور، وتُحفظ بيانات الطلبات لديها.",
-          "يتم التواصل حول الطلبات عبر واتساب، وإذا اخترت الطلب عبر واتساب تُرسل الرسالة من تطبيقك.",
-          "قد يستخدم فريق المتجر أدوات مساعدة تعمل بالذكاء الاصطناعي لإدارة المتجر، وقد تعالج سجلات المتجر مثل المنتجات والطلبات وأسماء الزبائن.",
+          "يعمل الموقع على خدمات سحابية لاستضافة الموقع ولتخزين قاعدة البيانات والصور، على خوادم داخل الاتحاد الأوروبي، وتُحفظ بيانات الطلبات لديها.",
+          "يتم التواصل حول الطلبات عبر واتساب، وإذا اخترت الطلب عبر واتساب تُرسل الرسالة من تطبيقك. يخضع التواصل عبر واتساب أيضاً لشروط خدمة واتساب وسياسة الخصوصية الخاصة بها.",
+          "قد يستخدم فريق المتجر أدوات مساعدة تعمل بالذكاء الاصطناعي يقدّمها مزود خارجي في الولايات المتحدة، وقد تُرسَل إليها سجلات من المتجر مثل المنتجات والطلبات وأسماء الزبائن، فتُعالَج خارج فلسطين.",
         ],
       },
       {
@@ -152,7 +155,8 @@ const ar = {
         title: "طلبات الوصول أو التصحيح أو الحذف",
         paragraphs: [
           "يمكنك أن تطلب الاطلاع على بياناتك أو تصحيحها أو حذفها بمراسلتنا {contact}.",
-          "نحذف ما لا يلزمنا الاحتفاظ به أو نزيل ما يدل على هويتك منه، وقد نحتفظ ببعض سجلات الطلبات إذا كانت مطلوبة لأغراض قانونية أو محاسبية.",
+          "سنرد على طلبك عبر واتساب. نحتفظ بسجلات الطلبات، ومنها الاسم ورقم الواتساب، لأغراض المحاسبة والمتطلبات القانونية، ولا يمكن حالياً تعديلها أو حذفها أو إخفاء الهوية فيها من نظام الطلبات. سنوضح لك عند طلبك ما يمكننا فعله وما يلزمنا الاحتفاظ به.",
+          "هذا القيد التقني لا ينتقص من أي حق يكفله لك القانون المعمول به.",
         ],
       },
     ],
@@ -186,6 +190,12 @@ const ar = {
         ],
       },
       {
+        title: "الأخطاء في الأسعار",
+        paragraphs: [
+          "إذا ظهر خطأ واضح في سعر منتج، نتواصل معك قبل تأكيد الطلب، ويمكنك إلغاؤه دون أي التزام.",
+        ],
+      },
+      {
         title: "التوصيل والدفع",
         paragraphs: [
           "التوصيل داخل ميثلون فقط، والدفع نقداً عند الاستلام. التكلفة والأيام في صفحة التوصيل.",
@@ -195,6 +205,12 @@ const ar = {
         title: "المنتجات التالفة أو الخاطئة",
         paragraphs: [
           "إذا وصلك منتج تالف أو غير الذي طلبته، التفاصيل في صفحة المنتجات التالفة أو الخاطئة. هذه الشروط لا تنتقص من حقوقك بموجب القانون المعمول به.",
+        ],
+      },
+      {
+        title: "تحديث الشروط",
+        paragraphs: [
+          "قد نحدّث هذه الشروط، ويسري على كل طلب ما كان منشوراً عند إرساله.",
         ],
       },
     ],
@@ -247,6 +263,7 @@ const en: typeof ar = {
         paragraphs: [
           "After every order we contact you on the WhatsApp number you entered to confirm the order and the delivery details within Maythaloun.",
           "For any question or request about your order, such as a cancellation or a damaged item, message us {contact} and include your order number.",
+          "WhatsApp is currently how you can reach the store, and we reply as soon as we can.",
         ],
       },
     ],
@@ -265,8 +282,8 @@ const en: typeof ar = {
       {
         title: "Delivery cost",
         paragraphs: [
-          "Delivery is free when the products in your order total {free} or more.",
-          "Below that, delivery costs {fee}.",
+          "Delivery is free when the products in your order total {free} or more, before delivery.",
+          "If the products total less than that, delivery costs {fee}.",
           "The delivery cost and total are shown in the cart and at checkout before you place your order, and they are exactly what your order is charged.",
         ],
       },
@@ -291,7 +308,7 @@ const en: typeof ar = {
       {
         title: "What we offer",
         paragraphs: [
-          "Our proposed remedy is a replacement.",
+          "Once we've confirmed an item is damaged or isn't what you ordered, we replace it and deliver the replacement at no extra delivery charge.",
           "Opened items that are damaged or incorrect are reviewed case by case.",
         ],
       },
@@ -325,9 +342,9 @@ const en: typeof ar = {
       {
         title: "Who processes the data",
         paragraphs: [
-          "The website runs on cloud services for website hosting and for database and image storage, where order data is kept.",
-          "We communicate about orders through WhatsApp; if you choose to order through WhatsApp, the message is sent from your own app.",
-          "Store staff may use AI-based assistant tools to run the store; these can process store records such as products, orders and customer names.",
+          "The website runs on cloud services for website hosting and for database and image storage, on servers in the European Union, where order data is kept.",
+          "We communicate about orders through WhatsApp; if you choose to order through WhatsApp, the message is sent from your own app. Messages sent through WhatsApp are also subject to WhatsApp's own terms and privacy policy.",
+          "Store staff may use AI-based assistant tools from an external provider in the United States; store records such as products, orders and customer names may be sent to them and processed outside Palestine.",
         ],
       },
       {
@@ -340,7 +357,8 @@ const en: typeof ar = {
         title: "Access, correction or deletion",
         paragraphs: [
           "You can ask to see, correct or delete your data by messaging us {contact}.",
-          "We delete or de-identify what we don't need to keep; some order records may have to be kept for legal or accounting reasons.",
+          "We'll reply on WhatsApp. We keep order records, including your name and WhatsApp number, for accounting and legal purposes, and they can't currently be changed, deleted or de-identified in our order system. When you ask, we'll explain what we can do and what we have to keep.",
+          "This technical limitation does not limit any rights you have under applicable law.",
         ],
       },
     ],
@@ -376,6 +394,12 @@ const en: typeof ar = {
         ],
       },
       {
+        title: "Pricing errors",
+        paragraphs: [
+          "If a product shows an obvious pricing error, we'll contact you before confirming the order, and you can cancel it at no cost.",
+        ],
+      },
+      {
         title: "Delivery and payment",
         paragraphs: [
           "Delivery is within Maythaloun only, and payment is in cash on delivery. Costs and days are on the delivery page.",
@@ -385,6 +409,12 @@ const en: typeof ar = {
         title: "Damaged or incorrect items",
         paragraphs: [
           "If an item arrives damaged or isn't what you ordered, see the damaged or incorrect items page. These terms do not limit your rights under applicable law.",
+        ],
+      },
+      {
+        title: "Updates to these terms",
+        paragraphs: [
+          "We may update these terms; each order is governed by the version published when it was placed.",
         ],
       },
     ],
