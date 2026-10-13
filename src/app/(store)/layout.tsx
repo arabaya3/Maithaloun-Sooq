@@ -22,6 +22,8 @@ import { StoreLaunchSplash } from "@/features/storefront/components/store-launch
 import { StoreNavigationProvider } from "@/features/storefront/components/store-navigation";
 import { getLocale } from "@/i18n/server";
 
+import "./storefront.css";
+
 // Catalog-backed providers live here so admin and utility routes never load the catalog.
 export default async function StoreLayout({
   children,

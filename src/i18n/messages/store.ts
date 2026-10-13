@@ -15,6 +15,10 @@ const ar = {
   featuredBrands: "ماركات مختارة",
   allBrands: "كل الماركات",
   bestSellers: "الأكثر طلباً",
+  featuredProducts: "منتجات مختارة",
+  heroPicks: "من رفوفنا",
+  editorialLabel: "أقسام من البيت",
+  collections: "تشكيلات مختارة",
   offersAndCategories: "عروض وأقسام مختارة",
   currentOffers: "عروض حالية",
   offerCount: (count: number) =>
@@ -71,6 +75,10 @@ const en: typeof ar = {
   featuredBrands: "Featured brands",
   allBrands: "View all",
   bestSellers: "Best sellers",
+  featuredProducts: "Featured products",
+  heroPicks: "From our shelves",
+  editorialLabel: "Around the home",
+  collections: "Curated collections",
   offersAndCategories: "Offers and featured categories",
   currentOffers: "Current offers",
   offerCount: (count: number) =>

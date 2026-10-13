@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { connection } from "next/server";
 
 import { categoryIcon } from "@/features/catalog/components/category-icons";
+import { ProductMedia } from "@/features/catalog/components/product-media";
 import {
   localizedCategoryDescription,
   localizedCategoryName,
@@ -11,6 +12,7 @@ import { storefrontCategories } from "@/features/catalog/infrastructure/category
 import { productRepository } from "@/features/catalog/infrastructure/product-repository";
 import { MobileNavigation } from "@/features/storefront/components/mobile-navigation";
 import { SiteHeader } from "@/features/storefront/components/site-header";
+import { categoryCovers } from "@/features/storefront/domain/home-merchandising";
 import { Link } from "@/i18n/link";
 import { getLocale, getMessages } from "@/i18n/server";
 
@@ -30,6 +32,7 @@ export default async function CategoriesPage() {
     getLocale(),
     getMessages(),
   ]);
+  const covers = categoryCovers(products);
   const counts = new Map<string, number>();
   for (const product of products) {
     counts.set(product.categoryId, (counts.get(product.categoryId) ?? 0) + 1);
@@ -47,6 +50,7 @@ export default async function CategoriesPage() {
           <ul className="category-directory">
             {categories.map((category) => {
               const Icon = categoryIcon(category.icon);
+              const cover = covers.get(category.code);
               const description = localizedCategoryDescription(
                 category,
                 locale,
@@ -56,8 +60,20 @@ export default async function CategoriesPage() {
                   <Link
                     href={`/categories/${encodeURIComponent(category.code)}`}
                   >
-                    <span className="category-icon" aria-hidden="true">
-                      <Icon />
+                    <span
+                      className="category-icon"
+                      data-cover={Boolean(cover)}
+                      aria-hidden="true"
+                    >
+                      {cover ? (
+                        <ProductMedia
+                          product={cover}
+                          className="category-cover"
+                          sizes="(min-width: 48rem) 220px, 96px"
+                        />
+                      ) : (
+                        <Icon />
+                      )}
                     </span>
                     <span className="category-directory-text">
                       <strong>{localizedCategoryName(category, locale)}</strong>

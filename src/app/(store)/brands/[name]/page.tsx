@@ -5,6 +5,8 @@ import { connection } from "next/server";
 
 import { ProductCard } from "@/features/catalog/components/product-card";
 import { productRepository } from "@/features/catalog/infrastructure/product-repository";
+import { brandLogo } from "@/features/storefront/brand-logos";
+import { BrandMark } from "@/features/storefront/components/brand-mark";
 import { MobileNavigation } from "@/features/storefront/components/mobile-navigation";
 import { SiteHeader } from "@/features/storefront/components/site-header";
 import { Link } from "@/i18n/link";
@@ -58,6 +60,11 @@ export default async function BrandPage({
           </Link>
         </nav>
         <div className="listing-heading">
+          {name && brandLogo(name) ? (
+            <span className="brand-page-logo">
+              <BrandMark name={name} decorative />
+            </span>
+          ) : null}
           <h1>
             <bdi dir="auto">{name}</bdi>
           </h1>

@@ -101,3 +101,14 @@ export function featuredCategory(
       ) ?? null,
   };
 }
+
+/** One product photo per category for image-led category cards, branded and available first. */
+export function categoryCovers(
+  products: readonly Product[],
+): Map<string, Product> {
+  const covers = new Map<string, Product>();
+  for (const product of pickHeroProducts(products, Number.POSITIVE_INFINITY)) {
+    covers.set(product.categoryId, product);
+  }
+  return covers;
+}

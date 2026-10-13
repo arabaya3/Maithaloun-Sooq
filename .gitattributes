@@ -1,2 +1,4 @@
 * text=auto eol=lf
 *.png binary
+# Third-party logos are kept byte-identical to their verified source.
+public/brands/logos/** binary
