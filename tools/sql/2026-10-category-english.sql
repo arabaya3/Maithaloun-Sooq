@@ -1,6 +1,14 @@
 -- MAYTHA: English names for the ten storefront categories (shown on /en only).
 -- Run once in the Supabase SQL editor AFTER migration 0026 (product_categories.name_en) is deployed.
 -- Only empty English names are filled, so later edits in the admin are kept; safe to run again.
+--
+-- Expected on Production (ten active categories, checked read-only 2026-10-13): 10 rows filled.
+-- It writes product_categories.name_en and updated_at only; Arabic names, codes, order and products stay as they are.
+--
+-- Before running, save the current values (read-only; keep the result):
+--   select code, name_en from product_categories order by sort_order;
+-- Rollback right after the run, before any English name is edited in the admin:
+--   update product_categories set name_en = null where name_en is not null;
 do $$
 declare
   names jsonb := '{
