@@ -4,6 +4,8 @@ import { useI18n } from "@/i18n/i18n-provider";
 import { LanguageSwitcher } from "@/i18n/language-switcher";
 import { Link } from "@/i18n/link";
 
+import { infoPages } from "@/features/storefront/info-pages";
+
 import { BrandWordmark } from "./brand-logo";
 
 export function StoreFooter() {
@@ -31,6 +33,13 @@ export function StoreFooter() {
             </Link>
           ))}
           <LanguageSwitcher />
+        </nav>
+        <nav className="store-footer-links" aria-label={m.info.pagesLabel}>
+          {infoPages.map((link) => (
+            <Link key={link.href} href={link.href}>
+              {m.info[link.key].title}
+            </Link>
+          ))}
         </nav>
         <p className="store-footer-attribution">{m.store.managedBy}</p>
       </div>
