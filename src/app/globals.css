@@ -2566,6 +2566,23 @@ select:focus-visible {
   clip-path: polygon(0 0, 100% 0, 84% 100%, 0 100%);
 }
 
+/* Phones: a shorter hero, so categories and products come up sooner. */
+@media (max-width: 47.99rem) {
+  .hero-body {
+    gap: var(--space-2);
+    padding: var(--space-3) var(--space-3) var(--space-2);
+  }
+
+  .hero h2 {
+    font-size: 1.1rem;
+    line-height: 1.4;
+  }
+
+  .hero-media img {
+    min-height: 8.5rem;
+  }
+}
+
 .categories-section {
   padding-bottom: var(--space-3);
   border-bottom: 1px solid var(--divider);
@@ -2587,6 +2604,18 @@ select:focus-visible {
 
 .category-list::-webkit-scrollbar {
   display: none;
+}
+
+/* On phones the row fades at its far edge, so it reads as scrollable. */
+@media (max-width: 47.99rem) {
+  .category-list {
+    mask-image: linear-gradient(
+      to left,
+      transparent 0,
+      #000 2.25rem,
+      #000 100%
+    );
+  }
 }
 
 .category-item {
@@ -2625,14 +2654,13 @@ select:focus-visible {
   height: 1.45rem;
 }
 
-.category-item[data-category-id="laundry"] .category-icon,
-.category-item[data-category-id="home"] .category-icon {
+/* Tints alternate by position, so any category the owner adds gets one. */
+.category-item:nth-child(3n + 2) .category-icon {
   color: var(--lavender);
   background: var(--lavender-tint);
 }
 
-.category-item[data-category-id="kitchen"] .category-icon,
-.category-item[data-category-id="tools"] .category-icon {
+.category-item:nth-child(3n) .category-icon {
   color: var(--fresh);
   background: var(--fresh-tint);
 }
@@ -2675,6 +2703,38 @@ select:focus-visible {
 .results-count {
   color: var(--text-muted);
   font-size: var(--text-sm);
+}
+
+.catalog-more {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-5, 1.25rem);
+}
+
+.catalog-more-count {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+
+.catalog-more-button {
+  min-width: 12rem;
+  min-height: 2.75rem;
+  padding-inline: 1.25rem;
+  color: var(--action-strong);
+  border: 1.5px solid var(--action);
+  border-radius: var(--radius-pill);
+  background: var(--white);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.catalog-more-button:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: 2px;
 }
 
 .product-grid {
@@ -2989,13 +3049,15 @@ select:focus-visible {
     font-size: var(--text-sm);
   }
 
+  /* Tablets keep the single scrollable row; a fixed grid left one category alone. */
   .category-list {
     margin-inline: 0;
     padding-inline: 0;
-    grid-auto-columns: auto;
-    grid-auto-flow: row;
-    grid-template-columns: repeat(6, minmax(0, 1fr));
-    overflow: visible;
+  }
+
+  .catalog-more {
+    flex-direction: row;
+    justify-content: center;
   }
 
   .product-grid {
@@ -3036,6 +3098,18 @@ select:focus-visible {
 @media (min-width: 64rem) {
   body {
     padding-bottom: var(--space-8);
+  }
+
+  /* Every category on one balanced row, so none is ever left alone below. */
+  .category-list {
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(0, 1fr);
+    grid-template-columns: none;
+  }
+
+  .category-item {
+    min-width: 0;
+    white-space: normal;
   }
 
   .welcome {

@@ -228,3 +228,47 @@ describe("storefront", () => {
     expect(within(card!).getByText("غير متوفر حالياً")).toBeVisible();
   });
 });
+
+describe("storefront catalog batches", () => {
+  const many: Product[] = Array.from({ length: 30 }, (_, index) =>
+    withDefaultVariant({
+      id: `batch-${index + 1}`,
+      slug: `batch-${index + 1}`,
+      nameAr: `منتج رقم ${index + 1}`,
+      priceAgorot: 500,
+      categoryId: index < 20 ? "home" : "kitchen",
+      image: { kind: "placeholder", variant: "general-cleaner" },
+      availability: "available",
+      detailsStatus: "placeholder",
+    }),
+  );
+  const cards = () => document.querySelectorAll("article[data-product-id]");
+
+  it("shows 12, reveals 12 more on request, and starts again on a new search or category", async () => {
+    const user = userEvent.setup();
+    renderWithProviders(
+      <Storefront products={many} categories={categories} />,
+      { products: many },
+    );
+    expect(cards()).toHaveLength(12);
+    expect(screen.getByText("يظهر 12 من 30")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "عرض المزيد (12)" }));
+    expect(cards()).toHaveLength(24);
+    await user.click(screen.getByRole("button", { name: "عرض المزيد (6)" }));
+    expect(cards()).toHaveLength(30);
+    expect(screen.queryByRole("button", { name: /عرض المزيد/ })).toBeNull();
+
+    // A new category starts from the first batch and counts only its own products.
+    const homeButton = document.querySelector(
+      '[data-category-id="home"]',
+    ) as HTMLElement;
+    await user.click(homeButton);
+    expect(cards()).toHaveLength(12);
+    expect(screen.getByText("يظهر 12 من 20")).toBeInTheDocument();
+
+    // Search narrows inside the category and never hides a match behind the button.
+    await user.type(screen.getByRole("searchbox"), "رقم 1");
+    expect(cards().length).toBeLessThanOrEqual(12);
+    expect(screen.queryByRole("button", { name: /عرض المزيد/ })).toBeNull();
+  });
+});

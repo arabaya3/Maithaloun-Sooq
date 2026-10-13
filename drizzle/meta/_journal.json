@@ -162,6 +162,13 @@
       "when": 1791554780190,
       "tag": "0022_whatsapp_orders",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1791884902508,
+      "tag": "0023_default_reorder_threshold",
+      "breakpoints": true
     }
   ]
 }

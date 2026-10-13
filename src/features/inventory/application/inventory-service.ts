@@ -2,7 +2,7 @@ import "server-only";
 
 import { createHash } from "node:crypto";
 
-import { and, asc, desc, eq, inArray } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull } from "drizzle-orm";
 import { z } from "zod";
 
 import type { AdminActor } from "@/features/admin/domain/admin-actor";
@@ -705,6 +705,90 @@ export class InventoryService {
         afterState: { reorderThresholdMilli: input.thresholdMilli },
       });
     });
+  }
+
+  /** Counts for the confirmation before setting one threshold on every active tracked variant. */
+  async reorderThresholdOverview(
+    actor: AdminActor,
+    thresholdMilli: number,
+  ): Promise<{ eligible: number; alreadySet: number; changing: number }> {
+    assertPermission(actor, "stock.adjust");
+    const rows = await this.activeTrackedThresholds(this.database);
+    const alreadySet = rows.filter(
+      (row) => row.reorderThresholdMilli === thresholdMilli,
+    ).length;
+    return {
+      eligible: rows.length,
+      alreadySet,
+      changing: rows.length - alreadySet,
+    };
+  }
+
+  /**
+   * Sets one threshold on every tracked variant of an active product; archived ones are left alone.
+   * Only the threshold changes, so stock, costs and history are untouched; one audit event holds the counts.
+   */
+  async setReorderThresholdForActive(
+    actor: AdminActor,
+    thresholdMilli: number,
+  ): Promise<{ eligible: number; changed: number }> {
+    assertPermission(actor, "stock.adjust");
+    if (
+      !Number.isInteger(thresholdMilli) ||
+      thresholdMilli < 0 ||
+      thresholdMilli > MAX_QUANTITY_MILLI
+    ) {
+      throw new InventoryError("invalid_input");
+    }
+    return this.database.transaction(async (transaction) => {
+      const rows = await this.activeTrackedThresholds(transaction);
+      const changing = rows
+        .filter((row) => row.reorderThresholdMilli !== thresholdMilli)
+        .map((row) => row.id);
+      if (changing.length) {
+        await transaction
+          .update(schema.inventoryItems)
+          .set({ reorderThresholdMilli: thresholdMilli, updatedAt: new Date() })
+          .where(inArray(schema.inventoryItems.id, changing));
+      }
+      await transaction.insert(schema.adminAuditEvents).values({
+        adminUserId: actor.id,
+        actionType: "reorder_threshold_bulk_update",
+        entityType: "inventory_item",
+        entityId: "active",
+        beforeState: { eligible: rows.length },
+        afterState: {
+          reorderThresholdMilli: thresholdMilli,
+          changed: changing.length,
+        },
+      });
+      return { eligible: rows.length, changed: changing.length };
+    });
+  }
+
+  private async activeTrackedThresholds(database: Database) {
+    const locationId = await getDefaultLocationId(database);
+    return database
+      .select({
+        id: schema.inventoryItems.id,
+        reorderThresholdMilli: schema.inventoryItems.reorderThresholdMilli,
+      })
+      .from(schema.inventoryItems)
+      .innerJoin(
+        schema.productVariants,
+        eq(schema.productVariants.id, schema.inventoryItems.variantId),
+      )
+      .innerJoin(
+        schema.products,
+        eq(schema.products.id, schema.productVariants.productId),
+      )
+      .where(
+        and(
+          eq(schema.inventoryItems.locationId, locationId),
+          isNull(schema.productVariants.archivedAt),
+          isNull(schema.products.archivedAt),
+        ),
+      );
   }
 
   async transfer(

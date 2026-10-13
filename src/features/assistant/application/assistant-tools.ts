@@ -849,6 +849,15 @@ export function createAssistantTools(context: AssistantToolContext) {
           ops.prepareReorderThreshold(actor, input),
         ),
     }),
+    prepareBulkReorderThreshold: tool({
+      description:
+        "جهّز بطاقة واحدة تضبط حد التنبيه بعدد القطع على كل الأصناف المتتبَّعة الفعّالة (مثل 2). لا يتغير شيء قبل التأكيد.",
+      inputSchema: z.object({ threshold: quantity }).strict(),
+      execute: (input) =>
+        prepare("prepareBulkReorderThreshold", input, () =>
+          ops.prepareBulkReorderThreshold(actor, input),
+        ),
+    }),
     prepareManualSale: tool({
       description:
         "جهّز بطاقة بيع مباشر. الأسعار تُؤخذ من النظام إلا إذا ذكرت المستخدمة سعراً مختلفاً. إذا ذكرت طريقة بيع (حبة، باكيج، كرتونة) مرّرها في sellingOption وتصبح quantity عدد الباكيجات: «بعت باكيجين» = quantity 2 وsellingOption «باكيج». مرّر اسم المنتج كما قالته (مثل «منشفة مطبخ») واستدعِ الأداة مباشرة؛ الخادم يطابق المنتج والصنف وطريقة البيع ويسأل إن كان هناك أكثر من احتمال. payment: full دفع كامل، partial جزء (paidIls)، none على الحساب.",

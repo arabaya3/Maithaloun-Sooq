@@ -15,6 +15,13 @@ export const categoryIconKeys = [
   "shirt",
   "package",
   "leaf",
+  "utensils",
+  "sofa",
+  "wind",
+  "brush-cleaning",
+  "scroll-text",
+  "heart",
+  "baby",
 ] as const;
 export type CategoryIconKey = (typeof categoryIconKeys)[number];
 // Used when a category is created without an icon; the owner can change it later.
@@ -33,6 +40,13 @@ export const categoryIconLabels: Record<CategoryIconKey, string> = {
   shirt: "قميص",
   package: "علبة",
   leaf: "ورقة شجر",
+  utensils: "أدوات مطبخ",
+  sofa: "كنبة",
+  wind: "نسمة هواء",
+  "brush-cleaning": "فرشاة تنظيف",
+  "scroll-text": "لفافة ورق",
+  heart: "قلب",
+  baby: "طفل",
 };
 
 export const categoryCodeSchema = z

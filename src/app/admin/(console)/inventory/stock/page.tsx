@@ -22,6 +22,7 @@ import type {
   StockListSort,
 } from "@/features/inventory/application/inventory-service";
 import { stockMovementReasonLabels } from "@/features/inventory/domain/stock-constants";
+import { BulkThresholdCard } from "@/features/inventory/ui/bulk-threshold-card";
 import { formatBasisPoints } from "@/shared/lib/money-math";
 
 export const metadata: Metadata = { title: "قائمة المخزون" };
@@ -82,6 +83,9 @@ export default async function StockListPage({
   const sortOptions = sorts.filter((item) => !item.costs || showCosts);
   const sort =
     sortOptions.find((item) => item.id === params.sort)?.id ?? "catalog";
+  const thresholds = can(actor, "stock.adjust")
+    ? await inventoryService.reorderThresholdOverview(actor, 2_000)
+    : null;
   const items = await inventoryService.listStock(actor, {
     filter,
     search,
@@ -95,6 +99,12 @@ export default async function StockListPage({
         title="قائمة المخزون"
         back={{ href: "/admin/inventory", label: "المخزون والمشتريات" }}
       />
+      {thresholds ? (
+        <BulkThresholdCard
+          eligible={thresholds.eligible}
+          changing={thresholds.changing}
+        />
+      ) : null}
 
       <form className="admin-stock-toolbar" action="/admin/inventory/stock">
         <input type="hidden" name="filter" value={filter} />
