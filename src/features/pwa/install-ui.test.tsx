@@ -63,15 +63,15 @@ describe("storefront install banner", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("shows the official logo and says installing is optional", async () => {
+  it("shows the MAYTHA app icon and says installing is optional", async () => {
     const Banner = await loadBanner();
     const { container } = render(<Banner />);
     dispatchInstallPrompt("dismissed");
     const logo = container.querySelector(".install-banner-logo");
     expect(decodeURIComponent(logo?.getAttribute("src") ?? "")).toContain(
-      "/brand/maithaloun-symbol.png",
+      "/brand/app/icon-192-v3.png",
     );
-    expect(screen.getByText("ثبّت سوق ميثلون")).toBeVisible();
+    expect(screen.getByText("ثبّت MAYTHA")).toBeVisible();
     expect(screen.getByText(/التثبيت اختياري/)).toBeVisible();
   });
 

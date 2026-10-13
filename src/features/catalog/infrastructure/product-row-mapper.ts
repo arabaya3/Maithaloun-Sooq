@@ -147,6 +147,7 @@ export function mapProductRow(
     slug: row.slug,
     nameAr: row.nameAr,
     latinName: row.latinName ?? undefined,
+    brand: row.brand ?? undefined,
     priceAgorot: defaultVariant.priceAgorot,
     categoryId: row.categoryId,
     image: defaultVariant.image,

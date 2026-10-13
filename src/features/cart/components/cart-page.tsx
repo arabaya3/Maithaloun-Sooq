@@ -407,7 +407,7 @@ export function CartPage({
                   الطلب عبر واتساب
                 </Link>
                 <p id="cart-whatsapp-note" className="cart-channel-note">
-                  سنجهّز رسالة طلبك لتُرسل مباشرة إلى سوق ميثلون.
+                  سنجهّز رسالة طلبك لتُرسل مباشرة إلى MAYTHA.
                 </p>
               </>
             ) : null}

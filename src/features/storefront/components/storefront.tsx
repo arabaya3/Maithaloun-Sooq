@@ -1,6 +1,7 @@
 "use client";
 
 import { LayoutGrid, PackageSearch, Search, X } from "lucide-react";
+import Link from "next/link";
 import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
 
 import { categoryIcons } from "@/features/catalog/components/category-icons";
@@ -11,13 +12,36 @@ import {
 } from "@/features/catalog/domain/category";
 import type { CategoryId, Product } from "@/features/catalog/domain/product";
 import { filterProducts } from "@/features/catalog/domain/product-search";
-import { MobileNavigation } from "@/features/storefront/components/mobile-navigation";
 import { Hero } from "@/features/storefront/components/hero";
+import {
+  BestSellers,
+  FeaturedBrands,
+  PromoBanners,
+  StoreBenefits,
+} from "@/features/storefront/components/home-sections";
+import { MobileNavigation } from "@/features/storefront/components/mobile-navigation";
 import { SiteHeader } from "@/features/storefront/components/site-header";
+import type { CatalogBrand } from "@/features/storefront/domain/home-merchandising";
 import { formatProductCount } from "@/shared/lib/format-product-count";
 
 // The first batch keeps the phone page short; more is one tap away, never on scroll.
 export const CATALOG_BATCH = 12;
+
+export interface HomeMerchandising {
+  heroProducts: readonly Product[];
+  brands: readonly CatalogBrand[];
+  bestSellers: readonly Product[];
+  offerProducts: readonly Product[];
+  featured: { category: ProductCategory; product: Product | null } | null;
+}
+
+const emptyMerchandising: HomeMerchandising = {
+  heroProducts: [],
+  brands: [],
+  bestSellers: [],
+  offerProducts: [],
+  featured: null,
+};
 
 function ProductSearch({
   query,
@@ -29,7 +53,7 @@ function ProductSearch({
   inputRef: RefObject<HTMLInputElement | null>;
 }) {
   return (
-    <div className="search-wrap">
+    <div className="search-wrap" role="search">
       <label htmlFor="product-search" className="sr-only">
         ابحث في المنتجات
       </label>
@@ -41,7 +65,14 @@ function ProductSearch({
         enterKeyHint="search"
         value={query}
         onChange={(event) => onChange(event.target.value)}
-        placeholder="ابحث عن منظف، معطر، فرشاة…"
+        onKeyDown={(event) => {
+          if (event.key === "Enter") {
+            document
+              .getElementById("catalog")
+              ?.scrollIntoView({ block: "start" });
+          }
+        }}
+        placeholder="ابحث عن منتج أو ماركة…"
         autoComplete="off"
       />
       {query ? (
@@ -76,9 +107,12 @@ function CategoryPicker({
   ];
   return (
     <section className="categories-section" aria-labelledby="categories-title">
-      <h2 id="categories-title" className="sr-only">
-        الأقسام
-      </h2>
+      <div className="home-section-heading">
+        <h2 id="categories-title">تسوّق حسب القسم</h2>
+        <Link href="/categories" className="home-section-link">
+          كل الأقسام
+        </Link>
+      </div>
       <div
         className="category-list"
         role="group"
@@ -109,24 +143,38 @@ function CategoryPicker({
   );
 }
 
+/** Mirrors the filters into the address, so a search or category can be shared and survives a reload. */
+function writeFiltersToUrl(category: CategoryId, query: string) {
+  const url = new URL(window.location.href);
+  if (category === ALL_CATEGORIES) url.searchParams.delete("category");
+  else url.searchParams.set("category", category);
+  if (query.trim()) url.searchParams.set("q", query.trim());
+  else url.searchParams.delete("q");
+  window.history.replaceState(window.history.state, "", url);
+}
+
 export function Storefront({
   products,
   categories,
   initialCategory = ALL_CATEGORIES,
+  initialQuery = "",
+  merchandising = emptyMerchandising,
 }: {
   products: readonly Product[];
   categories: readonly ProductCategory[];
   initialCategory?: CategoryId;
+  initialQuery?: string;
+  merchandising?: HomeMerchandising;
 }) {
-  const [query, setQuery] = useState("");
+  const [query, setQueryState] = useState(initialQuery);
   const [category, setCategoryState] = useState<CategoryId>(initialCategory);
-  // The chosen category lives in the address, so it can be shared and survives a reload.
   const setCategory = (code: CategoryId) => {
     setCategoryState(code);
-    const url = new URL(window.location.href);
-    if (code === ALL_CATEGORIES) url.searchParams.delete("category");
-    else url.searchParams.set("category", code);
-    window.history.replaceState(window.history.state, "", url);
+    writeFiltersToUrl(code, query);
+  };
+  const setQuery = (value: string) => {
+    setQueryState(value);
+    writeFiltersToUrl(category, value);
   };
   const searchInputRef = useRef<HTMLInputElement>(null);
 
@@ -150,24 +198,29 @@ export function Storefront({
   }, []);
 
   const resetFilters = () => {
-    setQuery("");
-    setCategory(ALL_CATEGORIES);
+    setQueryState("");
+    setCategoryState(ALL_CATEGORIES);
+    writeFiltersToUrl(ALL_CATEGORIES, "");
     queueMicrotask(() => searchInputRef.current?.focus());
   };
 
   return (
     <>
-      <SiteHeader searchInputRef={searchInputRef} />
-      <main className="page-shell storefront-main">
-        <section className="welcome" aria-labelledby="welcome-title">
-          <h1 id="welcome-title">أهلًا! شو ناقص البيت اليوم؟</h1>
+      <SiteHeader
+        search={
           <ProductSearch
             query={query}
             onChange={setQuery}
             inputRef={searchInputRef}
           />
-        </section>
-        <Hero />
+        }
+      />
+      <main className="page-shell storefront-main">
+        {hasActiveFilter ? (
+          <h1 className="sr-only">تسوّق منتجات MAYTHA</h1>
+        ) : (
+          <Hero products={merchandising.heroProducts} />
+        )}
         <CategoryPicker
           categories={categories}
           selected={category}
@@ -179,22 +232,31 @@ export function Storefront({
               {query.trim() ? `البحث: ${query.trim()}` : null}
               {query.trim() && category !== ALL_CATEGORIES ? "، " : null}
               {category !== ALL_CATEGORIES
-                ? `الفئة: ${selectedCategory?.nameAr ?? ""}`
+                ? `القسم: ${selectedCategory?.nameAr ?? ""}`
                 : null}
             </span>
             <button type="button" onClick={resetFilters}>
               مسح عوامل التصفية
             </button>
           </div>
-        ) : null}
+        ) : (
+          <>
+            <FeaturedBrands brands={merchandising.brands} />
+            <BestSellers products={merchandising.bestSellers} />
+            <PromoBanners
+              offerProducts={merchandising.offerProducts}
+              featured={merchandising.featured}
+            />
+          </>
+        )}
         <section
           id="catalog"
           className="catalog-section"
           aria-labelledby="catalog-title"
         >
-          <div className="section-heading catalog-heading">
+          <div className="home-section-heading catalog-heading">
             <h2 id="catalog-title">
-              {hasActiveFilter ? "نتائج البحث" : "اختيارات للبيت"}
+              {hasActiveFilter ? "نتائج البحث" : "كل المنتجات"}
             </h2>
             <span className="results-count" aria-live="polite">
               {formatProductCount(filteredProducts.length)}
@@ -232,13 +294,14 @@ export function Storefront({
             <div className="empty-state" role="status">
               <PackageSearch aria-hidden="true" />
               <h3>لا توجد نتائج مطابقة</h3>
-              <p>جرّب عبارة بحث أخرى أو اختر فئة مختلفة.</p>
+              <p>جرّب عبارة بحث أخرى أو اختر قسماً مختلفاً.</p>
               <button type="button" onClick={resetFilters}>
                 عرض كل المنتجات
               </button>
             </div>
           )}
         </section>
+        {hasActiveFilter ? null : <StoreBenefits />}
       </main>
       <MobileNavigation />
     </>

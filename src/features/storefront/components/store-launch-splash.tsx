@@ -1,7 +1,4 @@
-import Image from "next/image";
-
-import { LOGO_SIZES } from "@/features/storefront/brand-logo-asset";
-
+import { BrandWordmark, STORE_NAME } from "./brand-logo";
 import { LaunchSplashReady } from "./launch-splash-ready";
 
 export const LAUNCH_SESSION_KEY = "souq:launched";
@@ -15,27 +12,11 @@ export function StoreLaunchSplash() {
       <script dangerouslySetInnerHTML={{ __html: skipRepeatLaunch }} />
       <div className="launch-splash" data-testid="launch-splash">
         <p className="sr-only" role="status">
-          جارٍ فتح سوق ميثلون
+          جارٍ فتح {STORE_NAME}
         </p>
         <div className="launch-splash-brand" aria-hidden="true">
-          <div className="launch-splash-mark">
-            <Image
-              className="launch-splash-logo"
-              src="/brand/maithaloun-symbol.png"
-              alt=""
-              width={360}
-              height={285}
-              sizes={LOGO_SIZES}
-              priority
-            />
-            <span className="launch-splash-shine" />
-            <span className="launch-splash-bubble" />
-            <span className="launch-splash-bubble" />
-          </div>
-          <p className="launch-splash-name">
-            <span className="launch-splash-soq">سوق</span> ميثلون
-          </p>
-          <p className="launch-splash-tagline">منظفات ومعطرات جو</p>
+          <BrandWordmark />
+          <span className="launch-splash-rule" />
         </div>
       </div>
       <LaunchSplashReady />

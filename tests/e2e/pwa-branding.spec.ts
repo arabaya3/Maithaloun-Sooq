@@ -22,8 +22,8 @@ test("manifest, favicon and Apple touch icon serve the new logo set", async ({
   const response = await request.get("/manifest.webmanifest");
   expect(response.status()).toBe(200);
   const manifest = await response.json();
-  expect(manifest.name).toBe("سوق ميثلون");
-  expect(manifest.short_name).toBe("ميثلون");
+  expect(manifest.name).toBe("MAYTHA");
+  expect(manifest.short_name).toBe("MAYTHA");
   expect(manifest.dir).toBe("rtl");
   expect(manifest.lang).toBe("ar");
   expect(manifest.display).toBe("standalone");
@@ -37,9 +37,9 @@ test("manifest, favicon and Apple touch icon serve the new logo set", async ({
     );
   expect(links).toEqual(
     expect.arrayContaining([
-      "/brand/app/favicon-16-v2.png",
-      "/brand/app/favicon-32-v2.png",
-      "/brand/app/apple-touch-icon-v2.png",
+      "/brand/app/favicon-16-v3.png",
+      "/brand/app/favicon-32-v3.png",
+      "/brand/app/apple-touch-icon-v3.png",
     ]),
   );
   expect(links.join(" ")).not.toContain("/icons/icon-");
@@ -77,7 +77,7 @@ for (const viewport of viewports) {
       await page.goto("/");
       await dispatchInstallPrompt(page);
       await expect(
-        page.getByRole("complementary", { name: "ثبّت سوق ميثلون" }),
+        page.getByRole("complementary", { name: "ثبّت MAYTHA" }),
       ).toBeVisible();
       await expectNoHorizontalOverflow(page);
       await page.screenshot({
@@ -115,7 +115,7 @@ test("standalone mode hides the install banner and keeps the footer", async ({
   await page.goto("/");
   await dispatchInstallPrompt(page);
   await expect(
-    page.getByRole("complementary", { name: "ثبّت سوق ميثلون" }),
+    page.getByRole("complementary", { name: "ثبّت MAYTHA" }),
   ).toHaveCount(0);
   await expect(
     page.getByRole("contentinfo").getByText(ATTRIBUTION, { exact: true }),

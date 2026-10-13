@@ -26,7 +26,7 @@ export default async function AdminLoginPage({
   return (
     <main className="admin-login-page">
       <section>
-        <h1>دخول إدارة سوق ميثلون</h1>
+        <h1>دخول إدارة MAYTHA</h1>
         <p>هذه الصفحة مخصصة للمالك فقط. لا يوجد تسجيل عام.</p>
         <LoginForm nextPath={nextPath} />
       </section>

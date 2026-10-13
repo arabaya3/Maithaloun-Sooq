@@ -110,6 +110,8 @@ export const products = pgTable(
     slug: varchar("slug", { length: 120 }).notNull().unique(),
     nameAr: varchar("name_ar", { length: 160 }).notNull(),
     latinName: varchar("latin_name", { length: 120 }),
+    // Shown on cards and in the brands row; optional, set by the owner, never guessed.
+    brand: varchar("brand", { length: 80 }),
     priceAgorot: integer("price_agorot").notNull(),
     sortOrder: integer("sort_order").notNull(),
     categoryId: varchar("category_id", { length: 40 })

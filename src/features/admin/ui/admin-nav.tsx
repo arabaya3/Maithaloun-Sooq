@@ -307,7 +307,7 @@ export function AdminBrand({ compact = false }: { compact?: boolean }) {
         م
       </span>
       <div>
-        <p className="admin-sidebar-brand-title">سوق ميثلون</p>
+        <p className="admin-sidebar-brand-title">MAYTHA</p>
         {!compact ? (
           <p className="admin-sidebar-brand-subtitle">إدارة المتجر</p>
         ) : null}

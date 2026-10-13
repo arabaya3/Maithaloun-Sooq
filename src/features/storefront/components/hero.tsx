@@ -1,67 +1,59 @@
-import { ChevronLeft, Truck, WalletCards } from "lucide-react";
-import { getImageProps } from "next/image";
+import { ArrowLeft, BadgeCheck, Banknote, Truck } from "lucide-react";
 
-const bannerSizes = "(min-width: 75rem) 560px, 48vw";
-const compactSizes = "46vw";
+import { ProductMedia } from "@/features/catalog/components/product-media";
+import type { Product } from "@/features/catalog/domain/product";
 
-export function Hero() {
-  const {
-    props: { srcSet: banner },
-  } = getImageProps({
-    alt: "",
-    src: "/assets/hero/home-banner.webp",
-    width: 1200,
-    height: 617,
-    sizes: bannerSizes,
-  });
-  const {
-    props: { srcSet: compact, ...image },
-  } = getImageProps({
-    alt: "",
-    src: "/assets/hero/home-compact.webp",
-    width: 640,
-    height: 506,
-    sizes: compactSizes,
-  });
+export const TRUST_LINE = "منتجات أصلية من ماركات بتعرفها وبتثق فيها.";
 
+export function Hero({ products }: { products: readonly Product[] }) {
   return (
     <section className="hero" aria-labelledby="hero-title">
       <div className="hero-body">
-        <h2 id="hero-title">
-          <span>أساسيات البيت،</span>
-          <span className="hero-accent">أقرب إلك</span>
-        </h2>
+        <p className="hero-eyebrow" dir="ltr">
+          MAYTHA
+        </p>
+        <h1 id="hero-title">ماركات أصلية لبيت أنظف وحياة أجمل</h1>
+        <p className="hero-lead">{TRUST_LINE}</p>
         <a className="hero-cta" href="#catalog">
-          ابدأ التسوق
-          <ChevronLeft aria-hidden="true" />
+          تسوّق الآن
+          <ArrowLeft aria-hidden="true" />
         </a>
         <ul className="hero-facts">
+          <li>
+            <BadgeCheck aria-hidden="true" />
+            منتجات أصلية
+          </li>
           <li>
             <Truck aria-hidden="true" />
             توصيل داخل ميثلون
           </li>
           <li>
-            <WalletCards aria-hidden="true" />
+            <Banknote aria-hidden="true" />
             الدفع عند الاستلام
           </li>
         </ul>
       </div>
-      <picture className="hero-media">
-        <source
-          media="(min-width: 48rem)"
-          srcSet={banner}
-          sizes={bannerSizes}
-          width={1200}
-          height={617}
-        />
-        <img
-          {...image}
-          srcSet={compact}
-          alt=""
-          loading="eager"
-          fetchPriority="high"
-        />
-      </picture>
+      {products.length ? (
+        <div
+          className="hero-media"
+          data-count={products.length}
+          aria-hidden="true"
+        >
+          {products.map((product, index) => (
+            <ProductMedia
+              key={product.id}
+              product={product}
+              className="hero-product"
+              sizes={
+                index === 0
+                  ? "(min-width: 64rem) 320px, 40vw"
+                  : "(min-width: 64rem) 200px, 26vw"
+              }
+              priority={index === 0}
+            />
+          ))}
+        </div>
+      ) : null}
     </section>
   );
 }

@@ -22,7 +22,7 @@ test("homepage search, filtering, and cart work in RTL", async ({ page }) => {
   await expect(page.locator("html")).toHaveAttribute("lang", "ar");
   await expect(page.locator("html")).toHaveAttribute("dir", "rtl");
   await expect(
-    page.getByRole("link", { name: /^سوق ميثلون\s?، الرئيسية$/ }),
+    page.getByRole("link", { name: /^MAYTHA\s?، الرئيسية$/ }),
   ).toBeVisible();
   const search = page.getByRole("searchbox", {
     name: "ابحث في المنتجات",
@@ -50,9 +50,7 @@ test("homepage search, filtering, and cart work in RTL", async ({ page }) => {
   expect(issues.failedRequests).toEqual([]);
 });
 
-test("brand name is spelled سوق ميثلون everywhere it renders", async ({
-  page,
-}) => {
+test("brand name is spelled MAYTHA everywhere it renders", async ({ page }) => {
   for (const route of [
     "/",
     "/products/general-cleaner-secret",
@@ -63,27 +61,23 @@ test("brand name is spelled سوق ميثلون everywhere it renders", async ({
     "/account",
   ]) {
     await page.goto(route);
-    const word = page.locator("header .brand .brand-word");
-    const visible = await word.evaluate((element) =>
-      [...element.children]
-        .filter((child) => !child.classList.contains("sr-only"))
-        .map((child) => (child as HTMLElement).innerText)
-        .join(" "),
+    await expect(page.locator("header .brand .brand-name")).toHaveText(
+      "MAYTHA",
     );
-    expect(visible).toBe("سوق ميثلون");
-    await expect(page.locator("header .brand-tagline")).toHaveText(
-      "منظفات ومعطرات جو",
+    await expect(page.locator("header .brand .brand-subtitle")).toHaveText(
+      "HOME & CARE",
     );
-    expect(await page.locator("body").innerText()).not.toContain("سوق ميثون");
-    expect(await page.content()).not.toContain("سوق ميثون");
+    expect(await page.locator("body").innerText()).not.toMatch(
+      /سوق ميثلون|سوق ميثون/,
+    );
   }
 });
 
-test("placeholder navigation routes resolve successfully", async ({ page }) => {
+test("navigation routes resolve successfully", async ({ page }) => {
   const offers = await page.goto("/offers");
   expect(offers?.status()).toBe(200);
   await expect(
-    page.getByRole("link", { name: "العودة إلى الرئيسية" }),
+    page.getByRole("heading", { level: 1, name: "العروض" }),
   ).toBeVisible();
   const categories = await page.goto("/categories");
   expect(categories?.status()).toBe(200);
@@ -124,7 +118,7 @@ test("mobile header, hero, RTL categories, and bottom spacing remain usable", as
   ).toBe(true);
 
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
-  await expect(page.getByRole("link", { name: "ابدأ التسوق" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "تسوّق الآن" })).toBeVisible();
 
   const categoryList = page.locator(".category-list");
   const firstCategory = page.getByRole("button", { name: "الكل" });
@@ -142,9 +136,13 @@ test("mobile header, hero, RTL categories, and bottom spacing remain usable", as
   await lastCategory.evaluate((element) =>
     element.scrollIntoView({ block: "nearest", inline: "nearest" }),
   );
-  const lastBox = await lastCategory.boundingBox();
+  // Measured again: scrolling the last category into view may move the page.
+  const [lastBox, scrolledListBox] = await Promise.all([
+    lastCategory.boundingBox(),
+    categoryList.boundingBox(),
+  ]);
   expect(lastBox).not.toBeNull();
-  expect(lastBox!.y).toBeGreaterThanOrEqual(listBox!.y - 1);
+  expect(lastBox!.y).toBeGreaterThanOrEqual(scrolledListBox!.y - 1);
   await lastCategory.click();
   await expect(lastCategory).toHaveAttribute("aria-pressed", "true");
 
@@ -209,7 +207,7 @@ for (const viewport of [
     await page.setViewportSize(viewport);
     await page.goto("/");
     await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
-    await expect(page.getByRole("link", { name: "ابدأ التسوق" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "تسوّق الآن" })).toBeVisible();
 
     const overflow = await page.evaluate(
       () => document.documentElement.scrollWidth - window.innerWidth,
@@ -229,9 +227,12 @@ test("keyboard users reach search and products in RTL order with a visible focus
     await page.evaluate(() => getComputedStyle(document.body).direction),
   ).toBe("rtl");
 
+  // Right to left: the categories menu, then the wordmark, then the search.
+  await page.keyboard.press("Tab");
+  await expect(page.locator(".header-menu")).toBeFocused();
   await page.keyboard.press("Tab");
   await expect(
-    page.getByRole("link", { name: /^سوق ميثلون\s?، الرئيسية$/ }),
+    page.getByRole("link", { name: /^MAYTHA\s?، الرئيسية$/ }),
   ).toBeFocused();
 
   const search = page.getByRole("searchbox", { name: "ابحث في المنتجات" });
@@ -248,8 +249,10 @@ test("keyboard users reach search and products in RTL order with a visible focus
   ).not.toBe("none");
 
   await page.keyboard.press("Tab");
+  await expect(page.locator(".cart-button")).toBeFocused();
+  await page.keyboard.press("Tab");
   const focused = page.locator(":focus");
-  await expect(focused).toHaveText(/ابدأ التسوق/);
+  await expect(focused).toHaveText(/تسوّق الآن/);
   expect(
     await focused.evaluate((el) => getComputedStyle(el).outlineStyle),
   ).not.toBe("none");

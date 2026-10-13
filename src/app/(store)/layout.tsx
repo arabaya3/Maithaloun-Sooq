@@ -9,6 +9,7 @@ import {
 import { customerFavoritesService } from "@/features/accounts/application/customer-services";
 import { getCustomerSession } from "@/features/accounts/application/customer-session";
 import { CartProvider } from "@/features/cart/cart-provider";
+import { storefrontCategories } from "@/features/catalog/infrastructure/category-repository";
 import { productRepository } from "@/features/catalog/infrastructure/product-repository";
 import { DeliveryProvider } from "@/features/delivery/delivery-provider";
 import { serviceAreaRepository } from "@/features/delivery/service-area-repository";
@@ -16,6 +17,7 @@ import { FavoritesProvider } from "@/features/favorites/favorites-provider";
 import { StorefrontInstallBanner } from "@/features/pwa/storefront-install-banner";
 import { StoreFooter } from "@/features/storefront/components/store-footer";
 import { StoreLaunchSplash } from "@/features/storefront/components/store-launch-splash";
+import { StoreNavigationProvider } from "@/features/storefront/components/store-navigation";
 
 // Catalog-backed providers live here so admin and utility routes never load the catalog.
 export default async function StoreLayout({
@@ -29,10 +31,11 @@ export default async function StoreLayout({
     crossOrigin: "anonymous",
   });
   await connection();
-  const [products, serviceAreas, customer] = await Promise.all([
+  const [products, serviceAreas, customer, categories] = await Promise.all([
     productRepository.list(),
     serviceAreaRepository.listEnabled(),
     getCustomerSession(),
+    storefrontCategories(),
   ]);
   const accountFavorites = customer
     ? {
@@ -62,7 +65,11 @@ export default async function StoreLayout({
     <DeliveryProvider locations={locations}>
       <StoreLaunchSplash />
       <FavoritesProvider productIds={productIds} account={accountFavorites}>
-        <CartProvider catalog={catalog}>{children}</CartProvider>
+        <StoreNavigationProvider
+          categories={categories.map(({ code, nameAr }) => ({ code, nameAr }))}
+        >
+          <CartProvider catalog={catalog}>{children}</CartProvider>
+        </StoreNavigationProvider>
         <StoreFooter />
         <StorefrontInstallBanner />
       </FavoritesProvider>

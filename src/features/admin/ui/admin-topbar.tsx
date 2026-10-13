@@ -42,7 +42,7 @@ function resolveTitle(pathname: string): string {
   if (pathname.startsWith("/admin/inventory/purchases/")) return "فاتورة شراء";
   if (pathname.startsWith("/admin/inventory/review/"))
     return "مراجعة قبل الحفظ";
-  return "إدارة سوق ميثلون";
+  return "إدارة MAYTHA";
 }
 
 export function AdminTopbar() {

@@ -13,6 +13,7 @@ import {
 } from "@/features/catalog/components/product-gallery";
 import { ProductMedia } from "@/features/catalog/components/product-media";
 import { ProductSpecifications } from "@/features/catalog/components/product-specifications";
+import { ProductTrust } from "@/features/catalog/components/product-trust";
 import { SellingUnitSelector } from "@/features/catalog/components/selling-unit-selector";
 import { VariantSelector } from "@/features/catalog/components/variant-selector";
 import { offerForSellingUnit } from "@/features/catalog/domain/offer-pricing";
@@ -265,7 +266,15 @@ export function ProductDetailPanel({
         />
       )}
       <div className="product-detail-content">
-        <span className="eyebrow">{categoryLabel}</span>
+        <span className="eyebrow">
+          {product.brand ? (
+            <>
+              <bdi dir="auto">{product.brand}</bdi>
+              {" · "}
+            </>
+          ) : null}
+          {categoryLabel}
+        </span>
         <h1>
           <bdi dir="auto">{name}</bdi>
         </h1>
@@ -333,6 +342,7 @@ export function ProductDetailPanel({
               : variantId
           }
         />
+        <ProductTrust />
       </div>
       {describedBelow ? (
         <div className="product-detail-below">{description}</div>

@@ -96,7 +96,7 @@ test("phone: the owner sets the number, a customer is handed to WhatsApp in the 
   await context.clearCookies();
   await fillCart(page);
   await expect(
-    page.getByText("سنجهّز رسالة طلبك لتُرسل مباشرة إلى سوق ميثلون."),
+    page.getByText("سنجهّز رسالة طلبك لتُرسل مباشرة إلى MAYTHA."),
   ).toBeVisible();
   await page.screenshot({ path: `${SHOTS}/cart-390.png`, fullPage: true });
   await page.getByRole("link", { name: "الطلب عبر واتساب" }).click();
@@ -114,7 +114,7 @@ test("phone: the owner sets the number, a customer is handed to WhatsApp in the 
   const app = visited[0]!;
   expect(app).toMatch(/^https:\/\/wa\.me\/970590000000\?text=/);
   const text = decodeURIComponent(app.split("text=")[1]!);
-  expect(text.split("\n")[0]).toBe("مرحباً سوق ميثلون،");
+  expect(text.split("\n")[0]).toBe("مرحباً MAYTHA،");
   const reference = /MS-[A-Za-z0-9_-]{24}/.exec(text)![0];
   expect(text).toContain("الدفع نقداً عند الاستلام.");
   // The message never carries the customer's details or internal ids.

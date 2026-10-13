@@ -1,66 +1,76 @@
 import { screen } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
-import { createRef } from "react";
 import { describe, expect, it, vi } from "vitest";
 
 import { renderWithProviders } from "@/test/render-with-providers";
 
 import { MobileNavigation } from "./mobile-navigation";
 import { SiteHeader } from "./site-header";
+import { StoreNavigationProvider } from "./store-navigation";
 
 vi.mock("next/navigation", () => ({
   usePathname: () => "/offers",
 }));
 
 describe("SiteHeader", () => {
-  it("shows the brand spelled correctly and hides the badge for an empty cart", () => {
-    const { container } = renderWithProviders(<SiteHeader />, {
-      productIds: [],
-    });
+  it("shows the MAYTHA wordmark, a plain search and hides the badge for an empty cart", () => {
+    const { container } = renderWithProviders(
+      <StoreNavigationProvider
+        categories={[
+          { code: "laundry", nameAr: "الغسيل" },
+          { code: "kitchen", nameAr: "المطبخ" },
+        ]}
+      >
+        <SiteHeader />
+      </StoreNavigationProvider>,
+      { productIds: [] },
+    );
 
     expect(
-      screen.getByRole("link", { name: "سوق ميثلون، الرئيسية" }),
-    ).toBeInTheDocument();
-    expect(container).not.toHaveTextContent("ميتلون");
+      screen.getByRole("link", { name: "MAYTHA، الرئيسية" }),
+    ).toHaveAttribute("href", "/");
     const brand = container.querySelector(".brand")!;
-    expect(brand.querySelector(".brand-word")!.textContent).toMatch(
-      /^سوق ميثلون، الرئيسية$/,
+    expect(brand.querySelector(".brand-name")).toHaveTextContent(/^MAYTHA$/);
+    expect(brand.querySelector(".brand-subtitle")).toHaveTextContent(
+      /^HOME & CARE$/,
     );
-    const visibleWord = [
-      ...brand.querySelectorAll(".brand-word > span:not(.sr-only)"),
-    ]
-      .map((part) => part.textContent)
-      .join(" ");
-    expect(visibleWord).toBe("سوق ميثلون");
-    expect(brand.querySelector(".brand-tagline")).toHaveTextContent(
-      "منظفات ومعطرات جو",
-    );
-    expect(brand.querySelector("img")).toHaveAttribute("alt", "");
-    expect(container.textContent).not.toContain("سوق ميثون");
+    expect(container.textContent).not.toContain("سوق ميثلون");
+    const search = screen.getByRole("searchbox", { name: "ابحث في المنتجات" });
+    expect(search).toHaveAttribute("name", "q");
+    expect(search.closest("form")).toHaveAttribute("action", "/");
     expect(
       screen.getByRole("link", { name: /^السلة، عدد المنتجات\s*0$/ }),
     ).toHaveAttribute("href", "/cart");
     expect(container.querySelector(".cart-count")).toBeNull();
-    expect(screen.getByText(/توصيل داخل ميثلون/)).toBeInTheDocument();
+    // The category row comes from the store data, and the current page is marked.
+    expect(screen.getByRole("link", { name: "الغسيل" })).toHaveAttribute(
+      "href",
+      "/categories/laundry",
+    );
+    expect(
+      screen
+        .getByRole("navigation", { name: "التنقل الرئيسي" })
+        .querySelector("[aria-current=page]"),
+    ).toHaveTextContent("العروض");
   });
 
-  it("focuses the product search from the header search button", async () => {
-    const user = userEvent.setup();
-    const ref = createRef<HTMLInputElement>();
-    Element.prototype.scrollIntoView = vi.fn();
+  it("uses the live search it is given instead of the plain one", () => {
     renderWithProviders(
-      <>
-        <SiteHeader searchInputRef={ref} />
-        <label htmlFor="search">ابحث في المنتجات</label>
-        <input id="search" type="search" ref={ref} />
-      </>,
+      <SiteHeader
+        search={
+          <>
+            <label htmlFor="live">ابحث مباشرة</label>
+            <input id="live" type="search" />
+          </>
+        }
+      />,
       { productIds: [] },
     );
-
-    await user.click(screen.getByRole("button", { name: "البحث عن منتج" }));
     expect(
-      screen.getByRole("searchbox", { name: "ابحث في المنتجات" }),
-    ).toHaveFocus();
+      screen.getByRole("searchbox", { name: "ابحث مباشرة" }),
+    ).toBeVisible();
+    expect(
+      screen.queryByRole("searchbox", { name: "ابحث في المنتجات" }),
+    ).toBeNull();
   });
 });
 

@@ -39,7 +39,7 @@ describe("WhatsApp order message", () => {
 
   it("greets the store and carries no phone, address or internal id", () => {
     const message = whatsAppOrderMessage(order);
-    expect(message.split("\n")[0]).toBe("مرحباً سوق ميثلون،");
+    expect(message.split("\n")[0]).toBe("مرحباً MAYTHA،");
     expect(message).toContain("مجموع المنتجات");
     expect(message).toContain("التوصيل");
     expect(message).not.toMatch(/\+?9[67]\d{8,}|05\d{8}/);

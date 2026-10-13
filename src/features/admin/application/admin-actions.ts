@@ -169,6 +169,7 @@ export async function updateProductAction(
       domainId,
       nameAr: String(formData.get("nameAr") ?? ""),
       latinName: optional(formData.get("latinName")),
+      brand: optional(formData.get("brand")),
       priceAgorot,
       categoryId: String(formData.get("categoryId") ?? "") as never,
       availability: String(formData.get("availability") ?? "") as never,

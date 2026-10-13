@@ -73,6 +73,11 @@ export function ProductCard({ product }: { product: Product }) {
       </div>
 
       <div className="product-details">
+        {product.brand ? (
+          <p className="product-brand">
+            <bdi dir="auto">{product.brand}</bdi>
+          </p>
+        ) : null}
         <h3>
           <Link
             href={`/products/${product.slug}`}
