@@ -6,9 +6,18 @@
 --   product-a081ca1d مسّاحة مطاطية, product-d35ed5dc فرشاة سجاد, product-753b43ea دلو مناديل,
 --   product-d04a9226 منظف مسك, product-444bf736 ليف جيانبينغ, product-6b02b51b أكياس أبيلوندو,
 --   product-f778de2d إسفنج ريجا.
+--
+-- Expected on Production (checked read-only 2026-10-13): 54 rows filled, 10 active products left empty.
+-- It writes products.brand and updated_at only: no prices, stock, orders, images or names change.
+--
+-- Before running, save the current values (read-only; keep the result):
+--   select domain_id, brand from products where archived_at is null order by domain_id;
+-- Rollback right after the run, before any brand is edited in the admin (empty was the previous state):
+--   update products set brand = null where brand is not null;
 do $$
 declare
   mapping jsonb := '{
+    "product-41e3945b": "ALBORKAN",
     "product-45f90fa1": "Pampers",
     "product-f9480186": "Johnson''s",
     "product-490b7203": "ALBORKAN",
