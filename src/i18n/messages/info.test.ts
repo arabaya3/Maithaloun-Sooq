@@ -41,28 +41,28 @@ describe("store information pages", () => {
 
   it("disclose that order records can't currently be deleted, without waiving rights", () => {
     expect(pageText("en")).toContain(
-      "can't currently be changed, deleted or de-identified",
+      "can't currently be changed or deleted in our order system",
     );
     expect(pageText("ar")).toContain(
-      "لا يمكن حالياً تعديلها أو حذفها أو إخفاء الهوية فيها",
+      "لا يمكن حالياً تعديلها أو حذفها من نظام الطلبات",
     );
     expect(pageText("en")).not.toContain("We delete or de-identify");
     expect(pageText("en")).toContain(
-      "This technical limitation does not limit any rights you have under applicable law.",
+      "This doesn't limit any rights you have under the law.",
     );
   });
 
   it("name where data is processed, and the free-delivery basis", () => {
     for (const fragment of [
       "servers in the European Union",
-      "external provider in the United States",
-      "processed outside Palestine",
-      "{free} or more, before delivery",
+      "a provider in the United States",
+      "{free} or more (before delivery)",
+      "with no extra delivery fee",
     ]) {
       expect(pageText("en")).toContain(fragment);
     }
-    expect(pageText("ar")).toContain("دون احتساب رسوم التوصيل");
-    expect(pageText("ar")).toContain("خارج فلسطين");
+    expect(pageText("ar")).toContain("(دون رسوم التوصيل)");
+    expect(pageText("ar")).toContain("الولايات المتحدة");
   });
 
   it("make no genuine-product, hours, refund or certification claims anywhere on the storefront", () => {
@@ -74,9 +74,8 @@ describe("store information pages", () => {
       store,
       meta,
     ]);
-    // The hero heading «ماركات أصلية / Original Brands» is owner-approved and reviewed separately.
     expect(everything).not.toMatch(
-      /منتجات أصلية|genuine|refund|guarantee|certif|never sell|\d{1,2}:\d{2}/i,
+      /أصلية|genuine|original|refund|guarantee|certif|never sell|\d{1,2}:\d{2}/i,
     );
   });
 });

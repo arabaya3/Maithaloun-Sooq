@@ -1,7 +1,5 @@
-// Store information pages. Only owner-approved policies and facts the code enforces;
-// anything still undecided (hours, contact details, retention periods) is left out.
-// Pending legal sign-off before publishing: the cross-border disclosures (privacy), the replacement
-// delivery promise (returns) and the pricing-error and terms-update clauses (terms).
+// Store information pages: short, plain and only what the store does today.
+// No hours, addresses, registration numbers or promises the system can't keep.
 
 export interface InfoSection {
   title: string;
@@ -18,33 +16,31 @@ const ar = {
   heading: "معلومات المتجر",
   pagesLabel: "صفحات المعلومات",
   whatsappCta: "راسلنا على واتساب",
-  // {contact} in a policy text: the official number when configured, otherwise the order conversation.
-  contactByNumber: (display: string) =>
-    `على رقم واتساب المتجر الرسمي ⁦${display}⁩`,
+  // {contact} in a text: the official number when configured, otherwise the order conversation.
+  contactByNumber: (display: string) => `على رقم واتساب المتجر ⁦${display}⁩`,
   contactByConversation: "في محادثة الواتساب الخاصة بطلبك",
   officialWhatsAppTitle: "واتساب المتجر",
-  officialWhatsAppText:
-    "رقم واتساب MAYTHA الرسمي لأي سؤال عن المنتجات أو الطلبات:",
-  officialWhatsAppLabel: "رقم واتساب MAYTHA الرسمي",
+  officialWhatsAppText: "لأي سؤال عن المنتجات أو الطلبات، راسلنا على:",
+  officialWhatsAppLabel: "رقم واتساب MAYTHA",
   // Shown on the contact page only while no store number is configured.
   whatsappUnavailable:
-    "لم ننشر وسيلة تواصل عامة بعد. بعد إرسال طلبك نتواصل معك على واتساب، ويمكنك الرد في المحادثة نفسها لأي أمر يخص طلبك.",
+    "بعد إرسال طلبك نتواصل معك على واتساب، ويمكنك الرد في المحادثة نفسها بأي سؤال.",
   about: {
     title: "عن MAYTHA",
-    description: "MAYTHA متجر في ميثلون لمنتجات التنظيف والعناية.",
+    description: "MAYTHA متجر صغير في ميثلون لمنتجات التنظيف والعناية.",
     sections: [
       {
         title: "من نحن",
         paragraphs: [
-          "MAYTHA متجر في ميثلون يوفّر منتجات التنظيف والعناية الشخصية ومستلزمات البيت، ويوصلها إلى البيوت داخل ميثلون.",
-          "نختار ما نبيعه من ماركات بتعرفها، ونعرض المنتجات بأسمائها وصورها كما تصلنا، دون أي تعديل على العبوات.",
+          "MAYTHA متجر صغير في ميثلون لمنتجات التنظيف والعناية الشخصية ومستلزمات البيت، نوصلها لبيتك داخل ميثلون.",
+          "نختار منتجاتنا من ماركات بتعرفها وبتثق فيها، ونعرضها بأسمائها وصورها كما تصلنا.",
         ],
       },
       {
-        title: "كيف نعمل",
+        title: "كيف تطلب",
         paragraphs: [
-          "تختار منتجاتك من الموقع وترسل الطلب من الموقع أو عبر واتساب، ثم نتواصل معك على واتساب لتأكيد الطلب وتفاصيل التوصيل.",
-          "الدفع نقداً عند الاستلام، ولا نطلب أي بيانات بطاقات.",
+          "اختر منتجاتك وأرسل الطلب من الموقع أو عبر واتساب، ونتواصل معك على واتساب لتأكيد الطلب والتوصيل.",
+          "الدفع نقداً عند الاستلام.",
         ],
       },
       {
@@ -55,162 +51,128 @@ const ar = {
   } satisfies InfoPage,
   contact: {
     title: "تواصل معنا",
-    description: "طرق التواصل مع MAYTHA.",
+    description: "كيف تتواصل مع MAYTHA.",
     sections: [
       {
-        title: "بخصوص طلب",
+        title: "بخصوص طلبك",
         paragraphs: [
-          "بعد كل طلب نتواصل معك على رقم الواتساب الذي أدخلته لتأكيد الطلب وتفاصيل التوصيل داخل ميثلون.",
-          "لأي سؤال أو طلب يخص طلبك، مثل الإلغاء أو الإبلاغ عن منتج تالف، راسلنا {contact} واذكر رقم الطلب.",
-          "واتساب هو وسيلة التواصل مع المتجر حالياً، ونرد على الرسائل في أقرب وقت ممكن.",
+          "بعد كل طلب نتواصل معك على رقم الواتساب الذي أدخلته لتأكيد الطلب والتوصيل.",
+          "لأي سؤال أو طلب، مثل إلغاء طلب أو منتج وصلك تالفاً، راسلنا {contact} واذكر رقم الطلب. نرد بأسرع وقت ممكن.",
         ],
       },
     ],
   } satisfies InfoPage,
   delivery: {
     title: "التوصيل",
-    description: "منطقة التوصيل وأيامه وتكلفته وطريقة الدفع في MAYTHA.",
+    description: "أين وكيف نوصل، وكم يكلف التوصيل.",
     sections: [
       {
-        title: "منطقة التوصيل وأيامه",
+        title: "أين ومتى",
         paragraphs: [
-          "نوصل الطلبات داخل ميثلون فقط.",
-          "التوصيل متاح طوال أيام الأسبوع. نتفق معك على تفاصيل التوصيل عند تأكيد الطلب على واتساب.",
+          "نوصل داخل ميثلون فقط، طوال أيام الأسبوع.",
+          "نتفق معك على تفاصيل التوصيل عند تأكيد الطلب على واتساب.",
         ],
       },
       {
         title: "تكلفة التوصيل",
         paragraphs: [
-          "التوصيل مجاني عندما يبلغ مجموع المنتجات في طلبك {free} أو أكثر، دون احتساب رسوم التوصيل.",
-          "إذا كان مجموع المنتجات أقل من ذلك، تكلفة التوصيل {fee}.",
-          "تظهر تكلفة التوصيل والإجمالي في السلة وصفحة الطلب قبل إرساله، وهي نفسها التي تُحسب على طلبك.",
+          "مجاني إذا كان مجموع المنتجات {free} أو أكثر (دون رسوم التوصيل).",
+          "إذا كان أقل من ذلك، التوصيل بـ {fee}.",
+          "تظهر تكلفة التوصيل والإجمالي في السلة قبل إرسال الطلب.",
         ],
       },
       {
         title: "الدفع",
-        paragraphs: ["الدفع نقداً عند الاستلام."],
+        paragraphs: ["نقداً عند الاستلام."],
       },
     ],
   } satisfies InfoPage,
   returns: {
     title: "المنتجات التالفة أو الخاطئة",
-    description: "ماذا تفعل إذا وصلك منتج تالف أو غير الذي طلبته من MAYTHA.",
+    description: "ماذا تفعل إذا وصلك منتج تالف أو غير الذي طلبته.",
     sections: [
       {
         title: "أبلغنا خلال 24 ساعة",
         paragraphs: [
-          "إذا وصلك منتج تالف أو غير الذي طلبته، نرجو أن تبلغنا خلال 24 ساعة من استلام طلبك، حتى نتمكن من حل المشكلة بسرعة.",
-          "راسلنا {contact}، واذكر رقم الطلب والمنتج المقصود، ويفضّل إرفاق صورة له.",
+          "إذا وصلك منتج تالف أو غير الذي طلبته، أبلغنا خلال 24 ساعة من الاستلام {contact}، مع رقم الطلب وصورة للمنتج إن أمكن.",
         ],
       },
       {
-        title: "ما نقدّمه",
+        title: "نستبدله لك",
         paragraphs: [
-          "بعد التحقق من أن المنتج تالف أو غير الذي طلبته، نستبدله لك ونوصل البديل دون أي رسوم توصيل إضافية.",
-          "إذا كان المنتج مفتوحاً، ننظر في كل حالة على حدة متى كان المنتج تالفاً أو غير المطلوب.",
-        ],
-      },
-      {
-        title: "حقوقك",
-        paragraphs: [
-          "مهلة الـ24 ساعة لتسريع المعالجة فقط، ولا تنتقص من أي حق يكفله لك القانون المعمول به.",
+          "بعد التحقق، نستبدل المنتج ونوصل البديل بدون أي رسوم توصيل إضافية.",
+          "المنتجات المفتوحة ننظر فيها حالة بحالة.",
+          "هذا لا ينتقص من أي حق يكفله لك القانون.",
         ],
       },
     ],
   } satisfies InfoPage,
   privacy: {
     title: "الخصوصية",
-    description: "ما البيانات التي تجمعها MAYTHA ولماذا ومن يعالجها.",
+    description: "ما البيانات التي نحفظها ولماذا.",
     sections: [
       {
-        title: "البيانات التي نجمعها ولماذا",
+        title: "ما نحفظه ولماذا",
         paragraphs: [
-          "عند إرسال طلب نحفظ اسمك ورقم الواتساب ورقم الطلب والمنتجات والكميات والأسعار وطريقة الطلب. نحتاجها لتنفيذ الطلب والتواصل معك بخصوصه وللاحتفاظ بسجلات المبيعات.",
-          "يُتفق على مكان التوصيل في محادثة الواتساب.",
-          "لا نطلب بيانات بطاقات، فالدفع نقداً عند الاستلام.",
+          "عند الطلب نحفظ اسمك ورقم الواتساب والمنتجات والأسعار، لننفذ طلبك ونتواصل معك ونحتفظ بسجل المبيعات، ما دام ذلك لازماً لعمل المتجر وبحسب ما يتطلبه القانون.",
+          "لا نطلب أي بيانات بطاقات.",
+          "السلة والمفضلة محفوظة في متصفحك، واختيارك للغة في ملف تعريف ارتباط (cookie).",
         ],
       },
       {
-        title: "ما يُحفظ على جهازك",
+        title: "خدمات نستخدمها",
         paragraphs: [
-          "تُحفظ السلة والمفضلة في متصفحك على جهازك.",
-          "نحفظ اختيارك للغة في ملف تعريف ارتباط (cookie) لتظهر لك اللغة نفسها في زياراتك القادمة.",
+          "الموقع وبيانات الطلبات مستضافة لدى مزودي خدمات سحابية على خوادم في الاتحاد الأوروبي.",
+          "نتواصل معك عبر واتساب، ويخضع ذلك أيضاً لشروط واتساب وسياسة خصوصيته.",
+          "قد يستخدم فريق المتجر أدوات ذكاء اصطناعي من مزود في الولايات المتحدة لإدارة المتجر، وقد تمر عليها بيانات مثل الطلبات وأسماء الزبائن.",
         ],
       },
       {
-        title: "من يعالج البيانات",
+        title: "أسئلتك عن بياناتك",
         paragraphs: [
-          "يعمل الموقع على خدمات سحابية لاستضافة الموقع ولتخزين قاعدة البيانات والصور، على خوادم داخل الاتحاد الأوروبي، وتُحفظ بيانات الطلبات لديها.",
-          "يتم التواصل حول الطلبات عبر واتساب، وإذا اخترت الطلب عبر واتساب تُرسل الرسالة من تطبيقك. يخضع التواصل عبر واتساب أيضاً لشروط خدمة واتساب وسياسة الخصوصية الخاصة بها.",
-          "قد يستخدم فريق المتجر أدوات مساعدة تعمل بالذكاء الاصطناعي يقدّمها مزود خارجي في الولايات المتحدة، وقد تُرسَل إليها سجلات من المتجر مثل المنتجات والطلبات وأسماء الزبائن، فتُعالَج خارج فلسطين.",
-        ],
-      },
-      {
-        title: "مدة الاحتفاظ",
-        paragraphs: [
-          "نحتفظ ببيانات الطلبات للمدة التي تحتاجها إدارة المتجر وتنفيذ الطلبات، وبحسب ما تفرضه المتطلبات القانونية المعمول بها، مثل سجلات المحاسبة.",
-        ],
-      },
-      {
-        title: "طلبات الوصول أو التصحيح أو الحذف",
-        paragraphs: [
-          "يمكنك أن تطلب الاطلاع على بياناتك أو تصحيحها أو حذفها بمراسلتنا {contact}.",
-          "سنرد على طلبك عبر واتساب. نحتفظ بسجلات الطلبات، ومنها الاسم ورقم الواتساب، لأغراض المحاسبة والمتطلبات القانونية، ولا يمكن حالياً تعديلها أو حذفها أو إخفاء الهوية فيها من نظام الطلبات. سنوضح لك عند طلبك ما يمكننا فعله وما يلزمنا الاحتفاظ به.",
-          "هذا القيد التقني لا ينتقص من أي حق يكفله لك القانون المعمول به.",
+          "لأي سؤال عن بياناتك راسلنا {contact}.",
+          "سجلات الطلبات، ومنها الاسم ورقم الواتساب، نحتفظ بها في سجل المبيعات، ولا يمكن حالياً تعديلها أو حذفها من نظام الطلبات.",
+          "هذا لا ينتقص من أي حق يكفله لك القانون.",
         ],
       },
     ],
   } satisfies InfoPage,
   terms: {
-    title: "الشروط والأحكام",
-    description: "شروط الطلب من MAYTHA.",
+    title: "الشروط",
+    description: "شروط الطلب من MAYTHA باختصار.",
     sections: [
       {
         title: "الأسعار والعروض",
         paragraphs: [
-          "الأسعار بالشيكل (₪). يحسب المتجر سعر كل طلب ويتحقق من توفّر الكميات عند إرساله.",
-          "العروض تسري خلال مدتها المعلنة وبالشروط الظاهرة على المنتج.",
+          "الأسعار بالشيكل (₪)، ونحسب السعر النهائي ونتحقق من التوفر عند إرسال الطلب.",
+          "العروض سارية خلال مدتها وبشروطها الظاهرة على المنتج.",
+          "إذا ظهر خطأ واضح في سعر، نتواصل معك قبل تأكيد الطلب ويمكنك إلغاؤه.",
         ],
       },
       {
-        title: "تأكيد الطلب",
-        paragraphs: ["نتواصل معك على واتساب لتأكيد كل طلب وتفاصيل التوصيل."],
-      },
-      {
-        title: "المنتجات غير المتوفرة",
+        title: "الطلب والتأكيد",
         paragraphs: [
-          "إذا تعذّر توفير منتج طلبته، نتواصل معك قبل أي تغيير على الطلب. لا نستبدل منتجاً بآخر دون موافقتك.",
+          "نؤكد كل طلب معك على واتساب.",
+          "إذا لم يتوفر منتج طلبته، نتواصل معك قبل أي تغيير، ولا نستبدله بغيره بدون موافقتك.",
         ],
       },
       {
         title: "إلغاء الطلب",
         paragraphs: [
-          "يمكنك طلب إلغاء الطلب قبل خروجه للتوصيل، بمراسلتنا {contact} وذكر رقم الطلب.",
-          "يصبح الإلغاء نافذاً بعد أن يؤكده فريق المتجر.",
+          "يمكنك طلب إلغاء الطلب قبل خروجه للتوصيل، بمراسلتنا {contact}، ويصبح الإلغاء نافذاً بعد أن نؤكده.",
         ],
       },
       {
-        title: "الأخطاء في الأسعار",
+        title: "التوصيل والاستبدال",
         paragraphs: [
-          "إذا ظهر خطأ واضح في سعر منتج، نتواصل معك قبل تأكيد الطلب، ويمكنك إلغاؤه دون أي التزام.",
+          "التوصيل داخل ميثلون فقط والدفع نقداً عند الاستلام، والتفاصيل في صفحة التوصيل.",
+          "المنتجات التالفة أو الخاطئة نستبدلها كما في صفحة المنتجات التالفة أو الخاطئة.",
         ],
       },
       {
-        title: "التوصيل والدفع",
+        title: "عام",
         paragraphs: [
-          "التوصيل داخل ميثلون فقط، والدفع نقداً عند الاستلام. التكلفة والأيام في صفحة التوصيل.",
-        ],
-      },
-      {
-        title: "المنتجات التالفة أو الخاطئة",
-        paragraphs: [
-          "إذا وصلك منتج تالف أو غير الذي طلبته، التفاصيل في صفحة المنتجات التالفة أو الخاطئة. هذه الشروط لا تنتقص من حقوقك بموجب القانون المعمول به.",
-        ],
-      },
-      {
-        title: "تحديث الشروط",
-        paragraphs: [
-          "قد نحدّث هذه الشروط، ويسري على كل طلب ما كان منشوراً عند إرساله.",
+          "قد نحدّث هذه الشروط، ويسري على كل طلب ما كان منشوراً عند إرساله. وهي لا تنتقص من أي حق يكفله لك القانون.",
         ],
       },
     ],
@@ -222,30 +184,30 @@ const en: typeof ar = {
   pagesLabel: "Information pages",
   whatsappCta: "Message us on WhatsApp",
   contactByNumber: (display: string) =>
-    `on our official WhatsApp number ${display}`,
+    `on the store's WhatsApp number ${display}`,
   contactByConversation: "in the WhatsApp conversation for your order",
   officialWhatsAppTitle: "WhatsApp",
   officialWhatsAppText:
-    "MAYTHA's official WhatsApp number for any question about products or orders:",
-  officialWhatsAppLabel: "MAYTHA's official WhatsApp number",
+    "For any question about products or orders, message us on:",
+  officialWhatsAppLabel: "MAYTHA's WhatsApp number",
   whatsappUnavailable:
-    "We haven't published a public contact channel yet. After you place an order, we contact you on WhatsApp, and you can reply in that conversation about anything to do with your order.",
+    "After you place an order we'll message you on WhatsApp, and you can reply in that conversation with any question.",
   about: {
     title: "About MAYTHA",
-    description: "MAYTHA is a home and care store in Maythaloun.",
+    description: "MAYTHA is a small home and care store in Maythaloun.",
     sections: [
       {
         title: "Who we are",
         paragraphs: [
-          "MAYTHA is a store in Maythaloun offering cleaning products, personal care and household essentials, delivered to homes within Maythaloun.",
-          "We choose what we sell from brands you know, and show each product with its name and photos as it reaches us, without altering the packaging.",
+          "MAYTHA is a small store in Maythaloun for cleaning products, personal care and household essentials, delivered to your door within Maythaloun.",
+          "We choose our products from brands you know and trust, and show them with their names and photos as they reach us.",
         ],
       },
       {
-        title: "How it works",
+        title: "How to order",
         paragraphs: [
-          "Choose your products on the website and place your order on the site or through WhatsApp. We then contact you on WhatsApp to confirm the order and the delivery details.",
-          "Payment is in cash on delivery, and we never ask for card details.",
+          "Choose your products and place your order on the website or through WhatsApp; we'll message you on WhatsApp to confirm the order and delivery.",
+          "You pay in cash on delivery.",
         ],
       },
       {
@@ -259,162 +221,126 @@ const en: typeof ar = {
     description: "How to reach MAYTHA.",
     sections: [
       {
-        title: "About an order",
+        title: "About your order",
         paragraphs: [
-          "After every order we contact you on the WhatsApp number you entered to confirm the order and the delivery details within Maythaloun.",
-          "For any question or request about your order, such as a cancellation or a damaged item, message us {contact} and include your order number.",
-          "WhatsApp is currently how you can reach the store, and we reply as soon as we can.",
+          "After every order we message you on the WhatsApp number you entered to confirm the order and delivery.",
+          "For any question or request, such as cancelling an order or an item that arrived damaged, message us {contact} with your order number. We reply as soon as we can.",
         ],
       },
     ],
   },
   delivery: {
     title: "Delivery",
-    description: "Delivery area, days, cost and payment at MAYTHA.",
+    description: "Where and how we deliver, and what it costs.",
     sections: [
       {
-        title: "Area and days",
+        title: "Where and when",
         paragraphs: [
-          "We deliver within Maythaloun only.",
-          "Delivery is available seven days a week. We agree the delivery details with you when we confirm your order on WhatsApp.",
+          "We deliver within Maythaloun only, seven days a week.",
+          "We agree the delivery details with you when we confirm your order on WhatsApp.",
         ],
       },
       {
         title: "Delivery cost",
         paragraphs: [
-          "Delivery is free when the products in your order total {free} or more, before delivery.",
-          "If the products total less than that, delivery costs {fee}.",
-          "The delivery cost and total are shown in the cart and at checkout before you place your order, and they are exactly what your order is charged.",
+          "Free when your products total {free} or more (before delivery).",
+          "Below that, delivery is {fee}.",
+          "You'll see the delivery cost and total in your cart before you place the order.",
         ],
       },
       {
         title: "Payment",
-        paragraphs: ["Payment is in cash on delivery."],
+        paragraphs: ["Cash on delivery."],
       },
     ],
   },
   returns: {
     title: "Damaged or incorrect items",
     description:
-      "What to do if an item from MAYTHA arrives damaged or isn't what you ordered.",
+      "What to do if an item arrives damaged or isn't what you ordered.",
     sections: [
       {
         title: "Tell us within 24 hours",
         paragraphs: [
-          "If an item arrives damaged or isn't what you ordered, please let us know within 24 hours of receiving your order so we can sort it out quickly.",
-          "Message us {contact} with your order number and the item concerned, ideally with a photo.",
+          "If an item arrives damaged or isn't what you ordered, let us know within 24 hours of delivery {contact}, with your order number and a photo if you can.",
         ],
       },
       {
-        title: "What we offer",
+        title: "We'll replace it",
         paragraphs: [
-          "Once we've confirmed an item is damaged or isn't what you ordered, we replace it and deliver the replacement at no extra delivery charge.",
-          "Opened items that are damaged or incorrect are reviewed case by case.",
-        ],
-      },
-      {
-        title: "Your rights",
-        paragraphs: [
-          "The 24-hour window is there to help us act quickly; it does not limit any rights you have under applicable law.",
+          "Once we've checked, we replace the item and deliver the replacement with no extra delivery fee.",
+          "Opened items are looked at case by case.",
+          "This doesn't limit any rights you have under the law.",
         ],
       },
     ],
   },
   privacy: {
     title: "Privacy",
-    description: "What MAYTHA collects, why, and who processes it.",
+    description: "What data we keep and why.",
     sections: [
       {
-        title: "What we collect and why",
+        title: "What we keep and why",
         paragraphs: [
-          "When you place an order we keep your name, WhatsApp number, order number, the products, quantities and prices, and how you ordered. We need these to fulfil your order, contact you about it and keep our sales records.",
-          "The delivery spot is agreed in the WhatsApp conversation.",
-          "We never ask for card details; payment is in cash on delivery.",
+          "When you order, we keep your name, WhatsApp number, the products and prices, so we can fulfil your order, contact you and keep our sales records, for as long as the store needs them and the law requires.",
+          "We never ask for card details.",
+          "Your cart and wishlist are saved in your browser, and your language choice in a cookie.",
         ],
       },
       {
-        title: "Stored on your device",
+        title: "Services we use",
         paragraphs: [
-          "Your cart and wishlist are kept in your browser on your device.",
-          "We keep your language choice in a cookie so you see the same language on your next visit.",
+          "The website and order data are hosted by cloud providers on servers in the European Union.",
+          "We contact you through WhatsApp, which also has its own terms and privacy policy.",
+          "Store staff may use AI tools from a provider in the United States to run the store, and data such as orders and customer names may pass through them.",
         ],
       },
       {
-        title: "Who processes the data",
+        title: "Questions about your data",
         paragraphs: [
-          "The website runs on cloud services for website hosting and for database and image storage, on servers in the European Union, where order data is kept.",
-          "We communicate about orders through WhatsApp; if you choose to order through WhatsApp, the message is sent from your own app. Messages sent through WhatsApp are also subject to WhatsApp's own terms and privacy policy.",
-          "Store staff may use AI-based assistant tools from an external provider in the United States; store records such as products, orders and customer names may be sent to them and processed outside Palestine.",
-        ],
-      },
-      {
-        title: "How long we keep it",
-        paragraphs: [
-          "We keep order data for as long as we need it to run the store and fulfil orders, and as applicable legal requirements, such as accounting records, require.",
-        ],
-      },
-      {
-        title: "Access, correction or deletion",
-        paragraphs: [
-          "You can ask to see, correct or delete your data by messaging us {contact}.",
-          "We'll reply on WhatsApp. We keep order records, including your name and WhatsApp number, for accounting and legal purposes, and they can't currently be changed, deleted or de-identified in our order system. When you ask, we'll explain what we can do and what we have to keep.",
-          "This technical limitation does not limit any rights you have under applicable law.",
+          "For any question about your data, message us {contact}.",
+          "Order records, including your name and WhatsApp number, are kept in our sales records and can't currently be changed or deleted in our order system.",
+          "This doesn't limit any rights you have under the law.",
         ],
       },
     ],
   },
   terms: {
-    title: "Terms and conditions",
-    description: "Terms for ordering from MAYTHA.",
+    title: "Terms",
+    description: "The terms for ordering from MAYTHA, in short.",
     sections: [
       {
         title: "Prices and offers",
         paragraphs: [
-          "Prices are in Israeli shekels (₪). The store calculates each order's price and checks that the quantities are available when you place it.",
+          "Prices are in Israeli shekels (₪); we calculate the final price and check availability when you place your order.",
           "Offers apply during their stated period and under the conditions shown on the product.",
+          "If a price is clearly wrong, we'll contact you before confirming the order, and you can cancel it.",
         ],
       },
       {
-        title: "Order confirmation",
+        title: "Ordering and confirmation",
         paragraphs: [
-          "We contact you on WhatsApp to confirm every order and its delivery details.",
-        ],
-      },
-      {
-        title: "Unavailable items",
-        paragraphs: [
-          "If an item you ordered can't be supplied, we contact you before changing your order. We never substitute a product without your agreement.",
+          "We confirm every order with you on WhatsApp.",
+          "If an item you ordered isn't available, we contact you before changing anything, and we never swap it for another without your agreement.",
         ],
       },
       {
         title: "Cancelling an order",
         paragraphs: [
-          "You can ask to cancel an order before it leaves for delivery by messaging us {contact} with your order number.",
-          "A cancellation takes effect once the store team confirms it.",
+          "You can ask to cancel an order before it leaves for delivery by messaging us {contact}; the cancellation takes effect once we confirm it.",
         ],
       },
       {
-        title: "Pricing errors",
+        title: "Delivery and replacements",
         paragraphs: [
-          "If a product shows an obvious pricing error, we'll contact you before confirming the order, and you can cancel it at no cost.",
+          "Delivery is within Maythaloun only and you pay in cash on delivery; details are on the delivery page.",
+          "Damaged or incorrect items are replaced as described on the damaged or incorrect items page.",
         ],
       },
       {
-        title: "Delivery and payment",
+        title: "General",
         paragraphs: [
-          "Delivery is within Maythaloun only, and payment is in cash on delivery. Costs and days are on the delivery page.",
-        ],
-      },
-      {
-        title: "Damaged or incorrect items",
-        paragraphs: [
-          "If an item arrives damaged or isn't what you ordered, see the damaged or incorrect items page. These terms do not limit your rights under applicable law.",
-        ],
-      },
-      {
-        title: "Updates to these terms",
-        paragraphs: [
-          "We may update these terms; each order is governed by the version published when it was placed.",
+          "We may update these terms; each order follows the version published when it was placed. They don't limit any rights you have under the law.",
         ],
       },
     ],

@@ -9,7 +9,7 @@ const pages = [
   ["/delivery", "التوصيل", "Delivery"],
   ["/returns", "المنتجات التالفة أو الخاطئة", "Damaged or incorrect items"],
   ["/privacy", "الخصوصية", "Privacy"],
-  ["/terms", "الشروط والأحكام", "Terms and conditions"],
+  ["/terms", "الشروط", "Terms"],
 ] as const;
 
 test("every information page exists in Arabic and English, accessible and without overflow", async ({
@@ -52,14 +52,14 @@ test("the pages state the approved policies and the same amounts checkout charge
   await page.goto("/en/returns");
   await expect(page.locator("main")).toContainText("within 24 hours");
   await expect(page.locator("main")).toContainText(
-    "does not limit any rights you have under applicable law",
+    "doesn't limit any rights you have under the law",
   );
   await page.goto("/en/terms");
   await expect(page.locator("main")).toContainText(
     "before it leaves for delivery",
   );
   await expect(page.locator("main")).toContainText(
-    "never substitute a product without your agreement",
+    "never swap it for another without your agreement",
   );
   // Nothing the owner hasn't approved or we haven't verified.
   for (const path of [
@@ -119,13 +119,11 @@ test("the official store WhatsApp appears on the contact page, the footer and th
     for (const path of ["/en/returns", "/en/terms", "/en/privacy"]) {
       await page.goto(path);
       await expect(page.locator("main")).toContainText(
-        "on our official WhatsApp number +972 590000000",
+        "on the store's WhatsApp number +972 590000000",
       );
     }
     await page.goto("/returns");
-    await expect(page.locator("main")).toContainText(
-      "على رقم واتساب المتجر الرسمي",
-    );
+    await expect(page.locator("main")).toContainText("على رقم واتساب المتجر");
     // Only one store number exists anywhere on the page.
     const numbers = await page
       .locator("body")

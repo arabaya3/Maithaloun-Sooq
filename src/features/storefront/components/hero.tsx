@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, BadgeCheck, Banknote, Truck } from "lucide-react";
+import { ArrowLeft, Banknote, Truck } from "lucide-react";
 
 import { ProductMedia } from "@/features/catalog/components/product-media";
 import type { Product } from "@/features/catalog/domain/product";
@@ -21,10 +21,6 @@ export function Hero({ products }: { products: readonly Product[] }) {
           <ArrowLeft className="rtl-flip" aria-hidden="true" />
         </a>
         <ul className="hero-facts">
-          <li>
-            <BadgeCheck aria-hidden="true" />
-            {m.common.trustedBrands}
-          </li>
           <li>
             <Truck aria-hidden="true" />
             {m.common.deliveryInMaythalun}

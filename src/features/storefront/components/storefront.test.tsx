@@ -83,10 +83,14 @@ describe("storefront", () => {
     expect(
       screen.getByRole("heading", {
         level: 1,
-        name: "ماركات أصلية لبيت أنظف وحياة أجمل",
+        name: "ماركات بتعرفها وبتثق فيها، لبيت أنظف وأجمل",
       }),
     ).toBeInTheDocument();
-    expect(screen.getByText("ماركات بتعرفها وبتثق فيها.")).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "منظفات وعناية شخصية ومستلزمات للبيت، نوصلها داخل ميثلون.",
+      ),
+    ).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "تسوّق الآن" })).toHaveAttribute(
       "href",
       "#catalog",

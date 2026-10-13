@@ -10,7 +10,7 @@ const ar = {
   cart: "السلة",
   brands: "الماركات",
   backHome: "العودة إلى الرئيسية",
-  trustLine: "ماركات بتعرفها وبتثق فيها.",
+  trustLine: "منظفات وعناية شخصية ومستلزمات للبيت، نوصلها داخل ميثلون.",
   deliveryAndCash: "توصيل داخل ميثلون · الدفع عند الاستلام",
   trustedBrands: "ماركات بتعرفها وبتثق فيها",
   deliveryInMaythalun: "توصيل داخل ميثلون",
@@ -38,7 +38,8 @@ const en: typeof ar = {
   cart: "Cart",
   brands: "Brands",
   backHome: "Back to home",
-  trustLine: "Brands you know and trust.",
+  trustLine:
+    "Cleaning, personal care and home essentials, delivered within Maythaloun.",
   deliveryAndCash: "Delivery within Maythaloun · Cash on delivery",
   trustedBrands: "Brands you know and trust",
   deliveryInMaythalun: "Delivery within Maythaloun",
