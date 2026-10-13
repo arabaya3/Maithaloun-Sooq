@@ -40,7 +40,7 @@ describe("WhatsApp phone normalization", () => {
     ).toBe(
       "https://wa.me/970591234567?text=" +
         encodeURIComponent(
-          "مرحباً، بخصوص طلبك MS-abcdefghijklmnopqrstuvwx في سوق ميثلون",
+          "مرحباً، بخصوص طلبك MS-abcdefghijklmnopqrstuvwx في MAYTHA",
         ),
     );
     expect(buildWhatsAppContactUrl("+441234567890", "MS-x")).toBeNull();

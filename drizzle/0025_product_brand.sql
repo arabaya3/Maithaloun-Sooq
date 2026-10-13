@@ -1,0 +1,1 @@
+ALTER TABLE "products" ADD COLUMN "brand" varchar(80);

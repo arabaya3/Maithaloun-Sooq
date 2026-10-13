@@ -1,95 +1,129 @@
 "use client";
 
-import { MapPin, Search, ShoppingCart } from "lucide-react";
+import { Heart, Menu, Search, ShoppingBag, UserRound } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import type { RefObject } from "react";
+import type { ReactNode } from "react";
 
 import { useCart } from "@/features/cart/cart-provider";
 
 import { BrandLogo } from "./brand-logo";
+import { useNavigationCategories } from "./store-navigation";
 
-const desktopNavigation = [
-  { href: "/", label: "الرئيسية" },
-  { href: "/categories", label: "الأقسام" },
-  { href: "/offers", label: "العروض" },
-  { href: "/account", label: "حسابي" },
-];
+const HEADER_CATEGORY_LIMIT = 6;
 
-export function SiteHeader({
-  searchInputRef,
-}: {
-  searchInputRef?: RefObject<HTMLInputElement | null>;
-}) {
+/** A plain search for pages without the live catalog; it lands on the home page with the query. */
+function HeaderSearchForm() {
+  return (
+    <form className="search-wrap" action="/" role="search">
+      <label htmlFor="header-search" className="sr-only">
+        ابحث في المنتجات
+      </label>
+      <Search aria-hidden="true" />
+      <input
+        id="header-search"
+        name="q"
+        type="search"
+        enterKeyHint="search"
+        placeholder="ابحث عن منتج أو ماركة…"
+        autoComplete="off"
+      />
+    </form>
+  );
+}
+
+export function SiteHeader({ search }: { search?: ReactNode }) {
   const { count } = useCart();
   const pathname = usePathname() ?? "";
+  const categories = useNavigationCategories();
+  const isCurrent = (href: string) =>
+    href === "/" ? pathname === "/" : pathname.startsWith(href);
 
   return (
     <header className="site-header">
       <div className="header-bar page-shell">
+        <Link
+          href="/categories"
+          className="header-icon header-menu"
+          aria-label="كل الأقسام"
+        >
+          <Menu aria-hidden="true" />
+        </Link>
         <BrandLogo />
-
-        <nav className="desktop-navigation" aria-label="التنقل الرئيسي">
-          {desktopNavigation.map((item) => {
-            const current =
-              item.href === "/"
-                ? pathname === "/"
-                : pathname.startsWith(item.href);
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                aria-current={current ? "page" : undefined}
-              >
-                {item.label}
-              </Link>
-            );
-          })}
-        </nav>
-
-        <div className="header-actions">
-          {searchInputRef ? (
-            <button
-              type="button"
-              className="header-icon search-trigger"
-              aria-label="البحث عن منتج"
-              onClick={() => {
-                searchInputRef.current?.focus();
-                searchInputRef.current?.scrollIntoView({ block: "center" });
-              }}
-            >
-              <Search aria-hidden="true" />
-            </button>
-          ) : (
-            <Link
-              href="/#product-search"
-              className="header-icon search-trigger"
-              aria-label="البحث عن منتج"
-            >
-              <Search aria-hidden="true" />
-            </Link>
-          )}
-
-          <Link href="/cart" className="header-icon cart-button">
-            <ShoppingCart aria-hidden="true" />
+        <div className="header-search">{search ?? <HeaderSearchForm />}</div>
+        <nav className="header-actions" aria-label="حسابي والسلة">
+          <Link
+            href="/account"
+            className="header-action header-action-wide"
+            aria-current={isCurrent("/account") ? "page" : undefined}
+          >
+            <UserRound aria-hidden="true" />
+            <span>حسابي</span>
+          </Link>
+          <Link
+            href="/favorites"
+            className="header-action header-action-wide"
+            aria-current={isCurrent("/favorites") ? "page" : undefined}
+          >
+            <Heart aria-hidden="true" />
+            <span>المفضلة</span>
+          </Link>
+          <Link href="/cart" className="header-action cart-button">
+            <span className="cart-icon">
+              <ShoppingBag aria-hidden="true" />
+              {count > 0 ? (
+                <span className="cart-count" aria-hidden="true">
+                  {count}
+                </span>
+              ) : null}
+            </span>
+            <span className="header-action-label" aria-hidden="true">
+              السلة
+            </span>
             <span className="sr-only" aria-live="polite">
               السلة، عدد المنتجات {count}
             </span>
-            {count > 0 ? (
-              <span className="cart-count" aria-hidden="true">
-                {count}
-              </span>
-            ) : null}
           </Link>
-        </div>
+        </nav>
       </div>
 
-      {searchInputRef ? null : (
-        <p className="delivery-indicator page-shell">
-          <MapPin aria-hidden="true" />
-          توصيل داخل ميثلون · الدفع عند الاستلام
-        </p>
-      )}
+      <nav className="desktop-navigation" aria-label="التنقل الرئيسي">
+        <div className="page-shell desktop-navigation-row">
+          <Link
+            href="/categories"
+            className="desktop-navigation-all"
+            aria-current={
+              pathname === "/categories"
+                ? "page"
+                : isCurrent("/categories")
+                  ? "true"
+                  : undefined
+            }
+          >
+            <Menu aria-hidden="true" />
+            الأقسام
+          </Link>
+          {categories.slice(0, HEADER_CATEGORY_LIMIT).map((category) => {
+            const href = `/categories/${encodeURIComponent(category.code)}`;
+            return (
+              <Link
+                key={category.code}
+                href={href}
+                aria-current={pathname === href ? "page" : undefined}
+              >
+                {category.nameAr}
+              </Link>
+            );
+          })}
+          <Link
+            href="/offers"
+            className="desktop-navigation-offers"
+            aria-current={isCurrent("/offers") ? "page" : undefined}
+          >
+            العروض
+          </Link>
+        </div>
+      </nav>
     </header>
   );
 }

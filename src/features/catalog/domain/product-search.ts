@@ -31,7 +31,9 @@ export function filterProducts(
       filter.categoryId === "all" || product.categoryId === filter.categoryId;
     const searchMatches =
       !query ||
-      normalizeSearchText(getProductDisplayName(product)).includes(query);
+      normalizeSearchText(
+        `${getProductDisplayName(product)} ${product.brand ?? ""}`,
+      ).includes(query);
 
     return categoryMatches && searchMatches;
   });

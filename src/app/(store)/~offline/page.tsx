@@ -2,6 +2,7 @@ import { WifiOff } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 
+import { appIcons } from "@/features/pwa/app-icons";
 import { OfflineFavorites } from "@/features/favorites/offline-favorites";
 
 export default function OfflinePage() {
@@ -10,10 +11,10 @@ export default function OfflinePage() {
       <div className="placeholder-panel">
         <Image
           className="offline-logo"
-          src="/brand/maithaloun-symbol.png"
-          alt="سوق ميثلون"
-          width={360}
-          height={285}
+          src={appIcons.icon192}
+          alt="MAYTHA"
+          width={192}
+          height={192}
           sizes="72px"
         />
         <WifiOff className="status-icon" aria-hidden="true" />

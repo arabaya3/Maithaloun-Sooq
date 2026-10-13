@@ -9,7 +9,7 @@ import { SiteHeader } from "@/features/storefront/components/site-header";
 
 export const metadata: Metadata = {
   title: "سلة التسوق",
-  description: "راجع المنتجات والكميات المحفوظة في سلة سوق ميثلون.",
+  description: "راجع المنتجات والكميات المحفوظة في سلة MAYTHA.",
 };
 
 export default async function CartRoute() {

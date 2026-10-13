@@ -19,13 +19,10 @@ test("storefront install banner appears, installs and remembers dismissal", asyn
   await expect(page.getByRole("button", storefrontAction)).toHaveCount(0);
 
   await dispatchInstallPrompt(page);
-  const banner = page.getByRole("complementary", { name: "ثبّت سوق ميثلون" });
+  const banner = page.getByRole("complementary", { name: "ثبّت MAYTHA" });
   await expect(banner).toBeVisible();
   await expectNoHorizontalOverflow(page);
-  await expect(banner.locator("img")).toHaveAttribute(
-    "src",
-    /maithaloun-symbol.png/,
-  );
+  await expect(banner.locator("img")).toHaveAttribute("src", /icon-192-v3.png/);
   await page.screenshot({
     path: "artifacts/store-ops/install-storefront-android-390.png",
   });
@@ -46,7 +43,7 @@ test("storefront install banner appears, installs and remembers dismissal", asyn
   await page.getByRole("button", { name: "تثبيت التطبيق على الهاتف" }).click();
   await expect(
     page.getByRole("dialog", {
-      name: "إضافة سوق ميثلون إلى الشاشة الرئيسية",
+      name: "إضافة MAYTHA إلى الشاشة الرئيسية",
     }),
   ).toBeVisible();
 
@@ -68,7 +65,7 @@ test.describe("iPhone", () => {
     const action = page.getByRole("button", storefrontAction);
     await action.click();
     const sheet = page.getByRole("dialog", {
-      name: "إضافة سوق ميثلون إلى الشاشة الرئيسية",
+      name: "إضافة MAYTHA إلى الشاشة الرئيسية",
     });
     await expect(sheet).toBeVisible();
     await expect(sheet.getByRole("listitem")).toHaveCount(3);

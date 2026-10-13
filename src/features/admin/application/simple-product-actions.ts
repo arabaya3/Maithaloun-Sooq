@@ -184,6 +184,7 @@ export async function saveSimpleProductAction(
         domainId: productId,
         nameAr: input.nameAr,
         latinName: product.latinName,
+        brand: product.brand,
         priceAgorot: product.priceAgorot > 0 ? product.priceAgorot : firstPrice,
         categoryId: input.categoryId as never,
         availability: product.availability,

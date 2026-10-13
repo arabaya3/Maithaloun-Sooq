@@ -4,8 +4,7 @@ import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 
-import { LOGO_SIZES } from "@/features/storefront/brand-logo-asset";
-
+import { appIcons } from "./app-icons";
 import { InstallInstructions } from "./install-instructions";
 import { useInstallPrompt } from "./use-install-prompt";
 
@@ -36,15 +35,15 @@ export function StorefrontInstallBanner() {
         <aside className="install-banner" aria-labelledby="install-title">
           <Image
             className="install-banner-logo"
-            src="/brand/maithaloun-symbol.png"
+            src={appIcons.icon192}
             alt=""
-            width={360}
-            height={285}
-            sizes={LOGO_SIZES}
+            width={192}
+            height={192}
+            sizes="56px"
           />
           <div className="install-banner-copy">
             <p id="install-title" className="install-banner-title">
-              ثبّت سوق ميثلون
+              ثبّت MAYTHA
             </p>
             <p className="install-banner-text">
               أضف المتجر إلى الشاشة الرئيسية للوصول إليه بسرعة. التثبيت اختياري.

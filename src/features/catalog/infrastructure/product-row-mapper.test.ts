@@ -10,6 +10,7 @@ const row: typeof products.$inferSelect = {
   slug: "general-cleaner-secret",
   nameAr: "منظف عام",
   latinName: "Secret",
+  brand: null,
   priceAgorot: 700,
   sortOrder: 1,
   categoryId: "home",

@@ -60,7 +60,7 @@ export default async function SaleInvoicePage({
       />
 
       <section className="admin-panel admin-invoice" aria-label="الفاتورة">
-        <p className="admin-invoice-brand">سوق ميثلون</p>
+        <p className="admin-invoice-brand">MAYTHA</p>
         <dl className="admin-definition-list">
           <dt>الزبون</dt>
           <dd>

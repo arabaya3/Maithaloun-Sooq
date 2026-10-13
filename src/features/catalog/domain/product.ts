@@ -47,6 +47,7 @@ export const productSchema = z
     slug: productSlugSchema,
     nameAr: z.string().min(1),
     latinName: z.string().min(1).optional(),
+    brand: z.string().min(1).optional(),
     priceAgorot: z.number().int().nonnegative(),
     categoryId: productCategorySchema,
     image: z.discriminatedUnion("kind", [

@@ -176,6 +176,13 @@
       "when": 1791895977315,
       "tag": "0024_optional_order_address",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1791906197827,
+      "tag": "0025_product_brand",
+      "breakpoints": true
     }
   ]
 }

@@ -65,7 +65,7 @@ describe("storefront", () => {
     renderStorefront();
 
     expect(
-      screen.getByRole("link", { name: "سوق ميثلون، الرئيسية" }),
+      screen.getByRole("link", { name: "MAYTHA، الرئيسية" }),
     ).toBeInTheDocument();
     expect(screen.getByText("منظف عام Secret")).toHaveAttribute("dir", "auto");
     expect(screen.getByText("7 ₪")).toHaveAttribute("dir", "ltr");
@@ -77,34 +77,94 @@ describe("storefront", () => {
     ).toBeInTheDocument();
   });
 
-  it("greets, then renders the hero text as HTML beside one decorative image", () => {
+  it("leads with the editorial hero and only true trust facts", () => {
     const { container } = renderStorefront();
 
     expect(
       screen.getByRole("heading", {
         level: 1,
-        name: "أهلًا! شو ناقص البيت اليوم؟",
+        name: "ماركات أصلية لبيت أنظف وحياة أجمل",
       }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("heading", {
-        level: 2,
-        name: /أساسيات البيت،.*أقرب إلك/,
-      }),
+      screen.getByText("منتجات أصلية من ماركات بتعرفها وبتثق فيها."),
     ).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "ابدأ التسوق" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "تسوّق الآن" })).toHaveAttribute(
       "href",
       "#catalog",
     );
     const facts = container.querySelector(".hero-facts");
     expect(facts).toHaveTextContent("توصيل داخل ميثلون");
     expect(facts).toHaveTextContent("الدفع عند الاستلام");
-    const images = container.querySelectorAll(".hero img");
-    expect(images).toHaveLength(1);
-    expect(images[0]).toHaveAttribute("alt", "");
-    expect(images[0]).toHaveAttribute("fetchpriority", "high");
-    expect(container.querySelectorAll(".hero source")).toHaveLength(1);
-    expect(screen.queryByText(/جودة عالية|منتجات مختارة/)).toBeNull();
+    // Nothing the store cannot back: no ratings, discounts or easy returns.
+    expect(container.textContent).not.toMatch(
+      /تقييم|خصم حتى|إرجاع سهل|دفع آمن/,
+    );
+    // Without real photos there is no hero image at all.
+    expect(container.querySelector(".hero-media")).toBeNull();
+  });
+
+  it("hides the brands row and best sellers until there is enough real data", () => {
+    const { container } = renderWithProviders(
+      <Storefront
+        products={products}
+        categories={categories}
+        merchandising={{
+          heroProducts: [],
+          brands: [
+            { name: "Finish", productCount: 2 },
+            { name: "Arar", productCount: 1 },
+          ],
+          bestSellers: products.slice(0, 2),
+          offerProducts: [],
+          featured: null,
+        }}
+      />,
+      { products },
+    );
+    expect(screen.queryByRole("heading", { name: "ماركات مختارة" })).toBeNull();
+    expect(screen.queryByRole("heading", { name: "الأكثر طلباً" })).toBeNull();
+    expect(container.querySelector(".promo-grid")).toBeNull();
+  });
+
+  it("shows owner-entered brands, best sellers and live offers when present", () => {
+    renderWithProviders(
+      <Storefront
+        products={products}
+        categories={categories}
+        merchandising={{
+          heroProducts: [],
+          brands: [
+            { name: "Finish", productCount: 3 },
+            { name: "Arar", productCount: 2 },
+            { name: "البركان", productCount: 1 },
+          ],
+          bestSellers: [...products, products[0]!].map((product, index) => ({
+            ...product,
+            id: `${product.id}-${index}`,
+          })),
+          offerProducts: [products[0]!],
+          featured: null,
+        }}
+      />,
+      { products },
+    );
+    const brands = screen
+      .getByRole("heading", { name: "ماركات مختارة" })
+      .closest("section")!;
+    expect(
+      within(brands).getByRole("link", { name: "Finish" }),
+    ).toHaveAttribute("href", "/brands/Finish");
+    expect(
+      within(brands).getByRole("link", { name: "البركان" }),
+    ).toHaveAttribute("href", `/brands/${encodeURIComponent("البركان")}`);
+    expect(
+      screen.getByRole("heading", { name: "الأكثر طلباً" }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /تسوّق العروض/ })).toHaveAttribute(
+      "href",
+      "/offers",
+    );
   });
 
   it("orders RTL categories from all to home and exposes selection semantics", async () => {

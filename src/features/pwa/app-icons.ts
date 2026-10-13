@@ -3,13 +3,13 @@ import type { MetadataRoute } from "next";
 const base = "/brand/app";
 
 export const appIcons = {
-  favicon16: `${base}/favicon-16-v2.png`,
-  favicon32: `${base}/favicon-32-v2.png`,
-  appleTouch: `${base}/apple-touch-icon-v2.png`,
-  icon192: `${base}/icon-192-v2.png`,
-  icon512: `${base}/icon-512-v2.png`,
-  maskable192: `${base}/maskable-192-v2.png`,
-  maskable512: `${base}/maskable-512-v2.png`,
+  favicon16: `${base}/favicon-16-v3.png`,
+  favicon32: `${base}/favicon-32-v3.png`,
+  appleTouch: `${base}/apple-touch-icon-v3.png`,
+  icon192: `${base}/icon-192-v3.png`,
+  icon512: `${base}/icon-512-v3.png`,
+  maskable192: `${base}/maskable-192-v3.png`,
+  maskable512: `${base}/maskable-512-v3.png`,
 } as const;
 
 export const manifestIcons: MetadataRoute.Manifest["icons"] = [

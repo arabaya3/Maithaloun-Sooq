@@ -7,11 +7,12 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: {
-    default: "سوق ميثلون",
-    template: "%s | سوق ميثلون",
+    default: "MAYTHA",
+    template: "%s | MAYTHA",
   },
-  description: "متجر عربي لاحتياجات ومنتجات التنظيف المنزلية.",
-  applicationName: "سوق ميثلون",
+  description:
+    "MAYTHA HOME & CARE — منتجات أصلية للتنظيف والعناية من ماركات بتعرفها، مع توصيل داخل ميثلون.",
+  applicationName: "MAYTHA",
   manifest: "/manifest.webmanifest",
   icons: {
     icon: [
@@ -21,11 +22,11 @@ export const metadata: Metadata = {
     ],
     apple: [{ url: appIcons.appleTouch, sizes: "180x180", type: "image/png" }],
   },
-  appleWebApp: { capable: true, title: "ميثلون", statusBarStyle: "default" },
+  appleWebApp: { capable: true, title: "MAYTHA", statusBarStyle: "default" },
 };
 
 export const viewport: Viewport = {
-  themeColor: "#12324A",
+  themeColor: "#183D32",
   colorScheme: "light",
   width: "device-width",
   initialScale: 1,

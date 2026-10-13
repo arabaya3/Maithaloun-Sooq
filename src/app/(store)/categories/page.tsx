@@ -12,7 +12,7 @@ import { formatProductCount } from "@/shared/lib/format-product-count";
 
 export const metadata: Metadata = {
   title: "الأقسام",
-  description: "تصفّح أقسام سوق ميثلون واختر ما يحتاجه البيت.",
+  description: "تصفّح أقسام MAYTHA واختر ما يحتاجه البيت.",
 };
 
 export default async function CategoriesPage() {
@@ -31,7 +31,7 @@ export default async function CategoriesPage() {
       <SiteHeader />
       <main className="page-shell categories-page">
         <div className="categories-page-heading">
-          <span className="eyebrow">سوق ميثلون</span>
+          <span className="eyebrow">MAYTHA</span>
           <h1>الأقسام</h1>
         </div>
         {categories.length ? (

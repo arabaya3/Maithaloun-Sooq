@@ -8,7 +8,7 @@
     "node": ">=20.9.0"
   },
   "scripts": {
-    "generate:icons": "node tools/generate-icons.mjs",
+    "generate:brand": "node tools/brand/render-brand-assets.mjs",
     "dev": "next dev --webpack",
     "build": "tsx tools/check-build-env.ts && tsx tools/migrate-database.ts && tsx tools/ensure-order-contact-columns.ts && next build --webpack",
     "start": "next start",

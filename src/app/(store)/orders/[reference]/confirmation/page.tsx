@@ -84,7 +84,7 @@ export default async function OrderConfirmationPage({
           </p>
         ) : (
           <p role="note">
-            وصل طلبك إلى سوق ميثلون، وسنتواصل معك عبر واتساب لتأكيد الطلب ومكان
+            وصل طلبك إلى MAYTHA، وسنتواصل معك عبر واتساب لتأكيد الطلب ومكان
             التوصيل.
           </p>
         )}

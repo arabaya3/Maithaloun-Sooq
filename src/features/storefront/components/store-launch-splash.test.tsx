@@ -21,17 +21,15 @@ afterEach(() => {
 });
 
 describe("StoreLaunchSplash", () => {
-  it("shows the official logo and brand name, with decoration hidden from screen readers", () => {
+  it("shows the MAYTHA wordmark, with decoration hidden from screen readers", () => {
     const { container } = render(<StoreLaunchSplash />);
     const brand = container.querySelector(".launch-splash-brand");
     expect(brand).toHaveAttribute("aria-hidden", "true");
-    expect(brand).toHaveTextContent("سوق ميثلون");
-    expect(brand).toHaveTextContent("منظفات ومعطرات جو");
-    const logo = container.querySelector(".launch-splash-logo");
-    expect(decodeURIComponent(logo?.getAttribute("src") ?? "")).toContain(
-      "/brand/maithaloun-symbol.png",
+    expect(brand?.querySelector(".brand-name")).toHaveTextContent("MAYTHA");
+    expect(brand?.querySelector(".brand-subtitle")).toHaveTextContent(
+      "HOME & CARE",
     );
-    expect(screen.getByRole("status")).toHaveTextContent("جارٍ فتح سوق ميثلون");
+    expect(screen.getByRole("status")).toHaveTextContent("جارٍ فتح MAYTHA");
     expect(container.querySelector("button, a, input, [tabindex]")).toBeNull();
     expect(container.innerHTML).not.toContain("/icons/icon-");
   });
@@ -73,22 +71,21 @@ describe("StoreLaunchSplash", () => {
   it("drops the motion to a short fade for reduced-motion users", () => {
     const reduced = css.slice(
       css.indexOf(
-        "@media (prefers-reduced-motion: reduce) {\n  .launch-splash-mark",
+        "@media (prefers-reduced-motion: reduce) {\n  .launch-splash-brand .brand-name",
       ),
     );
-    expect(reduced).toContain("animation: launch-fade 200ms ease-out both;");
     expect(reduced).toMatch(
-      /\.launch-splash-shine,\s+\.launch-splash-bubble \{\s+display: none;/,
+      /\.launch-splash-rule \{\s+animation: launch-fade 200ms ease-out both;/,
     );
   });
 });
 
 describe("offline page", () => {
-  it("uses the official logo", () => {
+  it("uses the MAYTHA app icon", () => {
     render(<OfflinePage />);
-    const logo = screen.getByAltText("سوق ميثلون");
+    const logo = screen.getByAltText("MAYTHA");
     expect(decodeURIComponent(logo.getAttribute("src") ?? "")).toContain(
-      "/brand/maithaloun-symbol.png",
+      "/brand/app/icon-192-v3.png",
     );
   });
 });

@@ -242,7 +242,7 @@ describe("cart page", () => {
       screen.getByRole("link", { name: "الطلب عبر الموقع" }),
     ).toHaveAttribute("href", "/checkout?channel=web");
     expect(
-      screen.getByText("سنجهّز رسالة طلبك لتُرسل مباشرة إلى سوق ميثلون."),
+      screen.getByText("سنجهّز رسالة طلبك لتُرسل مباشرة إلى MAYTHA."),
     ).toBeInTheDocument();
     expect(
       screen.getByText("يصل طلبك إلى المتجر وسنتواصل معك عبر واتساب."),

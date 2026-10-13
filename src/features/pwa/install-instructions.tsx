@@ -8,7 +8,7 @@ import type { InstallScope } from "./install-state";
 
 const copy = {
   storefront: {
-    title: "إضافة سوق ميثلون إلى الشاشة الرئيسية",
+    title: "إضافة MAYTHA إلى الشاشة الرئيسية",
     steps: [
       "افتح زر المشاركة في المتصفح.",
       "اختر “إضافة إلى الشاشة الرئيسية”.",

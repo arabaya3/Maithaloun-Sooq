@@ -1638,6 +1638,7 @@ export class AssistantOperations {
           domainId: product.id,
           nameAr: next.nameAr ?? product.nameAr,
           latinName,
+          brand: product.brand,
           priceAgorot: next.priceAgorot ?? product.priceAgorot,
           categoryId: next.categoryId ?? product.categoryId,
           availability: next.availability ?? product.availability,

@@ -514,6 +514,17 @@ function EditProductForm({
                 defaultValue={product.latinName ?? ""}
               />
             </label>
+            <label htmlFor="product-brand">
+              الماركة اختياري
+              <input
+                id="product-brand"
+                name="brand"
+                dir="auto"
+                maxLength={80}
+                placeholder="مثل: Finish أو البركان"
+                defaultValue={product.brand ?? ""}
+              />
+            </label>
             <div className="admin-field-grid">
               <label htmlFor="product-price">
                 السعر بالشيكل

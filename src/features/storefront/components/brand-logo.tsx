@@ -1,30 +1,21 @@
-import Image from "next/image";
 import Link from "next/link";
 
-import { LOGO_SIZES } from "@/features/storefront/brand-logo-asset";
+export const STORE_NAME = "MAYTHA";
+export const STORE_SUBTITLE = "HOME & CARE";
+
+export function BrandWordmark({ className = "" }: { className?: string }) {
+  return (
+    <span className={`brand-wordmark ${className}`.trim()} dir="ltr">
+      <span className="brand-name">{STORE_NAME}</span>
+      <span className="brand-subtitle">{STORE_SUBTITLE}</span>
+    </span>
+  );
+}
 
 export function BrandLogo() {
   return (
-    <Link className="brand" href="/">
-      <Image
-        className="brand-mark"
-        src="/brand/maithaloun-symbol.png"
-        alt=""
-        width={360}
-        height={285}
-        sizes={LOGO_SIZES}
-        loading="eager"
-      />
-      <span className="brand-text">
-        <span className="brand-word">
-          <span className="brand-word-soq">سوق</span>{" "}
-          <span className="brand-word-name">ميثلون</span>
-          <span className="sr-only">، الرئيسية</span>
-        </span>
-        <span className="brand-tagline" aria-hidden="true">
-          منظفات ومعطرات جو
-        </span>
-      </span>
+    <Link className="brand" href="/" aria-label={`${STORE_NAME}، الرئيسية`}>
+      <BrandWordmark />
     </Link>
   );
 }

@@ -6,9 +6,9 @@ const withSerwist = withSerwistInit({
   swDest: "public/sw.js",
   additionalPrecacheEntries: [
     { url: "/~offline", revision: "v1" },
-    { url: "/brand/app/icon-192-v2.png", revision: null },
-    { url: "/brand/app/icon-512-v2.png", revision: null },
-    { url: "/brand/app/maskable-512-v2.png", revision: null },
+    { url: "/brand/app/icon-192-v3.png", revision: null },
+    { url: "/brand/app/icon-512-v3.png", revision: null },
+    { url: "/brand/app/maskable-512-v3.png", revision: null },
   ],
   disable: process.env.NODE_ENV !== "production",
 });

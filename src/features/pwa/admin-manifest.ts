@@ -6,9 +6,9 @@ export const ADMIN_MANIFEST_PATH = "/admin-manifest.webmanifest";
 
 export const adminManifest: MetadataRoute.Manifest = {
   id: "/admin",
-  name: "إدارة سوق ميثلون",
+  name: "إدارة MAYTHA",
   short_name: "إدارة السوق",
-  description: "تطبيق إدارة الطلبات والمخزون والمبيعات لسوق ميثلون.",
+  description: "تطبيق إدارة الطلبات والمخزون والمبيعات لمتجر MAYTHA.",
   start_url: "/admin",
   scope: "/admin",
   display: "standalone",

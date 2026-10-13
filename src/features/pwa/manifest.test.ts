@@ -12,11 +12,11 @@ import { adminManifest } from "./admin-manifest";
 import { storefrontManifest } from "./storefront-manifest";
 
 describe("web app manifest", () => {
-  it("uses the official Arabic identity and RTL direction", () => {
+  it("uses the MAYTHA identity and RTL direction", () => {
     const value = storefrontManifest;
 
-    expect(value.name).toBe("سوق ميثلون");
-    expect(value.short_name).toBe("ميثلون");
+    expect(value.name).toBe("MAYTHA");
+    expect(value.short_name).toBe("MAYTHA");
     expect(value.lang).toBe("ar");
     expect(value.dir).toBe("rtl");
   });
@@ -49,7 +49,7 @@ describe("web app manifest", () => {
       { src: appIcons.appleTouch, size: 180 },
     ];
     for (const { src, size } of declared) {
-      expect(src).toMatch(/^\/brand\/app\/.+-v2\.png$/);
+      expect(src).toMatch(/^\/brand\/app\/.+-v3\.png$/);
       const file = join(process.cwd(), "public", src);
       expect(existsSync(file)).toBe(true);
       const info = await sharp(file).metadata();

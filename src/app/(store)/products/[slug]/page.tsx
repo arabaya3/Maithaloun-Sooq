@@ -30,7 +30,7 @@ export async function generateMetadata({
     title: getProductDisplayName(product),
     description:
       product.description ??
-      `تفاصيل ${getProductDisplayName(product)} في سوق ميثلون.`,
+      `تفاصيل ${getProductDisplayName(product)} في MAYTHA.`,
   };
 }
 

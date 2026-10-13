@@ -94,7 +94,7 @@ self.addEventListener("push", (event) => {
   const payload = event.data?.json() as
     { title?: string; body?: string; href?: string } | undefined;
   event.waitUntil(
-    self.registration.showNotification(payload?.title ?? "سوق ميثلون", {
+    self.registration.showNotification(payload?.title ?? "MAYTHA", {
       body: payload?.body ?? "لديك تحديث جديد في الطلبات.",
       icon: appIcons.icon192,
       badge: appIcons.icon192,
