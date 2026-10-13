@@ -1,3 +1,4 @@
+import { MessageCircle } from "lucide-react";
 import type { Metadata } from "next";
 import { connection } from "next/server";
 
@@ -6,21 +7,14 @@ import {
   STANDARD_DELIVERY_FEE_AGOROT,
 } from "@/features/delivery/delivery-policy";
 import { storeContactService } from "@/features/orders/application/order-service-instance";
-import { whatsAppLinks } from "@/features/orders/domain/whatsapp-order";
+import { formatWhatsAppDisplay } from "@/features/orders/domain/phone";
+import { whatsAppChatUrl } from "@/features/orders/domain/whatsapp-order";
 import { MobileNavigation } from "@/features/storefront/components/mobile-navigation";
 import { SiteHeader } from "@/features/storefront/components/site-header";
+import { infoPages, type InfoPageKey } from "@/features/storefront/info-pages";
 import { Link } from "@/i18n/link";
 import { getMessages } from "@/i18n/server";
 import { formatIls } from "@/shared/lib/format-currency";
-
-import { infoPages, type InfoPageKey } from "@/features/storefront/info-pages";
-
-// Amounts come from the delivery policy itself, so the page can never disagree with checkout.
-function fill(text: string) {
-  return text
-    .replace("{free}", formatIls(FREE_DELIVERY_THRESHOLD_AGOROT))
-    .replace("{fee}", formatIls(STANDARD_DELIVERY_FEE_AGOROT));
-}
 
 export async function infoPageMetadata(key: InfoPageKey): Promise<Metadata> {
   const page = (await getMessages()).info[key];
@@ -29,11 +23,24 @@ export async function infoPageMetadata(key: InfoPageKey): Promise<Metadata> {
 
 export async function InfoPage({ pageKey }: { pageKey: InfoPageKey }) {
   await connection();
-  const m = await getMessages();
+  const [m, storeNumber] = await Promise.all([
+    getMessages(),
+    storeContactService.whatsAppNumber(),
+  ]);
   const page = m.info[pageKey];
-  const whatsapp =
-    pageKey === "contact" ? await storeContactService.whatsAppNumber() : null;
-  const links = whatsapp ? whatsAppLinks(whatsapp, "") : null;
+  // The one store number lives in Admin settings; without it the order conversation is the channel.
+  const chatUrl = storeNumber ? whatsAppChatUrl(storeNumber) : null;
+  const display = storeNumber ? formatWhatsAppDisplay(storeNumber) : null;
+  const contact =
+    chatUrl && display
+      ? m.info.contactByNumber(display)
+      : m.info.contactByConversation;
+  // Amounts come from the delivery policy itself, so the page can never disagree with checkout.
+  const fill = (text: string) =>
+    text
+      .replace("{free}", formatIls(FREE_DELIVERY_THRESHOLD_AGOROT))
+      .replace("{fee}", formatIls(STANDARD_DELIVERY_FEE_AGOROT))
+      .replace("{contact}", contact);
 
   return (
     <>
@@ -42,6 +49,27 @@ export async function InfoPage({ pageKey }: { pageKey: InfoPageKey }) {
         <article className="info-article" aria-labelledby="info-title">
           <span className="eyebrow">MAYTHA</span>
           <h1 id="info-title">{page.title}</h1>
+          {pageKey === "contact" && chatUrl && display ? (
+            <section
+              className="info-whatsapp"
+              aria-labelledby="info-whatsapp-title"
+            >
+              <h2 id="info-whatsapp-title">{m.info.officialWhatsAppTitle}</h2>
+              <p>{m.info.officialWhatsAppText}</p>
+              <p className="info-whatsapp-number">
+                <bdi dir="ltr">{display}</bdi>
+              </p>
+              <a
+                className="info-cta"
+                href={chatUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <MessageCircle aria-hidden="true" />
+                {m.info.whatsappCta}
+              </a>
+            </section>
+          ) : null}
           {page.sections.map((section) => (
             <section key={section.title}>
               <h2>{section.title}</h2>
@@ -50,14 +78,8 @@ export async function InfoPage({ pageKey }: { pageKey: InfoPageKey }) {
               ))}
             </section>
           ))}
-          {pageKey === "contact" ? (
-            links ? (
-              <a className="info-cta" href={links.app}>
-                {m.info.whatsappCta}
-              </a>
-            ) : (
-              <p className="info-note">{m.info.whatsappUnavailable}</p>
-            )
+          {pageKey === "contact" && !chatUrl ? (
+            <p className="info-note">{m.info.whatsappUnavailable}</p>
           ) : null}
         </article>
         <nav className="info-links" aria-label={m.info.pagesLabel}>

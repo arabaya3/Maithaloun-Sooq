@@ -1,5 +1,9 @@
 "use client";
 
+import { MessageCircle } from "lucide-react";
+
+import { formatWhatsAppDisplay } from "@/features/orders/domain/phone";
+import { whatsAppChatUrl } from "@/features/orders/domain/whatsapp-order";
 import { useI18n } from "@/i18n/i18n-provider";
 import { LanguageSwitcher } from "@/i18n/language-switcher";
 import { Link } from "@/i18n/link";
@@ -8,8 +12,13 @@ import { infoPages } from "@/features/storefront/info-pages";
 
 import { BrandWordmark } from "./brand-logo";
 
-export function StoreFooter() {
+export function StoreFooter({
+  storeWhatsApp = null,
+}: {
+  storeWhatsApp?: string | null;
+}) {
   const { m } = useI18n();
+  const chatUrl = storeWhatsApp ? whatsAppChatUrl(storeWhatsApp) : null;
   const links = [
     { href: "/categories", label: m.common.categories },
     { href: "/brands", label: m.common.brands },
@@ -25,6 +34,19 @@ export function StoreFooter() {
           <BrandWordmark className="store-footer-wordmark" />
           <p className="store-footer-note">{m.common.trustLine}</p>
           <p className="store-footer-note">{m.common.deliveryAndCash}</p>
+          {chatUrl && storeWhatsApp ? (
+            <a
+              className="store-footer-whatsapp"
+              href={chatUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label={`${m.info.whatsappCta}: ${formatWhatsAppDisplay(storeWhatsApp)}`}
+            >
+              <MessageCircle aria-hidden="true" />
+              <span>{m.info.whatsappCta}</span>
+              <bdi dir="ltr">{formatWhatsAppDisplay(storeWhatsApp)}</bdi>
+            </a>
+          ) : null}
         </div>
         <nav className="store-footer-links" aria-label={m.store.storeLinks}>
           {links.map((link) => (

@@ -77,22 +77,63 @@ test("the pages state the approved policies and the same amounts checkout charge
   }
 });
 
-test("the contact page links to the store's WhatsApp only when a number is set", async ({
+test("the official store WhatsApp appears on the contact page, the footer and the policies only once configured", async ({
   page,
 }) => {
+  // Without a configured number the policies point to the order conversation.
   await page.goto("/contact");
-  await expect(
-    page.getByRole("link", { name: "راسلنا على واتساب" }),
-  ).toHaveCount(0);
+  await expect(page.locator(".info-whatsapp")).toHaveCount(0);
+  await expect(page.locator(".store-footer-whatsapp")).toHaveCount(0);
+  await page.goto("/en/returns");
+  await expect(page.locator("main")).toContainText(
+    "in the WhatsApp conversation for your order",
+  );
+
+  // A placeholder number, never the store's real one; links are read, not opened.
   await withTestDb(
     (sql) =>
-      sql`insert into store_settings (key, value) values ('store_whatsapp_e164', '"+970590000000"') on conflict (key) do update set value = excluded.value`,
+      sql`insert into store_settings (key, value) values ('store_whatsapp_e164', '"+972590000000"') on conflict (key) do update set value = excluded.value`,
   );
   try {
-    await page.goto("/contact");
-    await expect(
-      page.getByRole("link", { name: "راسلنا على واتساب" }),
-    ).toHaveAttribute("href", /^https:\/\/wa\.me\/970590000000/);
+    for (const [path, cta] of [
+      ["/contact", "راسلنا على واتساب"],
+      ["/en/contact", "Message us on WhatsApp"],
+    ] as const) {
+      await page.goto(path);
+      const block = page.locator(".info-whatsapp");
+      await expect(block).toContainText("+972 590000000");
+      await expect(block.getByRole("link", { name: cta })).toHaveAttribute(
+        "href",
+        "https://wa.me/972590000000",
+      );
+      await expect(page.locator(".store-footer-whatsapp")).toHaveAttribute(
+        "href",
+        "https://wa.me/972590000000",
+      );
+      await expectNoHorizontalOverflow(page);
+    }
+    await page.goto("/");
+    await expect(page.locator(".store-footer-whatsapp")).toContainText(
+      "+972 590000000",
+    );
+    for (const path of ["/en/returns", "/en/terms", "/en/privacy"]) {
+      await page.goto(path);
+      await expect(page.locator("main")).toContainText(
+        "on our official WhatsApp number +972 590000000",
+      );
+    }
+    await page.goto("/returns");
+    await expect(page.locator("main")).toContainText(
+      "على رقم واتساب المتجر الرسمي",
+    );
+    // Only one store number exists anywhere on the page.
+    const numbers = await page
+      .locator("body")
+      .evaluate(
+        (body) =>
+          (body as HTMLElement).innerText.match(/\+97[02] ?5\d{8}/g) ?? [],
+      );
+    expect(new Set(numbers)).toEqual(new Set(["+972 590000000"]));
   } finally {
     await withTestDb(
       (sql) =>

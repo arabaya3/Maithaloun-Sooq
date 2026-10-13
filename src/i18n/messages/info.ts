@@ -16,6 +16,14 @@ const ar = {
   heading: "معلومات المتجر",
   pagesLabel: "صفحات المعلومات",
   whatsappCta: "راسلنا على واتساب",
+  // {contact} in a policy text: the official number when configured, otherwise the order conversation.
+  contactByNumber: (display: string) =>
+    `على رقم واتساب المتجر الرسمي ⁦${display}⁩`,
+  contactByConversation: "في محادثة الواتساب الخاصة بطلبك",
+  officialWhatsAppTitle: "واتساب المتجر",
+  officialWhatsAppText:
+    "رقم واتساب MAYTHA الرسمي لأي سؤال عن المنتجات أو الطلبات:",
+  officialWhatsAppLabel: "رقم واتساب MAYTHA الرسمي",
   // Shown on the contact page only while no store number is configured.
   whatsappUnavailable:
     "لم ننشر وسيلة تواصل عامة بعد. بعد إرسال طلبك نتواصل معك على واتساب، ويمكنك الرد في المحادثة نفسها لأي أمر يخص طلبك.",
@@ -51,7 +59,7 @@ const ar = {
         title: "بخصوص طلب",
         paragraphs: [
           "بعد كل طلب نتواصل معك على رقم الواتساب الذي أدخلته لتأكيد الطلب وتفاصيل التوصيل داخل ميثلون.",
-          "لأي سؤال أو طلب يخص طلبك، مثل الإلغاء أو الإبلاغ عن منتج تالف، رد في محادثة الواتساب نفسها واذكر رقم الطلب.",
+          "لأي سؤال أو طلب يخص طلبك، مثل الإلغاء أو الإبلاغ عن منتج تالف، راسلنا {contact} واذكر رقم الطلب.",
         ],
       },
     ],
@@ -89,7 +97,7 @@ const ar = {
         title: "أبلغنا خلال 24 ساعة",
         paragraphs: [
           "إذا وصلك منتج تالف أو غير الذي طلبته، نرجو أن تبلغنا خلال 24 ساعة من استلام طلبك، حتى نتمكن من حل المشكلة بسرعة.",
-          "رد في محادثة الواتساب الخاصة بطلبك، واذكر رقم الطلب والمنتج المقصود، ويفضّل إرفاق صورة له.",
+          "راسلنا {contact}، واذكر رقم الطلب والمنتج المقصود، ويفضّل إرفاق صورة له.",
         ],
       },
       {
@@ -143,7 +151,7 @@ const ar = {
       {
         title: "طلبات الوصول أو التصحيح أو الحذف",
         paragraphs: [
-          "يمكنك أن تطلب الاطلاع على بياناتك أو تصحيحها أو حذفها عبر محادثة الواتساب الخاصة بطلبك.",
+          "يمكنك أن تطلب الاطلاع على بياناتك أو تصحيحها أو حذفها بمراسلتنا {contact}.",
           "نحذف ما لا يلزمنا الاحتفاظ به أو نزيل ما يدل على هويتك منه، وقد نحتفظ ببعض سجلات الطلبات إذا كانت مطلوبة لأغراض قانونية أو محاسبية.",
         ],
       },
@@ -173,7 +181,7 @@ const ar = {
       {
         title: "إلغاء الطلب",
         paragraphs: [
-          "يمكنك طلب إلغاء الطلب قبل خروجه للتوصيل، بالرد في محادثة الواتساب الخاصة بطلبك وذكر رقم الطلب.",
+          "يمكنك طلب إلغاء الطلب قبل خروجه للتوصيل، بمراسلتنا {contact} وذكر رقم الطلب.",
           "يصبح الإلغاء نافذاً بعد أن يؤكده فريق المتجر.",
         ],
       },
@@ -197,6 +205,13 @@ const en: typeof ar = {
   heading: "Store information",
   pagesLabel: "Information pages",
   whatsappCta: "Message us on WhatsApp",
+  contactByNumber: (display: string) =>
+    `on our official WhatsApp number ${display}`,
+  contactByConversation: "in the WhatsApp conversation for your order",
+  officialWhatsAppTitle: "WhatsApp",
+  officialWhatsAppText:
+    "MAYTHA's official WhatsApp number for any question about products or orders:",
+  officialWhatsAppLabel: "MAYTHA's official WhatsApp number",
   whatsappUnavailable:
     "We haven't published a public contact channel yet. After you place an order, we contact you on WhatsApp, and you can reply in that conversation about anything to do with your order.",
   about: {
@@ -231,7 +246,7 @@ const en: typeof ar = {
         title: "About an order",
         paragraphs: [
           "After every order we contact you on the WhatsApp number you entered to confirm the order and the delivery details within Maythaloun.",
-          "For any question or request about your order, such as a cancellation or a damaged item, reply in that same WhatsApp conversation and include your order number.",
+          "For any question or request about your order, such as a cancellation or a damaged item, message us {contact} and include your order number.",
         ],
       },
     ],
@@ -270,7 +285,7 @@ const en: typeof ar = {
         title: "Tell us within 24 hours",
         paragraphs: [
           "If an item arrives damaged or isn't what you ordered, please let us know within 24 hours of receiving your order so we can sort it out quickly.",
-          "Reply in the WhatsApp conversation for your order with your order number and the item concerned, ideally with a photo.",
+          "Message us {contact} with your order number and the item concerned, ideally with a photo.",
         ],
       },
       {
@@ -324,7 +339,7 @@ const en: typeof ar = {
       {
         title: "Access, correction or deletion",
         paragraphs: [
-          "You can ask to see, correct or delete your data through the WhatsApp conversation for your order.",
+          "You can ask to see, correct or delete your data by messaging us {contact}.",
           "We delete or de-identify what we don't need to keep; some order records may have to be kept for legal or accounting reasons.",
         ],
       },
@@ -356,7 +371,7 @@ const en: typeof ar = {
       {
         title: "Cancelling an order",
         paragraphs: [
-          "You can ask to cancel an order before it leaves for delivery by replying in the WhatsApp conversation for your order with your order number.",
+          "You can ask to cancel an order before it leaves for delivery by messaging us {contact} with your order number.",
           "A cancellation takes effect once the store team confirms it.",
         ],
       },
