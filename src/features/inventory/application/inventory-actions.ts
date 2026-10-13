@@ -111,6 +111,31 @@ export async function setReorderThresholdAction(
   return { ok: true, message: "تم حفظ حد التنبيه." };
 }
 
+/** Sets one alert threshold, in whole pieces, on every active tracked variant after the owner confirms. */
+export async function setActiveThresholdsAction(
+  pieces: number,
+): Promise<{ ok: true; message: string } | { ok: false; message: string }> {
+  const actor = await requireTrustedAdminMutation();
+  if (!Number.isInteger(pieces) || pieces < 0 || pieces > 9_999) {
+    return { ok: false, message: "اكتبي عدد قطع صحيحاً." };
+  }
+  try {
+    const result = await inventoryService.setReorderThresholdForActive(
+      actor,
+      pieces * 1_000,
+    );
+    revalidateInventory();
+    return {
+      ok: true,
+      message: result.changed
+        ? `تم ضبط حد التنبيه على ${pieces} لـ${result.changed} صنف.`
+        : "كل الأصناف مضبوطة على هذا الحد أصلاً.",
+    };
+  } catch (error) {
+    return { ok: false, message: mapInventoryError(error) };
+  }
+}
+
 export async function previewPurchaseAction(
   input: PurchaseInput,
 ): Promise<ActionResult<{ preview: PurchasePreview }>> {

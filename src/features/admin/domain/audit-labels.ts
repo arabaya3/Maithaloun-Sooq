@@ -11,6 +11,7 @@ const actionLabels: Readonly<Record<string, string>> = {
   stock_adjustment: "تعديل مخزون",
   stock_transfer: "نقل مخزون",
   reorder_threshold_update: "تعديل حد الطلب",
+  reorder_threshold_bulk_update: "تعديل حد التنبيه لكل الأصناف",
   purchase_post: "تسجيل فاتورة شراء",
   supplier_payment: "دفعة لمورد",
   extraction_create: "رفع فاتورة للمراجعة",

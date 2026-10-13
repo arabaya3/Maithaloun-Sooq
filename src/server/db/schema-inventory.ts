@@ -153,7 +153,8 @@ export const inventoryItems = pgTable(
     avgCostAgorot: integer("avg_cost_agorot"),
     lastPurchaseCostAgorot: integer("last_purchase_cost_agorot"),
     lastSalePriceAgorot: integer("last_sale_price_agorot"),
-    reorderThresholdMilli: integer("reorder_threshold_milli"),
+    // New stock warns at 2 pieces unless the owner sets another threshold for that variant.
+    reorderThresholdMilli: integer("reorder_threshold_milli").default(2_000),
     lastMovementAt: timestamp("last_movement_at", {
       withTimezone: true,
       mode: "date",

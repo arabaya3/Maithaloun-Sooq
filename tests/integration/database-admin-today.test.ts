@@ -179,9 +179,13 @@ describe("today", () => {
     expect(view.tasks.map((task) => task.kind)).toContain("sale");
   });
 
-  it("raises an out-of-stock alert once the last piece is sold", async () => {
-    await stockIn(1_000, 300);
+  it("warns at the default two pieces, then raises an out-of-stock alert once the last piece is sold", async () => {
+    await stockIn(3_000, 300);
     expect(await today.getStockAlerts(owner)).toEqual([]);
+    await cashSale(2_000, 700);
+    expect(await today.getStockAlerts(owner)).toContainEqual(
+      expect.objectContaining({ id: "low_stock", count: 1 }),
+    );
     await cashSale(1_000, 700);
     expect(await today.getStockAlerts(owner)).toContainEqual(
       expect.objectContaining({ id: "out_of_stock", count: 1 }),

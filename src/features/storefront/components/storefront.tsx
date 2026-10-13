@@ -1,20 +1,27 @@
 "use client";
 
 import {
+  Baby,
   Bath,
   Brush,
+  BrushCleaning,
   CookingPot,
   Droplets,
+  Heart,
   House,
   LayoutGrid,
   Leaf,
   Package,
   PackageSearch,
+  ScrollText,
   Search,
   Shirt,
+  Sofa,
   Sparkles,
   SprayCan,
+  Utensils,
   WashingMachine,
+  Wind,
   X,
   type LucideIcon,
 } from "lucide-react";
@@ -46,7 +53,17 @@ const categoryIcons: Record<CategoryIconKey, LucideIcon> = {
   shirt: Shirt,
   package: Package,
   leaf: Leaf,
+  utensils: Utensils,
+  sofa: Sofa,
+  wind: Wind,
+  "brush-cleaning": BrushCleaning,
+  "scroll-text": ScrollText,
+  heart: Heart,
+  baby: Baby,
 };
+
+// The first batch keeps the phone page short; more is one tap away, never on scroll.
+export const CATALOG_BATCH = 12;
 
 function ProductSearch({
   query,
@@ -153,6 +170,12 @@ export function Storefront({
     () => filterProducts(products, { query, categoryId: category }),
     [category, products, query],
   );
+  const filterKey = `${category}|${query.trim()}`;
+  const [batch, setBatch] = useState({ key: filterKey, count: CATALOG_BATCH });
+  // A new search or category starts again from the first batch.
+  const visibleCount = batch.key === filterKey ? batch.count : CATALOG_BATCH;
+  const visibleProducts = filteredProducts.slice(0, visibleCount);
+  const remaining = filteredProducts.length - visibleProducts.length;
   const selectedCategory = categories.find((item) => item.code === category);
   const hasActiveFilter = Boolean(query.trim()) || category !== ALL_CATEGORIES;
 
@@ -215,11 +238,32 @@ export function Storefront({
           </div>
 
           {filteredProducts.length ? (
-            <div className="product-grid">
-              {filteredProducts.map((product) => (
-                <ProductCard key={product.id} product={product} />
-              ))}
-            </div>
+            <>
+              <div className="product-grid">
+                {visibleProducts.map((product) => (
+                  <ProductCard key={product.id} product={product} />
+                ))}
+              </div>
+              {remaining > 0 ? (
+                <div className="catalog-more">
+                  <p className="catalog-more-count">
+                    يظهر {visibleProducts.length} من {filteredProducts.length}
+                  </p>
+                  <button
+                    type="button"
+                    className="catalog-more-button"
+                    onClick={() =>
+                      setBatch({
+                        key: filterKey,
+                        count: visibleCount + CATALOG_BATCH,
+                      })
+                    }
+                  >
+                    عرض المزيد ({Math.min(remaining, CATALOG_BATCH)})
+                  </button>
+                </div>
+              ) : null}
+            </>
           ) : (
             <div className="empty-state" role="status">
               <PackageSearch aria-hidden="true" />

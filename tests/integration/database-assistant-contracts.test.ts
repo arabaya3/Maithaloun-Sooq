@@ -307,6 +307,7 @@ const fixtures = (): Record<string, Record<string, unknown>> => ({
     quantity: "1",
   },
   prepareReorderThreshold: { product: PRODUCT, threshold: "3" },
+  prepareBulkReorderThreshold: { threshold: "2" },
   prepareManualSale: {
     customer: CUSTOMER,
     items: [{ product: PRODUCT, quantity: "1" }],

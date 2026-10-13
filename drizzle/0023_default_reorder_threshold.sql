@@ -1,0 +1,1 @@
+ALTER TABLE "inventory_items" ALTER COLUMN "reorder_threshold_milli" SET DEFAULT 2000;

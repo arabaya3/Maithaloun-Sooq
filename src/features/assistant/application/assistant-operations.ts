@@ -908,6 +908,54 @@ export class AssistantOperations {
     };
   }
 
+  async prepareBulkReorderThreshold(
+    actor: AdminActor,
+    input: { threshold: string },
+  ): Promise<PrepareResult> {
+    if (!can(actor, "stock.adjust")) {
+      return rejected("forbidden", "حد التنبيه للمالك فقط.");
+    }
+    const thresholdMilli = parseQuantityToMilli(input.threshold);
+    if (thresholdMilli === null || thresholdMilli % 1_000 !== 0) {
+      return rejected("invalid_input", "اكتبي الحد بعدد قطع صحيح.");
+    }
+    const counts = await this.services.inventory.reorderThresholdOverview(
+      actor,
+      thresholdMilli,
+    );
+    if (!counts.changing) {
+      return rejected("no_change", "كل الأصناف المتتبَّعة على هذا الحد أصلاً.");
+    }
+    return {
+      status: "ready",
+      operation: "reorderThresholdBulk",
+      args: { thresholdMilli },
+      summary: `حد التنبيه ${quantityText(thresholdMilli)} لـ${counts.changing} صنف`,
+      card: {
+        title: "حد التنبيه لكل الأصناف",
+        target: { label: "قائمة المخزون", href: "/admin/inventory/stock" },
+        rows: [
+          {
+            label: "الأصناف التي ستتغير",
+            before: null,
+            after: `${counts.changing} من ${counts.eligible}`,
+          },
+          {
+            label: "التنبيه عند",
+            before: null,
+            after: quantityText(thresholdMilli),
+          },
+        ],
+        impact: [
+          "لا تتغير الكميات ولا التكاليف؛ يبقى بإمكانك تغيير حد أي صنف وحده.",
+        ],
+        warnings: [],
+        confirmLabel: "تأكيد الحد",
+        destructive: false,
+      },
+    };
+  }
+
   async prepareManualSale(
     actor: AdminActor,
     input: {
@@ -1795,6 +1843,28 @@ export class AssistantOperations {
       },
     };
 
+    const reorderThresholdBulk: Handler<{ thresholdMilli: number }> = {
+      args: z.object({ thresholdMilli: z.number().int().min(0) }),
+      async version(actor, args) {
+        const counts = await s.inventory.reorderThresholdOverview(
+          actor,
+          args.thresholdMilli,
+        );
+        return `${counts.eligible}:${counts.changing}`;
+      },
+      async execute(actor, args) {
+        const result = await s.inventory.setReorderThresholdForActive(
+          actor,
+          args.thresholdMilli,
+        );
+        return {
+          message: `تم ضبط حد التنبيه لـ${result.changed} صنف.`,
+          href: "/admin/inventory/stock",
+          ref: "inventory:thresholds",
+        };
+      },
+    };
+
     const saleArgs = z.object({
       customerId: z.uuid().optional(),
       customerName: z.string().min(2).max(100).optional(),
@@ -2026,6 +2096,7 @@ export class AssistantOperations {
       inventoryCorrection,
       stockTransfer,
       reorderThreshold,
+      reorderThresholdBulk,
       manualSale,
       customerPayment,
       orderCancellation,
