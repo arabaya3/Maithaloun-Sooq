@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { connection } from "next/server";
 
 import { productRepository } from "@/features/catalog/infrastructure/product-repository";
+import { BrandMark } from "@/features/storefront/components/brand-mark";
 import { MobileNavigation } from "@/features/storefront/components/mobile-navigation";
 import { SiteHeader } from "@/features/storefront/components/site-header";
 import {
@@ -37,7 +38,9 @@ export default async function BrandsPage() {
             {brands.map((brand) => (
               <li key={brand.name}>
                 <Link href={brandPath(brand.name)} className="brand-tile">
-                  <bdi dir="auto">{brand.name}</bdi>
+                  <span className="brand-tile-mark">
+                    <BrandMark name={brand.name} />
+                  </span>
                   <small>{m.common.productCount(brand.productCount)}</small>
                 </Link>
               </li>

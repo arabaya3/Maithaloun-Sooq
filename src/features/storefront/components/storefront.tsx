@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
 
 import { categoryIcons } from "@/features/catalog/components/category-icons";
 import { ProductCard } from "@/features/catalog/components/product-card";
+import { ProductMedia } from "@/features/catalog/components/product-media";
 import {
   ALL_CATEGORIES,
   localizedCategoryName,
@@ -15,13 +16,17 @@ import { filterProducts } from "@/features/catalog/domain/product-search";
 import { Hero } from "@/features/storefront/components/hero";
 import {
   BestSellers,
+  EditorialBanners,
   FeaturedBrands,
   PromoBanners,
   StoreBenefits,
 } from "@/features/storefront/components/home-sections";
 import { MobileNavigation } from "@/features/storefront/components/mobile-navigation";
 import { SiteHeader } from "@/features/storefront/components/site-header";
-import type { CatalogBrand } from "@/features/storefront/domain/home-merchandising";
+import {
+  categoryCovers,
+  type CatalogBrand,
+} from "@/features/storefront/domain/home-merchandising";
 import { useI18n } from "@/i18n/i18n-provider";
 import { Link } from "@/i18n/link";
 
@@ -96,10 +101,12 @@ function ProductSearch({
 
 function CategoryPicker({
   categories,
+  covers,
   selected,
   onSelect,
 }: {
   categories: readonly ProductCategory[];
+  covers: ReadonlyMap<string, Product>;
   selected: CategoryId;
   onSelect: (category: CategoryId) => void;
 }) {
@@ -128,6 +135,7 @@ function CategoryPicker({
         {options.map((category) => {
           const active = selected === category.code;
           const Icon = categoryIcons[category.icon] ?? LayoutGrid;
+          const cover = covers.get(category.code);
           return (
             <button
               key={category.code}
@@ -138,8 +146,20 @@ function CategoryPicker({
               aria-pressed={active}
               onClick={() => onSelect(category.code)}
             >
-              <span className="category-icon" aria-hidden="true">
-                <Icon />
+              <span
+                className="category-icon"
+                data-cover={Boolean(cover)}
+                aria-hidden="true"
+              >
+                {cover ? (
+                  <ProductMedia
+                    product={cover}
+                    className="category-cover"
+                    sizes="112px"
+                  />
+                ) : (
+                  <Icon />
+                )}
               </span>
               <span className="category-label">{category.name}</span>
             </button>
@@ -185,6 +205,7 @@ export function Storefront({
     writeFiltersToUrl(category, value);
   };
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const covers = useMemo(() => categoryCovers(products), [products]);
 
   const filteredProducts = useMemo(
     () => filterProducts(products, { query, categoryId: category }),
@@ -231,6 +252,7 @@ export function Storefront({
         )}
         <CategoryPicker
           categories={categories}
+          covers={covers}
           selected={category}
           onSelect={setCategory}
         />
@@ -253,6 +275,7 @@ export function Storefront({
           <>
             <FeaturedBrands brands={merchandising.brands} />
             <BestSellers products={merchandising.bestSellers} />
+            <EditorialBanners categories={categories} />
             <PromoBanners
               offerProducts={merchandising.offerProducts}
               featured={merchandising.featured}

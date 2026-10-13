@@ -122,6 +122,13 @@ export function SiteHeader({ search }: { search?: ReactNode }) {
             );
           })}
           <Link
+            href="/brands"
+            className="desktop-navigation-brands"
+            aria-current={isCurrent("/brands") ? "page" : undefined}
+          >
+            {m.common.brands}
+          </Link>
+          <Link
             href="/offers"
             className="desktop-navigation-offers"
             aria-current={isCurrent("/offers") ? "page" : undefined}

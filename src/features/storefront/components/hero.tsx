@@ -1,18 +1,35 @@
 "use client";
 
 import { ArrowLeft, Banknote, Truck } from "lucide-react";
+import Image from "next/image";
 
 import { ProductMedia } from "@/features/catalog/components/product-media";
-import type { Product } from "@/features/catalog/domain/product";
+import {
+  localizedProductName,
+  type Product,
+} from "@/features/catalog/domain/product";
 import { useI18n } from "@/i18n/i18n-provider";
+import { Link } from "@/i18n/link";
+
+// Unsplash photo by PlanetCare, cropped only; see docs/brand-assets.md.
+const HERO_PHOTO = "/assets/lifestyle/laundry-room.webp";
 
 export function Hero({ products }: { products: readonly Product[] }) {
-  const { m } = useI18n();
+  const { m, locale } = useI18n();
   return (
     <section className="hero" aria-labelledby="hero-title">
+      <div className="hero-photo">
+        <Image
+          src={HERO_PHOTO}
+          alt=""
+          fill
+          priority
+          sizes="(min-width: 64rem) 600px, (min-width: 48rem) 48vw, 100vw"
+        />
+      </div>
       <div className="hero-body">
         <p className="hero-eyebrow" dir="ltr">
-          MAYTHA
+          MAYTHA · HOME &amp; CARE
         </p>
         <h1 id="hero-title">{m.store.heroTitle}</h1>
         <p className="hero-lead">{m.common.trustLine}</p>
@@ -32,25 +49,23 @@ export function Hero({ products }: { products: readonly Product[] }) {
         </ul>
       </div>
       {products.length ? (
-        <div
-          className="hero-media"
-          data-count={products.length}
-          aria-hidden="true"
-        >
-          {products.map((product, index) => (
-            <ProductMedia
-              key={product.id}
-              product={product}
-              className="hero-product"
-              sizes={
-                index === 0
-                  ? "(min-width: 64rem) 320px, 40vw"
-                  : "(min-width: 64rem) 200px, 26vw"
-              }
-              priority={index === 0}
-            />
+        <ul className="hero-picks" aria-label={m.store.heroPicks}>
+          {products.map((product) => (
+            <li key={product.id}>
+              <Link
+                href={`/products/${product.slug}`}
+                className="hero-pick"
+                aria-label={localizedProductName(product, locale)}
+              >
+                <ProductMedia
+                  product={product}
+                  className="hero-pick-image"
+                  sizes="96px"
+                />
+              </Link>
+            </li>
           ))}
-        </div>
+        </ul>
       ) : null}
     </section>
   );

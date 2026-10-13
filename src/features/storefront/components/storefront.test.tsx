@@ -102,8 +102,8 @@ describe("storefront", () => {
     expect(container.textContent).not.toMatch(
       /تقييم|خصم حتى|إرجاع سهل|دفع آمن/,
     );
-    // Without real photos there is no hero image at all.
-    expect(container.querySelector(".hero-media")).toBeNull();
+    // Without real product photos the hero shows no product picks.
+    expect(container.querySelector(".hero-picks")).toBeNull();
   });
 
   it("hides the brands row and best sellers until there is enough real data", () => {
@@ -125,7 +125,7 @@ describe("storefront", () => {
       { products },
     );
     expect(screen.queryByRole("heading", { name: "ماركات مختارة" })).toBeNull();
-    expect(screen.queryByRole("heading", { name: "الأكثر طلباً" })).toBeNull();
+    expect(screen.queryByRole("heading", { name: "منتجات مختارة" })).toBeNull();
     expect(container.querySelector(".promo-grid")).toBeNull();
   });
 
@@ -140,6 +140,7 @@ describe("storefront", () => {
             { name: "Finish", productCount: 3 },
             { name: "Arar", productCount: 2 },
             { name: "البركان", productCount: 1 },
+            { name: "Clear", productCount: 1 },
           ],
           bestSellers: [...products, products[0]!].map((product, index) => ({
             ...product,
@@ -161,12 +162,24 @@ describe("storefront", () => {
       within(brands).getByRole("link", { name: "البركان" }),
     ).toHaveAttribute("href", `/brands/${encodeURIComponent("البركان")}`);
     expect(
-      screen.getByRole("heading", { name: "الأكثر طلباً" }),
+      screen.getByRole("heading", { name: "منتجات مختارة" }),
     ).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /تسوّق العروض/ })).toHaveAttribute(
       "href",
       "/offers",
     );
+    // A verified logo replaces the wordmark; other brands keep their name.
+    expect(
+      within(brands).getByRole("link", { name: "Clear" }).querySelector("img"),
+    ).toHaveAttribute("src", "/brands/logos/clear.svg");
+    expect(
+      within(brands).getByRole("link", { name: "Finish" }).querySelector("img"),
+    ).toBeNull();
+    // Lifestyle banners lead to the real categories they picture.
+    const editorial = screen.getByRole("region", { name: "أقسام من البيت" });
+    expect(
+      within(editorial).getByRole("link", { name: /منظفات المطبخ/ }),
+    ).toHaveAttribute("href", "/categories/kitchen");
   });
 
   it("orders RTL categories from all to home and exposes selection semantics", async () => {
