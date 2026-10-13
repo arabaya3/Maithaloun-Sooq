@@ -2,10 +2,12 @@ import type { Metadata } from "next";
 
 import { appIcons } from "@/features/pwa/app-icons";
 
-// Vercel provides the production host; local and test builds resolve against localhost.
-const siteUrl = process.env.VERCEL_PROJECT_PRODUCTION_URL
-  ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
-  : "http://localhost:3000";
+// APP_ORIGIN is required in Production (the build stops without it); Vercel's host and localhost are fallbacks.
+const siteUrl =
+  process.env.APP_ORIGIN?.trim() ||
+  (process.env.VERCEL_PROJECT_PRODUCTION_URL
+    ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+    : "http://localhost:3000");
 
 export const baseMetadata: Metadata = {
   metadataBase: new URL(siteUrl),
