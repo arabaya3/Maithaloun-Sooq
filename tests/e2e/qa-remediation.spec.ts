@@ -231,7 +231,9 @@ test("owner manages categories by hand", async ({ page }) => {
   const row = page.getByRole("listitem", { name: "القسم قسم اختبار الجودة" });
   // Edits and actions sit behind each row's disclosure.
   await row.getByText("تعديل وإجراءات").click();
-  await row.getByLabel("الاسم").fill("قسم اختبار الجودة المعدل");
+  await row
+    .getByLabel("الاسم", { exact: true })
+    .fill("قسم اختبار الجودة المعدل");
   await row.getByRole("button", { name: "حفظ القسم" }).click();
   await expect(page.getByRole("status")).toHaveText("تم حفظ القسم.");
   const renamed = page.getByRole("listitem", {

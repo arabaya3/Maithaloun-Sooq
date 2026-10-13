@@ -4,7 +4,7 @@ import { join } from "node:path";
 import sharp from "sharp";
 import { describe, expect, it } from "vitest";
 
-import { metadata } from "@/app/layout";
+import { baseMetadata as metadata } from "@/app/base-metadata";
 
 import { appIcons } from "./app-icons";
 

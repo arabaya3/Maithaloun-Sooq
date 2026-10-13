@@ -1,15 +1,15 @@
 "use client";
 
 import { Heart } from "lucide-react";
-import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
 import { ProductCard } from "@/features/catalog/components/product-card";
 import {
-  getProductDisplayName,
+  localizedProductName,
   type Product,
 } from "@/features/catalog/domain/product";
-import { formatProductCount } from "@/shared/lib/format-product-count";
+import { useI18n } from "@/i18n/i18n-provider";
+import { Link } from "@/i18n/link";
 
 import { useFavorites } from "./favorites-provider";
 import { FAVORITES_SNAPSHOT_KEY } from "./favorites-snapshot";
@@ -23,6 +23,8 @@ export function FavoritesView({
   accountsEnabled: boolean;
   retiredNames: readonly string[];
 }) {
+  const { m, locale } = useI18n();
+  const t = m.account;
   const { ready, signedIn, favoriteIds, deviceOnlyIds, mergeDeviceFavorites } =
     useFavorites();
   const [mergeState, setMergeState] = useState<
@@ -42,14 +44,14 @@ export function FavoritesView({
         JSON.stringify(
           favorites.map((product) => ({
             id: product.id,
-            name: getProductDisplayName(product),
+            name: localizedProductName(product, locale),
           })),
         ),
       );
     } catch {
       // Storage can be unavailable; the offline list is a convenience only.
     }
-  }, [favorites, ready, signedIn]);
+  }, [favorites, locale, ready, signedIn]);
 
   async function merge() {
     setMergeState("pending");
@@ -60,10 +62,10 @@ export function FavoritesView({
   return (
     <>
       <div className="section-heading">
-        <h1>المفضلة</h1>
+        <h1>{t.favoritesTitle}</h1>
         {ready ? (
           <span className="results-count" aria-live="polite">
-            {formatProductCount(favorites.length)}
+            {m.common.productCount(favorites.length)}
           </span>
         ) : null}
       </div>
@@ -74,18 +76,16 @@ export function FavoritesView({
         <section className="account-card account-suggestion" aria-live="polite">
           {typeof mergeState === "object" ? (
             <p className="account-note">
-              أضفنا منتجات هذا الجهاز إلى مفضلتك ({mergeState.added}).
+              {t.mergedFavorites(mergeState.added)}
             </p>
           ) : (
             <>
               <p className="account-note">
-                لديك منتجات مفضلة محفوظة على هذا الجهاز فقط (
-                {deviceOnlyIds.length}). هل تريد إضافتها إلى حسابك؟ لن نحذف أي
-                منتج من مفضلتك.
+                {t.deviceFavorites(deviceOnlyIds.length)}
               </p>
               {mergeState === "failed" ? (
                 <p className="account-message" role="alert">
-                  تعذّرت الإضافة. حاول مرة أخرى.
+                  {t.mergeFailed}
                 </p>
               ) : null}
               <div className="account-row-actions">
@@ -95,14 +95,14 @@ export function FavoritesView({
                   disabled={mergeState === "pending"}
                   onClick={() => void merge()}
                 >
-                  إضافة إلى حسابي
+                  {t.addToAccount}
                 </button>
                 <button
                   type="button"
                   className="account-secondary"
                   onClick={() => setMergeState("dismissed")}
                 >
-                  ليس الآن
+                  {t.notNow}
                 </button>
               </div>
             </>
@@ -112,15 +112,15 @@ export function FavoritesView({
 
       {!signedIn && accountsEnabled ? (
         <p className="account-note account-inline-suggestion">
-          المفضلة محفوظة على هذا الجهاز.{" "}
-          <Link href="/account?next=/favorites">سجّل الدخول</Link> لحفظها في
-          حسابك والوصول إليها من أي جهاز.
+          {t.favoritesOnDevice}{" "}
+          <Link href="/account?next=/favorites">{t.signIn}</Link>{" "}
+          {t.favoritesSignInRest}
         </p>
       ) : null}
 
       {retiredNames.length ? (
         <p className="account-note" role="status">
-          لم تعد هذه المنتجات معروضة في المتجر: {retiredNames.join("، ")}.
+          {t.retired(retiredNames)}
         </p>
       ) : null}
 
@@ -133,9 +133,9 @@ export function FavoritesView({
       ) : (
         <div className="empty-state" role="status">
           <Heart aria-hidden="true" />
-          <h3>لا توجد منتجات في المفضلة</h3>
-          <p>اضغط على رمز القلب في أي منتج لحفظه هنا.</p>
-          <Link href="/">تصفح المنتجات</Link>
+          <h3>{t.favoritesEmpty}</h3>
+          <p>{t.favoritesEmptyHint}</p>
+          <Link href="/">{t.browseProducts}</Link>
         </div>
       )}
     </>

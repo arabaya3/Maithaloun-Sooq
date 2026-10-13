@@ -2,17 +2,27 @@ import {
   amountUntilFreeDeliveryAgorot,
   FREE_DELIVERY_THRESHOLD_AGOROT,
 } from "@/features/delivery/delivery-policy";
+import type { Locale } from "@/i18n/config";
+import { messagesFor } from "@/i18n/messages";
 import { formatIls } from "@/shared/lib/format-currency";
 
 export const FREE_DELIVERY_BANNER =
   "توصيل مجاني للطلبات بقيمة 50 ₪ أو أكثر" as const;
 
-export function getFreeDeliveryMessage(subtotalAgorot: number): string {
+export function getFreeDeliveryBanner(locale: Locale = "ar"): string {
+  return messagesFor(locale).cart.freeDeliveryBanner;
+}
+
+export function getFreeDeliveryMessage(
+  subtotalAgorot: number,
+  locale: Locale = "ar",
+): string {
+  const m = messagesFor(locale).cart;
   const remaining = amountUntilFreeDeliveryAgorot(subtotalAgorot);
   if (remaining === 0) {
-    return "مبروك، حصلت على توصيل مجاني";
+    return m.freeDeliveryReached;
   }
-  return `أضف ${formatIls(remaining)} لتحصل على توصيل مجاني`;
+  return m.freeDeliveryRemaining(formatIls(remaining));
 }
 
 export function getFreeDeliveryThresholdLabel(): string {

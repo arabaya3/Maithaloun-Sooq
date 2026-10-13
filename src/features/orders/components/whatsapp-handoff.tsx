@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 
+import { useI18n } from "@/i18n/i18n-provider";
+
 export function WhatsAppHandoff({
   message,
   appHref,
@@ -13,6 +15,7 @@ export function WhatsAppHandoff({
   webHref: string;
   autoOpen?: boolean;
 }) {
+  const m = useI18n().m.orders;
   const [copied, setCopied] = useState<"idle" | "done" | "failed">("idle");
 
   useEffect(() => {
@@ -33,27 +36,28 @@ export function WhatsAppHandoff({
 
   return (
     <section className="whatsapp-handoff" aria-labelledby="whatsapp-title">
-      <h2 id="whatsapp-title">أرسل الطلب على واتساب لتأكيده</h2>
-      <p>
-        حُفظ طلبك. إذا لم يفتح واتساب تلقائياً، استخدم أحد الأزرار التالية. يؤكد
-        المتجر الطلب بعد وصول رسالتك.
-      </p>
+      <h2 id="whatsapp-title">{m.handoffTitle}</h2>
+      <p>{m.handoffText}</p>
       <div className="whatsapp-handoff-actions">
-        <a href={appHref}>فتح واتساب</a>
-        <a href={webHref}>واتساب ويب</a>
+        <a href={appHref}>{m.openWhatsApp}</a>
+        <a href={webHref}>{m.whatsAppWeb}</a>
         <button type="button" onClick={copy}>
-          نسخ الرسالة
+          {m.copyMessage}
         </button>
       </div>
       <p className="whatsapp-handoff-status" role="status">
-        {copied === "done"
-          ? "نُسخت الرسالة. الصقها في محادثة المتجر."
-          : copied === "failed"
-            ? "تعذّر النسخ تلقائياً. انسخ النص أدناه يدوياً."
-            : ""}
+        {copied === "done" ? m.copied : copied === "failed" ? m.copyFailed : ""}
       </p>
-      <label htmlFor="whatsapp-message">نص الرسالة</label>
-      <textarea id="whatsapp-message" readOnly value={message} rows={6} />
+      <label htmlFor="whatsapp-message">{m.messageText}</label>
+      {/* The message goes to the store, so it stays Arabic. */}
+      <textarea
+        id="whatsapp-message"
+        readOnly
+        value={message}
+        rows={6}
+        dir="rtl"
+        lang="ar"
+      />
     </section>
   );
 }

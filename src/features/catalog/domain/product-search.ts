@@ -32,7 +32,7 @@ export function filterProducts(
     const searchMatches =
       !query ||
       normalizeSearchText(
-        `${getProductDisplayName(product)} ${product.brand ?? ""}`,
+        `${getProductDisplayName(product)} ${product.nameEn ?? ""} ${product.brand ?? ""}`,
       ).includes(query);
 
     return categoryMatches && searchMatches;

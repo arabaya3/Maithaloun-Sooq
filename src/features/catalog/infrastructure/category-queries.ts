@@ -32,6 +32,8 @@ export async function listStorefrontCategories(
     code: row.code,
     nameAr: row.nameAr,
     description: row.description,
+    nameEn: row.nameEn,
+    descriptionEn: row.descriptionEn,
     icon: (icons.has(row.icon) ? row.icon : "grid") as CategoryIconKey,
     sortOrder: row.sortOrder,
     visible: row.visible,

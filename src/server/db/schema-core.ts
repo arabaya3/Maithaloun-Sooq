@@ -79,6 +79,9 @@ export const productCategories = pgTable(
     code: varchar("code", { length: 40 }).primaryKey(),
     nameAr: varchar("name_ar", { length: 80 }).notNull(),
     description: text("description"),
+    // Optional English; the storefront shows the Arabic when it is empty.
+    nameEn: varchar("name_en", { length: 80 }),
+    descriptionEn: text("description_en"),
     icon: varchar("icon", { length: 30 }).notNull(),
     sortOrder: integer("sort_order").notNull(),
     visible: boolean("visible").default(true).notNull(),
@@ -112,6 +115,10 @@ export const products = pgTable(
     latinName: varchar("latin_name", { length: 120 }),
     // Shown on cards and in the brands row; optional, set by the owner, never guessed.
     brand: varchar("brand", { length: 80 }),
+    // Optional English title and texts, written by the owner; never machine-translated.
+    nameEn: varchar("name_en", { length: 160 }),
+    descriptionEn: text("description_en"),
+    usageNotesEn: text("usage_notes_en"),
     priceAgorot: integer("price_agorot").notNull(),
     sortOrder: integer("sort_order").notNull(),
     categoryId: varchar("category_id", { length: 40 })

@@ -2,30 +2,21 @@
 
 import { Share, SquarePlus } from "lucide-react";
 
+import { useI18n } from "@/i18n/i18n-provider";
 import { Sheet } from "@/shared/ui/sheet";
 
 import type { InstallScope } from "./install-state";
 
-const copy = {
-  storefront: {
-    title: "إضافة MAYTHA إلى الشاشة الرئيسية",
-    steps: [
-      "افتح زر المشاركة في المتصفح.",
-      "اختر “إضافة إلى الشاشة الرئيسية”.",
-      "اضغط “إضافة”.",
-    ],
-    other: "في متصفحات أخرى: افتح قائمة المتصفح ثم اختر “تثبيت التطبيق”.",
-  },
-  admin: {
-    title: "تثبيت تطبيق الإدارة",
-    steps: [
-      "افتحي زر المشاركة.",
-      "اختاري “إضافة إلى الشاشة الرئيسية”.",
-      "اضغطي “إضافة”.",
-    ],
-    other:
-      "على أندرويد: افتحي قائمة المتصفح ثم اختاري “تثبيت التطبيق” أو “إضافة إلى الشاشة الرئيسية”.",
-  },
+// The admin app is Arabic-only; the storefront copy comes from the pwa messages.
+const adminCopy = {
+  title: "تثبيت تطبيق الإدارة",
+  steps: [
+    "افتحي زر المشاركة.",
+    "اختاري “إضافة إلى الشاشة الرئيسية”.",
+    "اضغطي “إضافة”.",
+  ],
+  other:
+    "على أندرويد: افتحي قائمة المتصفح ثم اختاري “تثبيت التطبيق” أو “إضافة إلى الشاشة الرئيسية”.",
 } as const;
 
 const stepIcons = [Share, SquarePlus, null] as const;
@@ -39,7 +30,11 @@ export function InstallInstructions({
   open: boolean;
   onClose: () => void;
 }) {
-  const text = copy[scope];
+  const { pwa } = useI18n().m;
+  const text =
+    scope === "admin"
+      ? adminCopy
+      : { title: pwa.stepsTitle, steps: pwa.steps, other: pwa.stepsOther };
   return (
     <Sheet open={open} onClose={onClose} title={text.title}>
       <ol className="install-steps">

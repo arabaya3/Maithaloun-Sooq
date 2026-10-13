@@ -1,15 +1,27 @@
 import { ArrowRight } from "lucide-react";
 import type { Metadata } from "next";
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
 
 import { ProductCard } from "@/features/catalog/components/product-card";
+import {
+  localizedCategoryDescription,
+  localizedCategoryName,
+} from "@/features/catalog/domain/category";
 import { storefrontCategories } from "@/features/catalog/infrastructure/category-repository";
 import { productRepository } from "@/features/catalog/infrastructure/product-repository";
 import { MobileNavigation } from "@/features/storefront/components/mobile-navigation";
 import { SiteHeader } from "@/features/storefront/components/site-header";
-import { formatProductCount } from "@/shared/lib/format-product-count";
+import { Link } from "@/i18n/link";
+import { getLocale, getMessages } from "@/i18n/server";
+
+function decode(value: string): string {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return "";
+  }
+}
 
 // Only visible, non-archived categories resolve; anything else is a 404.
 async function findCategory(code: string) {
@@ -22,10 +34,18 @@ export async function generateMetadata({
 }: {
   params: Promise<{ code: string }>;
 }): Promise<Metadata> {
-  const category = await findCategory(decodeURIComponent((await params).code));
+  const [category, locale, m] = await Promise.all([
+    params.then(({ code }) => findCategory(decode(code))),
+    getLocale(),
+    getMessages(),
+  ]);
   return category
-    ? { title: category.nameAr, description: category.description ?? undefined }
-    : { title: "القسم غير موجود" };
+    ? {
+        title: localizedCategoryName(category, locale),
+        description:
+          localizedCategoryDescription(category, locale) ?? undefined,
+      }
+    : { title: m.meta.categoryMissing };
 }
 
 export default async function CategoryPage({
@@ -34,34 +54,37 @@ export default async function CategoryPage({
   params: Promise<{ code: string }>;
 }) {
   await connection();
-  const code = decodeURIComponent((await params).code);
-  const [category, products] = await Promise.all([
+  const code = decode((await params).code);
+  const [category, products, locale, m] = await Promise.all([
     findCategory(code),
     productRepository.list(),
+    getLocale(),
+    getMessages(),
   ]);
   if (!category) notFound();
   const inCategory = products.filter(
     (product) => product.categoryId === category.code,
   );
+  const description = localizedCategoryDescription(category, locale);
 
   return (
     <>
       <SiteHeader />
       <main className="page-shell categories-page">
-        <nav aria-label="مسار التصفح" className="category-breadcrumb">
+        <nav aria-label={m.common.breadcrumb} className="category-breadcrumb">
           <Link href="/categories">
-            <ArrowRight aria-hidden="true" />
-            كل الأقسام
+            <ArrowRight className="rtl-flip" aria-hidden="true" />
+            {m.store.allCategoriesBack}
           </Link>
         </nav>
         <div className="section-heading catalog-heading">
-          <h1>{category.nameAr}</h1>
+          <h1>{localizedCategoryName(category, locale)}</h1>
           <span className="results-count">
-            {formatProductCount(inCategory.length)}
+            {m.common.productCount(inCategory.length)}
           </span>
         </div>
-        {category.description ? (
-          <p className="category-description">{category.description}</p>
+        {description ? (
+          <p className="category-description">{description}</p>
         ) : null}
         {inCategory.length ? (
           <div className="product-grid">
@@ -71,8 +94,8 @@ export default async function CategoryPage({
           </div>
         ) : (
           <div className="empty-state" role="status">
-            <h2>لا توجد منتجات في هذا القسم حالياً</h2>
-            <Link href="/categories">تصفّح أقساماً أخرى</Link>
+            <h2>{m.store.emptyCategory}</h2>
+            <Link href="/categories">{m.store.browseOtherCategories}</Link>
           </div>
         )}
       </main>

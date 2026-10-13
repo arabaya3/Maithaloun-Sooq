@@ -7,6 +7,7 @@ import {
   PREVIOUS_CART_STORAGE_KEY,
 } from "@/features/cart/cart-store";
 import { CheckoutForm } from "@/features/orders/components/checkout-form";
+import { I18nProvider } from "@/i18n/i18n-provider";
 import { renderWithProviders } from "@/test/render-with-providers";
 import {
   MockProductRepository,
@@ -239,5 +240,115 @@ describe("checkout channels", () => {
     expect(phone).toHaveValue("0591234567");
     expect(phone).toHaveAttribute("aria-invalid", "true");
     expect(phone.getAttribute("aria-describedby")).toContain("whatsapp-error");
+  });
+});
+
+describe("checkout form in English", () => {
+  async function renderEnglishCheckout() {
+    const products = await new MockProductRepository().list();
+    window.localStorage.setItem(
+      PREVIOUS_CART_STORAGE_KEY,
+      JSON.stringify({
+        version: 2,
+        lines: [
+          {
+            productId: "general-cleaner",
+            variantId: "general-cleaner--default",
+            quantity: 1,
+          },
+        ],
+      }),
+    );
+    renderWithProviders(
+      <I18nProvider locale="en">
+        <CheckoutForm products={products} serviceAreas={serviceAreas} />
+      </I18nProvider>,
+      { products },
+    );
+    const user = userEvent.setup();
+    await user.type(
+      await screen.findByRole("textbox", { name: "Full name" }),
+      "Test Customer",
+    );
+    await user.type(
+      screen.getByRole("textbox", { name: "Local number" }),
+      "0591234567",
+    );
+    return user;
+  }
+
+  it("labels the form, summary and button in English", async () => {
+    vi.stubGlobal("fetch", vi.fn());
+    await renderEnglishCheckout();
+
+    expect(
+      screen.getByRole("heading", { name: "Your details" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("combobox", { name: "Country code" }),
+    ).toBeVisible();
+    expect(
+      screen.getByRole("option", { name: "Palestine +970" }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Payment method")).toBeInTheDocument();
+    expect(screen.getByText("Subtotal")).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "Delivery is currently available within Maythaloun only",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Place order" })).toBeEnabled();
+  });
+
+  it("sends the locale header, shows English field errors and keeps the cart", async () => {
+    push.mockClear();
+    const fetchMock = vi.fn().mockResolvedValue({
+      json: async () => ({
+        ok: false,
+        message: "Please check the highlighted fields.",
+        fieldErrors: {
+          whatsappNationalNumber: ["Invalid WhatsApp number."],
+        },
+      }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const user = await renderEnglishCheckout();
+    await user.click(screen.getByRole("button", { name: "Place order" }));
+
+    expect(fetchMock.mock.calls[0]![1].headers).toMatchObject({
+      "x-maytha-locale": "en",
+    });
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent("Your order couldn’t be sent");
+    expect(alert).toHaveTextContent("Please check the highlighted fields.");
+    expect(screen.getByText("Invalid WhatsApp number.")).toBeInTheDocument();
+    expect(push).not.toHaveBeenCalled();
+    expect(screen.getByText("منظف عام Secret")).toBeInTheDocument();
+  });
+
+  it("goes to the English confirmation page after success", async () => {
+    push.mockClear();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        json: async () => ({
+          ok: true,
+          confirmation: {
+            publicReference: "MS-abcdefghijklmnopqrstuvwx",
+            status: "pending",
+            itemsSubtotalAgorot: 700,
+            deliveryFeeAgorot: null,
+            finalTotalAgorot: null,
+            paymentMethod: "cash_on_delivery",
+            duplicate: false,
+          },
+        }),
+      }),
+    );
+    const user = await renderEnglishCheckout();
+    await user.click(screen.getByRole("button", { name: "Place order" }));
+    expect(push).toHaveBeenCalledWith(
+      "/en/orders/MS-abcdefghijklmnopqrstuvwx/confirmation",
+    );
   });
 });

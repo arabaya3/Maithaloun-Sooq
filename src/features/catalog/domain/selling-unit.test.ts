@@ -80,6 +80,9 @@ describe("selling unit display", () => {
     expect(unitComparison(unit("d", 3, 1300), single)?.cheaper).toBe(false);
     expect(unitComparison(unit("e", 3, 1000), null)?.cheaper).toBe(false);
     expect(unitComparison(single, single)).toBeNull();
+    expect(unitComparison(unit("b", 3, 1000), single, "en")?.perPiece).toMatch(
+      / each$/,
+    );
   });
 
   it("names packs and pieces without mixing them up", () => {
@@ -88,6 +91,8 @@ describe("selling unit display", () => {
     expect(piecesText(2)).toBe("حبتان");
     expect(piecesText(6)).toBe("6 حبات");
     expect(piecesText(12)).toBe("12 حبة");
+    expect(piecesText(1, "en")).toBe("1 piece");
+    expect(piecesText(6, "en")).toBe("6 pieces");
     expect(deductionText("باكيج 3 حبات", 3)).toBe(
       "بيع «باكيج 3 حبات» مرة واحدة يخصم 3 حبات من المخزون.",
     );

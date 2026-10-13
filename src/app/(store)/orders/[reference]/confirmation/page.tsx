@@ -1,6 +1,5 @@
 import { CheckCircle2 } from "lucide-react";
 import type { Metadata } from "next";
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
 
@@ -15,13 +14,18 @@ import {
   whatsAppLinks,
   whatsAppOrderMessage,
 } from "@/features/orders/domain/whatsapp-order";
-import { orderStatusLabels } from "@/features/orders/domain/order-status";
+import { orderStatusLabel } from "@/features/orders/domain/order-status";
+import { Link } from "@/i18n/link";
+import { getLocale, getMessages } from "@/i18n/server";
 import { formatIls } from "@/shared/lib/format-currency";
 
-export const metadata: Metadata = {
-  title: "تم استلام الطلب",
-  robots: { index: false, follow: false, nocache: true },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const m = await getMessages();
+  return {
+    title: m.meta.confirmationTitle,
+    robots: { index: false, follow: false, nocache: true },
+  };
+}
 
 export default async function OrderConfirmationPage({
   params,
@@ -32,15 +36,18 @@ export default async function OrderConfirmationPage({
 }) {
   await connection();
   const reference = (await params).reference;
-  const [confirmation, details] = await Promise.all([
+  const [confirmation, details, locale] = await Promise.all([
     orderService.getConfirmation(reference),
     orderService.getConfirmationLines(reference),
+    getLocale(),
   ]);
   if (!confirmation || !details) notFound();
+  const m = (await getMessages()).orders;
   const awaitingWhatsApp = confirmation.status === "awaiting_whatsapp";
   const storeNumber = awaitingWhatsApp
     ? await storeContactService.whatsAppNumber()
     : null;
+  // The store reads this message, so it stays Arabic in every language.
   const message = whatsAppOrderMessage({
     publicReference: confirmation.publicReference,
     lines: details.lines,
@@ -56,17 +63,16 @@ export default async function OrderConfirmationPage({
     <main className="page-shell order-confirmation-page">
       <section aria-labelledby="confirmation-title">
         <CheckCircle2 aria-hidden="true" />
-        <span className="eyebrow">تم استلام الطلب</span>
+        <span className="eyebrow">{m.received}</span>
         <h1 id="confirmation-title">
-          {awaitingWhatsApp
-            ? "خطوة أخيرة: أرسل الطلب على واتساب"
-            : "شكراً، وصل طلبك إلى المتجر"}
+          {awaitingWhatsApp ? m.lastStepWhatsApp : m.thanks}
         </h1>
         <p>
-          حالة الطلب: <strong>{orderStatusLabels[confirmation.status]}</strong>
+          {m.statusLabel}
+          <strong>{orderStatusLabel(confirmation.status, locale)}</strong>
         </p>
         <div className="order-reference">
-          <span>رقم الطلب</span>
+          <span>{m.reference}</span>
           <strong>
             <bdi dir="ltr">{confirmation.publicReference}</bdi>
           </strong>
@@ -79,16 +85,11 @@ export default async function OrderConfirmationPage({
             autoOpen={(await searchParams).handoff === "1"}
           />
         ) : awaitingWhatsApp ? (
-          <p role="note">
-            حُفظ طلبك وسيتواصل معك المتجر لتأكيده. احتفظ برقم الطلب.
-          </p>
+          <p role="note">{m.savedNoWhatsApp}</p>
         ) : (
-          <p role="note">
-            وصل طلبك إلى MAYTHA، وسنتواصل معك عبر واتساب لتأكيد الطلب ومكان
-            التوصيل.
-          </p>
+          <p role="note">{m.reachedStore}</p>
         )}
-        <ul className="order-confirmation-lines" aria-label="منتجات الطلب">
+        <ul className="order-confirmation-lines" aria-label={m.orderLines}>
           {details.lines.map((line, index) => (
             <li key={index}>
               <span>
@@ -105,42 +106,39 @@ export default async function OrderConfirmationPage({
         </ul>
         <dl>
           <div>
-            <dt>مجموع المنتجات</dt>
+            <dt>{m.subtotal}</dt>
             <dd>
               <bdi dir="ltr">{formatIls(confirmation.itemsSubtotalAgorot)}</bdi>
             </dd>
           </div>
           <div>
-            <dt>تكلفة التوصيل</dt>
+            <dt>{m.deliveryCost}</dt>
             <dd>
               {confirmation.deliveryFeeAgorot === null
-                ? "سيتم تأكيدها لاحقاً"
+                ? m.confirmedLater
                 : formatIls(confirmation.deliveryFeeAgorot)}
             </dd>
           </div>
           {confirmation.finalTotalAgorot === null ? null : (
             <div>
-              <dt>الإجمالي</dt>
+              <dt>{m.total}</dt>
               <dd>
                 <bdi dir="ltr">{formatIls(confirmation.finalTotalAgorot)}</bdi>
               </dd>
             </div>
           )}
           <div>
-            <dt>طريقة الدفع</dt>
-            <dd>نقداً عند الاستلام</dd>
+            <dt>{m.paymentMethod}</dt>
+            <dd>{m.cashOnDelivery}</dd>
           </div>
         </dl>
-        <Link href="/">العودة إلى المتجر</Link>
+        <Link href="/">{m.backToStore}</Link>
       </section>
       {suggestAccount ? (
         <aside className="account-card account-suggestion">
-          <p className="account-note">
-            أنشئ حساباً لحفظ المفضلة، متابعة الطلبات وإعادة طلب مشترياتك بسهولة.
-            يمكنك إضافة هذا الطلب لحسابك بعد تأكيد رقمك.
-          </p>
+          <p className="account-note">{m.accountSuggestion}</p>
           <Link href="/account?mode=create&next=/account/orders">
-            إنشاء حساب
+            {m.createAccount}
           </Link>
         </aside>
       ) : null}

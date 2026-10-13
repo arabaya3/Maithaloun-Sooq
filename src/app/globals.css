@@ -1196,7 +1196,8 @@ select:focus-visible {
 
 .checkout-honeypot {
   position: absolute;
-  right: -10000px;
+  /* The reading-start side, so it never widens the page in either direction. */
+  inset-inline-start: -10000px;
   width: 1px;
   height: 1px;
   overflow: hidden;
@@ -4621,4 +4622,47 @@ html[data-launch="skip"] .launch-splash {
   flex: none;
   color: var(--action);
   stroke-width: 1.6;
+}
+
+/* Arrows are drawn for Arabic; English mirrors them. */
+:root[dir="ltr"] .rtl-flip {
+  transform: scaleX(-1);
+}
+
+.language-switcher {
+  display: inline-flex;
+  min-width: 2.75rem;
+  min-height: 2.75rem;
+  align-items: center;
+  justify-content: center;
+  padding-inline: 0.5rem;
+  color: var(--text);
+  border-radius: var(--radius-pill);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-decoration: none;
+}
+
+.language-switcher:hover {
+  color: var(--action);
+}
+
+.language-switcher:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.header-language {
+  border: 1px solid var(--border);
+}
+
+.store-footer-links .language-switcher {
+  justify-content: flex-start;
+  padding-inline: 0;
+  color: var(--white);
+}
+
+.store-footer-links .language-switcher:focus-visible {
+  outline-color: var(--white);
 }

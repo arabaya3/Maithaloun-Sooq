@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { MILLI } from "@/features/inventory/domain/quantity";
+import type { Locale } from "@/i18n/config";
 import { toLatinDigits } from "@/shared/lib/digits";
 import { formatIls } from "@/shared/lib/format-currency";
 import { normalizeArabicText } from "@/shared/lib/normalize-arabic";
@@ -65,7 +66,8 @@ export function presetLabel(base: string, unitsPerSale: number | null): string {
 }
 
 /** Arabic count of base pieces: حبة واحدة، حبتان، 3 حبات، 11 حبة. */
-export function piecesText(count: number): string {
+export function piecesText(count: number, locale: Locale = "ar"): string {
+  if (locale === "en") return count === 1 ? "1 piece" : `${count} pieces`;
   if (count === 1) return "حبة واحدة";
   if (count === 2) return "حبتان";
   if (count >= 3 && count <= 10) return `${count} حبات`;
@@ -127,9 +129,11 @@ export function perPieceAgorot(priceAgorot: number, unitsPerSale: number) {
 export function unitComparison(
   unit: Pick<SellingUnit, "priceAgorot" | "unitsPerSale">,
   single: Pick<SellingUnit, "priceAgorot" | "unitsPerSale"> | null,
+  locale: Locale = "ar",
 ): { perPiece: string; cheaper: boolean } | null {
   if (unit.unitsPerSale < 2) return null;
-  const perPiece = `${formatIls(perPieceAgorot(unit.priceAgorot, unit.unitsPerSale))} للحبة`;
+  const price = formatIls(perPieceAgorot(unit.priceAgorot, unit.unitsPerSale));
+  const perPiece = locale === "en" ? `${price} each` : `${price} للحبة`;
   const cheaper =
     single !== null &&
     single.unitsPerSale === 1 &&

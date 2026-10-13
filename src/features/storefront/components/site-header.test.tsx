@@ -16,8 +16,8 @@ describe("SiteHeader", () => {
     const { container } = renderWithProviders(
       <StoreNavigationProvider
         categories={[
-          { code: "laundry", nameAr: "الغسيل" },
-          { code: "kitchen", nameAr: "المطبخ" },
+          { code: "laundry", name: "الغسيل" },
+          { code: "kitchen", name: "المطبخ" },
         ]}
       >
         <SiteHeader />

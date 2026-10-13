@@ -14,6 +14,7 @@ import {
 } from "react";
 
 import { MissingProductPhoto } from "@/features/catalog/components/product-photo";
+import { useI18n } from "@/i18n/i18n-provider";
 import type { ProductVariant } from "@/features/catalog/domain/product-variant";
 
 type ZoomImage = Extract<ProductVariant["image"], { kind: "image" }>;
@@ -33,6 +34,7 @@ export function ProductImageZoom({
   sizes?: string;
   priority?: boolean;
 }) {
+  const { m } = useI18n();
   const dialogTitleId = useId();
   const triggerRef = useRef<HTMLButtonElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
@@ -145,7 +147,7 @@ export function ProductImageZoom({
         data-image-kind="image"
         data-coarse={isCoarse}
         data-zooming={zooming}
-        aria-label="تكبير صورة المنتج"
+        aria-label={m.catalog.zoomImage}
         onClick={onTriggerClick}
         onKeyDown={onTriggerKeyDown}
         onPointerMove={updateZoom}
@@ -178,16 +180,16 @@ export function ProductImageZoom({
             onClick={(event) => event.stopPropagation()}
           >
             <h2 id={dialogTitleId} className="sr-only">
-              تكبير صورة المنتج
+              {m.catalog.zoomImage}
             </h2>
             <button
               ref={closeRef}
               type="button"
               className="product-image-zoom-close"
-              aria-label="إغلاق"
+              aria-label={m.catalog.close}
               onClick={closeDialog}
             >
-              إغلاق
+              {m.catalog.close}
             </button>
             {/* eslint-disable-next-line @next/next/no-img-element -- dialog viewer uses natural sizing */}
             <img src={image.src} alt={image.alt} />

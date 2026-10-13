@@ -1,11 +1,14 @@
 "use client";
 
 import { Heart, Menu, Search, ShoppingBag, UserRound } from "lucide-react";
-import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 
 import { useCart } from "@/features/cart/cart-provider";
+import { splitLocalePath } from "@/i18n/config";
+import { useI18n } from "@/i18n/i18n-provider";
+import { LanguageSwitcher } from "@/i18n/language-switcher";
+import { Link } from "@/i18n/link";
 
 import { BrandLogo } from "./brand-logo";
 import { useNavigationCategories } from "./store-navigation";
@@ -14,10 +17,11 @@ const HEADER_CATEGORY_LIMIT = 6;
 
 /** A plain search for pages without the live catalog; it lands on the home page with the query. */
 function HeaderSearchForm() {
+  const { m, href } = useI18n();
   return (
-    <form className="search-wrap" action="/" role="search">
+    <form className="search-wrap" action={href("/")} role="search">
       <label htmlFor="header-search" className="sr-only">
-        ابحث في المنتجات
+        {m.store.searchLabel}
       </label>
       <Search aria-hidden="true" />
       <input
@@ -25,7 +29,7 @@ function HeaderSearchForm() {
         name="q"
         type="search"
         enterKeyHint="search"
-        placeholder="ابحث عن منتج أو ماركة…"
+        placeholder={m.store.searchPlaceholder}
         autoComplete="off"
       />
     </form>
@@ -34,7 +38,8 @@ function HeaderSearchForm() {
 
 export function SiteHeader({ search }: { search?: ReactNode }) {
   const { count } = useCart();
-  const pathname = usePathname() ?? "";
+  const { m } = useI18n();
+  const pathname = splitLocalePath(usePathname() ?? "/").path;
   const categories = useNavigationCategories();
   const isCurrent = (href: string) =>
     href === "/" ? pathname === "/" : pathname.startsWith(href);
@@ -45,20 +50,21 @@ export function SiteHeader({ search }: { search?: ReactNode }) {
         <Link
           href="/categories"
           className="header-icon header-menu"
-          aria-label="كل الأقسام"
+          aria-label={m.store.allCategories}
         >
           <Menu aria-hidden="true" />
         </Link>
         <BrandLogo />
         <div className="header-search">{search ?? <HeaderSearchForm />}</div>
-        <nav className="header-actions" aria-label="حسابي والسلة">
+        <nav className="header-actions" aria-label={m.store.accountAndCart}>
+          <LanguageSwitcher className="header-language" />
           <Link
             href="/account"
             className="header-action header-action-wide"
             aria-current={isCurrent("/account") ? "page" : undefined}
           >
             <UserRound aria-hidden="true" />
-            <span>حسابي</span>
+            <span>{m.common.account}</span>
           </Link>
           <Link
             href="/favorites"
@@ -66,7 +72,7 @@ export function SiteHeader({ search }: { search?: ReactNode }) {
             aria-current={isCurrent("/favorites") ? "page" : undefined}
           >
             <Heart aria-hidden="true" />
-            <span>المفضلة</span>
+            <span>{m.common.favorites}</span>
           </Link>
           <Link href="/cart" className="header-action cart-button">
             <span className="cart-icon">
@@ -78,16 +84,16 @@ export function SiteHeader({ search }: { search?: ReactNode }) {
               ) : null}
             </span>
             <span className="header-action-label" aria-hidden="true">
-              السلة
+              {m.common.cart}
             </span>
             <span className="sr-only" aria-live="polite">
-              السلة، عدد المنتجات {count}
+              {m.store.cartCount(count)}
             </span>
           </Link>
         </nav>
       </div>
 
-      <nav className="desktop-navigation" aria-label="التنقل الرئيسي">
+      <nav className="desktop-navigation" aria-label={m.store.mainNavigation}>
         <div className="page-shell desktop-navigation-row">
           <Link
             href="/categories"
@@ -101,7 +107,7 @@ export function SiteHeader({ search }: { search?: ReactNode }) {
             }
           >
             <Menu aria-hidden="true" />
-            الأقسام
+            {m.common.categories}
           </Link>
           {categories.slice(0, HEADER_CATEGORY_LIMIT).map((category) => {
             const href = `/categories/${encodeURIComponent(category.code)}`;
@@ -111,7 +117,7 @@ export function SiteHeader({ search }: { search?: ReactNode }) {
                 href={href}
                 aria-current={pathname === href ? "page" : undefined}
               >
-                {category.nameAr}
+                {category.name}
               </Link>
             );
           })}
@@ -120,7 +126,7 @@ export function SiteHeader({ search }: { search?: ReactNode }) {
             className="desktop-navigation-offers"
             aria-current={isCurrent("/offers") ? "page" : undefined}
           >
-            العروض
+            {m.common.offers}
           </Link>
         </div>
       </nav>

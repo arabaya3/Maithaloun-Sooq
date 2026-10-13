@@ -5,6 +5,7 @@ import {
   isVariantAvailable,
   type ProductVariant,
 } from "@/features/catalog/domain/product-variant";
+import { useI18n } from "@/i18n/i18n-provider";
 
 export function VariantSelector({
   variants,
@@ -15,9 +16,11 @@ export function VariantSelector({
   selectedVariantId: string;
   onSelect: (variantId: string) => void;
 }) {
+  const { m } = useI18n();
   if (variants.length < 2) return null;
 
-  const attributeLabel = getVariantAttributeLabel(variants) ?? "الخيار";
+  const attributeLabel =
+    getVariantAttributeLabel(variants) ?? m.catalog.defaultAttribute;
   const sorted = [...variants].sort(
     (left, right) => left.sortOrder - right.sortOrder,
   );

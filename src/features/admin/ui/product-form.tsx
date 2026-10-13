@@ -603,6 +603,47 @@ function EditProductForm({
           </details>
 
           <details className="admin-disclosure">
+            <summary>النسخة الإنجليزية اختياري</summary>
+            <p className="admin-muted">
+              تظهر لزوار الموقع بالإنجليزية. إذا تُركت فارغة يظهر الاسم والوصف
+              الأصليان.
+            </p>
+            <label htmlFor="product-name-en">
+              الاسم بالإنجليزية
+              <input
+                id="product-name-en"
+                name="nameEn"
+                dir="ltr"
+                lang="en"
+                maxLength={160}
+                defaultValue={product.nameEn ?? ""}
+              />
+            </label>
+            <label htmlFor="product-description-en">
+              الوصف بالإنجليزية
+              <textarea
+                id="product-description-en"
+                name="descriptionEn"
+                dir="ltr"
+                lang="en"
+                rows={4}
+                defaultValue={product.descriptionEn ?? ""}
+              />
+            </label>
+            <label htmlFor="product-usage-en">
+              ملاحظات الاستخدام بالإنجليزية
+              <textarea
+                id="product-usage-en"
+                name="usageNotesEn"
+                dir="ltr"
+                lang="en"
+                rows={3}
+                defaultValue={product.usageNotesEn ?? ""}
+              />
+            </label>
+          </details>
+
+          <details className="admin-disclosure">
             <summary>حالة التفاصيل والصورة المؤقتة</summary>
             <label htmlFor="product-details-status">
               حالة التفاصيل

@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 
@@ -12,7 +11,7 @@ import {
 import { cartLineKey } from "@/features/cart/cart-store";
 import { useCart } from "@/features/cart/cart-provider";
 import {
-  getProductDisplayName,
+  localizedProductName,
   type Product,
 } from "@/features/catalog/domain/product";
 import { formatVariantAttributes } from "@/features/catalog/domain/product-variant";
@@ -24,15 +23,10 @@ import type { ServiceArea } from "@/features/delivery/service-area";
 import { orderApiResponseSchema } from "@/features/orders/domain/order-confirmation";
 import { WHATSAPP_COUNTRY_CODES } from "@/features/orders/domain/phone";
 import type { CheckoutChannel } from "@/features/orders/domain/whatsapp-order";
+import { LOCALE_HEADER, localizePath } from "@/i18n/config";
+import { useI18n } from "@/i18n/i18n-provider";
+import { Link } from "@/i18n/link";
 import { formatIls } from "@/shared/lib/format-currency";
-
-const WHATSAPP_PREFIX_LABELS: Record<
-  (typeof WHATSAPP_COUNTRY_CODES)[number],
-  string
-> = {
-  "970": "فلسطين +970",
-  "972": "فلسطين/الداخل +972",
-};
 
 export interface CheckoutPrefill {
   customerName: string;
@@ -54,6 +48,9 @@ export function CheckoutForm({
   channel?: CheckoutChannel;
 }) {
   const router = useRouter();
+  const { m: messages, locale } = useI18n();
+  const m = messages.checkout;
+  const cartText = messages.cart;
   const { lines, ready, clearCart } = useCart();
   // One key per way of sending, so trying the other channel after a failure is a new attempt.
   const [idempotencyKeys] = useState(() => ({
@@ -82,7 +79,10 @@ export function CheckoutForm({
   const merchandiseSubtotal = cartMerchandiseSubtotal(resolvedLines);
   const deliveryFeeAgorot = calculateDeliveryFeeAgorot(merchandiseSubtotal);
   const orderTotal = merchandiseSubtotal + deliveryFeeAgorot;
-  const freeDeliveryMessage = getFreeDeliveryMessage(merchandiseSubtotal);
+  const freeDeliveryMessage = getFreeDeliveryMessage(
+    merchandiseSubtotal,
+    locale,
+  );
   const freeDeliveryQualified =
     deliveryFeeAgorot === 0 && merchandiseSubtotal > 0;
   const maythalunEnabled = serviceAreas.some(
@@ -111,9 +111,7 @@ export function CheckoutForm({
 
     if (!canSubmit) {
       setGeneralError(
-        !maythalunEnabled
-          ? "التوصيل متاح حالياً داخل ميثلون فقط."
-          : "راجع السلة قبل إرسال الطلب.",
+        !maythalunEnabled ? m.deliveryOnlyMaythalun : m.reviewCartFirst,
       );
       focusErrorSummary();
       return;
@@ -144,12 +142,16 @@ export function CheckoutForm({
     try {
       const response = await fetch("/api/orders", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        // The proxy doesn't run on /api, so the language travels with the request.
+        headers: {
+          "Content-Type": "application/json",
+          [LOCALE_HEADER]: locale,
+        },
         body: JSON.stringify(requestBody),
       });
       const parsed = orderApiResponseSchema.safeParse(await response.json());
       if (!parsed.success) {
-        setGeneralError("تعذّر قراءة نتيجة الطلب. لم تُمسح السلة.");
+        setGeneralError(m.unreadableResult);
         focusErrorSummary();
         return;
       }
@@ -164,12 +166,15 @@ export function CheckoutForm({
       const confirmation = `/orders/${parsed.data.confirmation.publicReference}/confirmation`;
       // The WhatsApp hand-off happens on the confirmation page, in this same tab.
       router.push(
-        checkoutChannel === "whatsapp"
-          ? `${confirmation}?handoff=1`
-          : confirmation,
+        localizePath(
+          locale,
+          checkoutChannel === "whatsapp"
+            ? `${confirmation}?handoff=1`
+            : confirmation,
+        ),
       );
     } catch {
-      setGeneralError("تعذّر الاتصال بالخادم. لم تُمسح السلة.");
+      setGeneralError(m.connectionFailed);
       focusErrorSummary();
     } finally {
       setSubmitting(false);
@@ -179,7 +184,7 @@ export function CheckoutForm({
   if (!ready) {
     return (
       <div className="checkout-loading" role="status">
-        جارٍ تحميل بيانات السلة…
+        {m.loading}
       </div>
     );
   }
@@ -197,17 +202,15 @@ export function CheckoutForm({
     <form className="checkout-layout" onSubmit={submitOrder} noValidate>
       <div className="checkout-fields">
         <div>
-          <span className="eyebrow">الدفع عند الاستلام</span>
-          <h1>بيانات الطلب</h1>
+          <span className="eyebrow">{m.eyebrow}</span>
+          <h1>{m.title}</h1>
           {prefill ? (
-            <p className="checkout-field-help">
-              عبّأنا بياناتك من حسابك، ويمكنك تعديلها لهذا الطلب.
-            </p>
+            <p className="checkout-field-help">{m.prefilled}</p>
           ) : signInHint ? (
             <p className="checkout-field-help">
-              يمكنك الطلب كضيف مباشرة، أو{" "}
-              <Link href="/account?next=/checkout">تسجيل الدخول</Link> لتعبئة
-              بياناتك.
+              {m.signInBefore}
+              <Link href="/account?next=/checkout">{m.signIn}</Link>
+              {m.signInAfter}
             </p>
           ) : null}
         </div>
@@ -219,14 +222,14 @@ export function CheckoutForm({
             role="alert"
             tabIndex={-1}
           >
-            <h2>تعذّر إرسال الطلب</h2>
+            <h2>{m.errorTitle}</h2>
             <p>{generalError}</p>
           </div>
         ) : null}
 
         {/* The error sits outside the label so it never becomes part of the field's name. */}
         <div className="checkout-field">
-          <label htmlFor="checkout-customer-name">الاسم</label>
+          <label htmlFor="checkout-customer-name">{m.name}</label>
           <input
             id="checkout-customer-name"
             name="customerName"
@@ -247,10 +250,10 @@ export function CheckoutForm({
         </div>
 
         <fieldset className="checkout-field checkout-whatsapp-field">
-          <legend>رقم الواتساب</legend>
+          <legend>{m.whatsappLegend}</legend>
           <div className="checkout-whatsapp-row">
             <label className="checkout-whatsapp-prefix">
-              <span className="sr-only">مفتاح الدولة</span>
+              <span className="sr-only">{m.countryCode}</span>
               <select
                 name="whatsappCountryCode"
                 defaultValue={prefill?.countryCode ?? "970"}
@@ -259,13 +262,13 @@ export function CheckoutForm({
               >
                 {WHATSAPP_COUNTRY_CODES.map((code) => (
                   <option key={code} value={code}>
-                    {WHATSAPP_PREFIX_LABELS[code]}
+                    {m.prefixLabels[code]}
                   </option>
                 ))}
               </select>
             </label>
             <label className="checkout-whatsapp-national">
-              <span className="sr-only">الرقم المحلي</span>
+              <span className="sr-only">{m.localNumber}</span>
               <input
                 name="whatsappNationalNumber"
                 type="tel"
@@ -280,7 +283,7 @@ export function CheckoutForm({
             </label>
           </div>
           <small id="whatsapp-help" className="checkout-field-help">
-            يُستخدم رقم الواتساب فقط لتأكيد الطلب وتنفيذ التوصيل.
+            {m.whatsappHelp}
           </small>
           {fieldErrors.whatsappCountryCode ||
           fieldErrors.whatsappNationalNumber ? (
@@ -292,7 +295,7 @@ export function CheckoutForm({
         </fieldset>
 
         <label className="checkout-honeypot" aria-hidden="true">
-          <span>موقع الشركة</span>
+          <span>{m.honeypot}</span>
           <input
             name="companyWebsite"
             type="text"
@@ -301,39 +304,28 @@ export function CheckoutForm({
           />
         </label>
 
-        <p className="checkout-contact-note">
-          بعد استلام الطلب سنتواصل معك عبر واتساب لتأكيد الطلب ومكان التوصيل
-          داخل ميثلون.
-        </p>
+        <p className="checkout-contact-note">{m.contactNote}</p>
 
         <section className="payment-method" aria-labelledby="payment-title">
-          <h2 id="payment-title">طريقة الدفع</h2>
-          <p>الدفع نقداً عند الاستلام</p>
+          <h2 id="payment-title">{m.paymentTitle}</h2>
+          <p>{m.paymentText}</p>
         </section>
       </div>
 
       <aside className="checkout-summary" aria-labelledby="summary-title">
-        <h2 id="summary-title">ملخص الطلب</h2>
-        <p className="checkout-service-note">
-          التوصيل متاح حالياً داخل ميثلون فقط
-        </p>
+        <h2 id="summary-title">{cartText.summaryTitle}</h2>
+        <p className="checkout-service-note">{m.serviceNote}</p>
         {!resolvedLines.length ? (
-          <p className="checkout-blocker">السلة فارغة. أضف منتجات أولاً.</p>
+          <p className="checkout-blocker">{m.cartEmpty}</p>
         ) : null}
         {hasUnavailableProduct ? (
-          <p className="checkout-blocker">
-            تحتوي السلة على منتج غير متاح حالياً أو بكمية أكبر من المتوفر.
-          </p>
+          <p className="checkout-blocker">{m.unavailableProduct}</p>
         ) : null}
         {needsUnitReview ? (
-          <p className="checkout-blocker">
-            تغيّرت طريقة شراء أحد المنتجات. راجع السلة واختر طريقة شراء متاحة.
-          </p>
+          <p className="checkout-blocker">{m.unitReview}</p>
         ) : null}
         {!maythalunEnabled ? (
-          <p className="checkout-blocker">
-            التوصيل متاح حالياً داخل ميثلون فقط.
-          </p>
+          <p className="checkout-blocker">{m.deliveryOnlyMaythalun}</p>
         ) : null}
 
         <div className="checkout-items">
@@ -351,7 +343,7 @@ export function CheckoutForm({
               <div key={cartLineKey(line)}>
                 <span>
                   <bdi dir="auto">
-                    {getProductDisplayName(resolved.product)}
+                    {localizedProductName(resolved.product, locale)}
                   </bdi>
                   {unit && showUnit ? (
                     <>
@@ -384,19 +376,19 @@ export function CheckoutForm({
 
         <div className="checkout-summary-rows">
           <div className="checkout-total">
-            <span>مجموع المنتجات</span>
+            <span>{cartText.subtotal}</span>
             <strong>
               <bdi dir="ltr">{formatIls(merchandiseSubtotal)}</bdi>
             </strong>
           </div>
           <div className="checkout-delivery">
-            <span>التوصيل</span>
+            <span>{cartText.delivery}</span>
             <strong>
               <bdi dir="ltr">{formatIls(deliveryFeeAgorot)}</bdi>
             </strong>
           </div>
           <div className="checkout-total">
-            <span>الإجمالي</span>
+            <span>{cartText.total}</span>
             <strong>
               <bdi dir="ltr">{formatIls(orderTotal)}</bdi>
             </strong>
@@ -417,14 +409,12 @@ export function CheckoutForm({
           disabled={!canSubmit || submitting}
         >
           {submitting
-            ? "جارٍ إرسال الطلب…"
+            ? m.submitting
             : channel === "whatsapp"
-              ? "إرسال الطلب عبر واتساب"
-              : "إرسال الطلب عبر الموقع"}
+              ? m.submitWhatsApp
+              : m.submitWeb}
         </button>
-        <p className="checkout-privacy">
-          تُستخدم هذه البيانات لتنفيذ هذا الطلب فقط.
-        </p>
+        <p className="checkout-privacy">{m.privacy}</p>
       </aside>
     </form>
   );

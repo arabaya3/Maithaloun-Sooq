@@ -2,6 +2,8 @@
 
 import { useSyncExternalStore } from "react";
 
+import { useI18n } from "@/i18n/i18n-provider";
+
 import {
   FAVORITES_SNAPSHOT_KEY,
   readFavoritesSnapshot,
@@ -16,6 +18,7 @@ function readRaw(): string | null {
 }
 
 export function OfflineFavorites() {
+  const t = useI18n().m.account;
   const raw = useSyncExternalStore(
     () => () => undefined,
     readRaw,
@@ -25,13 +28,13 @@ export function OfflineFavorites() {
   if (!saved.length) return null;
   return (
     <section className="offline-favorites" aria-labelledby="offline-favorites">
-      <h2 id="offline-favorites">مفضلتك المحفوظة على هذا الجهاز</h2>
+      <h2 id="offline-favorites">{t.offlineFavoritesTitle}</h2>
       <ul>
         {saved.map((item) => (
           <li key={item.id}>{item.name}</li>
         ))}
       </ul>
-      <p>الأسعار والتوفر تظهر عند عودة الاتصال.</p>
+      <p>{t.offlineFavoritesNote}</p>
     </section>
   );
 }

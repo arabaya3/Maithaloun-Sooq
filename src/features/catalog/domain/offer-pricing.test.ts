@@ -56,6 +56,9 @@ describe("offer pricing", () => {
       offerId: "o1",
     });
     expect(offerLabel(variant.offer)).toBe("خصم 10٪ عند شراء 3 أو أكثر");
+    expect(offerLabel(variant.offer, "en")).toBe(
+      "10% off when you buy 3 or more",
+    );
   });
 
   it("treats the start as inclusive and the end as exclusive", () => {

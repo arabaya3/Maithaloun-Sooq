@@ -2,11 +2,17 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { messagesFor } from "@/i18n/messages";
 import OfflinePage from "@/app/(store)/~offline/page";
 
 import { LAUNCH_SESSION_KEY, StoreLaunchSplash } from "./store-launch-splash";
+
+vi.mock("@/i18n/server", () => ({
+  getLocale: async () => "ar",
+  getMessages: async () => messagesFor("ar"),
+}));
 
 const css = readFileSync(join(process.cwd(), "src/app/globals.css"), "utf8");
 
@@ -21,8 +27,8 @@ afterEach(() => {
 });
 
 describe("StoreLaunchSplash", () => {
-  it("shows the MAYTHA wordmark, with decoration hidden from screen readers", () => {
-    const { container } = render(<StoreLaunchSplash />);
+  it("shows the MAYTHA wordmark, with decoration hidden from screen readers", async () => {
+    const { container } = render(await StoreLaunchSplash());
     const brand = container.querySelector(".launch-splash-brand");
     expect(brand).toHaveAttribute("aria-hidden", "true");
     expect(brand?.querySelector(".brand-name")).toHaveTextContent("MAYTHA");
@@ -34,25 +40,25 @@ describe("StoreLaunchSplash", () => {
     expect(container.innerHTML).not.toContain("/icons/icon-");
   });
 
-  it("marks the app ready once it hydrates, so the splash exits", () => {
-    render(<StoreLaunchSplash />);
+  it("marks the app ready once it hydrates, so the splash exits", async () => {
+    render(await StoreLaunchSplash());
     expect(document.documentElement.dataset.launch).toBe("ready");
     expect(rule('html[data-launch="ready"] .launch-splash')).toContain(
       "visibility: hidden",
     );
   });
 
-  it("keeps a skipped launch skipped for reloads and navigations in the session", () => {
+  it("keeps a skipped launch skipped for reloads and navigations in the session", async () => {
     document.documentElement.dataset.launch = "skip";
-    render(<StoreLaunchSplash />);
+    render(await StoreLaunchSplash());
     expect(document.documentElement.dataset.launch).toBe("skip");
     expect(rule('html[data-launch="skip"] .launch-splash')).toContain(
       "display: none",
     );
   });
 
-  it("runs the pre-paint session check against sessionStorage only", () => {
-    const { container } = render(<StoreLaunchSplash />);
+  it("runs the pre-paint session check against sessionStorage only", async () => {
+    const { container } = render(await StoreLaunchSplash());
     const script = container.querySelector("script")?.textContent ?? "";
     expect(script).toContain(LAUNCH_SESSION_KEY);
     expect(script).toContain("sessionStorage");
@@ -81,8 +87,8 @@ describe("StoreLaunchSplash", () => {
 });
 
 describe("offline page", () => {
-  it("uses the MAYTHA app icon", () => {
-    render(<OfflinePage />);
+  it("uses the MAYTHA app icon", async () => {
+    render(await OfflinePage());
     const logo = screen.getByAltText("MAYTHA");
     expect(decodeURIComponent(logo.getAttribute("src") ?? "")).toContain(
       "/brand/app/icon-192-v3.png",

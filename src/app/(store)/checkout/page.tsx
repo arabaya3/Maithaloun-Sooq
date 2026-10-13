@@ -11,11 +11,15 @@ import { CheckoutForm } from "@/features/orders/components/checkout-form";
 import type { CheckoutChannel } from "@/features/orders/domain/whatsapp-order";
 import { MobileNavigation } from "@/features/storefront/components/mobile-navigation";
 import { SiteHeader } from "@/features/storefront/components/site-header";
+import { getMessages } from "@/i18n/server";
 
-export const metadata: Metadata = {
-  title: "إتمام الطلب",
-  robots: { index: false, follow: false },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const m = await getMessages();
+  return {
+    title: m.meta.checkoutTitle,
+    robots: { index: false, follow: false },
+  };
+}
 
 export default async function CheckoutPage({
   searchParams,

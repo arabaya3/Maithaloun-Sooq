@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 
@@ -17,6 +16,8 @@ import {
   formatWhatsAppDisplay,
   normalizeWhatsAppPhone,
 } from "@/features/orders/domain/phone";
+import { useI18n } from "@/i18n/i18n-provider";
+import { Link } from "@/i18n/link";
 
 type Feedback = { tone: "ok" | "error"; text: string } | null;
 
@@ -35,6 +36,8 @@ function FeedbackLine({ feedback }: { feedback: Feedback }) {
 
 export function AccountDashboard({ profile }: { profile: CustomerProfile }) {
   const router = useRouter();
+  const { m, href } = useI18n();
+  const t = m.account;
   const [profileFeedback, setProfileFeedback] = useState<Feedback>(null);
   const [addressFeedback, setAddressFeedback] = useState<Feedback>(null);
   const [sessionFeedback, setSessionFeedback] = useState<Feedback>(null);
@@ -51,7 +54,7 @@ export function AccountDashboard({ profile }: { profile: CustomerProfile }) {
     setFeedback(
       result.ok
         ? { tone: "ok", text: success }
-        : { tone: "error", text: result.message ?? "تعذّر الحفظ." },
+        : { tone: "error", text: result.message ?? t.saveFailed },
     );
     if (result.ok) router.refresh();
     return result.ok;
@@ -68,10 +71,7 @@ export function AccountDashboard({ profile }: { profile: CustomerProfile }) {
         )
       : null;
     if (national && !whatsappE164) {
-      setProfileFeedback({
-        tone: "error",
-        text: "رقم الواتساب غير صحيح. اكتب رقماً يبدأ بـ 05.",
-      });
+      setProfileFeedback({ tone: "error", text: t.invalidWhatsApp });
       return;
     }
     void run(
@@ -82,7 +82,7 @@ export function AccountDashboard({ profile }: { profile: CustomerProfile }) {
           personalizationEnabled: form.get("personalization") === "on",
         }),
       setProfileFeedback,
-      "تم حفظ البيانات.",
+      t.profileSaved,
     );
   }
 
@@ -99,7 +99,7 @@ export function AccountDashboard({ profile }: { profile: CustomerProfile }) {
           isDefault: form.get("isDefault") === "on",
         }),
       setAddressFeedback,
-      "تمت إضافة العنوان.",
+      t.addressAdded,
     ).then((ok) => {
       if (ok) formElement.reset();
     });
@@ -109,9 +109,9 @@ export function AccountDashboard({ profile }: { profile: CustomerProfile }) {
     const ok = await run(
       () => logoutAction(scope),
       setSessionFeedback,
-      "تم تسجيل الخروج.",
+      t.signedOutDone,
     );
-    if (ok) router.replace("/account");
+    if (ok) router.replace(href("/account"));
   }
 
   async function deleteAccount(event: FormEvent<HTMLFormElement>) {
@@ -120,9 +120,9 @@ export function AccountDashboard({ profile }: { profile: CustomerProfile }) {
     const ok = await run(
       () => deleteAccountAction(String(form.get("confirmation") ?? "")),
       setSessionFeedback,
-      "تم حذف الحساب.",
+      t.accountDeleted,
     );
-    if (ok) router.replace("/");
+    if (ok) router.replace(href("/"));
   }
 
   const whatsappCountry = profile.whatsappE164?.startsWith("+972")
@@ -134,20 +134,20 @@ export function AccountDashboard({ profile }: { profile: CustomerProfile }) {
 
   return (
     <div className="account-sections">
-      <nav className="account-shortcuts" aria-label="اختصارات الحساب">
-        <Link href="/account/orders">طلباتي</Link>
-        <Link href="/favorites">المفضلة</Link>
+      <nav className="account-shortcuts" aria-label={t.accountShortcuts}>
+        <Link href="/account/orders">{t.myOrders}</Link>
+        <Link href="/favorites">{t.favorites}</Link>
       </nav>
 
       <section className="account-card" aria-labelledby="profile-title">
-        <h2 id="profile-title">بياناتي</h2>
+        <h2 id="profile-title">{t.profileTitle}</h2>
         <p className="account-note">
-          رقم الجوال المؤكد:{" "}
+          {t.verifiedPhone}{" "}
           <bdi dir="ltr">{formatWhatsAppDisplay(profile.phoneE164)}</bdi>
         </p>
         <form className="account-form" onSubmit={saveProfile}>
           <label className="checkout-field">
-            <span>الاسم</span>
+            <span>{t.name}</span>
             <input
               name="displayName"
               autoComplete="name"
@@ -156,17 +156,17 @@ export function AccountDashboard({ profile }: { profile: CustomerProfile }) {
             />
           </label>
           <fieldset className="checkout-field checkout-whatsapp-field">
-            <legend>رقم واتساب مختلف (اختياري)</legend>
+            <legend>{t.whatsappLegend}</legend>
             <div className="checkout-whatsapp-row">
               <label className="checkout-whatsapp-prefix">
-                <span className="sr-only">مفتاح الدولة</span>
+                <span className="sr-only">{t.countryCode}</span>
                 <select name="whatsappCountry" defaultValue={whatsappCountry}>
                   <option value="970">+970</option>
                   <option value="972">+972</option>
                 </select>
               </label>
               <label className="checkout-whatsapp-national">
-                <span className="sr-only">رقم الواتساب</span>
+                <span className="sr-only">{t.whatsappNumber}</span>
                 <input
                   name="whatsappNational"
                   type="tel"
@@ -185,21 +185,20 @@ export function AccountDashboard({ profile }: { profile: CustomerProfile }) {
               defaultChecked={profile.personalizationEnabled}
               aria-describedby="personalization-help"
             />
-            <span>استخدام سجل مشترياتي لتحسين اقتراحات المنتجات</span>
+            <span>{t.personalization}</span>
           </label>
           <small id="personalization-help" className="checkout-field-help">
-            نستخدم المنتجات التي طلبتها ومفضلتك فقط، ويمكنك إيقافه في أي وقت.
-            إيقافه لا يحذف طلباتك.
+            {t.personalizationHelp}
           </small>
           <FeedbackLine feedback={profileFeedback} />
           <button type="submit" className="account-primary" disabled={pending}>
-            حفظ البيانات
+            {t.saveProfile}
           </button>
         </form>
       </section>
 
       <section className="account-card" aria-labelledby="addresses-title">
-        <h2 id="addresses-title">عناوين التوصيل</h2>
+        <h2 id="addresses-title">{t.addressesTitle}</h2>
         {profile.addresses.length ? (
           <ul className="account-addresses">
             {profile.addresses.map((address) => (
@@ -207,7 +206,7 @@ export function AccountDashboard({ profile }: { profile: CustomerProfile }) {
                 <div>
                   <strong>{address.label}</strong>
                   {address.isDefault ? (
-                    <span className="account-badge">الافتراضي</span>
+                    <span className="account-badge">{t.defaultBadge}</span>
                   ) : null}
                   <p>{address.address}</p>
                   {address.landmark ? <p>{address.landmark}</p> : null}
@@ -230,11 +229,11 @@ export function AccountDashboard({ profile }: { profile: CustomerProfile }) {
                               address.id,
                             ),
                           setAddressFeedback,
-                          "تم تعيين العنوان الافتراضي.",
+                          t.defaultSet,
                         )
                       }
                     >
-                      اجعله الافتراضي
+                      {t.makeDefault}
                     </button>
                   )}
                   <button
@@ -244,29 +243,32 @@ export function AccountDashboard({ profile }: { profile: CustomerProfile }) {
                       void run(
                         () => deleteAddressAction(address.id),
                         setAddressFeedback,
-                        "تم حذف العنوان.",
+                        t.addressDeleted,
                       )
                     }
                   >
-                    حذف
+                    {t.delete}
                   </button>
                 </div>
               </li>
             ))}
           </ul>
         ) : (
-          <p className="account-note">
-            لا توجد عناوين محفوظة. أضف عنواناً ليُعبّأ تلقائياً عند الطلب.
-          </p>
+          <p className="account-note">{t.noAddresses}</p>
         )}
         {profile.addresses.length < MAX_SAVED_ADDRESSES ? (
           <form className="account-form" onSubmit={addAddress}>
             <label className="checkout-field">
-              <span>اسم العنوان</span>
-              <input name="label" placeholder="البيت" maxLength={40} required />
+              <span>{t.addressLabel}</span>
+              <input
+                name="label"
+                placeholder={t.addressLabelPlaceholder}
+                maxLength={40}
+                required
+              />
             </label>
             <label className="checkout-field">
-              <span>العنوان بالتفصيل</span>
+              <span>{t.addressDetails}</span>
               <textarea
                 name="address"
                 rows={3}
@@ -276,12 +278,12 @@ export function AccountDashboard({ profile }: { profile: CustomerProfile }) {
               />
             </label>
             <label className="checkout-field">
-              <span>أقرب نقطة دالة (اختياري)</span>
+              <span>{t.landmark}</span>
               <input name="landmark" maxLength={150} />
             </label>
             <label className="account-toggle">
               <input type="checkbox" name="isDefault" />
-              <span>اجعله العنوان الافتراضي</span>
+              <span>{t.setAsDefault}</span>
             </label>
             <FeedbackLine feedback={addressFeedback} />
             <button
@@ -289,7 +291,7 @@ export function AccountDashboard({ profile }: { profile: CustomerProfile }) {
               className="account-secondary"
               disabled={pending}
             >
-              إضافة العنوان
+              {t.addAddress}
             </button>
           </form>
         ) : (
@@ -298,15 +300,12 @@ export function AccountDashboard({ profile }: { profile: CustomerProfile }) {
       </section>
 
       <section className="account-card" aria-labelledby="notifications-title">
-        <h2 id="notifications-title">الإشعارات</h2>
-        <p className="account-note">
-          لا نرسل لك أي رسائل تسويقية. سيتواصل المتجر معك عبر واتساب بخصوص
-          طلباتك فقط.
-        </p>
+        <h2 id="notifications-title">{t.notificationsTitle}</h2>
+        <p className="account-note">{t.notificationsNote}</p>
       </section>
 
       <section className="account-card" aria-labelledby="session-title">
-        <h2 id="session-title">الجلسة والحساب</h2>
+        <h2 id="session-title">{t.sessionTitle}</h2>
         <div className="account-row-actions">
           <button
             type="button"
@@ -314,7 +313,7 @@ export function AccountDashboard({ profile }: { profile: CustomerProfile }) {
             disabled={pending}
             onClick={() => void signOut("this")}
           >
-            تسجيل الخروج
+            {t.signOut}
           </button>
           <button
             type="button"
@@ -322,18 +321,15 @@ export function AccountDashboard({ profile }: { profile: CustomerProfile }) {
             disabled={pending}
             onClick={() => void signOut("all")}
           >
-            الخروج من كل الأجهزة
+            {t.signOutAll}
           </button>
         </div>
         <details className="account-danger">
-          <summary>حذف الحساب</summary>
-          <p className="account-note">
-            نحذف بياناتك الشخصية وعناوينك ومفضلتك. تبقى سجلات الطلبات السابقة
-            لدى المتجر لأغراض المحاسبة ولا تُربط بأي حساب.
-          </p>
+          <summary>{t.deleteAccount}</summary>
+          <p className="account-note">{t.deleteAccountNote}</p>
           <form className="account-form" onSubmit={deleteAccount}>
             <label className="checkout-field">
-              <span>اكتب «حذف» للتأكيد</span>
+              <span>{t.deleteConfirmLabel}</span>
               <input name="confirmation" autoComplete="off" required />
             </label>
             <button
@@ -341,7 +337,7 @@ export function AccountDashboard({ profile }: { profile: CustomerProfile }) {
               className="account-danger-button"
               disabled={pending}
             >
-              حذف حسابي نهائياً
+              {t.deleteForever}
             </button>
           </form>
         </details>

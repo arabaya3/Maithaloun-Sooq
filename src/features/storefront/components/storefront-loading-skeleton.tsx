@@ -1,7 +1,12 @@
+"use client";
+
+import { useI18n } from "@/i18n/i18n-provider";
+
 import { MobileNavigation } from "./mobile-navigation";
 import { SiteHeader } from "./site-header";
 
 export function StorefrontLoadingSkeleton() {
+  const { misc } = useI18n().m;
   return (
     <>
       <SiteHeader />
@@ -10,7 +15,7 @@ export function StorefrontLoadingSkeleton() {
         aria-busy="true"
       >
         <p className="sr-only" role="status">
-          جارٍ تحميل المنتجات
+          {misc.loadingProducts}
         </p>
         <section className="welcome" aria-hidden="true">
           <span className="skeleton skeleton-title" />
