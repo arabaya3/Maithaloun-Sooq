@@ -169,6 +169,13 @@
       "when": 1791884902508,
       "tag": "0023_default_reorder_threshold",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1791895977315,
+      "tag": "0024_optional_order_address",
+      "breakpoints": true
     }
   ]
 }

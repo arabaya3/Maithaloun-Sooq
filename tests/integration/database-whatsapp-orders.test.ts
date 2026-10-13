@@ -167,4 +167,52 @@ describe("orders sent through WhatsApp", () => {
       landmark: "قرب المسجد الكبير",
     });
   });
+
+  it("takes orders without an address on both channels and keeps them immutable", async () => {
+    await contact.setWhatsAppNumber(owner, {
+      countryCode: "970",
+      nationalNumber: TEST_NUMBER,
+    });
+    const web = await orders.create(
+      request({ deliveryAddress: undefined, landmark: undefined }),
+    );
+    const viaWhatsApp = await orders.create(
+      request({
+        deliveryAddress: undefined,
+        landmark: undefined,
+        checkoutChannel: "whatsapp",
+      }),
+    );
+    expect([web.status, viaWhatsApp.status]).toEqual([
+      "pending",
+      "awaiting_whatsapp",
+    ]);
+    for (const reference of [
+      web.publicReference,
+      viaWhatsApp.publicReference,
+    ]) {
+      expect(await storedOrder(reference)).toMatchObject({
+        address: null,
+        deliveryAddress: null,
+        landmark: null,
+      });
+    }
+
+    const detail = await admin.getByPublicReference(owner, web.publicReference);
+    expect(detail!.address).toBeNull();
+    await admin.changeStatus(owner, {
+      publicReference: web.publicReference,
+      nextStatus: "confirmed",
+      expectedVersion: detail!.version,
+    });
+    expect((await storedOrder(web.publicReference)).status).toBe("confirmed");
+
+    // The snapshot trigger compares nulls safely: filling an empty address later is refused.
+    await expect(
+      db
+        .update(schema.orders)
+        .set({ address: "عنوان أضيف لاحقاً" })
+        .where(eq(schema.orders.publicReference, web.publicReference)),
+    ).rejects.toThrow();
+  });
 });

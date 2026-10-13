@@ -419,7 +419,8 @@ export const orders = pgTable(
     serviceAreaNameSnapshot: varchar("service_area_name_snapshot", {
       length: 120,
     }).notNull(),
-    address: varchar("address", { length: 500 }).notNull(),
+    // Checkout no longer asks for an address; the store confirms the place by WhatsApp. Older orders keep theirs.
+    address: varchar("address", { length: 500 }),
     deliveryAddress: varchar("delivery_address", { length: 500 }),
     landmark: varchar("landmark", { length: 150 }),
     // How the customer sent the order; WhatsApp orders wait for confirmation in the chat.

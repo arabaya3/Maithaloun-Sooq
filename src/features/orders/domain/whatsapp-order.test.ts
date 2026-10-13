@@ -37,6 +37,15 @@ describe("WhatsApp order message", () => {
     expect(message).toContain("الدفع نقداً عند الاستلام.");
   });
 
+  it("greets the store and carries no phone, address or internal id", () => {
+    const message = whatsAppOrderMessage(order);
+    expect(message.split("\n")[0]).toBe("مرحباً سوق ميثلون،");
+    expect(message).toContain("مجموع المنتجات");
+    expect(message).toContain("التوصيل");
+    expect(message).not.toMatch(/\+?9[67]\d{8,}|05\d{8}/);
+    expect(message).not.toMatch(/عنوان|[0-9a-f]{8}-[0-9a-f]{4}/i);
+  });
+
   it("builds app and web links only for a supported store number", () => {
     const links = whatsAppLinks("+970590000000", "مرحبا طلب");
     expect(links?.app).toBe(

@@ -251,8 +251,8 @@ export class OrderService {
             serviceAreaId: serviceArea.id,
             serviceAreaCodeSnapshot: serviceArea.code,
             serviceAreaNameSnapshot: serviceArea.nameAr,
-            address: request.deliveryAddress,
-            deliveryAddress: request.deliveryAddress,
+            address: request.deliveryAddress ?? null,
+            deliveryAddress: request.deliveryAddress ?? null,
             landmark: request.landmark ?? null,
             checkoutChannel: request.checkoutChannel,
             status:

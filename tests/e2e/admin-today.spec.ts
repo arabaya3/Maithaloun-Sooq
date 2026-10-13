@@ -27,11 +27,8 @@ async function placeOrder(page: Page) {
     );
   }).toPass();
   await page.goto("/checkout");
-  await page.getByLabel("الاسم الكامل").fill(CUSTOMER);
+  await page.getByLabel("الاسم", { exact: true }).fill(CUSTOMER);
   await page.getByLabel("الرقم المحلي").fill("0599111222");
-  await page
-    .getByLabel("العنوان بالتفصيل أو أقرب نقطة دالة")
-    .fill("ميثلون الحي الشرقي قرب الساحة");
   await page.getByRole("button", { name: /تأكيد الطلب|إرسال الطلب/ }).click();
   await expect(page).toHaveURL(/\/orders\/.+\/confirmation/);
   reference = /\/orders\/([^/]+)\/confirmation/.exec(page.url())![1]!;

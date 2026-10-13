@@ -35,7 +35,7 @@ async function openCheckout(page: Page) {
   const product = page.locator('[data-product-id="general-cleaner"]');
   await product.getByRole("button", { name: "أضف إلى السلة" }).click();
   await page.locator(".cart-button").click();
-  await page.getByRole("link", { name: "متابعة إلى بيانات الطلب" }).click();
+  await page.getByRole("link", { name: "الطلب عبر الموقع" }).click();
   await expect(
     page.getByRole("heading", { level: 1, name: "بيانات الطلب" }),
   ).toBeVisible();
@@ -51,7 +51,7 @@ async function fillCheckout(
   } = {},
 ) {
   await page
-    .getByRole("textbox", { name: "الاسم الكامل" })
+    .getByRole("textbox", { name: "الاسم", exact: true })
     .fill(options.name ?? "عميل تجريبي");
   await page
     .getByLabel("مفتاح الدولة")
@@ -59,11 +59,6 @@ async function fillCheckout(
   await page
     .getByRole("textbox", { name: "الرقم المحلي" })
     .fill(options.nationalNumber ?? "0591234567");
-  await page
-    .getByRole("textbox", {
-      name: "العنوان بالتفصيل أو أقرب نقطة دالة",
-    })
-    .fill(options.address ?? "عنوان محلي مفصل للاختبار");
 }
 
 test("validates and creates a cash-on-delivery order with +970", async ({
@@ -91,24 +86,21 @@ test("validates and creates a cash-on-delivery order with +970", async ({
     page.getByText("يُستخدم رقم الواتساب فقط لتأكيد الطلب وتنفيذ التوصيل."),
   ).toBeVisible();
 
-  await page.getByRole("button", { name: "تأكيد الطلب" }).click();
+  await page.getByRole("button", { name: "إرسال الطلب عبر الموقع" }).click();
   await expect(page.locator(".checkout-error-summary")).toContainText(
     "يرجى مراجعة الحقول المطلوبة.",
   );
   await expect(page.getByText("أدخل الاسم الكامل.")).toBeVisible();
-  await expect(
-    page.getByText("أدخل العنوان بالتفصيل أو أقرب نقطة دالة."),
-  ).toBeVisible();
 
   await fillCheckout(page, {
     countryCode: "970",
     nationalNumber: "0591234567",
   });
-  await page.getByRole("button", { name: "تأكيد الطلب" }).click();
+  await page.getByRole("button", { name: "إرسال الطلب عبر الموقع" }).click();
   await expect(page).toHaveURL(/\/orders\/MS-[A-Za-z0-9_-]{24}\/confirmation$/);
   expect(page.url()).not.toMatch(/059|970|عميل|عنوان/);
   await expect(
-    page.getByRole("heading", { name: "شكراً، طلبك قيد المراجعة" }),
+    page.getByRole("heading", { name: "شكراً، وصل طلبك إلى المتجر" }),
   ).toBeVisible();
   const totals = page.locator(".order-confirmation-page dl");
   await expect(totals.getByText("5 ₪")).toBeVisible();
@@ -134,7 +126,7 @@ test("creates a cash-on-delivery order with +972", async ({ page }) => {
     countryCode: "972",
     nationalNumber: "0521234567",
   });
-  await page.getByRole("button", { name: "تأكيد الطلب" }).click();
+  await page.getByRole("button", { name: "إرسال الطلب عبر الموقع" }).click();
   await expect(page).toHaveURL(/\/orders\/MS-[A-Za-z0-9_-]{24}\/confirmation$/);
   expect(page.url()).not.toMatch(/052|972|عميل|عنوان/);
 });
@@ -153,16 +145,16 @@ test("failed submission preserves the cart", async ({ page }) => {
     }),
   );
 
-  await page.getByRole("button", { name: "تأكيد الطلب" }).click();
+  await page.getByRole("button", { name: "إرسال الطلب عبر الموقع" }).click();
   await expect(page.locator(".checkout-error-summary")).toContainText(
     "تعذّر حفظ الطلب الآن.",
   );
   await expect(page.locator(".cart-button")).toHaveAccessibleName(
     "السلة، عدد المنتجات 1",
   );
-  await expect(page.getByRole("textbox", { name: "الاسم الكامل" })).toHaveValue(
-    "عميل تجريبي",
-  );
+  await expect(
+    page.getByRole("textbox", { name: "الاسم", exact: true }),
+  ).toHaveValue("عميل تجريبي");
 });
 
 test("duplicate clicks create one database order", async ({ page }) => {
@@ -170,12 +162,14 @@ test("duplicate clicks create one database order", async ({ page }) => {
   await openCheckout(page);
   await fillCheckout(page);
 
-  await page.getByRole("button", { name: "تأكيد الطلب" }).evaluate((button) => {
-    if (button instanceof HTMLButtonElement) {
-      button.click();
-      button.click();
-    }
-  });
+  await page
+    .getByRole("button", { name: "إرسال الطلب عبر الموقع" })
+    .evaluate((button) => {
+      if (button instanceof HTMLButtonElement) {
+        button.click();
+        button.click();
+      }
+    });
   await expect(page).toHaveURL(/\/orders\/MS-[A-Za-z0-9_-]{24}\/confirmation$/);
   expect(await countOrders()).toBe(before + 1);
 });

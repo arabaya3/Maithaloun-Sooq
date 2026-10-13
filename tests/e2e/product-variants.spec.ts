@@ -206,14 +206,13 @@ test("storefront: choose scent and size, missing combination never reached, exac
     (sql) =>
       sql`update product_variants set price_agorot = 1300 where domain_id = 'e2e-lamis--musk-450'`,
   );
-  await page.getByRole("link", { name: "متابعة إلى بيانات الطلب" }).click();
-  await page.getByRole("textbox", { name: "الاسم الكامل" }).fill("عميل تجريبي");
+  await page.getByRole("link", { name: "الطلب عبر الموقع" }).click();
+  await page
+    .getByRole("textbox", { name: "الاسم", exact: true })
+    .fill("عميل تجريبي");
   await page.getByLabel("مفتاح الدولة").selectOption("970");
   await page.getByRole("textbox", { name: "الرقم المحلي" }).fill("0591234567");
-  await page
-    .getByRole("textbox", { name: "العنوان بالتفصيل أو أقرب نقطة دالة" })
-    .fill("عنوان محلي مفصل للاختبار");
-  await page.getByRole("button", { name: "تأكيد الطلب" }).click();
+  await page.getByRole("button", { name: "إرسال الطلب عبر الموقع" }).click();
   await expect(page).toHaveURL(/\/orders\/MS-[A-Za-z0-9_-]{24}\/confirmation$/);
   const [line] = await withTestDb(
     (sql) => sql<

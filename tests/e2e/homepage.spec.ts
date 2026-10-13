@@ -80,13 +80,16 @@ test("brand name is spelled سوق ميثلون everywhere it renders", async ({
 });
 
 test("placeholder navigation routes resolve successfully", async ({ page }) => {
-  for (const route of ["/categories", "/offers"]) {
-    const response = await page.goto(route);
-    expect(response?.status()).toBe(200);
-    await expect(
-      page.getByRole("link", { name: "العودة إلى الرئيسية" }),
-    ).toBeVisible();
-  }
+  const offers = await page.goto("/offers");
+  expect(offers?.status()).toBe(200);
+  await expect(
+    page.getByRole("link", { name: "العودة إلى الرئيسية" }),
+  ).toBeVisible();
+  const categories = await page.goto("/categories");
+  expect(categories?.status()).toBe(200);
+  await expect(
+    page.getByRole("heading", { level: 1, name: "الأقسام" }),
+  ).toBeVisible();
   const account = await page.goto("/account");
   expect(account?.status()).toBe(200);
   await expect(page.getByRole("link", { name: "متابعة كضيف" })).toBeVisible();

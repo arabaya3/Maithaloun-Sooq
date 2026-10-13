@@ -280,7 +280,7 @@ test("admin authentication, operations, and privacy controls", async ({
     );
   }).toPass();
   await page.locator(".cart-button").click();
-  await page.getByRole("link", { name: "متابعة إلى بيانات الطلب" }).click();
+  await page.getByRole("link", { name: "الطلب عبر الموقع" }).click();
   await expect(page).toHaveURL(/\/checkout/);
   await expect(page.getByRole("heading", { name: "بيانات الطلب" })).toBeVisible(
     {
@@ -289,17 +289,14 @@ test("admin authentication, operations, and privacy controls", async ({
   );
   await expect(page.locator(".checkout-delivery")).toContainText("5 ₪");
   await expect(page.getByText("مبيض Dolphin")).toBeVisible();
-  await page.getByRole("textbox", { name: "الاسم الكامل" }).fill("عميل تجريبي");
+  await page
+    .getByRole("textbox", { name: "الاسم", exact: true })
+    .fill("عميل تجريبي");
   await page.getByLabel("مفتاح الدولة").selectOption("970");
   await page.getByRole("textbox", { name: "الرقم المحلي" }).fill("0591234567");
-  await page
-    .getByRole("textbox", {
-      name: "العنوان بالتفصيل أو أقرب نقطة دالة",
-    })
-    .fill("عنوان محلي مفصل للاختبار");
-  await page.getByRole("button", { name: "تأكيد الطلب" }).click();
+  await page.getByRole("button", { name: "إرسال الطلب عبر الموقع" }).click();
   await expect(
-    page.getByRole("heading", { name: /طلبك قيد المراجعة/ }),
+    page.getByRole("heading", { name: /وصل طلبك إلى المتجر/ }),
   ).toBeVisible({ timeout: 15_000 });
   const reference = (
     await page.locator(".order-reference strong").innerText()

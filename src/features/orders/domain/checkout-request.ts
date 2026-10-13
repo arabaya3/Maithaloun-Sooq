@@ -69,16 +69,22 @@ export const checkoutRequestSchema = z
       .string()
       .optional()
       .transform((value) => value ?? ACTIVE_SERVICE_AREA_CODE),
-    deliveryAddress: z
-      .string()
-      .max(600, "العنوان أطول من المسموح.")
-      .transform(normalizeContactWhitespace)
-      .pipe(
-        z
-          .string()
-          .min(8, "أدخل العنوان بالتفصيل أو أقرب نقطة دالة.")
-          .max(500, "العنوان أطول من المسموح."),
-      ),
+    // Optional: the storefront no longer asks for it; the store agrees the place on WhatsApp.
+    deliveryAddress: z.preprocess(
+      (value) =>
+        typeof value === "string" && value.trim() === "" ? undefined : value,
+      z
+        .string()
+        .max(600, "العنوان أطول من المسموح.")
+        .transform(normalizeContactWhitespace)
+        .pipe(
+          z
+            .string()
+            .min(8, "أدخل العنوان بالتفصيل أو أقرب نقطة دالة.")
+            .max(500, "العنوان أطول من المسموح."),
+        )
+        .optional(),
+    ),
     landmark: optionalTrimmedString(150, "أقرب معلم أطول من المسموح."),
     customerNote: optionalTrimmedString(500, "ملاحظة الطلب أطول من المسموح."),
     checkoutChannel: z.enum(checkoutChannels).default("web"),
@@ -123,7 +129,10 @@ export const checkoutRequestSchema = z
         message: "أدخل أقرب معلم كنص عادي فقط.",
       });
     }
-    if (!isPlainDeliveryAddress(value.deliveryAddress)) {
+    if (
+      value.deliveryAddress &&
+      !isPlainDeliveryAddress(value.deliveryAddress)
+    ) {
       context.addIssue({
         code: "custom",
         path: ["deliveryAddress"],

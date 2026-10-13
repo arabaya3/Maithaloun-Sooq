@@ -137,7 +137,7 @@ export default async function AdminOrderDetailPage({
             <dl className="admin-definition-list">
               <div>
                 <dt>العنوان</dt>
-                <dd>{order.address}</dd>
+                <dd>{order.address ?? "يُحدّد عبر واتساب"}</dd>
               </div>
               {order.landmark ? (
                 <div>

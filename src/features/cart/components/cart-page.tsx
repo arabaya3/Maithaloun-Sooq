@@ -26,7 +26,13 @@ import { calculateDeliveryFeeAgorot } from "@/features/delivery/delivery-policy"
 import { getFreeDeliveryMessage } from "@/features/delivery/delivery-messaging";
 import { formatIls } from "@/shared/lib/format-currency";
 
-export function CartPage({ products }: { products: readonly Product[] }) {
+export function CartPage({
+  products,
+  whatsAppOrdering = false,
+}: {
+  products: readonly Product[];
+  whatsAppOrdering?: boolean;
+}) {
   const {
     lines,
     ready,
@@ -310,7 +316,34 @@ export function CartPage({ products }: { products: readonly Product[] }) {
       </section>
 
       <aside className="cart-summary" aria-labelledby="cart-summary-title">
-        <h2 id="cart-summary-title">ملخص السلة</h2>
+        <h2 id="cart-summary-title">ملخص الطلب</h2>
+        <ul className="cart-summary-lines" aria-label="منتجات الطلب">
+          {resolvedLines.map((resolved) => {
+            const { line, unit, variant } = resolved;
+            const details = [
+              variant.labelAr,
+              formatVariantAttributes(variant.attributes),
+              unit && (unit.unitsPerSale > 1 || variant.sellingUnits.length > 1)
+                ? sellingLineText(unit.labelAr, line.quantity)
+                : `× ${line.quantity}`,
+            ].filter(Boolean);
+            return (
+              <li key={cartLineKey(line)}>
+                <span>
+                  <bdi dir="auto">
+                    {getProductDisplayName(resolved.product)}
+                  </bdi>
+                  <small>{details.join(" · ")}</small>
+                </span>
+                <bdi dir="ltr">
+                  {resolved.lineSubtotalAgorot === null
+                    ? "—"
+                    : formatIls(resolved.lineSubtotalAgorot)}
+                </bdi>
+              </li>
+            );
+          })}
+        </ul>
         <div className="cart-summary-rows">
           <div>
             <span>مجموع المنتجات</span>
@@ -348,9 +381,52 @@ export function CartPage({ products }: { products: readonly Product[] }) {
             راجع المنتجات المعلَّمة في السلة قبل المتابعة.
           </p>
         ) : null}
-        <Link className="checkout-action" href="/checkout">
-          متابعة إلى بيانات الطلب
-        </Link>
+        {needsAttention ? (
+          <>
+            {whatsAppOrdering ? (
+              <span
+                className="checkout-action checkout-whatsapp-action"
+                aria-disabled="true"
+              >
+                الطلب عبر واتساب
+              </span>
+            ) : null}
+            <span className="checkout-action" aria-disabled="true">
+              الطلب عبر الموقع
+            </span>
+          </>
+        ) : (
+          <>
+            {whatsAppOrdering ? (
+              <>
+                <Link
+                  className="checkout-action checkout-whatsapp-action"
+                  href="/checkout?channel=whatsapp"
+                  aria-describedby="cart-whatsapp-note"
+                >
+                  الطلب عبر واتساب
+                </Link>
+                <p id="cart-whatsapp-note" className="cart-channel-note">
+                  سنجهّز رسالة طلبك لتُرسل مباشرة إلى سوق ميثلون.
+                </p>
+              </>
+            ) : null}
+            <Link
+              className={
+                whatsAppOrdering
+                  ? "checkout-action checkout-web-action"
+                  : "checkout-action"
+              }
+              href="/checkout?channel=web"
+              aria-describedby="cart-web-note"
+            >
+              الطلب عبر الموقع
+            </Link>
+            <p id="cart-web-note" className="cart-channel-note">
+              يصل طلبك إلى المتجر وسنتواصل معك عبر واتساب.
+            </p>
+          </>
+        )}
         <Link className="continue-shopping-link" href="/#catalog">
           متابعة التسوق
         </Link>

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useMemo, useRef, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 
 import {
   cartMerchandiseSubtotal,
@@ -23,6 +23,7 @@ import { getFreeDeliveryMessage } from "@/features/delivery/delivery-messaging";
 import type { ServiceArea } from "@/features/delivery/service-area";
 import { orderApiResponseSchema } from "@/features/orders/domain/order-confirmation";
 import { WHATSAPP_COUNTRY_CODES } from "@/features/orders/domain/phone";
+import type { CheckoutChannel } from "@/features/orders/domain/whatsapp-order";
 import { formatIls } from "@/shared/lib/format-currency";
 
 const WHATSAPP_PREFIX_LABELS: Record<
@@ -37,8 +38,6 @@ export interface CheckoutPrefill {
   customerName: string;
   countryCode: "970" | "972";
   nationalNumber: string;
-  deliveryAddress: string;
-  landmark?: string;
 }
 
 export function CheckoutForm({
@@ -46,13 +45,13 @@ export function CheckoutForm({
   serviceAreas,
   prefill = null,
   signInHint = false,
-  whatsAppOrdering = false,
+  channel = "web",
 }: {
   products: readonly Product[];
   serviceAreas: readonly ServiceArea[];
   prefill?: CheckoutPrefill | null;
   signInHint?: boolean;
-  whatsAppOrdering?: boolean;
+  channel?: CheckoutChannel;
 }) {
   const router = useRouter();
   const { lines, ready, clearCart } = useCart();
@@ -97,9 +96,12 @@ export function CheckoutForm({
     !needsUnitReview &&
     maythalunEnabled;
 
-  const focusErrorSummary = () => {
-    queueMicrotask(() => errorSummaryRef.current?.focus());
-  };
+  // Focus after the summary has rendered; a counter refocuses even when the message repeats.
+  const [errorFocus, setErrorFocus] = useState(0);
+  useEffect(() => {
+    if (errorFocus) errorSummaryRef.current?.focus();
+  }, [errorFocus]);
+  const focusErrorSummary = () => setErrorFocus((count) => count + 1);
 
   async function submitOrder(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -118,21 +120,14 @@ export function CheckoutForm({
     }
 
     const form = new FormData(event.currentTarget);
-    const submitter = (event.nativeEvent as SubmitEvent).submitter;
-    const checkoutChannel =
-      whatsAppOrdering && submitter?.getAttribute("value") === "whatsapp"
-        ? "whatsapp"
-        : "web";
+    const checkoutChannel = channel;
     const requestBody = {
       idempotencyKey: idempotencyKeys[checkoutChannel],
       checkoutChannel,
-      landmark: form.get("landmark"),
       customerName: form.get("customerName"),
       whatsappCountryCode: form.get("whatsappCountryCode"),
       whatsappNationalNumber: form.get("whatsappNationalNumber"),
       serviceAreaCode: ACTIVE_SERVICE_AREA_CODE,
-      deliveryAddress: form.get("deliveryAddress"),
-      customerNote: form.get("customerNote"),
       paymentMethod: "cash_on_delivery",
       honeypot: form.get("companyWebsite"),
       // Only identifiers and counts go to the server; it prices and checks stock itself.
@@ -166,8 +161,12 @@ export function CheckoutForm({
       }
 
       clearCart();
+      const confirmation = `/orders/${parsed.data.confirmation.publicReference}/confirmation`;
+      // The WhatsApp hand-off happens on the confirmation page, in this same tab.
       router.push(
-        `/orders/${parsed.data.confirmation.publicReference}/confirmation`,
+        checkoutChannel === "whatsapp"
+          ? `${confirmation}?handoff=1`
+          : confirmation,
       );
     } catch {
       setGeneralError("تعذّر الاتصال بالخادم. لم تُمسح السلة.");
@@ -225,9 +224,11 @@ export function CheckoutForm({
           </div>
         ) : null}
 
-        <label className="checkout-field">
-          <span>الاسم الكامل</span>
+        {/* The error sits outside the label so it never becomes part of the field's name. */}
+        <div className="checkout-field">
+          <label htmlFor="checkout-customer-name">الاسم</label>
           <input
+            id="checkout-customer-name"
             name="customerName"
             type="text"
             defaultValue={prefill?.customerName}
@@ -243,7 +244,7 @@ export function CheckoutForm({
               {fieldErrors.customerName[0]}
             </small>
           ) : null}
-        </label>
+        </div>
 
         <fieldset className="checkout-field checkout-whatsapp-field">
           <legend>رقم الواتساب</legend>
@@ -290,66 +291,6 @@ export function CheckoutForm({
           ) : null}
         </fieldset>
 
-        <div className="checkout-field">
-          <label htmlFor="delivery-address-input">
-            العنوان بالتفصيل أو أقرب نقطة دالة
-          </label>
-          <textarea
-            id="delivery-address-input"
-            name="deliveryAddress"
-            autoComplete="street-address"
-            defaultValue={prefill?.deliveryAddress}
-            maxLength={500}
-            rows={4}
-            aria-invalid={Boolean(fieldErrors.deliveryAddress)}
-            aria-describedby={
-              fieldErrors.deliveryAddress
-                ? "delivery-address-help delivery-address-error"
-                : "delivery-address-help"
-            }
-          />
-          <small id="delivery-address-help" className="checkout-field-help">
-            يمكنك كتابة الشارع أو الحي أو المبنى أو أقرب نقطة دالة معروفة.
-          </small>
-          {fieldErrors.deliveryAddress ? (
-            <small id="delivery-address-error">
-              {fieldErrors.deliveryAddress[0]}
-            </small>
-          ) : null}
-        </div>
-
-        <div className="checkout-field">
-          <label htmlFor="checkout-landmark">
-            أقرب معلم <small>اختياري</small>
-          </label>
-          <input
-            id="checkout-landmark"
-            name="landmark"
-            maxLength={150}
-            autoComplete="off"
-            defaultValue={prefill?.landmark}
-            aria-invalid={Boolean(fieldErrors.landmark)}
-            aria-describedby={
-              fieldErrors.landmark
-                ? "landmark-help landmark-error"
-                : "landmark-help"
-            }
-          />
-          <small id="landmark-help" className="checkout-field-help">
-            مثل: قرب المسجد الكبير أو مقابل المدرسة.
-          </small>
-          {fieldErrors.landmark ? (
-            <small id="landmark-error">{fieldErrors.landmark[0]}</small>
-          ) : null}
-        </div>
-
-        <label className="checkout-field">
-          <span>
-            ملاحظات الطلب <small>اختياري</small>
-          </span>
-          <textarea name="customerNote" maxLength={500} rows={3} />
-        </label>
-
         <label className="checkout-honeypot" aria-hidden="true">
           <span>موقع الشركة</span>
           <input
@@ -359,6 +300,11 @@ export function CheckoutForm({
             autoComplete="off"
           />
         </label>
+
+        <p className="checkout-contact-note">
+          بعد استلام الطلب سنتواصل معك عبر واتساب لتأكيد الطلب ومكان التوصيل
+          داخل ميثلون.
+        </p>
 
         <section className="payment-method" aria-labelledby="payment-title">
           <h2 id="payment-title">طريقة الدفع</h2>
@@ -467,23 +413,15 @@ export function CheckoutForm({
         ) : null}
         <button
           type="submit"
-          name="channel"
-          value="web"
+          className={channel === "whatsapp" ? "checkout-whatsapp" : undefined}
           disabled={!canSubmit || submitting}
         >
-          {submitting ? "جارٍ إرسال الطلب…" : "تأكيد الطلب"}
+          {submitting
+            ? "جارٍ إرسال الطلب…"
+            : channel === "whatsapp"
+              ? "إرسال الطلب عبر واتساب"
+              : "إرسال الطلب عبر الموقع"}
         </button>
-        {whatsAppOrdering ? (
-          <button
-            type="submit"
-            name="channel"
-            value="whatsapp"
-            className="checkout-whatsapp"
-            disabled={!canSubmit || submitting}
-          >
-            إرسال الطلب عبر واتساب
-          </button>
-        ) : null}
         <p className="checkout-privacy">
           تُستخدم هذه البيانات لتنفيذ هذا الطلب فقط.
         </p>
