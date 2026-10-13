@@ -1,17 +1,26 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 export function WhatsAppHandoff({
   message,
   appHref,
   webHref,
+  autoOpen = false,
 }: {
   message: string;
   appHref: string;
   webHref: string;
+  autoOpen?: boolean;
 }) {
   const [copied, setCopied] = useState<"idle" | "done" | "failed">("idle");
+
+  useEffect(() => {
+    if (!autoOpen) return;
+    // Drop the flag first so coming back to this page shows the links instead of reopening WhatsApp.
+    window.history.replaceState(null, "", window.location.pathname);
+    window.location.assign(appHref);
+  }, [autoOpen, appHref]);
 
   async function copy() {
     try {
@@ -26,16 +35,12 @@ export function WhatsAppHandoff({
     <section className="whatsapp-handoff" aria-labelledby="whatsapp-title">
       <h2 id="whatsapp-title">أرسل الطلب على واتساب لتأكيده</h2>
       <p>
-        حُفظ طلبك. يؤكده المتجر بعد وصول رسالتك على واتساب، ولا يُحجز شيء قبل
-        التأكيد.
+        حُفظ طلبك. إذا لم يفتح واتساب تلقائياً، استخدم أحد الأزرار التالية. يؤكد
+        المتجر الطلب بعد وصول رسالتك.
       </p>
       <div className="whatsapp-handoff-actions">
-        <a href={appHref} target="_blank" rel="noopener noreferrer">
-          فتح واتساب
-        </a>
-        <a href={webHref} target="_blank" rel="noopener noreferrer">
-          واتساب ويب
-        </a>
+        <a href={appHref}>فتح واتساب</a>
+        <a href={webHref}>واتساب ويب</a>
         <button type="button" onClick={copy}>
           نسخ الرسالة
         </button>

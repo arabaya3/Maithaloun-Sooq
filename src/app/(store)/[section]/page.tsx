@@ -7,10 +7,6 @@ import { MobileNavigation } from "@/features/storefront/components/mobile-naviga
 import { SiteHeader } from "@/features/storefront/components/site-header";
 
 const sections = {
-  categories: {
-    title: "الفئات",
-    description: "ستتوفر صفحة استعراض الفئات الكاملة في مرحلة لاحقة.",
-  },
   offers: {
     title: "العروض",
     description: "لا توجد عروض منشورة حالياً. عد لاحقاً للاطلاع على الجديد.",

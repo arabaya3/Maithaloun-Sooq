@@ -56,7 +56,19 @@ describe("checkout request validation", () => {
     ).toBe(false);
   });
 
-  it("enforces field lengths and required address", () => {
+  it("accepts an order without an address, blank or omitted", () => {
+    const withoutAddress: Partial<typeof validRequest> = { ...validRequest };
+    delete withoutAddress.deliveryAddress;
+    for (const request of [
+      withoutAddress,
+      { ...validRequest, deliveryAddress: "   " },
+    ]) {
+      const parsed = checkoutRequestSchema.parse(request);
+      expect(parsed.deliveryAddress).toBeUndefined();
+    }
+  });
+
+  it("enforces field lengths and a valid address when one is given", () => {
     expect(
       checkoutRequestSchema
         .safeParse({

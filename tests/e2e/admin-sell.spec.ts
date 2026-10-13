@@ -58,11 +58,8 @@ test("order page says what each status change does before it happens", async ({
     );
   }).toPass();
   await page.goto("/checkout");
-  await page.getByLabel("الاسم الكامل").fill(ORDER_CUSTOMER);
+  await page.getByLabel("الاسم", { exact: true }).fill(ORDER_CUSTOMER);
   await page.getByLabel("الرقم المحلي").fill("0599333444");
-  await page
-    .getByLabel("العنوان بالتفصيل أو أقرب نقطة دالة")
-    .fill("ميثلون الحي الغربي قرب المدرسة");
   await page.getByRole("button", { name: /تأكيد الطلب|إرسال الطلب/ }).click();
   await expect(page).toHaveURL(/\/orders\/.+\/confirmation/);
   reference = /\/orders\/([^/]+)\/confirmation/.exec(page.url())![1]!;

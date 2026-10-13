@@ -67,8 +67,11 @@ describe("cart page", () => {
     expect(screen.getByLabelText("التوصيل 5 ₪")).toBeInTheDocument();
     expect(screen.getByLabelText("الإجمالي 19 ₪")).toBeInTheDocument();
     expect(
-      screen.getByRole("link", { name: "متابعة إلى بيانات الطلب" }),
-    ).toBeInTheDocument();
+      screen.getByRole("link", { name: "الطلب عبر الموقع" }),
+    ).toHaveAttribute("href", "/checkout?channel=web");
+    expect(
+      screen.queryByRole("link", { name: "الطلب عبر واتساب" }),
+    ).not.toBeInTheDocument();
     expect(
       screen.getByText("أضف 36 ₪ لتحصل على توصيل مجاني"),
     ).toBeInTheDocument();
@@ -218,5 +221,44 @@ describe("cart page", () => {
     await user.click(screen.getByRole("button", { name: /باكيج 3 حبات/ }));
     expect(await screen.findByText("باكيج 3 حبات × 1")).toBeInTheDocument();
     expect(screen.getByLabelText("مجموع المنتجات 10 ₪")).toBeInTheDocument();
+  });
+
+  it("offers both channels with a line review, and blocks them while a line needs attention", async () => {
+    const products = [multipackClothFixture({ blueFreePieces: 10 })];
+    window.localStorage.setItem(
+      CART_STORAGE_KEY,
+      JSON.stringify({ version: 3, lines: [clothLine(blueSingle, 1, 2)] }),
+    );
+    const { unmount } = renderWithProviders(
+      <CartPage products={products} whatsAppOrdering />,
+      { products },
+    );
+    const review = await screen.findByRole("list", { name: "منتجات الطلب" });
+    expect(within(review).getAllByRole("listitem")).toHaveLength(1);
+    expect(
+      screen.getByRole("link", { name: "الطلب عبر واتساب" }),
+    ).toHaveAttribute("href", "/checkout?channel=whatsapp");
+    expect(
+      screen.getByRole("link", { name: "الطلب عبر الموقع" }),
+    ).toHaveAttribute("href", "/checkout?channel=web");
+    expect(
+      screen.getByText("سنجهّز رسالة طلبك لتُرسل مباشرة إلى سوق ميثلون."),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("يصل طلبك إلى المتجر وسنتواصل معك عبر واتساب."),
+    ).toBeInTheDocument();
+    unmount();
+
+    window.localStorage.setItem(
+      CART_STORAGE_KEY,
+      JSON.stringify({ version: 3, lines: [clothLine(bluePack, 2, 1)] }),
+    );
+    renderWithProviders(<CartPage products={products} whatsAppOrdering />, {
+      products,
+    });
+    expect(
+      await screen.findByText("راجع المنتجات المعلَّمة في السلة قبل المتابعة."),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /الطلب عبر/ })).toBeNull();
   });
 });

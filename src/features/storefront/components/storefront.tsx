@@ -1,36 +1,12 @@
 "use client";
 
-import {
-  Baby,
-  Bath,
-  Brush,
-  BrushCleaning,
-  CookingPot,
-  Droplets,
-  Heart,
-  House,
-  LayoutGrid,
-  Leaf,
-  Package,
-  PackageSearch,
-  ScrollText,
-  Search,
-  Shirt,
-  Sofa,
-  Sparkles,
-  SprayCan,
-  Utensils,
-  WashingMachine,
-  Wind,
-  X,
-  type LucideIcon,
-} from "lucide-react";
+import { LayoutGrid, PackageSearch, Search, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
 
+import { categoryIcons } from "@/features/catalog/components/category-icons";
 import { ProductCard } from "@/features/catalog/components/product-card";
 import {
   ALL_CATEGORIES,
-  type CategoryIconKey,
   type ProductCategory,
 } from "@/features/catalog/domain/category";
 import type { CategoryId, Product } from "@/features/catalog/domain/product";
@@ -39,28 +15,6 @@ import { MobileNavigation } from "@/features/storefront/components/mobile-naviga
 import { Hero } from "@/features/storefront/components/hero";
 import { SiteHeader } from "@/features/storefront/components/site-header";
 import { formatProductCount } from "@/shared/lib/format-product-count";
-
-const categoryIcons: Record<CategoryIconKey, LucideIcon> = {
-  grid: LayoutGrid,
-  "washing-machine": WashingMachine,
-  "cooking-pot": CookingPot,
-  bath: Bath,
-  brush: Brush,
-  house: House,
-  "spray-can": SprayCan,
-  sparkles: Sparkles,
-  droplets: Droplets,
-  shirt: Shirt,
-  package: Package,
-  leaf: Leaf,
-  utensils: Utensils,
-  sofa: Sofa,
-  wind: Wind,
-  "brush-cleaning": BrushCleaning,
-  "scroll-text": ScrollText,
-  heart: Heart,
-  baby: Baby,
-};
 
 // The first batch keeps the phone page short; more is one tap away, never on scroll.
 export const CATALOG_BATCH = 12;
@@ -158,12 +112,22 @@ function CategoryPicker({
 export function Storefront({
   products,
   categories,
+  initialCategory = ALL_CATEGORIES,
 }: {
   products: readonly Product[];
   categories: readonly ProductCategory[];
+  initialCategory?: CategoryId;
 }) {
   const [query, setQuery] = useState("");
-  const [category, setCategory] = useState<CategoryId>(ALL_CATEGORIES);
+  const [category, setCategoryState] = useState<CategoryId>(initialCategory);
+  // The chosen category lives in the address, so it can be shared and survives a reload.
+  const setCategory = (code: CategoryId) => {
+    setCategoryState(code);
+    const url = new URL(window.location.href);
+    if (code === ALL_CATEGORIES) url.searchParams.delete("category");
+    else url.searchParams.set("category", code);
+    window.history.replaceState(window.history.state, "", url);
+  };
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   const filteredProducts = useMemo(

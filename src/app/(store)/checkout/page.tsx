@@ -8,6 +8,7 @@ import { productRepository } from "@/features/catalog/infrastructure/product-rep
 import { serviceAreaRepository } from "@/features/delivery/service-area-repository";
 import { storeContactService } from "@/features/orders/application/order-service-instance";
 import { CheckoutForm } from "@/features/orders/components/checkout-form";
+import type { CheckoutChannel } from "@/features/orders/domain/whatsapp-order";
 import { MobileNavigation } from "@/features/storefront/components/mobile-navigation";
 import { SiteHeader } from "@/features/storefront/components/site-header";
 
@@ -16,8 +17,13 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-export default async function CheckoutPage() {
+export default async function CheckoutPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ channel?: string | string[] }>;
+}) {
   await connection();
+  const requested = (await searchParams).channel;
   const [products, serviceAreas, customer, storeWhatsApp] = await Promise.all([
     productRepository.list(),
     serviceAreaRepository.listEnabled(),
@@ -28,7 +34,6 @@ export default async function CheckoutPage() {
     ? await customerAccountService.profile(customer.id)
     : null;
   const contact = profile?.whatsappE164 ?? profile?.phoneE164;
-  const address = profile?.addresses.find((entry) => entry.isDefault);
   const prefill =
     profile && contact
       ? {
@@ -37,10 +42,11 @@ export default async function CheckoutPage() {
             ? ("972" as const)
             : ("970" as const),
           nationalNumber: `0${contact.slice(4)}`,
-          deliveryAddress: address?.address ?? "",
-          landmark: address?.landmark ?? "",
         }
       : null;
+  // Only the two known channels are honoured; WhatsApp needs a configured store number.
+  const channel: CheckoutChannel =
+    requested === "whatsapp" && storeWhatsApp ? "whatsapp" : "web";
 
   return (
     <>
@@ -51,7 +57,7 @@ export default async function CheckoutPage() {
           serviceAreas={serviceAreas}
           prefill={prefill}
           signInHint={customerAccountsEnabled() && !customer}
-          whatsAppOrdering={Boolean(storeWhatsApp)}
+          channel={channel}
         />
       </main>
       <MobileNavigation />

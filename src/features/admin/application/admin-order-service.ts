@@ -89,7 +89,8 @@ export interface AdminOrderDetail {
   version: number;
   customerName: string;
   phone: string;
-  address: string;
+  /** Null when the customer ordered without an address; the place is agreed on WhatsApp. */
+  address: string | null;
   landmark: string | null;
   customerNote: string | null;
   whatsappPhoneE164: string | null;

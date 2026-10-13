@@ -218,16 +218,13 @@ test("a single and two 3-packs reach the cart, the order and the stock as pieces
     (sql) =>
       sql<{ count: number }[]>`select count(*)::int as count from orders`,
   );
-  await page.getByRole("link", { name: "متابعة إلى بيانات الطلب" }).click();
+  await page.getByRole("link", { name: "الطلب عبر الموقع" }).click();
   await page
-    .getByRole("textbox", { name: "الاسم الكامل" })
+    .getByRole("textbox", { name: "الاسم", exact: true })
     .fill("عميل الباكيج");
   await page.getByRole("textbox", { name: "الرقم المحلي" }).fill("0591234567");
-  await page
-    .getByRole("textbox", { name: "العنوان بالتفصيل أو أقرب نقطة دالة" })
-    .fill("عنوان محلي مفصل للاختبار");
   // A double tap must still create a single order.
-  await page.getByRole("button", { name: "تأكيد الطلب" }).dblclick();
+  await page.getByRole("button", { name: "إرسال الطلب عبر الموقع" }).dblclick();
   await expect(page).toHaveURL(/\/orders\/MS-[A-Za-z0-9_-]{24}\/confirmation/, {
     timeout: 20_000,
   });
@@ -361,7 +358,7 @@ test("an archived pack keeps its order history and asks the cart for a new choic
   await expect(page.getByLabel("مجموع المنتجات 0 ₪")).toBeVisible();
   await page.goto("/checkout");
   await expect(
-    page.getByRole("button", { name: "تأكيد الطلب" }),
+    page.getByRole("button", { name: "إرسال الطلب عبر الموقع" }),
   ).toBeDisabled();
 
   await login(page);
@@ -608,7 +605,9 @@ for (const viewport of [
       .getByRole("button", { name: "أضف إلى السلة" })
       .click();
     await page.goto("/cart");
-    await expect(page.getByText("باكيج 3 حبات × 1")).toBeVisible();
+    await expect(
+      page.getByText("باكيج 3 حبات × 1", { exact: true }),
+    ).toBeVisible();
     await expectNoHorizontalOverflow(page);
     await expectTouchTargets(page, ".cart-line .quantity-control button");
     await page.screenshot({

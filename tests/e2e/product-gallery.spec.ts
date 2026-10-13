@@ -777,18 +777,17 @@ test("selection, quantity and picture survive the cart and checkout at 360, 390,
 
     if (width === 390) {
       await page.locator(".cart-button").click();
-      await page.getByRole("link", { name: "متابعة إلى بيانات الطلب" }).click();
+      await page.getByRole("link", { name: "الطلب عبر الموقع" }).click();
       await page
-        .getByRole("textbox", { name: "الاسم الكامل" })
+        .getByRole("textbox", { name: "الاسم", exact: true })
         .fill("عميل تجريبي");
       await page.getByLabel("مفتاح الدولة").selectOption("970");
       await page
         .getByRole("textbox", { name: "الرقم المحلي" })
         .fill("0591234567");
       await page
-        .getByRole("textbox", { name: "العنوان بالتفصيل أو أقرب نقطة دالة" })
-        .fill("عنوان محلي مفصل للاختبار");
-      await page.getByRole("button", { name: "تأكيد الطلب" }).click();
+        .getByRole("button", { name: "إرسال الطلب عبر الموقع" })
+        .click();
       await expect(page).toHaveURL(
         /\/orders\/MS-[A-Za-z0-9_-]{24}\/confirmation$/,
       );

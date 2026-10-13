@@ -30,7 +30,8 @@ export function whatsAppOrderMessage(order: {
     return `• ${line.name}${detail ? ` (${detail})` : ""} × ${line.quantity} = ${formatIls(line.lineSubtotalAgorot)}`;
   });
   return [
-    `مرحباً، أريد تأكيد طلبي رقم ${order.publicReference}`,
+    "مرحباً سوق ميثلون،",
+    `أريد تأكيد طلبي رقم ${order.publicReference}`,
     ...lines,
     `مجموع المنتجات: ${formatIls(order.itemsSubtotalAgorot)}`,
     order.deliveryFeeAgorot === null

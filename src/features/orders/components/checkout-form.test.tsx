@@ -29,7 +29,7 @@ const serviceAreas = [
   },
 ];
 
-async function renderCheckout() {
+async function renderCheckout(channel: "web" | "whatsapp" = "web") {
   const products = await new MockProductRepository().list();
   window.localStorage.setItem(
     PREVIOUS_CART_STORAGE_KEY,
@@ -45,23 +45,21 @@ async function renderCheckout() {
     }),
   );
   renderWithProviders(
-    <CheckoutForm products={products} serviceAreas={serviceAreas} />,
+    <CheckoutForm
+      products={products}
+      serviceAreas={serviceAreas}
+      channel={channel}
+    />,
     { products },
   );
   const user = userEvent.setup();
   await user.type(
-    await screen.findByRole("textbox", { name: "الاسم الكامل" }),
+    await screen.findByRole("textbox", { name: "الاسم" }),
     "عميل تجريبي",
   );
   await user.type(
     screen.getByRole("textbox", { name: "الرقم المحلي" }),
     "0591234567",
-  );
-  await user.type(
-    screen.getByRole("textbox", {
-      name: "العنوان بالتفصيل أو أقرب نقطة دالة",
-    }),
-    "عنوان محلي مفصل للاختبار",
   );
   return user;
 }
@@ -82,7 +80,9 @@ describe("checkout form", () => {
     expect(
       screen.getByText("التوصيل متاح حالياً داخل ميثلون فقط"),
     ).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "تأكيد الطلب" }));
+    await user.click(
+      screen.getByRole("button", { name: "إرسال الطلب عبر الموقع" }),
+    );
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "تعذّر حفظ الطلب الآن.",
     );
@@ -108,7 +108,9 @@ describe("checkout form", () => {
     vi.stubGlobal("fetch", fetchMock);
     const user = await renderCheckout();
 
-    await user.click(screen.getByRole("button", { name: "تأكيد الطلب" }));
+    await user.click(
+      screen.getByRole("button", { name: "إرسال الطلب عبر الموقع" }),
+    );
     // Only identifiers and counts are sent; the server prices and checks stock itself.
     const body = JSON.parse(fetchMock.mock.calls[0]![1].body as string);
     expect(body.items).toEqual([
@@ -154,6 +156,88 @@ describe("checkout form", () => {
         "تغيّرت طريقة شراء أحد المنتجات. راجع السلة واختر طريقة شراء متاحة.",
       ),
     ).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "تأكيد الطلب" })).toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: "إرسال الطلب عبر الموقع" }),
+    ).toBeDisabled();
+  });
+});
+
+describe("checkout channels", () => {
+  const success = () =>
+    vi.fn().mockResolvedValue({
+      json: async () => ({
+        ok: true,
+        confirmation: {
+          publicReference: "MS-abcdefghijklmnopqrstuvwx",
+          status: "awaiting_whatsapp",
+          itemsSubtotalAgorot: 700,
+          deliveryFeeAgorot: 500,
+          finalTotalAgorot: 1200,
+          paymentMethod: "cash_on_delivery",
+          duplicate: false,
+        },
+      }),
+    });
+
+  it("asks only for a name and a WhatsApp number", async () => {
+    vi.stubGlobal("fetch", success());
+    await renderCheckout();
+    expect(screen.queryByText(/العنوان/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/أقرب معلم/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/ملاحظات الطلب/)).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("combobox", { name: "مفتاح الدولة" }),
+    ).toBeVisible();
+    expect(
+      screen.getByText(
+        "بعد استلام الطلب سنتواصل معك عبر واتساب لتأكيد الطلب ومكان التوصيل داخل ميثلون.",
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it("sends a WhatsApp order once, without an address, and hands off on the confirmation page", async () => {
+    push.mockClear();
+    const fetchMock = success();
+    vi.stubGlobal("fetch", fetchMock);
+    const user = await renderCheckout("whatsapp");
+    expect(
+      screen.queryByRole("button", { name: "إرسال الطلب عبر الموقع" }),
+    ).not.toBeInTheDocument();
+    const button = screen.getByRole("button", {
+      name: "إرسال الطلب عبر واتساب",
+    });
+    await user.dblClick(button);
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const body = JSON.parse(fetchMock.mock.calls[0]![1].body as string);
+    expect(body.checkoutChannel).toBe("whatsapp");
+    expect(body).not.toHaveProperty("deliveryAddress");
+    expect(body).not.toHaveProperty("landmark");
+    expect(push).toHaveBeenCalledWith(
+      "/orders/MS-abcdefghijklmnopqrstuvwx/confirmation?handoff=1",
+    );
+  });
+
+  it("keeps the entered values and focuses the error summary on failure", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        json: async () => ({
+          ok: false,
+          message: "رقم الواتساب غير صحيح.",
+          fieldErrors: { whatsappNationalNumber: ["رقم الواتساب غير صحيح."] },
+        }),
+      }),
+    );
+    const user = await renderCheckout();
+    await user.click(
+      screen.getByRole("button", { name: "إرسال الطلب عبر الموقع" }),
+    );
+    const alert = await screen.findByRole("alert");
+    await vi.waitFor(() => expect(alert).toHaveFocus());
+    const phone = screen.getByRole("textbox", { name: "الرقم المحلي" });
+    expect(phone).toHaveValue("0591234567");
+    expect(phone).toHaveAttribute("aria-invalid", "true");
+    expect(phone.getAttribute("aria-describedby")).toContain("whatsapp-error");
   });
 });

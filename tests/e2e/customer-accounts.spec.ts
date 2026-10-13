@@ -48,11 +48,8 @@ async function addToCart(page: Page, productId: string) {
 
 async function placeOrder(page: Page, phone: string) {
   await page.goto("/checkout");
-  await page.getByLabel("الاسم الكامل").fill("زبون الحسابات");
+  await page.getByLabel("الاسم", { exact: true }).fill("زبون الحسابات");
   await page.getByLabel("الرقم المحلي").fill(phone);
-  await page
-    .getByLabel("العنوان بالتفصيل أو أقرب نقطة دالة")
-    .fill("ميثلون الحي الغربي قرب المدرسة");
   await page.getByRole("button", { name: /تأكيد الطلب|إرسال الطلب/ }).click();
   await expect(page).toHaveURL(/\/orders\/.+\/confirmation/);
 }
@@ -214,13 +211,12 @@ test("profile, default address prefill and account deletion", async ({
   await page.goto("/");
   await addToCart(page, "carpet-brush");
   await page.goto("/checkout");
-  await expect(page.getByLabel("الاسم الكامل")).toHaveValue("ليلى");
+  await expect(page.getByLabel("الاسم", { exact: true })).toHaveValue("ليلى");
   await expect(page.getByLabel("الرقم المحلي")).toHaveValue("0597001004");
-  await expect(
-    page.getByLabel("العنوان بالتفصيل أو أقرب نقطة دالة"),
-  ).toHaveValue("ميثلون الحي الشرقي بجانب الصيدلية");
-  await page.getByLabel("الاسم الكامل").fill("ليلى أحمد");
-  await expect(page.getByLabel("الاسم الكامل")).toHaveValue("ليلى أحمد");
+  await page.getByLabel("الاسم", { exact: true }).fill("ليلى أحمد");
+  await expect(page.getByLabel("الاسم", { exact: true })).toHaveValue(
+    "ليلى أحمد",
+  );
 
   await page.goto("/account");
   await page.getByText("حذف الحساب").click();

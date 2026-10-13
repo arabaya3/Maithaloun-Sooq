@@ -25,8 +25,10 @@ export const metadata: Metadata = {
 
 export default async function OrderConfirmationPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ reference: string }>;
+  searchParams: Promise<{ handoff?: string | string[] }>;
 }) {
   await connection();
   const reference = (await params).reference;
@@ -58,7 +60,7 @@ export default async function OrderConfirmationPage({
         <h1 id="confirmation-title">
           {awaitingWhatsApp
             ? "خطوة أخيرة: أرسل الطلب على واتساب"
-            : "شكراً، طلبك قيد المراجعة"}
+            : "شكراً، وصل طلبك إلى المتجر"}
         </h1>
         <p>
           حالة الطلب: <strong>{orderStatusLabels[confirmation.status]}</strong>
@@ -74,12 +76,18 @@ export default async function OrderConfirmationPage({
             message={message}
             appHref={links.app}
             webHref={links.web}
+            autoOpen={(await searchParams).handoff === "1"}
           />
         ) : awaitingWhatsApp ? (
           <p role="note">
             حُفظ طلبك وسيتواصل معك المتجر لتأكيده. احتفظ برقم الطلب.
           </p>
-        ) : null}
+        ) : (
+          <p role="note">
+            وصل طلبك إلى سوق ميثلون، وسنتواصل معك عبر واتساب لتأكيد الطلب ومكان
+            التوصيل.
+          </p>
+        )}
         <ul className="order-confirmation-lines" aria-label="منتجات الطلب">
           {details.lines.map((line, index) => (
             <li key={index}>
