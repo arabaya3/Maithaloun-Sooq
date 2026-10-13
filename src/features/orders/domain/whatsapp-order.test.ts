@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { whatsAppLinks, whatsAppOrderMessage } from "./whatsapp-order";
+import {
+  whatsAppChatUrl,
+  whatsAppLinks,
+  whatsAppOrderMessage,
+} from "./whatsapp-order";
 
 const order = {
   publicReference: "MS-abcdefghijklmnopqrstuvwx",
@@ -56,5 +60,14 @@ describe("WhatsApp order message", () => {
     );
     expect(whatsAppLinks("+1555", "x")).toBeNull();
     expect(whatsAppLinks("", "x")).toBeNull();
+  });
+});
+
+describe("store WhatsApp chat link", () => {
+  it("opens a plain chat in international format and refuses unsupported numbers", () => {
+    expect(whatsAppChatUrl("+972590000000")).toBe("https://wa.me/972590000000");
+    expect(whatsAppChatUrl("+970590000000")).toBe("https://wa.me/970590000000");
+    expect(whatsAppChatUrl("0590000000")).toBeNull();
+    expect(whatsAppChatUrl("+15550000000")).toBeNull();
   });
 });

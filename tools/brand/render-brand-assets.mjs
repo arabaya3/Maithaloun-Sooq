@@ -47,7 +47,7 @@ const icons = [
   }
   await page.setViewportSize({ width: 1200, height: 630 });
   await page.setContent(
-    `<style>${css}</style><div class="og"><div class="name">MAYTHA</div><div class="sub">HOME &amp; CARE</div><div class="rule"></div><div class="line">منتجات أصلية من ماركات بتعرفها وبتثق فيها.</div></div>`,
+    `<style>${css}</style><div class="og"><div class="name">MAYTHA</div><div class="sub">HOME &amp; CARE</div><div class="rule"></div><div class="line">ماركات بتعرفها وبتثق فيها.</div></div>`,
   );
   await page.evaluate(() => document.fonts.ready);
   await page.screenshot({

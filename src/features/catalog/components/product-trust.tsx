@@ -20,7 +20,7 @@ export function ProductTrust() {
       </li>
       <li>
         <BadgeCheck aria-hidden="true" />
-        {m.catalog.trustGenuine}
+        {m.catalog.trustBrands}
       </li>
     </ul>
   );

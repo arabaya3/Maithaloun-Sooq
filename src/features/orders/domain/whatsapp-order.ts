@@ -56,3 +56,9 @@ export function whatsAppLinks(
     web: `https://web.whatsapp.com/send?phone=${phone}&text=${text}`,
   };
 }
+
+/** A plain chat link to the store, for contact buttons; works on phones and desktop. */
+export function whatsAppChatUrl(storeE164: string): string | null {
+  if (!isSupportedWhatsAppE164(storeE164)) return null;
+  return `https://wa.me/${storeE164.slice(1)}`;
+}

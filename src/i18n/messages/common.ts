@@ -10,9 +10,9 @@ const ar = {
   cart: "السلة",
   brands: "الماركات",
   backHome: "العودة إلى الرئيسية",
-  trustLine: "منتجات أصلية من ماركات بتعرفها وبتثق فيها.",
+  trustLine: "منظفات وعناية شخصية ومستلزمات للبيت، نوصلها داخل ميثلون.",
   deliveryAndCash: "توصيل داخل ميثلون · الدفع عند الاستلام",
-  genuineProducts: "منتجات أصلية",
+  trustedBrands: "ماركات بتعرفها وبتثق فيها",
   deliveryInMaythalun: "توصيل داخل ميثلون",
   cashOnDelivery: "الدفع عند الاستلام",
   productCount: (count: number) => {
@@ -38,9 +38,10 @@ const en: typeof ar = {
   cart: "Cart",
   brands: "Brands",
   backHome: "Back to home",
-  trustLine: "Genuine products from brands you know and trust.",
+  trustLine:
+    "Cleaning, personal care and home essentials, delivered within Maythaloun.",
   deliveryAndCash: "Delivery within Maythaloun · Cash on delivery",
-  genuineProducts: "Genuine products",
+  trustedBrands: "Brands you know and trust",
   deliveryInMaythalun: "Delivery within Maythaloun",
   cashOnDelivery: "Cash on delivery",
   productCount: (count: number) =>

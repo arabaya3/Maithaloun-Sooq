@@ -30,7 +30,7 @@ test.describe("an English browser", () => {
     await expect(
       page.getByRole("heading", {
         level: 1,
-        name: "Original Brands for a Cleaner, Brighter Home",
+        name: "Brands You Know and Trust, for a Cleaner, Brighter Home",
       }),
     ).toBeVisible();
     await expect(

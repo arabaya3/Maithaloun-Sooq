@@ -8,6 +8,7 @@ import { common } from "./common";
 import { meta } from "./meta";
 import { misc } from "./misc";
 import { orders } from "./orders";
+import { info } from "./info";
 import { pwa } from "./pwa";
 import { store } from "./store";
 
@@ -18,6 +19,7 @@ const namespaces = {
   catalog,
   checkout,
   common,
+  info,
   meta,
   misc,
   orders,

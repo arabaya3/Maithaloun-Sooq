@@ -16,6 +16,7 @@ import { DeliveryProvider } from "@/features/delivery/delivery-provider";
 import { serviceAreaRepository } from "@/features/delivery/service-area-repository";
 import { FavoritesProvider } from "@/features/favorites/favorites-provider";
 import { StorefrontInstallBanner } from "@/features/pwa/storefront-install-banner";
+import { storeContactService } from "@/features/orders/application/order-service-instance";
 import { StoreFooter } from "@/features/storefront/components/store-footer";
 import { StoreLaunchSplash } from "@/features/storefront/components/store-launch-splash";
 import { StoreNavigationProvider } from "@/features/storefront/components/store-navigation";
@@ -33,13 +34,14 @@ export default async function StoreLayout({
     crossOrigin: "anonymous",
   });
   await connection();
-  const [products, serviceAreas, customer, categories, locale] =
+  const [products, serviceAreas, customer, categories, locale, storeWhatsApp] =
     await Promise.all([
       productRepository.list(),
       serviceAreaRepository.listEnabled(),
       getCustomerSession(),
       storefrontCategories(),
       getLocale(),
+      storeContactService.whatsAppNumber(),
     ]);
   const accountFavorites = customer
     ? {
@@ -77,7 +79,7 @@ export default async function StoreLayout({
         >
           <CartProvider catalog={catalog}>{children}</CartProvider>
         </StoreNavigationProvider>
-        <StoreFooter />
+        <StoreFooter storeWhatsApp={storeWhatsApp} />
         <StorefrontInstallBanner />
       </FavoritesProvider>
     </DeliveryProvider>
