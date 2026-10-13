@@ -75,18 +75,20 @@ const serwist = new Serwist({
     },
   ],
   fallbacks: {
-    entries: [
-      {
-        url: "/~offline",
-        matcher: ({ request }) => {
-          const path = new URL(request.url).pathname;
-          return (
-            request.mode === "navigate" &&
-            !sensitivePrefixes.some((prefix) => path.startsWith(prefix))
-          );
-        },
+    // English pages fall back to the English offline page, the rest to the Arabic one.
+    entries: ["/en/~offline", "/~offline"].map((url) => ({
+      url,
+      matcher: ({ request }: { request: Request }) => {
+        const path = new URL(request.url).pathname;
+        const english = path === "/en" || path.startsWith("/en/");
+        const shared = english ? path.slice(3) || "/" : path;
+        return (
+          request.mode === "navigate" &&
+          english === url.startsWith("/en/") &&
+          !sensitivePrefixes.some((prefix) => shared.startsWith(prefix))
+        );
       },
-    ],
+    })),
   },
 });
 

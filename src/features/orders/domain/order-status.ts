@@ -34,6 +34,24 @@ export const orderStatusLabels: Record<OrderStatus, string> = {
   cancelled: "ملغي",
 };
 
+// Customer-facing only; the admin and the assistant keep the Arabic labels above.
+export const orderStatusLabelsEn: Record<OrderStatus, string> = {
+  pending: "New",
+  awaiting_whatsapp: "Awaiting WhatsApp confirmation",
+  confirmed: "Confirmed",
+  preparing: "Being prepared",
+  out_for_delivery: "Out for delivery",
+  delivered: "Delivered",
+  cancelled: "Cancelled",
+};
+
+export function orderStatusLabel(
+  status: OrderStatus,
+  locale: "ar" | "en" = "ar",
+): string {
+  return (locale === "en" ? orderStatusLabelsEn : orderStatusLabels)[status];
+}
+
 /** Next primary action label for operational queues (non-cancel). */
 export function getPrimaryNextStatus(status: OrderStatus): OrderStatus | null {
   const next = allowedTransitions[status].find(

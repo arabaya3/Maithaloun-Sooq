@@ -12,6 +12,7 @@ import {
   unitComparison,
   type SellingUnit,
 } from "@/features/catalog/domain/selling-unit";
+import { useI18n } from "@/i18n/i18n-provider";
 import { formatIls } from "@/shared/lib/format-currency";
 
 // How the customer buys the chosen variant. This is not the cart quantity: it says what one
@@ -27,25 +28,28 @@ export function SellingUnitSelector({
   offer: VariantOffer | undefined;
   onSelect: (unit: SellingUnit) => void;
 }) {
+  const { m, locale } = useI18n();
   const buttons = useRef<Array<HTMLButtonElement | null>>([]);
   if (units.length < 2) {
     const only = units[0];
     // A variant sold only as a pack still says so, so the quantity is never read as pieces.
     return only && only.unitsPerSale > 1 ? (
       <p className="selling-unit-only">
-        طريقة الشراء: <bdi dir="auto">{only.labelAr}</bdi>
+        {m.catalog.buyingMethodOnly}
+        <bdi dir="auto">{only.labelAr}</bdi>
       </p>
     ) : null;
   }
   const single = units.find((unit) => unit.unitsPerSale === 1) ?? null;
   const selectable = units.filter(isSellingUnitPurchasable);
 
-  // Radio-group keys: arrows move between purchasable units, in the reading order of the page (RTL).
+  // Radio-group keys: arrows move between purchasable units, in the reading order of the page.
   function onKeyDown(event: KeyboardEvent<HTMLButtonElement>, index: number) {
+    const ahead = locale === "ar" ? 1 : -1;
     const keys: Record<string, number> = {
-      ArrowLeft: 1,
+      ArrowLeft: ahead,
       ArrowDown: 1,
-      ArrowRight: -1,
+      ArrowRight: -ahead,
       ArrowUp: -1,
     };
     const step = keys[event.key];
@@ -63,11 +67,13 @@ export function SellingUnitSelector({
 
   return (
     <fieldset className="selling-unit-selector">
-      <legend className="variant-selector-label">طريقة الشراء</legend>
+      <legend className="variant-selector-label">
+        {m.catalog.buyingMethod}
+      </legend>
       <div
         className="selling-unit-options"
         role="radiogroup"
-        aria-label="طريقة الشراء"
+        aria-label={m.catalog.buyingMethod}
       >
         {units.map((unit, index) => {
           const selected = unit.id === selectedId;
@@ -77,7 +83,7 @@ export function SellingUnitSelector({
             offerForSellingUnit(unit, offer),
             1,
           );
-          const comparison = unitComparison(unit, single);
+          const comparison = unitComparison(unit, single, locale);
           const focusable = selected || (!selectedId && unit === selectable[0]);
           return (
             <button
@@ -108,11 +114,13 @@ export function SellingUnitSelector({
                 {comparison ? (
                   <span className="selling-unit-note">
                     <bdi dir="ltr">{comparison.perPiece}</bdi>
-                    {comparison.cheaper ? " · أوفر من شراء الحبة منفردة" : ""}
+                    {comparison.cheaper ? m.catalog.cheaperThanSingle : ""}
                   </span>
                 ) : null}
                 {!purchasable ? (
-                  <span className="selling-unit-note">غير متوفر حالياً</span>
+                  <span className="selling-unit-note">
+                    {m.catalog.unavailableNow}
+                  </span>
                 ) : null}
               </span>
             </button>

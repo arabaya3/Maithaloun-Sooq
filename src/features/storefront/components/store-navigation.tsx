@@ -4,7 +4,8 @@ import { createContext, useContext, type ReactNode } from "react";
 
 export interface NavigationCategory {
   code: string;
-  nameAr: string;
+  // Already in the visitor's language.
+  name: string;
 }
 
 const StoreNavigationContext = createContext<readonly NavigationCategory[]>([]);

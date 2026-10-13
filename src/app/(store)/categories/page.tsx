@@ -1,25 +1,34 @@
 import { ChevronLeft } from "lucide-react";
 import type { Metadata } from "next";
-import Link from "next/link";
 import { connection } from "next/server";
 
 import { categoryIcon } from "@/features/catalog/components/category-icons";
+import {
+  localizedCategoryDescription,
+  localizedCategoryName,
+} from "@/features/catalog/domain/category";
 import { storefrontCategories } from "@/features/catalog/infrastructure/category-repository";
 import { productRepository } from "@/features/catalog/infrastructure/product-repository";
 import { MobileNavigation } from "@/features/storefront/components/mobile-navigation";
 import { SiteHeader } from "@/features/storefront/components/site-header";
-import { formatProductCount } from "@/shared/lib/format-product-count";
+import { Link } from "@/i18n/link";
+import { getLocale, getMessages } from "@/i18n/server";
 
-export const metadata: Metadata = {
-  title: "الأقسام",
-  description: "تصفّح أقسام MAYTHA واختر ما يحتاجه البيت.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const m = await getMessages();
+  return {
+    title: m.meta.categoriesTitle,
+    description: m.meta.categoriesDescription,
+  };
+}
 
 export default async function CategoriesPage() {
   await connection();
-  const [categories, products] = await Promise.all([
+  const [categories, products, locale, m] = await Promise.all([
     storefrontCategories(),
     productRepository.list(),
+    getLocale(),
+    getMessages(),
   ]);
   const counts = new Map<string, number>();
   for (const product of products) {
@@ -32,12 +41,16 @@ export default async function CategoriesPage() {
       <main className="page-shell categories-page">
         <div className="categories-page-heading">
           <span className="eyebrow">MAYTHA</span>
-          <h1>الأقسام</h1>
+          <h1>{m.common.categories}</h1>
         </div>
         {categories.length ? (
           <ul className="category-directory">
             {categories.map((category) => {
               const Icon = categoryIcon(category.icon);
+              const description = localizedCategoryDescription(
+                category,
+                locale,
+              );
               return (
                 <li key={category.code}>
                   <Link
@@ -47,15 +60,13 @@ export default async function CategoriesPage() {
                       <Icon />
                     </span>
                     <span className="category-directory-text">
-                      <strong>{category.nameAr}</strong>
-                      {category.description ? (
-                        <small>{category.description}</small>
-                      ) : null}
+                      <strong>{localizedCategoryName(category, locale)}</strong>
+                      {description ? <small>{description}</small> : null}
                       <small className="category-directory-count">
-                        {formatProductCount(counts.get(category.code) ?? 0)}
+                        {m.common.productCount(counts.get(category.code) ?? 0)}
                       </small>
                     </span>
-                    <ChevronLeft aria-hidden="true" />
+                    <ChevronLeft className="rtl-flip" aria-hidden="true" />
                   </Link>
                 </li>
               );
@@ -63,7 +74,7 @@ export default async function CategoriesPage() {
           </ul>
         ) : (
           <p className="empty-state" role="status">
-            لا توجد أقسام منشورة حالياً.
+            {m.store.noCategories}
           </p>
         )}
       </main>

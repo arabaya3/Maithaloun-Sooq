@@ -246,6 +246,7 @@ describe("storefront selection", () => {
 
   it("describes packs without changing stock units", () => {
     expect(packLabel(3)).toBe("العبوة فيها 3 قطع");
+    expect(packLabel(3, "en")).toBe("3 pieces per pack");
     expect(packLabel(1)).toBeNull();
     expect(packLabel(null)).toBeNull();
   });

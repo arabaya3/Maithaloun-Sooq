@@ -48,6 +48,9 @@ export const productSchema = z
     nameAr: z.string().min(1),
     latinName: z.string().min(1).optional(),
     brand: z.string().min(1).optional(),
+    nameEn: z.string().min(1).optional(),
+    descriptionEn: z.string().min(1).optional(),
+    usageNotesEn: z.string().min(1).optional(),
     priceAgorot: z.number().int().nonnegative(),
     categoryId: productCategorySchema,
     image: z.discriminatedUnion("kind", [
@@ -129,4 +132,30 @@ export function getDefaultVariant(product: Product): ProductVariant {
       (variant) => variant.id === product.defaultVariantId,
     ) ?? product.variants[0]!
   );
+}
+
+/** English only where the owner wrote it; otherwise the original name, never a guess. */
+export function localizedProductName(
+  product: Pick<Product, "nameAr" | "latinName" | "nameEn">,
+  locale: "ar" | "en",
+): string {
+  return locale === "en" && product.nameEn
+    ? product.nameEn
+    : getProductDisplayName(product);
+}
+
+export function localizedProductText(
+  product: Pick<
+    Product,
+    "description" | "descriptionEn" | "usageNotes" | "usageNotesEn"
+  >,
+  locale: "ar" | "en",
+): { description?: string; usageNotes?: string } {
+  if (locale === "en") {
+    return {
+      description: product.descriptionEn ?? product.description,
+      usageNotes: product.usageNotesEn ?? product.usageNotes,
+    };
+  }
+  return { description: product.description, usageNotes: product.usageNotes };
 }

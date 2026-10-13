@@ -1,13 +1,13 @@
 "use client";
 
 import { LayoutGrid, PackageSearch, Search, X } from "lucide-react";
-import Link from "next/link";
 import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
 
 import { categoryIcons } from "@/features/catalog/components/category-icons";
 import { ProductCard } from "@/features/catalog/components/product-card";
 import {
   ALL_CATEGORIES,
+  localizedCategoryName,
   type ProductCategory,
 } from "@/features/catalog/domain/category";
 import type { CategoryId, Product } from "@/features/catalog/domain/product";
@@ -22,7 +22,8 @@ import {
 import { MobileNavigation } from "@/features/storefront/components/mobile-navigation";
 import { SiteHeader } from "@/features/storefront/components/site-header";
 import type { CatalogBrand } from "@/features/storefront/domain/home-merchandising";
-import { formatProductCount } from "@/shared/lib/format-product-count";
+import { useI18n } from "@/i18n/i18n-provider";
+import { Link } from "@/i18n/link";
 
 // The first batch keeps the phone page short; more is one tap away, never on scroll.
 export const CATALOG_BATCH = 12;
@@ -52,10 +53,11 @@ function ProductSearch({
   onChange: (value: string) => void;
   inputRef: RefObject<HTMLInputElement | null>;
 }) {
+  const { m } = useI18n();
   return (
     <div className="search-wrap" role="search">
       <label htmlFor="product-search" className="sr-only">
-        ابحث في المنتجات
+        {m.store.searchLabel}
       </label>
       <Search aria-hidden="true" />
       <input
@@ -72,14 +74,14 @@ function ProductSearch({
               ?.scrollIntoView({ block: "start" });
           }
         }}
-        placeholder="ابحث عن منتج أو ماركة…"
+        placeholder={m.store.searchPlaceholder}
         autoComplete="off"
       />
       {query ? (
         <button
           type="button"
           className="clear-search"
-          aria-label="مسح البحث"
+          aria-label={m.store.clearSearch}
           onClick={() => {
             onChange("");
             inputRef.current?.focus();
@@ -101,16 +103,21 @@ function CategoryPicker({
   selected: CategoryId;
   onSelect: (category: CategoryId) => void;
 }) {
+  const { m, locale } = useI18n();
   const options = [
-    { code: ALL_CATEGORIES, nameAr: "الكل", icon: "grid" as const },
-    ...categories,
+    { code: ALL_CATEGORIES, name: m.store.allFilter, icon: "grid" as const },
+    ...categories.map((category) => ({
+      code: category.code,
+      name: localizedCategoryName(category, locale),
+      icon: category.icon,
+    })),
   ];
   return (
     <section className="categories-section" aria-labelledby="categories-title">
       <div className="home-section-heading">
-        <h2 id="categories-title">تسوّق حسب القسم</h2>
+        <h2 id="categories-title">{m.store.shopByCategory}</h2>
         <Link href="/categories" className="home-section-link">
-          كل الأقسام
+          {m.store.allCategories}
         </Link>
       </div>
       <div
@@ -134,7 +141,7 @@ function CategoryPicker({
               <span className="category-icon" aria-hidden="true">
                 <Icon />
               </span>
-              <span className="category-label">{category.nameAr}</span>
+              <span className="category-label">{category.name}</span>
             </button>
           );
         })}
@@ -166,6 +173,7 @@ export function Storefront({
   initialQuery?: string;
   merchandising?: HomeMerchandising;
 }) {
+  const { m, locale } = useI18n();
   const [query, setQueryState] = useState(initialQuery);
   const [category, setCategoryState] = useState<CategoryId>(initialCategory);
   const setCategory = (code: CategoryId) => {
@@ -217,7 +225,7 @@ export function Storefront({
       />
       <main className="page-shell storefront-main">
         {hasActiveFilter ? (
-          <h1 className="sr-only">تسوّق منتجات MAYTHA</h1>
+          <h1 className="sr-only">{m.store.shopHeading}</h1>
         ) : (
           <Hero products={merchandising.heroProducts} />
         )}
@@ -229,14 +237,16 @@ export function Storefront({
         {hasActiveFilter ? (
           <div className="active-filter-summary" role="status">
             <span>
-              {query.trim() ? `البحث: ${query.trim()}` : null}
-              {query.trim() && category !== ALL_CATEGORIES ? "، " : null}
-              {category !== ALL_CATEGORIES
-                ? `القسم: ${selectedCategory?.nameAr ?? ""}`
+              {query.trim() ? m.store.searchQuery(query.trim()) : null}
+              {query.trim() && category !== ALL_CATEGORIES ? " · " : null}
+              {category !== ALL_CATEGORIES && selectedCategory
+                ? m.store.categoryFilter(
+                    localizedCategoryName(selectedCategory, locale),
+                  )
                 : null}
             </span>
             <button type="button" onClick={resetFilters}>
-              مسح عوامل التصفية
+              {m.store.clearFilters}
             </button>
           </div>
         ) : (
@@ -256,10 +266,10 @@ export function Storefront({
         >
           <div className="home-section-heading catalog-heading">
             <h2 id="catalog-title">
-              {hasActiveFilter ? "نتائج البحث" : "كل المنتجات"}
+              {hasActiveFilter ? m.store.searchResults : m.store.allProducts}
             </h2>
             <span className="results-count" aria-live="polite">
-              {formatProductCount(filteredProducts.length)}
+              {m.common.productCount(filteredProducts.length)}
             </span>
           </div>
 
@@ -273,7 +283,10 @@ export function Storefront({
               {remaining > 0 ? (
                 <div className="catalog-more">
                   <p className="catalog-more-count">
-                    يظهر {visibleProducts.length} من {filteredProducts.length}
+                    {m.store.showing(
+                      visibleProducts.length,
+                      filteredProducts.length,
+                    )}
                   </p>
                   <button
                     type="button"
@@ -285,7 +298,7 @@ export function Storefront({
                       })
                     }
                   >
-                    عرض المزيد ({Math.min(remaining, CATALOG_BATCH)})
+                    {m.store.showMore(Math.min(remaining, CATALOG_BATCH))}
                   </button>
                 </div>
               ) : null}
@@ -293,10 +306,10 @@ export function Storefront({
           ) : (
             <div className="empty-state" role="status">
               <PackageSearch aria-hidden="true" />
-              <h3>لا توجد نتائج مطابقة</h3>
-              <p>جرّب عبارة بحث أخرى أو اختر قسماً مختلفاً.</p>
+              <h3>{m.store.noResults}</h3>
+              <p>{m.store.noResultsHint}</p>
               <button type="button" onClick={resetFilters}>
-                عرض كل المنتجات
+                {m.store.showAllProducts}
               </button>
             </div>
           )}

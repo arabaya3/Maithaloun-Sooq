@@ -9,6 +9,7 @@ import {
 import { customerFavoritesService } from "@/features/accounts/application/customer-services";
 import { getCustomerSession } from "@/features/accounts/application/customer-session";
 import { CartProvider } from "@/features/cart/cart-provider";
+import { localizedCategoryName } from "@/features/catalog/domain/category";
 import { storefrontCategories } from "@/features/catalog/infrastructure/category-repository";
 import { productRepository } from "@/features/catalog/infrastructure/product-repository";
 import { DeliveryProvider } from "@/features/delivery/delivery-provider";
@@ -18,6 +19,7 @@ import { StorefrontInstallBanner } from "@/features/pwa/storefront-install-banne
 import { StoreFooter } from "@/features/storefront/components/store-footer";
 import { StoreLaunchSplash } from "@/features/storefront/components/store-launch-splash";
 import { StoreNavigationProvider } from "@/features/storefront/components/store-navigation";
+import { getLocale } from "@/i18n/server";
 
 // Catalog-backed providers live here so admin and utility routes never load the catalog.
 export default async function StoreLayout({
@@ -31,12 +33,14 @@ export default async function StoreLayout({
     crossOrigin: "anonymous",
   });
   await connection();
-  const [products, serviceAreas, customer, categories] = await Promise.all([
-    productRepository.list(),
-    serviceAreaRepository.listEnabled(),
-    getCustomerSession(),
-    storefrontCategories(),
-  ]);
+  const [products, serviceAreas, customer, categories, locale] =
+    await Promise.all([
+      productRepository.list(),
+      serviceAreaRepository.listEnabled(),
+      getCustomerSession(),
+      storefrontCategories(),
+      getLocale(),
+    ]);
   const accountFavorites = customer
     ? {
         productIds: await customerFavoritesService.list(customer.id),
@@ -66,7 +70,10 @@ export default async function StoreLayout({
       <StoreLaunchSplash />
       <FavoritesProvider productIds={productIds} account={accountFavorites}>
         <StoreNavigationProvider
-          categories={categories.map(({ code, nameAr }) => ({ code, nameAr }))}
+          categories={categories.map((category) => ({
+            code: category.code,
+            name: localizedCategoryName(category, locale),
+          }))}
         >
           <CartProvider catalog={catalog}>{children}</CartProvider>
         </StoreNavigationProvider>

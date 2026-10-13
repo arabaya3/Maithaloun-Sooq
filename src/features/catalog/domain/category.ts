@@ -62,6 +62,8 @@ export interface ProductCategory {
   code: string;
   nameAr: string;
   description: string | null;
+  nameEn?: string | null;
+  descriptionEn?: string | null;
   icon: CategoryIconKey;
   sortOrder: number;
   visible: boolean;
@@ -79,6 +81,23 @@ export function categoryLabel(
   code: string,
 ): string {
   return categories.find((category) => category.code === code)?.nameAr ?? code;
+}
+
+/** The name a visitor reads: English only when the owner wrote one. */
+export function localizedCategoryName(
+  category: Pick<ProductCategory, "nameAr" | "nameEn">,
+  locale: "ar" | "en",
+): string {
+  return locale === "en" && category.nameEn ? category.nameEn : category.nameAr;
+}
+
+export function localizedCategoryDescription(
+  category: Pick<ProductCategory, "description" | "descriptionEn">,
+  locale: "ar" | "en",
+): string | null {
+  return locale === "en" && category.descriptionEn
+    ? category.descriptionEn
+    : category.description;
 }
 
 // Codes are ASCII so URLs and filters stay stable; Arabic names are labels only.

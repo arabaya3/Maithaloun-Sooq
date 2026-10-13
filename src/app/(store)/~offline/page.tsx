@@ -1,11 +1,19 @@
 import { WifiOff } from "lucide-react";
+import type { Metadata } from "next";
 import Image from "next/image";
-import Link from "next/link";
 
 import { appIcons } from "@/features/pwa/app-icons";
 import { OfflineFavorites } from "@/features/favorites/offline-favorites";
+import { Link } from "@/i18n/link";
+import { getMessages } from "@/i18n/server";
 
-export default function OfflinePage() {
+export async function generateMetadata(): Promise<Metadata> {
+  const m = await getMessages();
+  return { title: m.meta.offlineTitle };
+}
+
+export default async function OfflinePage() {
+  const { misc } = await getMessages();
   return (
     <main className="placeholder-page page-shell">
       <div className="placeholder-panel">
@@ -18,9 +26,9 @@ export default function OfflinePage() {
           sizes="72px"
         />
         <WifiOff className="status-icon" aria-hidden="true" />
-        <h1>أنت غير متصل الآن</h1>
-        <p>تحقق من اتصالك بالإنترنت، ثم حاول فتح الصفحة مرة أخرى.</p>
-        <Link href="/">إعادة المحاولة</Link>
+        <h1>{misc.offlineHeading}</h1>
+        <p>{misc.offlineText}</p>
+        <Link href="/">{misc.retry}</Link>
         <OfflineFavorites />
       </div>
     </main>

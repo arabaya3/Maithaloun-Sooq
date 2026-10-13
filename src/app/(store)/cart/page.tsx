@@ -6,11 +6,12 @@ import { productRepository } from "@/features/catalog/infrastructure/product-rep
 import { storeContactService } from "@/features/orders/application/order-service-instance";
 import { MobileNavigation } from "@/features/storefront/components/mobile-navigation";
 import { SiteHeader } from "@/features/storefront/components/site-header";
+import { getMessages } from "@/i18n/server";
 
-export const metadata: Metadata = {
-  title: "سلة التسوق",
-  description: "راجع المنتجات والكميات المحفوظة في سلة MAYTHA.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const m = await getMessages();
+  return { title: m.meta.cartTitle, description: m.meta.cartDescription };
+}
 
 export default async function CartRoute() {
   await connection();

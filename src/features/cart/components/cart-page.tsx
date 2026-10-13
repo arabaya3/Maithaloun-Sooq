@@ -1,7 +1,6 @@
 "use client";
 
 import { ShoppingBasket, Trash2 } from "lucide-react";
-import Link from "next/link";
 import { useMemo, useState } from "react";
 
 import { QuantityControl } from "@/features/cart/components/quantity-control";
@@ -14,7 +13,7 @@ import { cartLineKey } from "@/features/cart/cart-store";
 import { useCart } from "@/features/cart/cart-provider";
 import { ProductMedia } from "@/features/catalog/components/product-media";
 import {
-  getProductDisplayName,
+  localizedProductName,
   type Product,
 } from "@/features/catalog/domain/product";
 import { formatVariantAttributes } from "@/features/catalog/domain/product-variant";
@@ -24,6 +23,8 @@ import {
 } from "@/features/catalog/domain/selling-unit";
 import { calculateDeliveryFeeAgorot } from "@/features/delivery/delivery-policy";
 import { getFreeDeliveryMessage } from "@/features/delivery/delivery-messaging";
+import { useI18n } from "@/i18n/i18n-provider";
+import { Link } from "@/i18n/link";
 import { formatIls } from "@/shared/lib/format-currency";
 
 export function CartPage({
@@ -33,6 +34,8 @@ export function CartPage({
   products: readonly Product[];
   whatsAppOrdering?: boolean;
 }) {
+  const { m: messages, locale } = useI18n();
+  const m = messages.cart;
   const {
     lines,
     ready,
@@ -54,14 +57,17 @@ export function CartPage({
     resolvedLines.some((line) => line.status !== "ok");
   const deliveryFeeAgorot = calculateDeliveryFeeAgorot(merchandiseSubtotal);
   const orderTotal = merchandiseSubtotal + deliveryFeeAgorot;
-  const freeDeliveryMessage = getFreeDeliveryMessage(merchandiseSubtotal);
+  const freeDeliveryMessage = getFreeDeliveryMessage(
+    merchandiseSubtotal,
+    locale,
+  );
   const freeDeliveryQualified =
     deliveryFeeAgorot === 0 && merchandiseSubtotal > 0;
 
   if (!ready) {
     return (
       <div className="cart-loading" role="status" aria-live="polite">
-        جارٍ تحميل السلة…
+        {m.loading}
       </div>
     );
   }
@@ -70,9 +76,9 @@ export function CartPage({
     return (
       <section className="cart-empty" aria-labelledby="empty-cart-title">
         <ShoppingBasket aria-hidden="true" />
-        <h1 id="empty-cart-title">سلتك فارغة</h1>
-        <p>أضف احتياجاتك من المنتجات، وستظهر هنا.</p>
-        <Link href="/#catalog">متابعة التسوق</Link>
+        <h1 id="empty-cart-title">{m.emptyTitle}</h1>
+        <p>{m.emptyText}</p>
+        <Link href="/#catalog">{m.continueShopping}</Link>
       </section>
     );
   }
@@ -82,8 +88,8 @@ export function CartPage({
       <section className="cart-lines" aria-labelledby="cart-title">
         <div className="cart-title-row">
           <div>
-            <span className="eyebrow">مراجعة المنتجات</span>
-            <h1 id="cart-title">سلة التسوق</h1>
+            <span className="eyebrow">{m.reviewEyebrow}</span>
+            <h1 id="cart-title">{m.title}</h1>
           </div>
           {!confirmingClear ? (
             <button
@@ -91,14 +97,14 @@ export function CartPage({
               className="clear-cart-button"
               onClick={() => setConfirmingClear(true)}
             >
-              إفراغ السلة
+              {m.clearCart}
             </button>
           ) : null}
         </div>
 
         {confirmingClear ? (
           <div className="clear-cart-confirmation" role="alert">
-            <p>هل تريد إزالة جميع المنتجات من السلة؟</p>
+            <p>{m.clearConfirm}</p>
             <div>
               <button
                 type="button"
@@ -107,10 +113,10 @@ export function CartPage({
                   setConfirmingClear(false);
                 }}
               >
-                نعم، أفرغ السلة
+                {m.clearYes}
               </button>
               <button type="button" onClick={() => setConfirmingClear(false)}>
-                إلغاء
+                {m.cancel}
               </button>
             </div>
           </div>
@@ -128,7 +134,7 @@ export function CartPage({
               lineSubtotalAgorot,
             }) => {
               const { quantity, variantId } = line;
-              const name = getProductDisplayName(product);
+              const name = localizedProductName(product, locale);
               const attributeSummary = formatVariantAttributes(
                 variant.attributes,
               );
@@ -151,7 +157,7 @@ export function CartPage({
 
               return (
                 <article className="cart-line" key={cartLineKey(line)}>
-                  <Link href={lineHref} aria-label={`عرض تفاصيل ${name}`}>
+                  <Link href={lineHref} aria-label={m.viewDetails(name)}>
                     <ProductMedia
                       product={product}
                       image={variant.image}
@@ -178,17 +184,19 @@ export function CartPage({
                     ) : null}
                     {pack ? (
                       <p className="cart-line-pieces">
-                        إجمالي القطع: {quantity * pack.unitsPerSale}
+                        {m.totalPieces(quantity * pack.unitsPerSale)}
                       </p>
                     ) : null}
                     {priced && unit ? (
                       <p>
                         {pack ? (
                           <>
-                            سعر «<bdi dir="auto">{pack.labelAr}</bdi>»:{" "}
+                            {m.packPriceBefore}
+                            <bdi dir="auto">{pack.labelAr}</bdi>
+                            {m.packPriceAfter}
                           </>
                         ) : (
-                          "سعر الوحدة: "
+                          m.unitPrice
                         )}
                         <bdi dir="ltr">{formatIls(priced.unitPriceAgorot)}</bdi>
                         {priced.offerId ? (
@@ -204,26 +212,20 @@ export function CartPage({
                       </p>
                     ) : null}
                     {status === "unavailable" ? (
-                      <p className="unavailable-message">
-                        غير متاح حالياً ولا يدخل في المجموع.
-                      </p>
+                      <p className="unavailable-message">{m.unavailable}</p>
                     ) : null}
                     {status === "limited" && unit ? (
                       <p className="unavailable-message" role="status">
-                        المتوفر الآن {unit.maxQuantity} فقط من هذا الخيار. قلّل
-                        العدد لإكمال الطلب.
+                        {m.limited(unit.maxQuantity)}
                       </p>
                     ) : null}
                     {status === "review" ? (
                       <div
                         className="cart-line-review"
                         role="group"
-                        aria-label={`مراجعة طريقة شراء ${name}`}
+                        aria-label={m.reviewGroup(name)}
                       >
-                        <p className="unavailable-message">
-                          تغيّرت طريقة الشراء لهذا المنتج منذ أضفته. اختر طريقة
-                          شراء متاحة، ولن يدخل في المجموع قبل ذلك.
-                        </p>
+                        <p className="unavailable-message">{m.reviewText}</p>
                         {choices.length ? (
                           <div className="cart-line-review-options">
                             {choices.map((choice) => (
@@ -246,7 +248,7 @@ export function CartPage({
                             ))}
                           </div>
                         ) : (
-                          <p>لا توجد طريقة شراء متاحة لهذا المنتج حالياً.</p>
+                          <p>{m.noUnitAvailable}</p>
                         )}
                       </div>
                     ) : null}
@@ -263,11 +265,11 @@ export function CartPage({
                       <button
                         type="button"
                         className="remove-line-button"
-                        aria-label={`إزالة ${name} من السلة`}
+                        aria-label={m.removeFromCart(name)}
                         onClick={() => removeItem(line)}
                       >
                         <Trash2 aria-hidden="true" />
-                        إزالة
+                        {m.remove}
                       </button>
                     </div>
                   </div>
@@ -275,8 +277,8 @@ export function CartPage({
                     className="cart-line-subtotal"
                     aria-label={
                       lineSubtotalAgorot === null
-                        ? `مجموع ${name} غير متاح`
-                        : `مجموع ${name} ${formatIls(lineSubtotalAgorot)}`
+                        ? m.lineTotalUnavailable(name)
+                        : m.lineTotal(name, formatIls(lineSubtotalAgorot))
                     }
                   >
                     {lineSubtotalAgorot === null ? (
@@ -293,20 +295,21 @@ export function CartPage({
             <article
               key={cartLineKey(line)}
               className="cart-line cart-line-removed"
-              aria-label={getProductDisplayName(product)}
+              aria-label={localizedProductName(product, locale)}
             >
               <div className="cart-line-details">
                 <h2>
-                  <bdi dir="auto">{getProductDisplayName(product)}</bdi>
+                  <bdi dir="auto">{localizedProductName(product, locale)}</bdi>
                 </h2>
                 <p className="unavailable-message" role="status">
-                  الصنف الذي اخترته من هذا المنتج لم يعد يُباع. احذفه ثم اختر
-                  صنفًا آخر من صفحة المنتج.
+                  {m.removedVariant}
                 </p>
                 <div className="cart-line-review-options">
-                  <Link href={`/products/${product.slug}`}>اختيار صنف آخر</Link>
+                  <Link href={`/products/${product.slug}`}>
+                    {m.chooseOtherVariant}
+                  </Link>
                   <button type="button" onClick={() => removeItem(line)}>
-                    حذف من السلة
+                    {m.deleteFromCart}
                   </button>
                 </div>
               </div>
@@ -316,8 +319,8 @@ export function CartPage({
       </section>
 
       <aside className="cart-summary" aria-labelledby="cart-summary-title">
-        <h2 id="cart-summary-title">ملخص الطلب</h2>
-        <ul className="cart-summary-lines" aria-label="منتجات الطلب">
+        <h2 id="cart-summary-title">{m.summaryTitle}</h2>
+        <ul className="cart-summary-lines" aria-label={m.orderLines}>
           {resolvedLines.map((resolved) => {
             const { line, unit, variant } = resolved;
             const details = [
@@ -331,7 +334,7 @@ export function CartPage({
               <li key={cartLineKey(line)}>
                 <span>
                   <bdi dir="auto">
-                    {getProductDisplayName(resolved.product)}
+                    {localizedProductName(resolved.product, locale)}
                   </bdi>
                   <small>{details.join(" · ")}</small>
                 </span>
@@ -346,22 +349,24 @@ export function CartPage({
         </ul>
         <div className="cart-summary-rows">
           <div>
-            <span>مجموع المنتجات</span>
+            <span>{m.subtotal}</span>
             <strong
-              aria-label={`مجموع المنتجات ${formatIls(merchandiseSubtotal)}`}
+              aria-label={`${m.subtotal} ${formatIls(merchandiseSubtotal)}`}
             >
               <bdi dir="ltr">{formatIls(merchandiseSubtotal)}</bdi>
             </strong>
           </div>
           <div>
-            <span>التوصيل</span>
-            <strong aria-label={`التوصيل ${formatIls(deliveryFeeAgorot)}`}>
+            <span>{m.delivery}</span>
+            <strong
+              aria-label={`${m.delivery} ${formatIls(deliveryFeeAgorot)}`}
+            >
               <bdi dir="ltr">{formatIls(deliveryFeeAgorot)}</bdi>
             </strong>
           </div>
           <div>
-            <span>الإجمالي</span>
-            <strong aria-label={`الإجمالي ${formatIls(orderTotal)}`}>
+            <span>{m.total}</span>
+            <strong aria-label={`${m.total} ${formatIls(orderTotal)}`}>
               <bdi dir="ltr">{formatIls(orderTotal)}</bdi>
             </strong>
           </div>
@@ -375,10 +380,10 @@ export function CartPage({
             {freeDeliveryMessage}
           </p>
         ) : null}
-        <p>تُراجع الأسعار والتوفر مرة أخرى عند تأكيد الطلب.</p>
+        <p>{m.pricesRechecked}</p>
         {needsAttention ? (
           <p className="checkout-blocker" role="status">
-            راجع المنتجات المعلَّمة في السلة قبل المتابعة.
+            {m.reviewMarked}
           </p>
         ) : null}
         {needsAttention ? (
@@ -388,11 +393,11 @@ export function CartPage({
                 className="checkout-action checkout-whatsapp-action"
                 aria-disabled="true"
               >
-                الطلب عبر واتساب
+                {m.orderViaWhatsApp}
               </span>
             ) : null}
             <span className="checkout-action" aria-disabled="true">
-              الطلب عبر الموقع
+              {m.orderViaWeb}
             </span>
           </>
         ) : (
@@ -404,10 +409,10 @@ export function CartPage({
                   href="/checkout?channel=whatsapp"
                   aria-describedby="cart-whatsapp-note"
                 >
-                  الطلب عبر واتساب
+                  {m.orderViaWhatsApp}
                 </Link>
                 <p id="cart-whatsapp-note" className="cart-channel-note">
-                  سنجهّز رسالة طلبك لتُرسل مباشرة إلى MAYTHA.
+                  {m.whatsAppNote}
                 </p>
               </>
             ) : null}
@@ -420,15 +425,15 @@ export function CartPage({
               href="/checkout?channel=web"
               aria-describedby="cart-web-note"
             >
-              الطلب عبر الموقع
+              {m.orderViaWeb}
             </Link>
             <p id="cart-web-note" className="cart-channel-note">
-              يصل طلبك إلى المتجر وسنتواصل معك عبر واتساب.
+              {m.webNote}
             </p>
           </>
         )}
         <Link className="continue-shopping-link" href="/#catalog">
-          متابعة التسوق
+          {m.continueShopping}
         </Link>
       </aside>
     </div>

@@ -5,6 +5,8 @@ import { CartProvider } from "@/features/cart/cart-provider";
 import type { Product } from "@/features/catalog/domain/product";
 import { DeliveryProvider } from "@/features/delivery/delivery-provider";
 import { FavoritesProvider } from "@/features/favorites/favorites-provider";
+import type { Locale } from "@/i18n/config";
+import { I18nProvider } from "@/i18n/i18n-provider";
 import { singleSellingUnit } from "@/test/mock-product-repository";
 
 export function catalogFromProducts(products: readonly Product[]) {
@@ -26,10 +28,12 @@ export function renderWithProviders(
   {
     productIds,
     products,
+    locale = "ar",
     ...options
   }: RenderOptions & {
     productIds?: readonly string[];
     products?: readonly Product[];
+    locale?: Locale;
   },
 ) {
   const locations = [{ code: "maythalun", nameAr: "ميثلون" }];
@@ -55,11 +59,13 @@ export function renderWithProviders(
 
   function Wrapper({ children }: { children: ReactNode }) {
     return (
-      <DeliveryProvider locations={locations}>
-        <FavoritesProvider productIds={favoriteIds}>
-          <CartProvider catalog={catalog}>{children}</CartProvider>
-        </FavoritesProvider>
-      </DeliveryProvider>
+      <I18nProvider locale={locale}>
+        <DeliveryProvider locations={locations}>
+          <FavoritesProvider productIds={favoriteIds}>
+            <CartProvider catalog={catalog}>{children}</CartProvider>
+          </FavoritesProvider>
+        </DeliveryProvider>
+      </I18nProvider>
     );
   }
 

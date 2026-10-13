@@ -18,7 +18,8 @@ import { SellingUnitSelector } from "@/features/catalog/components/selling-unit-
 import { VariantSelector } from "@/features/catalog/components/variant-selector";
 import { offerForSellingUnit } from "@/features/catalog/domain/offer-pricing";
 import {
-  getProductDisplayName,
+  localizedProductName,
+  localizedProductText,
   type Product,
 } from "@/features/catalog/domain/product";
 import {
@@ -48,6 +49,7 @@ import {
   sellingUnitAfterVariantChange,
   type SellingUnit,
 } from "@/features/catalog/domain/selling-unit";
+import { useI18n } from "@/i18n/i18n-provider";
 
 // The chosen variant and way of buying are kept in the address for sharing, without asking the server for a new page.
 function rememberInAddress(key: "variant" | "unit", value: string | null) {
@@ -79,6 +81,7 @@ export function ProductDetailPanel({
   initialVariantId?: string | null;
   presentation?: ProductPresentation;
 }) {
+  const { m, locale } = useI18n();
   const searchParams = useSearchParams();
   const initial =
     resolveVariant(
@@ -140,7 +143,8 @@ export function ProductDetailPanel({
       null)
     : (product.variants.find((variant) => variant.id === variantId) ?? initial);
   const shown = selectedVariant ?? initial;
-  const name = getProductDisplayName(product);
+  const name = localizedProductName(product, locale);
+  const text = localizedProductText(product, locale);
   const available =
     !presentation.incomplete &&
     Boolean(selectedVariant) &&
@@ -148,7 +152,7 @@ export function ProductDetailPanel({
   const attributeSummary = options.length
     ? null
     : formatVariantAttributes(shown.attributes);
-  const pack = packLabel(presentation.packCounts[shown.id]);
+  const pack = packLabel(presentation.packCounts[shown.id], locale);
   const exactUnit = findSellingUnit(shown.sellingUnits, chosenUnit?.id);
   const sellingUnit: SellingUnit | null =
     exactUnit && isSellingUnitPurchasable(exactUnit)
@@ -196,11 +200,7 @@ export function ProductDetailPanel({
     );
     const match = variantForSelection(options, selectable, next);
     const changed = adjustedChoices(options, selection, next, optionId);
-    setAdjusted(
-      changed.length
-        ? `غيّرنا ${changed.join("، ")} لأن الاختيار السابق غير متوفر مع هذا الخيار.`
-        : null,
-    );
+    setAdjusted(changed.length ? m.catalog.adjustedChoices(changed) : null);
     setSelection(next);
     setImageId(pickImage(match?.id ?? null, next));
     if (match) rememberVariant(match.id, product.defaultVariantId);
@@ -222,10 +222,7 @@ export function ProductDetailPanel({
   const describedBelow = gallery.length > 1;
   const description = (
     <ProductDescription
-      text={
-        product.description ??
-        "تتوفر معلومات المنتج الأساسية المعروضة حالياً، وستُضاف التفاصيل بعد اعتمادها."
-      }
+      text={text.description ?? m.catalog.descriptionPending}
     />
   );
 
@@ -242,7 +239,7 @@ export function ProductDetailPanel({
           images={gallery}
           activeId={activeImage?.id ?? null}
           priorityId={initialImageId}
-          label={`صور ${name}`}
+          label={m.catalog.galleryLabel(name)}
           onSelect={chooseImage}
         />
       ) : (
@@ -281,12 +278,12 @@ export function ProductDetailPanel({
         <OfferPrice className="product-detail-price" variant={priceShown} />
         <p className="availability-status" data-available={available}>
           {presentation.incomplete
-            ? "غير متاح حالياً، نجهّز خيارات هذا المنتج"
+            ? m.catalog.statusIncomplete
             : !selectedVariant
-              ? "اختر من الخيارات لمعرفة التوفر"
+              ? m.catalog.statusChooseOptions
               : available
-                ? "متاح للإضافة إلى السلة"
-                : "غير متاح حالياً"}
+                ? m.catalog.statusAvailable
+                : m.catalog.statusUnavailable}
         </p>
         {options.length ? (
           <OptionSelectors
@@ -321,10 +318,10 @@ export function ProductDetailPanel({
           />
         ) : null}
         {describedBelow ? null : description}
-        {product.usageNotes ? (
+        {text.usageNotes ? (
           <section aria-labelledby="usage-title">
-            <h2 id="usage-title">ملاحظات الاستخدام</h2>
-            <p>{product.usageNotes}</p>
+            <h2 id="usage-title">{m.catalog.usageNotes}</h2>
+            <p>{text.usageNotes}</p>
           </section>
         ) : null}
         <ProductSpecifications specifications={product.specifications} />

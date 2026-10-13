@@ -5,7 +5,8 @@ const withSerwist = withSerwistInit({
   swSrc: "src/app/sw.ts",
   swDest: "public/sw.js",
   additionalPrecacheEntries: [
-    { url: "/~offline", revision: "v1" },
+    { url: "/~offline", revision: "v2" },
+    { url: "/en/~offline", revision: "v2" },
     { url: "/brand/app/icon-192-v3.png", revision: null },
     { url: "/brand/app/icon-512-v3.png", revision: null },
     { url: "/brand/app/maskable-512-v3.png", revision: null },

@@ -1,12 +1,21 @@
-import Link from "next/link";
+import type { Metadata } from "next";
 
-export default function NotFoundPage() {
+import { Link } from "@/i18n/link";
+import { getMessages } from "@/i18n/server";
+
+export async function generateMetadata(): Promise<Metadata> {
+  const m = await getMessages();
+  return { title: m.meta.notFoundTitle };
+}
+
+export default async function NotFoundPage() {
+  const { misc } = await getMessages();
   return (
     <main className="placeholder-page page-shell">
       <div className="placeholder-panel">
-        <h1>الصفحة غير موجودة</h1>
-        <p>تعذّر العثور على الصفحة المطلوبة.</p>
-        <Link href="/">العودة إلى المتجر</Link>
+        <h1>{misc.notFoundHeading}</h1>
+        <p>{misc.notFoundText}</p>
+        <Link href="/">{misc.backToStore}</Link>
       </div>
     </main>
   );

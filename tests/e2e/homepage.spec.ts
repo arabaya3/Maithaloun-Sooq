@@ -249,6 +249,9 @@ test("keyboard users reach search and products in RTL order with a visible focus
   ).not.toBe("none");
 
   await page.keyboard.press("Tab");
+  // The language switcher sits between the search and the cart.
+  await expect(page.locator(".header-language")).toBeFocused();
+  await page.keyboard.press("Tab");
   await expect(page.locator(".cart-button")).toBeFocused();
   await page.keyboard.press("Tab");
   const focused = page.locator(":focus");

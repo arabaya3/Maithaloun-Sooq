@@ -3,6 +3,8 @@
 import { X } from "lucide-react";
 import { useEffect, useId, useRef, type ReactNode } from "react";
 
+import { useI18n } from "@/i18n/i18n-provider";
+
 export function Sheet({
   open,
   onClose,
@@ -16,6 +18,7 @@ export function Sheet({
 }) {
   const ref = useRef<HTMLDialogElement>(null);
   const titleId = useId();
+  const { m } = useI18n();
 
   useEffect(() => {
     const dialog = ref.current;
@@ -45,7 +48,7 @@ export function Sheet({
           <button
             type="button"
             className="sheet-close"
-            aria-label="إغلاق"
+            aria-label={m.misc.close}
             onClick={onClose}
           >
             <X size={20} aria-hidden="true" />

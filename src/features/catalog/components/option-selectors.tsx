@@ -7,6 +7,7 @@ import {
   type ProductOption,
   type SelectableVariant,
 } from "@/features/catalog/domain/product-options";
+import { useI18n } from "@/i18n/i18n-provider";
 
 export function OptionSelectors({
   options,
@@ -19,6 +20,7 @@ export function OptionSelectors({
   selection: OptionSelection;
   onSelect: (optionId: string, valueId: string) => void;
 }) {
+  const { m } = useI18n();
   const states = valueStates(options, variants, selection);
   return (
     <div className="option-selectors">
@@ -61,10 +63,12 @@ export function OptionSelectors({
                   >
                     {value.valueAr}
                     {state === "unavailable" ? (
-                      <span className="variant-option-note">غير متوفر</span>
+                      <span className="variant-option-note">
+                        {m.catalog.optionUnavailable}
+                      </span>
                     ) : null}
                     {state === "adjusts" ? (
-                      <span className="sr-only"> — يتغير معه اختيار آخر</span>
+                      <span className="sr-only">{m.catalog.optionAdjusts}</span>
                     ) : null}
                   </button>
                 );

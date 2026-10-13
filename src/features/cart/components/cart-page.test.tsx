@@ -8,6 +8,7 @@ import {
   PREVIOUS_CART_STORAGE_KEY,
 } from "@/features/cart/cart-store";
 import type { Product } from "@/features/catalog/domain/product";
+import { I18nProvider } from "@/i18n/i18n-provider";
 import { renderWithProviders } from "@/test/render-with-providers";
 import {
   MockProductRepository,
@@ -260,5 +261,72 @@ describe("cart page", () => {
       await screen.findByText("راجع المنتجات المعلَّمة في السلة قبل المتابعة."),
     ).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /الطلب عبر/ })).toBeNull();
+  });
+});
+
+describe("cart page in English", () => {
+  it("renders the summary, delivery hint and actions in English", async () => {
+    const products = await new MockProductRepository().list();
+    window.localStorage.setItem(
+      PREVIOUS_CART_STORAGE_KEY,
+      JSON.stringify({
+        version: 2,
+        lines: [
+          {
+            productId: "general-cleaner",
+            variantId: "general-cleaner--default",
+            quantity: 2,
+          },
+        ],
+      }),
+    );
+    renderWithProviders(
+      <I18nProvider locale="en">
+        <CartPage products={products} whatsAppOrdering />
+      </I18nProvider>,
+      { products },
+    );
+
+    expect(
+      await screen.findByRole("heading", { name: "Shopping cart" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Order summary" }),
+    ).toBeInTheDocument();
+    // No English name in the data: the original name is kept.
+    expect(
+      screen.getByLabelText("Total for منظف عام Secret 14 ₪"),
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText("Subtotal 14 ₪")).toBeInTheDocument();
+    expect(screen.getByLabelText("Delivery 5 ₪")).toBeInTheDocument();
+    expect(screen.getByLabelText("Total 19 ₪")).toBeInTheDocument();
+    expect(
+      screen.getByText("Add 36 ₪ more for free delivery"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: "Order on the website" }),
+    ).toHaveAttribute("href", "/en/checkout?channel=web");
+    expect(
+      screen.getByRole("link", { name: "Order via WhatsApp" }),
+    ).toHaveAttribute("href", "/en/checkout?channel=whatsapp");
+    expect(
+      screen.getByRole("button", { name: "Remove منظف عام Secret from cart" }),
+    ).toBeInTheDocument();
+  });
+
+  it("renders the empty state in English", async () => {
+    const products = await new MockProductRepository().list();
+    renderWithProviders(
+      <I18nProvider locale="en">
+        <CartPage products={products} />
+      </I18nProvider>,
+      { products },
+    );
+    expect(
+      await screen.findByRole("heading", { name: "Your cart is empty" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: "Continue shopping" }),
+    ).toHaveAttribute("href", "/en#catalog");
   });
 });

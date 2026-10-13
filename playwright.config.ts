@@ -28,6 +28,8 @@ export default defineConfig({
   expect: { timeout: 15_000 },
   use: {
     baseURL: origin,
+    // The storefront follows the browser language; the suite is written for Arabic.
+    locale: "ar-PS",
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
   },

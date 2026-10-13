@@ -88,7 +88,7 @@ test("a debt reminder leads to the customer ledger where it can be snoozed or di
   await page
     .getByRole("dialog", { name: "منتج السطر 1" })
     .getByRole("button")
-    .filter({ hasText: "Musk" })
+    .filter({ hasText: "منظف أرضيات Musk" })
     .click();
   await page.getByRole("radio", { name: "زبون جديد" }).check();
   await page.getByLabel("اسم الزبون").fill(DEBTOR);

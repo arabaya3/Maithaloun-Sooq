@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import type { Locale } from "@/i18n/config";
 import { normalizeArabicText } from "@/shared/lib/normalize-arabic";
 
 export const optionKinds = [
@@ -298,8 +299,12 @@ export function adjustedChoices(
     });
 }
 
-export function packLabel(packCount: number | null | undefined): string | null {
+export function packLabel(
+  packCount: number | null | undefined,
+  locale: Locale = "ar",
+): string | null {
   if (!packCount || packCount < 2) return null;
+  if (locale === "en") return `${packCount} pieces per pack`;
   return `العبوة فيها ${packCount} قطع`;
 }
 

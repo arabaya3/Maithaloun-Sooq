@@ -1,6 +1,5 @@
 import { ArrowRight } from "lucide-react";
 import type { Metadata } from "next";
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
 
@@ -8,7 +7,8 @@ import { ProductCard } from "@/features/catalog/components/product-card";
 import { productRepository } from "@/features/catalog/infrastructure/product-repository";
 import { MobileNavigation } from "@/features/storefront/components/mobile-navigation";
 import { SiteHeader } from "@/features/storefront/components/site-header";
-import { formatProductCount } from "@/shared/lib/format-product-count";
+import { Link } from "@/i18n/link";
+import { getMessages } from "@/i18n/server";
 
 function decode(value: string): string | null {
   try {
@@ -23,8 +23,11 @@ export async function generateMetadata({
 }: {
   params: Promise<{ name: string }>;
 }): Promise<Metadata> {
-  const name = decode((await params).name);
-  return { title: name || "الماركة غير موجودة" };
+  const [name, m] = await Promise.all([
+    params.then((value) => decode(value.name)),
+    getMessages(),
+  ]);
+  return { title: name || m.meta.brandMissing };
 }
 
 export default async function BrandPage({
@@ -33,11 +36,13 @@ export default async function BrandPage({
   params: Promise<{ name: string }>;
 }) {
   await connection();
-  const name = decode((await params).name);
+  const [name, all, m] = await Promise.all([
+    params.then((value) => decode(value.name)),
+    productRepository.list(),
+    getMessages(),
+  ]);
   const products = name
-    ? (await productRepository.list()).filter(
-        (product) => product.brand?.trim() === name,
-      )
+    ? all.filter((product) => product.brand?.trim() === name)
     : [];
   // Only brands that have products on sale resolve.
   if (!products.length) notFound();
@@ -46,10 +51,10 @@ export default async function BrandPage({
     <>
       <SiteHeader />
       <main className="page-shell listing-page">
-        <nav aria-label="مسار التصفح" className="category-breadcrumb">
+        <nav aria-label={m.common.breadcrumb} className="category-breadcrumb">
           <Link href="/brands">
-            <ArrowRight aria-hidden="true" />
-            كل الماركات
+            <ArrowRight className="rtl-flip" aria-hidden="true" />
+            {m.store.allBrandsBack}
           </Link>
         </nav>
         <div className="listing-heading">
@@ -57,7 +62,7 @@ export default async function BrandPage({
             <bdi dir="auto">{name}</bdi>
           </h1>
           <span className="results-count">
-            {formatProductCount(products.length)}
+            {m.common.productCount(products.length)}
           </span>
         </div>
         <div className="product-grid">

@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import type { Locale } from "@/i18n/config";
+
 export const offerKinds = ["percentage", "amount_off", "fixed_price"] as const;
 export type OfferKind = (typeof offerKinds)[number];
 
@@ -83,8 +85,20 @@ export function offerForSellingUnit(
   return unit.unitsPerSale === 1 ? offer : undefined;
 }
 
-export function offerLabel(offer: VariantOffer): string {
-  if (offer.displayText) return offer.displayText;
+export function offerLabel(offer: VariantOffer, locale: Locale = "ar"): string {
+  // The owner writes the badge in Arabic; English gets the generated label instead.
+  if (offer.displayText && locale === "ar") return offer.displayText;
+  if (locale === "en") {
+    const base =
+      offer.kind === "percentage"
+        ? `${offer.value}% off`
+        : offer.kind === "amount_off"
+          ? `Save ${(offer.value / 100).toFixed(offer.value % 100 ? 2 : 0)} ₪`
+          : "Offer price";
+    return offer.minQuantity > 1
+      ? `${base} when you buy ${offer.minQuantity} or more`
+      : base;
+  }
   const base =
     offer.kind === "percentage"
       ? `خصم ${offer.value}٪`

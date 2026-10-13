@@ -10,6 +10,7 @@ import {
   normalizeWhatsAppPhone,
   isSupportedWhatsAppE164,
 } from "@/features/orders/domain/phone";
+import { getMessages } from "@/i18n/server";
 
 import {
   CustomerAccountError,
@@ -34,13 +35,14 @@ import {
 
 type Result<T = object> = ({ ok: true } & T) | { ok: false; message: string };
 
-const UNAVAILABLE = "تسجيل الدخول غير متاح حالياً. يمكنك متابعة الطلب كضيف.";
-const SIGNED_OUT = "انتهت الجلسة. سجّل الدخول من جديد.";
-const FAILED = "تعذّر حفظ التغيير. حاول مرة أخرى.";
+// Actions post to the page URL, so the proxy's locale header applies here too.
+async function errors() {
+  return (await getMessages()).account.errors;
+}
 
 async function guard(): Promise<string | null> {
-  if (!customerAccountsEnabled()) return UNAVAILABLE;
-  if (!(await isTrustedCustomerMutation())) return FAILED;
+  if (!customerAccountsEnabled()) return (await errors()).unavailable;
+  if (!(await isTrustedCustomerMutation())) return (await errors()).failed;
   return null;
 }
 
@@ -52,7 +54,7 @@ async function requireCustomer(): Promise<
   const actor = await getCustomerSession();
   return actor
     ? { actor, problem: null }
-    : { actor: null, problem: SIGNED_OUT };
+    : { actor: null, problem: (await errors()).signedOut };
 }
 
 const phoneFormSchema = z.object({
@@ -72,19 +74,19 @@ export async function requestLoginCodeAction(
         parsed.data.nationalNumber,
       )
     : null;
+  const text = await errors();
   if (!phoneE164) {
-    return { ok: false, message: "اكتب رقم جوال صحيح يبدأ بـ 05." };
+    return { ok: false, message: text.invalidPhone };
   }
   const result = await customerAuthService.requestCode(
     phoneE164,
     await customerNetworkKey(),
   );
-  if (result === "unavailable") return { ok: false, message: UNAVAILABLE };
+  if (result === "unavailable") {
+    return { ok: false, message: text.unavailable };
+  }
   if (result === "rate_limited") {
-    return {
-      ok: false,
-      message: "طلبت رموزاً كثيرة. انتظر قليلاً ثم حاول مرة أخرى.",
-    };
+    return { ok: false, message: text.tooManyCodes };
   }
   return { ok: true, phoneE164 };
 }
@@ -100,8 +102,9 @@ export async function verifyLoginCodeAction(
   const problem = await guard();
   if (problem) return { ok: false, message: problem };
   const parsed = verifySchema.safeParse(input);
+  const text = await errors();
   if (!parsed.success) {
-    return { ok: false, message: "الرمز غير صحيح أو انتهت صلاحيته." };
+    return { ok: false, message: text.invalidCode };
   }
   const result = await customerAuthService.verifyCode({
     phoneE164: parsed.data.phoneE164,
@@ -115,9 +118,9 @@ export async function verifyLoginCodeAction(
     return { ok: true, created: result.created };
   }
   const messages = {
-    invalid: "الرمز غير صحيح أو انتهت صلاحيته.",
-    rate_limited: "محاولات كثيرة. انتظر قليلاً ثم اطلب رمزاً جديداً.",
-    unavailable: UNAVAILABLE,
+    invalid: text.invalidCode,
+    rate_limited: text.tooManyAttempts,
+    unavailable: text.unavailable,
   } as const;
   return { ok: false, message: messages[result.status] };
 }
@@ -141,16 +144,19 @@ export async function loadProfileAction(): Promise<
   return { ok: true, profile: await customerAccountService.profile(actor.id) };
 }
 
-function accountError(error: unknown): { ok: false; message: string } {
+async function accountError(
+  error: unknown,
+): Promise<{ ok: false; message: string }> {
+  const text = await errors();
   if (error instanceof CustomerAccountError) {
     const messages = {
-      not_found: SIGNED_OUT,
-      invalid_input: "راجع الحقول المطلوبة.",
-      address_limit: "يمكن حفظ 5 عناوين كحد أقصى.",
+      not_found: text.signedOut,
+      invalid_input: text.invalidInput,
+      address_limit: text.addressLimit,
     } as const;
     return { ok: false, message: messages[error.code] };
   }
-  return { ok: false, message: FAILED };
+  return { ok: false, message: text.failed };
 }
 
 export async function updateProfileAction(input: unknown): Promise<Result> {
@@ -172,7 +178,7 @@ export async function saveAddressAction(
   const { actor, problem } = await requireCustomer();
   if (!actor) return { ok: false, message: problem };
   if (addressId !== undefined && !z.uuid().safeParse(addressId).success) {
-    return { ok: false, message: FAILED };
+    return { ok: false, message: (await errors()).failed };
   }
   try {
     await customerAccountService.saveAddress(actor.id, input, addressId);
@@ -187,7 +193,7 @@ export async function deleteAddressAction(addressId: string): Promise<Result> {
   const { actor, problem } = await requireCustomer();
   if (!actor) return { ok: false, message: problem };
   if (!z.uuid().safeParse(addressId).success) {
-    return { ok: false, message: FAILED };
+    return { ok: false, message: (await errors()).failed };
   }
   await customerAccountService.deleteAddress(actor.id, addressId);
   revalidatePath("/account");
@@ -199,8 +205,14 @@ export async function deleteAccountAction(
 ): Promise<Result> {
   const { actor, problem } = await requireCustomer();
   if (!actor) return { ok: false, message: problem };
-  if (confirmation.trim() !== "حذف") {
-    return { ok: false, message: "اكتب كلمة «حذف» لتأكيد حذف الحساب." };
+  const { account } = await getMessages();
+  // The Arabic word is always accepted; English adds its own, case-insensitive.
+  const typed = confirmation.trim();
+  if (
+    typed !== "حذف" &&
+    typed.toLowerCase() !== account.deleteWord.toLowerCase()
+  ) {
+    return { ok: false, message: account.errors.confirmDelete };
   }
   try {
     await customerAccountService.deleteAccount(actor.id);
@@ -223,7 +235,7 @@ export async function setFavoriteAction(
     productId,
     favorite,
   );
-  return saved ? { ok: true } : { ok: false, message: FAILED };
+  return saved ? { ok: true } : { ok: false, message: (await errors()).failed };
 }
 
 export async function mergeFavoritesAction(
@@ -255,7 +267,7 @@ export async function reorderReviewAction(
   const { actor, problem } = await requireCustomer();
   if (!actor) return { ok: false, message: problem };
   if (!/^MS-[A-Za-z0-9_-]{24}$/.test(publicReference)) {
-    return { ok: false, message: "الطلب غير موجود." };
+    return { ok: false, message: (await errors()).orderMissing };
   }
   const review = await customerOrdersService.reorderReview(
     actor.id,
@@ -264,5 +276,5 @@ export async function reorderReviewAction(
   );
   return review
     ? { ok: true, review }
-    : { ok: false, message: "الطلب غير موجود." };
+    : { ok: false, message: (await errors()).orderMissing };
 }

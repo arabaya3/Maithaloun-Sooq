@@ -1,8 +1,7 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 import {
   claimOrdersAction,
@@ -14,16 +13,23 @@ import type {
 } from "@/features/accounts/application/customer-orders-service";
 import { useCart } from "@/features/cart/cart-provider";
 import { sellingLineText } from "@/features/catalog/domain/selling-unit";
-import { orderStatusLabels } from "@/features/orders/domain/order-status";
+import { useI18n } from "@/i18n/i18n-provider";
+import { Link } from "@/i18n/link";
 import { formatIls } from "@/shared/lib/format-currency";
-
-const dateFormat = new Intl.DateTimeFormat("ar-PS-u-nu-latn", {
-  dateStyle: "medium",
-  timeZone: "Asia/Hebron",
-});
 
 function Money({ agorot }: { agorot: number }) {
   return <bdi dir="ltr">{formatIls(agorot)}</bdi>;
+}
+
+// Item names and selling labels are the order's stored snapshots, shown as stored.
+function lineText(line: {
+  name: string;
+  sellingLabel: string | null;
+  quantity: number;
+}) {
+  return line.sellingLabel
+    ? `${line.name} — ${sellingLineText(line.sellingLabel, line.quantity)}`
+    : `${line.name} × ${line.quantity}`;
 }
 
 function ReorderPanel({
@@ -35,6 +41,7 @@ function ReorderPanel({
   onConfirm: () => void;
   onCancel: () => void;
 }) {
+  const t = useI18n().m.account;
   const available = review.lines.filter(
     (line) => line.status !== "unavailable",
   );
@@ -42,33 +49,29 @@ function ReorderPanel({
     <div
       className="reorder-review"
       role="region"
-      aria-label="مراجعة إعادة الطلب"
+      aria-label={t.reorderReviewLabel}
     >
-      <p className="account-note">
-        تغيّرت بعض المنتجات منذ طلبك السابق. راجعها قبل إضافتها للسلة؛ الأسعار
-        المعروضة هي الأسعار الحالية.
-      </p>
+      <p className="account-note">{t.reorderReviewNote}</p>
       <ul>
         {review.lines.map((line) => (
           <li
             key={`${line.productId}:${line.variantId}:${line.sellingUnitId}`}
             data-status={line.status}
           >
-            <span>
-              {line.sellingLabel
-                ? `${line.name} — ${sellingLineText(line.sellingLabel, line.quantity)}`
-                : `${line.name} × ${line.quantity}`}
-            </span>
+            <span>{lineText(line)}</span>
             {line.status === "unavailable" ? (
-              <strong>غير متوفر حالياً — لن يُضاف</strong>
+              <strong>{t.unavailableLine}</strong>
             ) : line.status === "price_changed" ? (
               <span>
-                السعر تغيّر من <Money agorot={line.previousUnitPriceAgorot} />{" "}
-                إلى <Money agorot={line.currentUnitPriceAgorot ?? 0} />
+                {t.priceChangedFrom}{" "}
+                <Money agorot={line.previousUnitPriceAgorot} />{" "}
+                {t.priceChangedTo}{" "}
+                <Money agorot={line.currentUnitPriceAgorot ?? 0} />
               </span>
             ) : (
               <span>
-                بنفس السعر <Money agorot={line.currentUnitPriceAgorot ?? 0} />
+                {t.samePrice}{" "}
+                <Money agorot={line.currentUnitPriceAgorot ?? 0} />
               </span>
             )}
           </li>
@@ -82,11 +85,11 @@ function ReorderPanel({
           disabled={!available.length}
         >
           {available.length
-            ? `أضف المنتجات المتوفرة للسلة (${available.length})`
-            : "لا توجد منتجات متوفرة"}
+            ? t.addAvailable(available.length)
+            : t.noneAvailable}
         </button>
         <button type="button" className="account-secondary" onClick={onCancel}>
-          إلغاء
+          {t.cancel}
         </button>
       </div>
     </div>
@@ -101,6 +104,16 @@ export function OrderHistory({
   claimableCount: number;
 }) {
   const router = useRouter();
+  const { m, href } = useI18n();
+  const t = m.account;
+  const dateFormat = useMemo(
+    () =>
+      new Intl.DateTimeFormat(t.dateLocale, {
+        dateStyle: "medium",
+        timeZone: "Asia/Hebron",
+      }),
+    [t.dateLocale],
+  );
   const { addItem } = useCart();
   const [message, setMessage] = useState("");
   const [review, setReview] = useState<{
@@ -127,7 +140,7 @@ export function OrderHistory({
         );
       }
     }
-    router.push("/cart");
+    router.push(href("/cart"));
   }
 
   async function reorder(reference: string) {
@@ -151,8 +164,8 @@ export function OrderHistory({
     setMessage(
       result.ok
         ? result.claimed
-          ? `أضفنا الطلبات السابقة إلى حسابك (${result.claimed}).`
-          : "لا توجد طلبات جديدة لإضافتها."
+          ? t.claimed(result.claimed)
+          : t.nothingToClaim
         : result.message,
     );
     if (result.ok) router.refresh();
@@ -165,18 +178,15 @@ export function OrderHistory({
           className="account-card account-suggestion"
           aria-labelledby="claim-title"
         >
-          <h2 id="claim-title">طلبات سابقة برقمك</h2>
-          <p className="account-note">
-            وجدنا طلبات سابقة أُرسلت من رقم جوالك المؤكد ({claimableCount}). هل
-            تريد إضافتها إلى حسابك؟
-          </p>
+          <h2 id="claim-title">{t.claimTitle}</h2>
+          <p className="account-note">{t.claimNote(claimableCount)}</p>
           <button
             type="button"
             className="account-secondary"
             disabled={pending === "claim"}
             onClick={() => void claim()}
           >
-            إضافة الطلبات إلى حسابي
+            {t.claimAction}
           </button>
         </section>
       ) : null}
@@ -194,16 +204,16 @@ export function OrderHistory({
                   <bdi dir="ltr">{order.publicReference}</bdi>
                 </strong>
                 <span className="account-badge" data-status={order.status}>
-                  {orderStatusLabels[order.status]}
+                  {t.orderStatus[order.status]}
                 </span>
               </div>
               <dl className="order-history-meta">
                 <div>
-                  <dt>التاريخ</dt>
+                  <dt>{t.date}</dt>
                   <dd>{dateFormat.format(order.createdAt)}</dd>
                 </div>
                 <div>
-                  <dt>المجموع</dt>
+                  <dt>{t.total}</dt>
                   <dd>
                     <Money
                       agorot={
@@ -213,17 +223,13 @@ export function OrderHistory({
                   </dd>
                 </div>
                 <div>
-                  <dt>الدفع</dt>
-                  <dd>نقداً عند الاستلام</dd>
+                  <dt>{t.payment}</dt>
+                  <dd>{t.cashOnDelivery}</dd>
                 </div>
               </dl>
               <ul className="order-history-items">
                 {order.items.map((item, index) => (
-                  <li key={index}>
-                    {item.sellingLabel
-                      ? `${item.name} — ${sellingLineText(item.sellingLabel, item.quantity)}`
-                      : `${item.name} × ${item.quantity}`}
-                  </li>
+                  <li key={index}>{lineText(item)}</li>
                 ))}
               </ul>
               {review?.reference === order.publicReference ? (
@@ -239,7 +245,7 @@ export function OrderHistory({
                   disabled={pending === order.publicReference}
                   onClick={() => void reorder(order.publicReference)}
                 >
-                  إعادة الطلب
+                  {t.reorder}
                 </button>
               )}
             </li>
@@ -247,12 +253,10 @@ export function OrderHistory({
         </ol>
       ) : (
         <section className="account-card">
-          <h2>لا توجد طلبات بعد</h2>
-          <p className="account-note">
-            ستظهر هنا الطلبات التي ترسلها وأنت مسجّل الدخول.
-          </p>
+          <h2>{t.noOrders}</h2>
+          <p className="account-note">{t.noOrdersNote}</p>
           <Link className="account-secondary" href="/">
-            تصفح المنتجات
+            {t.browseProducts}
           </Link>
         </section>
       )}

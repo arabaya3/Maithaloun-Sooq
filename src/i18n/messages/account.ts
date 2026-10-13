@@ -1,0 +1,292 @@
+import {
+  orderStatusLabels,
+  type OrderStatus,
+} from "@/features/orders/domain/order-status";
+
+const ar = {
+  // Account page (signed out)
+  greeting: (name: string | null) => (name ? `أهلاً ${name}` : "أهلاً"),
+  title: "حسابي",
+  unavailableTitle: "الحسابات غير متاحة بعد",
+  createTitle: "إنشاء حساب",
+  signInTitle: "تسجيل الدخول",
+  benefits:
+    "أنشئ حساباً لحفظ المفضلة، متابعة الطلبات وإعادة طلب مشترياتك بسهولة. الحساب اختياري، ويمكنك الطلب كضيف دائماً.",
+  unavailableNote: "يمكنك الطلب كضيف كالمعتاد، والمفضلة محفوظة على هذا الجهاز.",
+  modeLabel: "نوع الدخول",
+  continueAsGuest: "متابعة كضيف",
+  shortcuts: "اختصارات",
+  accountShortcuts: "اختصارات الحساب",
+  storeApp: "تطبيق المتجر",
+  myOrders: "طلباتي",
+  favorites: "المفضلة",
+
+  // Phone login
+  phoneLegend: "رقم الجوال",
+  countryCode: "مفتاح الدولة",
+  localNumber: "الرقم المحلي",
+  phoneHelp: "سنرسل رمز تحقق برسالة نصية. لا نشارك رقمك مع أي جهة.",
+  sending: "جارٍ الإرسال…",
+  sendCode: "إرسال رمز التحقق",
+  codeSentBefore: "إذا كان الرقم",
+  codeSentAfter: "صحيحاً، ستصلك رسالة فيها رمز من 6 أرقام.",
+  codeLabel: "رمز التحقق",
+  verifying: "جارٍ التحقق…",
+  confirmSignIn: "تأكيد الدخول",
+  changeNumber: "تغيير الرقم أو إعادة الإرسال",
+
+  // Server action messages
+  errors: {
+    unavailable: "تسجيل الدخول غير متاح حالياً. يمكنك متابعة الطلب كضيف.",
+    signedOut: "انتهت الجلسة. سجّل الدخول من جديد.",
+    failed: "تعذّر حفظ التغيير. حاول مرة أخرى.",
+    invalidPhone: "اكتب رقم جوال صحيح يبدأ بـ 05.",
+    tooManyCodes: "طلبت رموزاً كثيرة. انتظر قليلاً ثم حاول مرة أخرى.",
+    invalidCode: "الرمز غير صحيح أو انتهت صلاحيته.",
+    tooManyAttempts: "محاولات كثيرة. انتظر قليلاً ثم اطلب رمزاً جديداً.",
+    invalidInput: "راجع الحقول المطلوبة.",
+    addressLimit: "يمكن حفظ 5 عناوين كحد أقصى.",
+    confirmDelete: "اكتب كلمة «حذف» لتأكيد حذف الحساب.",
+    orderMissing: "الطلب غير موجود.",
+  },
+  deleteWord: "حذف",
+
+  // Dashboard
+  saveFailed: "تعذّر الحفظ.",
+  invalidWhatsApp: "رقم الواتساب غير صحيح. اكتب رقماً يبدأ بـ 05.",
+  profileSaved: "تم حفظ البيانات.",
+  addressAdded: "تمت إضافة العنوان.",
+  signedOutDone: "تم تسجيل الخروج.",
+  accountDeleted: "تم حذف الحساب.",
+  profileTitle: "بياناتي",
+  verifiedPhone: "رقم الجوال المؤكد:",
+  name: "الاسم",
+  whatsappLegend: "رقم واتساب مختلف (اختياري)",
+  whatsappNumber: "رقم الواتساب",
+  personalization: "استخدام سجل مشترياتي لتحسين اقتراحات المنتجات",
+  personalizationHelp:
+    "نستخدم المنتجات التي طلبتها ومفضلتك فقط، ويمكنك إيقافه في أي وقت. إيقافه لا يحذف طلباتك.",
+  saveProfile: "حفظ البيانات",
+  addressesTitle: "عناوين التوصيل",
+  defaultBadge: "الافتراضي",
+  defaultSet: "تم تعيين العنوان الافتراضي.",
+  makeDefault: "اجعله الافتراضي",
+  addressDeleted: "تم حذف العنوان.",
+  delete: "حذف",
+  noAddresses: "لا توجد عناوين محفوظة. أضف عنواناً ليُعبّأ تلقائياً عند الطلب.",
+  addressLabel: "اسم العنوان",
+  addressLabelPlaceholder: "البيت",
+  addressDetails: "العنوان بالتفصيل",
+  landmark: "أقرب نقطة دالة (اختياري)",
+  setAsDefault: "اجعله العنوان الافتراضي",
+  addAddress: "إضافة العنوان",
+  notificationsTitle: "الإشعارات",
+  notificationsNote:
+    "لا نرسل لك أي رسائل تسويقية. سيتواصل المتجر معك عبر واتساب بخصوص طلباتك فقط.",
+  sessionTitle: "الجلسة والحساب",
+  signOut: "تسجيل الخروج",
+  signOutAll: "الخروج من كل الأجهزة",
+  deleteAccount: "حذف الحساب",
+  deleteAccountNote:
+    "نحذف بياناتك الشخصية وعناوينك ومفضلتك. تبقى سجلات الطلبات السابقة لدى المتجر لأغراض المحاسبة ولا تُربط بأي حساب.",
+  deleteConfirmLabel: "اكتب «حذف» للتأكيد",
+  deleteForever: "حذف حسابي نهائياً",
+
+  // Order history
+  dateLocale: "ar-PS-u-nu-latn",
+  orderStatus: orderStatusLabels as Record<OrderStatus, string>,
+  reorderReviewLabel: "مراجعة إعادة الطلب",
+  reorderReviewNote:
+    "تغيّرت بعض المنتجات منذ طلبك السابق. راجعها قبل إضافتها للسلة؛ الأسعار المعروضة هي الأسعار الحالية.",
+  unavailableLine: "غير متوفر حالياً — لن يُضاف",
+  priceChangedFrom: "السعر تغيّر من",
+  priceChangedTo: "إلى",
+  samePrice: "بنفس السعر",
+  addAvailable: (count: number) => `أضف المنتجات المتوفرة للسلة (${count})`,
+  noneAvailable: "لا توجد منتجات متوفرة",
+  cancel: "إلغاء",
+  claimed: (count: number) => `أضفنا الطلبات السابقة إلى حسابك (${count}).`,
+  nothingToClaim: "لا توجد طلبات جديدة لإضافتها.",
+  claimTitle: "طلبات سابقة برقمك",
+  claimNote: (count: number) =>
+    `وجدنا طلبات سابقة أُرسلت من رقم جوالك المؤكد (${count}). هل تريد إضافتها إلى حسابك؟`,
+  claimAction: "إضافة الطلبات إلى حسابي",
+  date: "التاريخ",
+  total: "المجموع",
+  payment: "الدفع",
+  cashOnDelivery: "نقداً عند الاستلام",
+  reorder: "إعادة الطلب",
+  noOrders: "لا توجد طلبات بعد",
+  noOrdersNote: "ستظهر هنا الطلبات التي ترسلها وأنت مسجّل الدخول.",
+  browseProducts: "تصفح المنتجات",
+
+  // Favorites
+  favoritesTitle: "المفضلة",
+  mergedFavorites: (count: number) =>
+    `أضفنا منتجات هذا الجهاز إلى مفضلتك (${count}).`,
+  deviceFavorites: (count: number) =>
+    `لديك منتجات مفضلة محفوظة على هذا الجهاز فقط (${count}). هل تريد إضافتها إلى حسابك؟ لن نحذف أي منتج من مفضلتك.`,
+  mergeFailed: "تعذّرت الإضافة. حاول مرة أخرى.",
+  addToAccount: "إضافة إلى حسابي",
+  notNow: "ليس الآن",
+  favoritesOnDevice: "المفضلة محفوظة على هذا الجهاز.",
+  signIn: "سجّل الدخول",
+  favoritesSignInRest: "لحفظها في حسابك والوصول إليها من أي جهاز.",
+  retired: (names: readonly string[]) =>
+    `لم تعد هذه المنتجات معروضة في المتجر: ${names.join("، ")}.`,
+  favoritesEmpty: "لا توجد منتجات في المفضلة",
+  favoritesEmptyHint: "اضغط على رمز القلب في أي منتج لحفظه هنا.",
+  offlineFavoritesTitle: "مفضلتك المحفوظة على هذا الجهاز",
+  offlineFavoritesNote: "الأسعار والتوفر تظهر عند عودة الاتصال.",
+};
+
+const en: typeof ar = {
+  greeting: (name: string | null) => (name ? `Hello, ${name}` : "Hello"),
+  title: "My account",
+  unavailableTitle: "Accounts aren't available yet",
+  createTitle: "Create an account",
+  signInTitle: "Sign in",
+  benefits:
+    "Create an account to save your wishlist, track your orders and reorder with ease. An account is optional — you can always check out as a guest.",
+  unavailableNote:
+    "You can check out as a guest as usual, and your wishlist is saved on this device.",
+  modeLabel: "Sign-in type",
+  continueAsGuest: "Continue as guest",
+  shortcuts: "Shortcuts",
+  accountShortcuts: "Account shortcuts",
+  storeApp: "Store app",
+  myOrders: "My orders",
+  favorites: "Wishlist",
+
+  phoneLegend: "Mobile number",
+  countryCode: "Country code",
+  localNumber: "Local number",
+  phoneHelp:
+    "We'll text you a verification code. We never share your number with anyone.",
+  sending: "Sending…",
+  sendCode: "Send verification code",
+  codeSentBefore: "If",
+  codeSentAfter: "is correct, you'll receive a text with a 6-digit code.",
+  codeLabel: "Verification code",
+  verifying: "Verifying…",
+  confirmSignIn: "Sign in",
+  changeNumber: "Change number or resend",
+
+  errors: {
+    unavailable:
+      "Sign-in isn't available right now. You can still check out as a guest.",
+    signedOut: "Your session has ended. Please sign in again.",
+    failed: "We couldn't save that change. Please try again.",
+    invalidPhone: "Enter a valid mobile number starting with 05.",
+    tooManyCodes:
+      "You've requested too many codes. Please wait a moment and try again.",
+    invalidCode: "That code is incorrect or has expired.",
+    tooManyAttempts:
+      "Too many attempts. Please wait a moment, then request a new code.",
+    invalidInput: "Please check the required fields.",
+    addressLimit: "You can save up to 5 addresses.",
+    confirmDelete: "Type “DELETE” to confirm deleting your account.",
+    orderMissing: "Order not found.",
+  },
+  deleteWord: "DELETE",
+
+  saveFailed: "Couldn't save.",
+  invalidWhatsApp:
+    "That WhatsApp number isn't valid. Enter a number starting with 05.",
+  profileSaved: "Your details have been saved.",
+  addressAdded: "Address added.",
+  signedOutDone: "You've been signed out.",
+  accountDeleted: "Your account has been deleted.",
+  profileTitle: "My details",
+  verifiedPhone: "Verified mobile number:",
+  name: "Name",
+  whatsappLegend: "Different WhatsApp number (optional)",
+  whatsappNumber: "WhatsApp number",
+  personalization: "Use my order history to improve product suggestions",
+  personalizationHelp:
+    "We only use the products you've ordered and your wishlist, and you can turn this off at any time. Turning it off doesn't delete your orders.",
+  saveProfile: "Save details",
+  addressesTitle: "Delivery addresses",
+  defaultBadge: "Default",
+  defaultSet: "Default address updated.",
+  makeDefault: "Make default",
+  addressDeleted: "Address deleted.",
+  delete: "Delete",
+  noAddresses:
+    "No saved addresses yet. Add one and it will be filled in for you at checkout.",
+  addressLabel: "Address name",
+  addressLabelPlaceholder: "Home",
+  addressDetails: "Full address",
+  landmark: "Nearest landmark (optional)",
+  setAsDefault: "Make this my default address",
+  addAddress: "Add address",
+  notificationsTitle: "Notifications",
+  notificationsNote:
+    "We never send marketing messages. The store will only contact you on WhatsApp about your orders.",
+  sessionTitle: "Session and account",
+  signOut: "Sign out",
+  signOutAll: "Sign out of all devices",
+  deleteAccount: "Delete account",
+  deleteAccountNote:
+    "We delete your personal details, addresses and wishlist. Past order records stay with the store for accounting and are no longer linked to any account.",
+  deleteConfirmLabel: "Type “DELETE” to confirm",
+  deleteForever: "Permanently delete my account",
+
+  dateLocale: "en-GB",
+  orderStatus: {
+    pending: "New",
+    awaiting_whatsapp: "Awaiting WhatsApp confirmation",
+    confirmed: "Confirmed",
+    preparing: "Being prepared",
+    out_for_delivery: "Out for delivery",
+    delivered: "Delivered",
+    cancelled: "Cancelled",
+  },
+  reorderReviewLabel: "Review reorder",
+  reorderReviewNote:
+    "Some products have changed since your last order. Review them before adding to your cart — prices shown are current prices.",
+  unavailableLine: "Currently unavailable — won't be added",
+  priceChangedFrom: "Price changed from",
+  priceChangedTo: "to",
+  samePrice: "Same price",
+  addAvailable: (count: number) => `Add available products to cart (${count})`,
+  noneAvailable: "No products available",
+  cancel: "Cancel",
+  claimed: (count: number) =>
+    `We've added your past orders to your account (${count}).`,
+  nothingToClaim: "There are no new orders to add.",
+  claimTitle: "Past orders from your number",
+  claimNote: (count: number) =>
+    `We found past orders placed from your verified mobile number (${count}). Would you like to add them to your account?`,
+  claimAction: "Add orders to my account",
+  date: "Date",
+  total: "Total",
+  payment: "Payment",
+  cashOnDelivery: "Cash on delivery",
+  reorder: "Reorder",
+  noOrders: "No orders yet",
+  noOrdersNote: "Orders you place while signed in will appear here.",
+  browseProducts: "Browse products",
+
+  favoritesTitle: "Wishlist",
+  mergedFavorites: (count: number) =>
+    `We've added this device's products to your wishlist (${count}).`,
+  deviceFavorites: (count: number) =>
+    `You have wishlist products saved on this device only (${count}). Add them to your account? Nothing will be removed from your wishlist.`,
+  mergeFailed: "Couldn't add them. Please try again.",
+  addToAccount: "Add to my account",
+  notNow: "Not now",
+  favoritesOnDevice: "Your wishlist is saved on this device.",
+  signIn: "Sign in",
+  favoritesSignInRest:
+    "to save it to your account and access it from any device.",
+  retired: (names: readonly string[]) =>
+    `These products are no longer available in the store: ${names.join(", ")}.`,
+  favoritesEmpty: "Your wishlist is empty",
+  favoritesEmptyHint: "Tap the heart on any product to save it here.",
+  offlineFavoritesTitle: "Your wishlist saved on this device",
+  offlineFavoritesNote:
+    "Prices and availability will show once you're back online.",
+};
+
+export const account = { ar, en };

@@ -280,6 +280,26 @@ export function CategoryRow({
                 defaultValue={category.description ?? ""}
               />
             </label>
+            <label>
+              <span>الاسم بالإنجليزية (اختياري)</span>
+              <input
+                name="nameEn"
+                dir="ltr"
+                lang="en"
+                maxLength={80}
+                defaultValue={category.nameEn ?? ""}
+              />
+            </label>
+            <label>
+              <span>الوصف بالإنجليزية (اختياري)</span>
+              <input
+                name="descriptionEn"
+                dir="ltr"
+                lang="en"
+                maxLength={300}
+                defaultValue={category.descriptionEn ?? ""}
+              />
+            </label>
             <IconSelect value={category.icon} />
             <label className="admin-toggle">
               <input

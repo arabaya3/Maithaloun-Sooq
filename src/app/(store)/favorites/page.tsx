@@ -8,11 +8,15 @@ import { productRepository } from "@/features/catalog/infrastructure/product-rep
 import { FavoritesView } from "@/features/favorites/favorites-view";
 import { MobileNavigation } from "@/features/storefront/components/mobile-navigation";
 import { SiteHeader } from "@/features/storefront/components/site-header";
+import { getMessages } from "@/i18n/server";
 
-export const metadata: Metadata = {
-  title: "المفضلة",
-  robots: { index: false, follow: false },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const m = await getMessages();
+  return {
+    title: m.meta.favoritesTitle,
+    robots: { index: false, follow: false },
+  };
+}
 
 export default async function FavoritesPage() {
   await connection();

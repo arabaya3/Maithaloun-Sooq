@@ -6,6 +6,7 @@ import { useRef, useState, type KeyboardEvent, type PointerEvent } from "react";
 
 import { ProductPlaceholder } from "@/features/catalog/components/product-placeholder";
 import type { GalleryImage } from "@/features/catalog/domain/product-gallery";
+import { useI18n } from "@/i18n/i18n-provider";
 
 const SWIPE_DISTANCE = 40;
 
@@ -29,6 +30,9 @@ export function ProductGallery({
   priorityId: string | null;
   onSelect: (image: GalleryItem) => void;
 }) {
+  const { m, locale } = useI18n();
+  // Thumbnails follow the reading direction: the next one is to the left in Arabic, to the right in English.
+  const forward = locale === "ar" ? -1 : 1;
   const thumbsRef = useRef<HTMLDivElement>(null);
   const swipe = useRef<{ x: number; y: number } | null>(null);
   const [failed, setFailed] = useState<ReadonlySet<string>>(new Set());
@@ -54,11 +58,10 @@ export function ProductGallery({
     }
   }
 
-  // Thumbnails run right to left, so the left arrow moves to the next one.
   function onThumbKey(event: KeyboardEvent<HTMLDivElement>) {
     const keys: Record<string, number> = {
-      ArrowLeft: index + 1,
-      ArrowRight: index - 1,
+      ArrowLeft: index - forward,
+      ArrowRight: index + forward,
       Home: 0,
       End: images.length - 1,
     };
@@ -80,10 +83,10 @@ export function ProductGallery({
     const dx = event.clientX - start.x;
     const dy = event.clientY - start.y;
     if (Math.abs(dx) < SWIPE_DISTANCE || Math.abs(dy) > Math.abs(dx)) return;
-    show(dx > 0 ? index + 1 : index - 1);
+    show(dx * forward < 0 ? index + 1 : index - 1);
   }
 
-  const position = `${index + 1} من ${images.length}`;
+  const position = m.catalog.imagePosition(index + 1, images.length);
   const activeAlt = active.scopeLabel
     ? `${active.alt} — ${active.scopeLabel}`
     : active.alt;
@@ -91,7 +94,7 @@ export function ProductGallery({
   return (
     <section
       className="product-gallery"
-      aria-roledescription="معرض صور"
+      aria-roledescription={m.catalog.galleryRole}
       aria-label={label}
     >
       <div
@@ -126,7 +129,7 @@ export function ProductGallery({
           />
         )}
         <p className="product-gallery-position" aria-live="polite">
-          <span className="sr-only">الصورة </span>
+          <span className="sr-only">{m.catalog.imagePrefix}</span>
           {position}
           {active.scopeLabel ? (
             <span className="product-gallery-scope">
@@ -139,19 +142,19 @@ export function ProductGallery({
           <div className="product-gallery-arrows">
             <button
               type="button"
-              aria-label="الصورة السابقة"
+              aria-label={m.catalog.previousImage}
               disabled={index === 0}
               onClick={() => show(index - 1)}
             >
-              <ChevronRight aria-hidden="true" />
+              <ChevronRight className="rtl-flip" aria-hidden="true" />
             </button>
             <button
               type="button"
-              aria-label="الصورة التالية"
+              aria-label={m.catalog.nextImage}
               disabled={index === images.length - 1}
               onClick={() => show(index + 1)}
             >
-              <ChevronLeft aria-hidden="true" />
+              <ChevronLeft className="rtl-flip" aria-hidden="true" />
             </button>
           </div>
         ) : null}
@@ -161,7 +164,7 @@ export function ProductGallery({
           ref={thumbsRef}
           className="product-gallery-thumbs"
           role="group"
-          aria-label="اختيار صورة"
+          aria-label={m.catalog.chooseImage}
           onKeyDown={onThumbKey}
         >
           {images.map((image, at) => (
@@ -169,7 +172,7 @@ export function ProductGallery({
               key={image.id}
               type="button"
               tabIndex={at === index ? 0 : -1}
-              aria-label={`عرض الصورة ${at + 1} من ${images.length}${image.scopeLabel ? ` — ${image.scopeLabel}` : ""}`}
+              aria-label={`${m.catalog.showImage(at + 1, images.length)}${image.scopeLabel ? ` — ${image.scopeLabel}` : ""}`}
               aria-current={at === index ? "true" : undefined}
               data-scope={image.scope}
               onClick={() => show(at)}

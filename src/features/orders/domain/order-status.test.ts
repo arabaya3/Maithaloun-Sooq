@@ -4,6 +4,8 @@ import {
   canTransitionOrderStatus,
   getAllowedTransitions,
   isTerminalOrderStatus,
+  orderStatusLabel,
+  orderStatusLabels,
   orderStatuses,
   type OrderStatus,
 } from "./order-status";
@@ -56,5 +58,16 @@ describe("order status transitions", () => {
     for (const [from, to] of invalid) {
       expect(canTransitionOrderStatus(from, to)).toBe(false);
     }
+  });
+});
+
+describe("customer order status labels", () => {
+  it("keeps Arabic by default and offers English for customers", () => {
+    expect(orderStatusLabel("out_for_delivery")).toBe(
+      orderStatusLabels.out_for_delivery,
+    );
+    expect(orderStatusLabel("awaiting_whatsapp", "en")).toBe(
+      "Awaiting WhatsApp confirmation",
+    );
   });
 });

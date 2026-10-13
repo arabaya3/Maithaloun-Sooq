@@ -8,6 +8,10 @@ import {
   isActiveServiceAreaCode,
   STANDARD_DELIVERY_FEE_AGOROT,
 } from "./delivery-policy";
+import {
+  getFreeDeliveryBanner,
+  getFreeDeliveryMessage,
+} from "./delivery-messaging";
 
 describe("delivery policy", () => {
   it("charges standard fee below the free-delivery threshold", () => {
@@ -29,5 +33,20 @@ describe("delivery policy", () => {
   it("recognizes only ميثلون as the active area", () => {
     expect(isActiveServiceAreaCode(ACTIVE_SERVICE_AREA_CODE)).toBe(true);
     expect(isActiveServiceAreaCode("ramallah")).toBe(false);
+  });
+});
+
+describe("free delivery messages", () => {
+  it("keeps Arabic by default and speaks English when asked", () => {
+    expect(getFreeDeliveryMessage(1400)).toBe("أضف 36 ₪ لتحصل على توصيل مجاني");
+    expect(getFreeDeliveryMessage(1400, "en")).toBe(
+      "Add 36 ₪ more for free delivery",
+    );
+    expect(getFreeDeliveryMessage(FREE_DELIVERY_THRESHOLD_AGOROT, "en")).toBe(
+      "You’ve unlocked free delivery",
+    );
+    expect(getFreeDeliveryBanner()).toBe(
+      "توصيل مجاني للطلبات بقيمة 50 ₪ أو أكثر",
+    );
   });
 });

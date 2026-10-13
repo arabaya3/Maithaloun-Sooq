@@ -1641,6 +1641,8 @@ export class CatalogAuthoringService {
       code: category.code,
       nameAr: category.nameAr,
       description: category.description,
+      nameEn: category.nameEn,
+      descriptionEn: category.descriptionEn,
       icon: category.icon as CategoryIconKey,
       sortOrder: category.sortOrder,
       visible: category.visible,
@@ -1753,6 +1755,8 @@ export class CatalogAuthoringService {
     input: {
       nameAr?: string;
       description?: string | null;
+      nameEn?: string | null;
+      descriptionEn?: string | null;
       icon?: CategoryIconKey;
       visible?: boolean;
       sortOrder?: number;
@@ -1773,6 +1777,15 @@ export class CatalogAuthoringService {
           : {}),
         ...(input.description !== undefined
           ? { description: input.description?.trim() || null }
+          : {}),
+        ...(input.nameEn !== undefined
+          ? { nameEn: input.nameEn?.trim().slice(0, 80) || null }
+          : {}),
+        ...(input.descriptionEn !== undefined
+          ? {
+              descriptionEn:
+                input.descriptionEn?.trim().slice(0, 4_000) || null,
+            }
           : {}),
         ...(input.icon !== undefined
           ? { icon: z.enum(categoryIconKeys).parse(input.icon) }

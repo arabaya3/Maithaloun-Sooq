@@ -11,11 +11,14 @@ import {
   WHATSAPP_COUNTRY_CODES,
   formatWhatsAppDisplay,
 } from "@/features/orders/domain/phone";
+import { useI18n } from "@/i18n/i18n-provider";
 
 const PREFIX_LABELS = { "970": "+970", "972": "+972" } as const;
 
 export function PhoneLoginForm({ next }: { next: string }) {
   const router = useRouter();
+  const { m, href } = useI18n();
+  const t = m.account;
   const [phoneE164, setPhoneE164] = useState<string | null>(null);
   const [message, setMessage] = useState("");
   const [pending, setPending] = useState(false);
@@ -54,7 +57,7 @@ export function PhoneLoginForm({ next }: { next: string }) {
       setMessage(result.message);
       return;
     }
-    router.replace(next);
+    router.replace(href(next));
     router.refresh();
   }
 
@@ -62,10 +65,10 @@ export function PhoneLoginForm({ next }: { next: string }) {
     return (
       <form className="account-form" onSubmit={requestCode} noValidate>
         <fieldset className="checkout-field checkout-whatsapp-field">
-          <legend>رقم الجوال</legend>
+          <legend>{t.phoneLegend}</legend>
           <div className="checkout-whatsapp-row">
             <label className="checkout-whatsapp-prefix">
-              <span className="sr-only">مفتاح الدولة</span>
+              <span className="sr-only">{t.countryCode}</span>
               <select name="countryCode" defaultValue="970">
                 {WHATSAPP_COUNTRY_CODES.map((code) => (
                   <option key={code} value={code}>
@@ -75,7 +78,7 @@ export function PhoneLoginForm({ next }: { next: string }) {
               </select>
             </label>
             <label className="checkout-whatsapp-national">
-              <span className="sr-only">الرقم المحلي</span>
+              <span className="sr-only">{t.localNumber}</span>
               <input
                 name="nationalNumber"
                 type="tel"
@@ -89,7 +92,7 @@ export function PhoneLoginForm({ next }: { next: string }) {
             </label>
           </div>
           <small id="login-phone-help" className="checkout-field-help">
-            سنرسل رمز تحقق برسالة نصية. لا نشارك رقمك مع أي جهة.
+            {t.phoneHelp}
           </small>
         </fieldset>
         {message ? (
@@ -98,7 +101,7 @@ export function PhoneLoginForm({ next }: { next: string }) {
           </p>
         ) : null}
         <button type="submit" className="account-primary" disabled={pending}>
-          {pending ? "جارٍ الإرسال…" : "إرسال رمز التحقق"}
+          {pending ? t.sending : t.sendCode}
         </button>
       </form>
     );
@@ -107,11 +110,12 @@ export function PhoneLoginForm({ next }: { next: string }) {
   return (
     <form className="account-form" onSubmit={verifyCode} noValidate>
       <p className="account-note" role="status">
-        إذا كان الرقم <bdi dir="ltr">{formatWhatsAppDisplay(phoneE164)}</bdi>{" "}
-        صحيحاً، ستصلك رسالة فيها رمز من 6 أرقام.
+        {t.codeSentBefore}{" "}
+        <bdi dir="ltr">{formatWhatsAppDisplay(phoneE164)}</bdi>{" "}
+        {t.codeSentAfter}
       </p>
       <label className="checkout-field">
-        <span>رمز التحقق</span>
+        <span>{t.codeLabel}</span>
         <input
           ref={codeRef}
           name="code"
@@ -130,7 +134,7 @@ export function PhoneLoginForm({ next }: { next: string }) {
         </p>
       ) : null}
       <button type="submit" className="account-primary" disabled={pending}>
-        {pending ? "جارٍ التحقق…" : "تأكيد الدخول"}
+        {pending ? t.verifying : t.confirmSignIn}
       </button>
       <button
         type="button"
@@ -140,7 +144,7 @@ export function PhoneLoginForm({ next }: { next: string }) {
           setMessage("");
         }}
       >
-        تغيير الرقم أو إعادة الإرسال
+        {t.changeNumber}
       </button>
     </form>
   );

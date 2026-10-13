@@ -427,6 +427,13 @@ export async function updateCategoryAction(
       icon: icon.data,
       visible: formData.get("visible") === "on",
       sortOrder,
+      // Only forms that show the English fields may change them.
+      ...(formData.has("nameEn")
+        ? { nameEn: text(formData.get("nameEn")) || null }
+        : {}),
+      ...(formData.has("descriptionEn")
+        ? { descriptionEn: text(formData.get("descriptionEn")) || null }
+        : {}),
     });
   } catch (error) {
     return authoringFailure(error);

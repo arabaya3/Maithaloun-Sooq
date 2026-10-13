@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { connection } from "next/server";
 
 import { productRepository } from "@/features/catalog/infrastructure/product-repository";
@@ -9,16 +8,21 @@ import {
   brandPath,
   catalogBrands,
 } from "@/features/storefront/domain/home-merchandising";
-import { formatProductCount } from "@/shared/lib/format-product-count";
+import { Link } from "@/i18n/link";
+import { getMessages } from "@/i18n/server";
 
-export const metadata: Metadata = {
-  title: "الماركات",
-  description: "الماركات المتوفرة في MAYTHA.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const m = await getMessages();
+  return { title: m.meta.brandsTitle, description: m.meta.brandsDescription };
+}
 
 export default async function BrandsPage() {
   await connection();
-  const brands = catalogBrands(await productRepository.list());
+  const [products, m] = await Promise.all([
+    productRepository.list(),
+    getMessages(),
+  ]);
+  const brands = catalogBrands(products);
 
   return (
     <>
@@ -26,7 +30,7 @@ export default async function BrandsPage() {
       <main className="page-shell listing-page">
         <div className="listing-heading">
           <span className="eyebrow">MAYTHA</span>
-          <h1>الماركات</h1>
+          <h1>{m.common.brands}</h1>
         </div>
         {brands.length ? (
           <ul className="brand-directory">
@@ -34,15 +38,15 @@ export default async function BrandsPage() {
               <li key={brand.name}>
                 <Link href={brandPath(brand.name)} className="brand-tile">
                   <bdi dir="auto">{brand.name}</bdi>
-                  <small>{formatProductCount(brand.productCount)}</small>
+                  <small>{m.common.productCount(brand.productCount)}</small>
                 </Link>
               </li>
             ))}
           </ul>
         ) : (
           <div className="empty-state" role="status">
-            <h2>لم تُضف الماركات بعد</h2>
-            <Link href="/categories">تصفّح الأقسام</Link>
+            <h2>{m.store.noBrands}</h2>
+            <Link href="/categories">{m.store.browseCategories}</Link>
           </div>
         )}
       </main>

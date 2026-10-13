@@ -1,21 +1,24 @@
 "use client";
 
 import { BadgePercent, House, LayoutGrid, UserRound } from "lucide-react";
-import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-const navigation = [
-  { href: "/", label: "الرئيسية", icon: House },
-  { href: "/categories", label: "الأقسام", icon: LayoutGrid },
-  { href: "/offers", label: "العروض", icon: BadgePercent },
-  { href: "/account", label: "حسابي", icon: UserRound },
-];
+import { splitLocalePath } from "@/i18n/config";
+import { useI18n } from "@/i18n/i18n-provider";
+import { Link } from "@/i18n/link";
 
 export function MobileNavigation() {
-  const currentPath = usePathname() ?? "";
+  const { m } = useI18n();
+  const currentPath = splitLocalePath(usePathname() ?? "/").path;
+  const navigation = [
+    { href: "/", label: m.common.home, icon: House },
+    { href: "/categories", label: m.common.categories, icon: LayoutGrid },
+    { href: "/offers", label: m.common.offers, icon: BadgePercent },
+    { href: "/account", label: m.common.account, icon: UserRound },
+  ];
 
   return (
-    <nav className="mobile-navigation" aria-label="التنقل الرئيسي للهاتف">
+    <nav className="mobile-navigation" aria-label={m.store.mobileNavigation}>
       {navigation.map((item) => {
         const Icon = item.icon;
         const isCurrent =

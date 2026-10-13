@@ -3,17 +3,18 @@
 import { Smartphone } from "lucide-react";
 import { useState } from "react";
 
+import { useI18n } from "@/i18n/i18n-provider";
+
 import { InstallInstructions } from "./install-instructions";
 import { useInstallPrompt } from "./use-install-prompt";
 
 export function InstallHelpEntry() {
+  const t = useI18n().m.pwa;
   const { status, promptInstall } = useInstallPrompt("storefront");
   const [showSteps, setShowSteps] = useState(false);
 
   if (status === "installed") {
-    return (
-      <p className="install-help-installed">التطبيق مثبّت على هذا الجهاز.</p>
-    );
+    return <p className="install-help-installed">{t.installed}</p>;
   }
 
   async function open() {
@@ -28,7 +29,7 @@ export function InstallHelpEntry() {
     <>
       <button type="button" className="install-help-entry" onClick={open}>
         <Smartphone size={18} aria-hidden="true" />
-        تثبيت التطبيق على الهاتف
+        {t.installOnPhone}
       </button>
       <InstallInstructions
         scope="storefront"

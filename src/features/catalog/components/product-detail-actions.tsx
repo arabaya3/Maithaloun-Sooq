@@ -6,7 +6,7 @@ import { useState } from "react";
 import { QuantityControl } from "@/features/cart/components/quantity-control";
 import { useCart } from "@/features/cart/cart-provider";
 import {
-  getProductDisplayName,
+  localizedProductName,
   type Product,
 } from "@/features/catalog/domain/product";
 import {
@@ -20,6 +20,7 @@ import {
   type SellingUnit,
 } from "@/features/catalog/domain/selling-unit";
 import { useFavorites } from "@/features/favorites/favorites-provider";
+import { useI18n } from "@/i18n/i18n-provider";
 import { formatIls } from "@/shared/lib/format-currency";
 
 export function ProductDetailActions({
@@ -47,7 +48,8 @@ export function ProductDetailActions({
     setNotice({ key: selectionKey, text });
   const { addItem } = useCart();
   const { isFavorite, toggleFavorite } = useFavorites();
-  const name = getProductDisplayName(product);
+  const { m, locale } = useI18n();
+  const name = localizedProductName(product, locale);
   const favorite = isFavorite(product.id);
   const variant = product.variants.find((entry) => entry.id === variantId);
   const canAdd = Boolean(
@@ -75,10 +77,12 @@ export function ProductDetailActions({
         <span className="detail-quantity-label">
           {pack ? (
             <>
-              العدد من «<bdi dir="auto">{pack.labelAr}</bdi>»
+              {m.catalog.packCountBefore}
+              <bdi dir="auto">{pack.labelAr}</bdi>
+              {m.catalog.packCountAfter}
             </>
           ) : (
-            "الكمية"
+            m.catalog.quantity
           )}
         </span>
         <QuantityControl
@@ -94,7 +98,7 @@ export function ProductDetailActions({
         {pack && total !== null ? (
           <p className="detail-quantity-summary" aria-live="polite">
             {shownQuantity} × {pack.labelAr} ={" "}
-            {piecesText(shownQuantity * pack.unitsPerSale)}
+            {piecesText(shownQuantity * pack.unitsPerSale, locale)}
             {" · "}
             <bdi dir="ltr">{formatIls(total)}</bdi>
           </p>
@@ -117,7 +121,7 @@ export function ProductDetailActions({
             !isVariantAvailable(exact) ||
             !isSellingUnitPurchasable(unit)
           ) {
-            setConfirmation("اختر خيارات متوفرة قبل الإضافة إلى السلة.");
+            setConfirmation(m.catalog.chooseAvailableFirst);
             return;
           }
           addItem(
@@ -131,29 +135,31 @@ export function ProductDetailActions({
           );
           setConfirmation(
             pack
-              ? `تمت إضافة ${name} (${pack.labelAr} × ${shownQuantity}) إلى السلة.`
-              : `تمت إضافة ${name} إلى السلة.`,
+              ? m.catalog.addedPack(name, pack.labelAr, shownQuantity)
+              : m.catalog.added(name),
           );
         }}
       >
         <ShoppingBasket aria-hidden="true" />
         {canAdd
-          ? "أضف إلى السلة"
+          ? m.catalog.addToCart
           : variantId
-            ? "المنتج غير متاح"
-            : "اختر من الخيارات"}
+            ? m.catalog.productUnavailable
+            : m.catalog.chooseOptions}
       </button>
       <button
         type="button"
         className="detail-favorite-button"
         aria-label={
-          favorite ? `إزالة ${name} من المفضلة` : `إضافة ${name} إلى المفضلة`
+          favorite
+            ? m.catalog.removeFromFavorites(name)
+            : m.catalog.addToFavorites(name)
         }
         aria-pressed={favorite}
         onClick={() => toggleFavorite(product.id)}
       >
         <Heart aria-hidden="true" className={favorite ? "fill-current" : ""} />
-        {favorite ? "محفوظ في المفضلة" : "أضف إلى المفضلة"}
+        {favorite ? m.catalog.savedToFavorites : m.catalog.addToFavoritesButton}
       </button>
       <p className="cart-confirmation" role="status" aria-live="polite">
         {confirmation}

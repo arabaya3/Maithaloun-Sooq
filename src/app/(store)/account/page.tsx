@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { connection } from "next/server";
 
 import { customerAccountService } from "@/features/accounts/application/customer-services";
@@ -11,14 +10,16 @@ import { PhoneLoginForm } from "@/features/accounts/ui/phone-login-form";
 import { InstallHelpEntry } from "@/features/pwa/install-help-entry";
 import { MobileNavigation } from "@/features/storefront/components/mobile-navigation";
 import { SiteHeader } from "@/features/storefront/components/site-header";
+import { Link } from "@/i18n/link";
+import { getMessages } from "@/i18n/server";
 
-export const metadata: Metadata = {
-  title: "حسابي",
-  robots: { index: false, follow: false },
-};
-
-const BENEFITS =
-  "أنشئ حساباً لحفظ المفضلة، متابعة الطلبات وإعادة طلب مشترياتك بسهولة. الحساب اختياري، ويمكنك الطلب كضيف دائماً.";
+export async function generateMetadata(): Promise<Metadata> {
+  const m = await getMessages();
+  return {
+    title: m.meta.accountTitle,
+    robots: { index: false, follow: false },
+  };
+}
 
 export default async function AccountPage({
   searchParams,
@@ -26,16 +27,14 @@ export default async function AccountPage({
   searchParams: Promise<{ next?: string; mode?: string }>;
 }) {
   await connection();
-  const params = await searchParams;
+  const [params, m] = await Promise.all([searchParams, getMessages()]);
+  const t = m.account;
   const enabled = customerAccountsEnabled();
   const customer = await getCustomerSession();
   const profile = customer
     ? await customerAccountService.profile(customer.id)
     : null;
   const creating = params.mode === "create";
-  const greeting = profile?.displayName
-    ? `أهلاً ${profile.displayName}`
-    : "أهلاً";
 
   return (
     <>
@@ -43,7 +42,7 @@ export default async function AccountPage({
       <main className="page-shell account-page">
         <div className="account-heading">
           <span className="eyebrow">MAYTHA</span>
-          <h1>{profile ? greeting : "حسابي"}</h1>
+          <h1>{profile ? t.greeting(profile.displayName ?? null) : t.title}</h1>
         </div>
 
         {profile ? (
@@ -53,48 +52,46 @@ export default async function AccountPage({
             <section className="account-card" aria-labelledby="account-entry">
               <h2 id="account-entry">
                 {!enabled
-                  ? "الحسابات غير متاحة بعد"
+                  ? t.unavailableTitle
                   : creating
-                    ? "إنشاء حساب"
-                    : "تسجيل الدخول"}
+                    ? t.createTitle
+                    : t.signInTitle}
               </h2>
               <p className="account-note">
-                {enabled
-                  ? BENEFITS
-                  : "يمكنك الطلب كضيف كالمعتاد، والمفضلة محفوظة على هذا الجهاز."}
+                {enabled ? t.benefits : t.unavailableNote}
               </p>
               {enabled ? (
                 <>
                   <div
                     className="account-mode-switch"
                     role="group"
-                    aria-label="نوع الدخول"
+                    aria-label={t.modeLabel}
                   >
                     <Link
                       href="/account"
                       aria-current={creating ? undefined : "page"}
                     >
-                      تسجيل الدخول
+                      {t.signInTitle}
                     </Link>
                     <Link
                       href="/account?mode=create"
                       aria-current={creating ? "page" : undefined}
                     >
-                      إنشاء حساب
+                      {t.createTitle}
                     </Link>
                   </div>
                   <PhoneLoginForm next={safeAccountNext(params.next)} />
                 </>
               ) : null}
               <Link className="account-guest-link" href="/">
-                متابعة كضيف
+                {t.continueAsGuest}
               </Link>
             </section>
-            <nav className="account-shortcuts" aria-label="اختصارات">
-              <Link href="/favorites">المفضلة</Link>
+            <nav className="account-shortcuts" aria-label={t.shortcuts}>
+              <Link href="/favorites">{t.favorites}</Link>
             </nav>
             <section className="account-card">
-              <h2>تطبيق المتجر</h2>
+              <h2>{t.storeApp}</h2>
               <InstallHelpEntry />
             </section>
           </div>
