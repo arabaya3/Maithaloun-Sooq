@@ -7,7 +7,7 @@ const pages = [
   ["/about", "عن MAYTHA", "About MAYTHA"],
   ["/contact", "تواصل معنا", "Contact us"],
   ["/delivery", "التوصيل", "Delivery"],
-  ["/returns", "الاستبدال", "Replacements"],
+  ["/returns", "المنتجات التالفة أو الخاطئة", "Damaged or incorrect items"],
   ["/privacy", "الخصوصية", "Privacy"],
   ["/terms", "الشروط والأحكام", "Terms and conditions"],
 ] as const;
@@ -40,7 +40,7 @@ test("every information page exists in Arabic and English, accessible and withou
   });
 });
 
-test("the delivery page states the same amounts checkout charges, and no invented promises", async ({
+test("the pages state the approved policies and the same amounts checkout charges", async ({
   page,
 }) => {
   await page.goto("/delivery");
@@ -48,13 +48,31 @@ test("the delivery page states the same amounts checkout charges, and no invente
   await expect(main).toContainText("50 ₪");
   await expect(main).toContainText("5 ₪");
   await expect(main).toContainText("داخل ميثلون فقط");
+  await expect(main).toContainText("طوال أيام الأسبوع");
   await page.goto("/en/returns");
-  await expect(page.locator("main")).toContainText("damaged");
-  // No refund windows, guarantees or dealership claims the store hasn't approved.
-  for (const path of ["/en/about", "/en/returns", "/en/terms"]) {
+  await expect(page.locator("main")).toContainText("within 24 hours");
+  await expect(page.locator("main")).toContainText(
+    "does not limit any rights you have under applicable law",
+  );
+  await page.goto("/en/terms");
+  await expect(page.locator("main")).toContainText(
+    "before it leaves for delivery",
+  );
+  await expect(page.locator("main")).toContainText(
+    "never substitute a product without your agreement",
+  );
+  // Nothing the owner hasn't approved or we haven't verified.
+  for (const path of [
+    "/en/about",
+    "/en/contact",
+    "/en/delivery",
+    "/en/returns",
+    "/en/privacy",
+    "/en/terms",
+  ]) {
     await page.goto(path);
     await expect(page.locator("main")).not.toContainText(
-      /refund|days|guarantee|authori[sz]ed|official dealer/i,
+      /refund|guarantee|authori[sz]ed|official dealer|never sell|encrypt|certif|Vercel|Supabase|[0-9]{1,2}:[0-9]{2}|@/i,
     );
   }
 });
