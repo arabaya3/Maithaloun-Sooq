@@ -186,3 +186,22 @@ test("on a phone, a tap still opens the viewer right after swiping photos", asyn
   await expect(page.locator(".gallery-viewer")).toHaveCount(1);
   await context.close();
 });
+
+test("on a 320 px phone, a tap opens the viewer and it stays open", async ({
+  browser,
+}) => {
+  const context = await browser.newContext({
+    viewport: { width: 320, height: 700 },
+    hasTouch: true,
+    isMobile: true,
+  });
+  const page = await context.newPage();
+  await stageBox(page, DOUBLE);
+  const box = (await page.locator(".product-gallery-stage").boundingBox())!;
+  await page.touchscreen.tap(box.x + box.width / 2, box.y + box.height / 2);
+  await page.waitForTimeout(500);
+  await expect(page.locator(".gallery-viewer")).toHaveCount(1);
+  await page.locator(".gallery-viewer-close").tap();
+  await expect(page.locator(".gallery-viewer")).toHaveCount(0);
+  await context.close();
+});

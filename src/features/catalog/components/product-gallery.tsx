@@ -18,6 +18,7 @@ import { useI18n } from "@/i18n/i18n-provider";
 const SWIPE_DISTANCE = 40;
 const ZOOM_SCALE = 2.2;
 const TAP_SLOP = 10;
+const OPENING_CLICK_MS = 400;
 
 export interface GalleryItem extends GalleryImage {
   /** What the image shows, such as «اللون: أزرق»; null for a shared product image. */
@@ -289,10 +290,13 @@ function GalleryViewer({
 }) {
   const { m, locale } = useI18n();
   const closeRef = useRef<HTMLButtonElement>(null);
+  // The tap that opened the viewer is followed by its own click; it must not land on the backdrop and close it.
+  const openedAt = useRef(0);
   const forward = locale === "ar" ? -1 : 1;
   const image = images[index]!;
 
   useEffect(() => {
+    openedAt.current = performance.now();
     const previous = document.activeElement as HTMLElement | null;
     const overflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
@@ -319,7 +323,9 @@ function GalleryViewer({
       role="dialog"
       aria-modal="true"
       aria-label={m.catalog.openViewer}
-      onClick={onClose}
+      onClick={() => {
+        if (performance.now() - openedAt.current > OPENING_CLICK_MS) onClose();
+      }}
     >
       <button
         ref={closeRef}
