@@ -4,7 +4,7 @@ begin;
 
 do $$
 begin
-  if (select value from store_settings where key = 'store_whatsapp_e164') is distinct from '+972599105456' then
+  if (select value #>> '{}' from store_settings where key = 'store_whatsapp_e164') is distinct from '+972599105456' then
     raise exception 'store_whatsapp_e164 is not the new number; nothing changed';
   end if;
 end $$;
@@ -17,9 +17,9 @@ from store_settings
 where key = 'store_whatsapp_e164';
 
 update store_settings
-set value = '+972592941591', updated_at = now()
-where key = 'store_whatsapp_e164' and value = '+972599105456';
+set value = to_jsonb('+972592941591'::text), updated_at = now()
+where key = 'store_whatsapp_e164' and value #>> '{}' = '+972599105456';
 
-select key, value, updated_by, updated_at from store_settings where key = 'store_whatsapp_e164';
+select key, value #>> '{}' as value, updated_by, updated_at from store_settings where key = 'store_whatsapp_e164';
 
 commit;
