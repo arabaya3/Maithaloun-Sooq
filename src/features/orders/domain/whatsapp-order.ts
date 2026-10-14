@@ -30,7 +30,7 @@ export function whatsAppOrderMessage(order: {
     return `• ${line.name}${detail ? ` (${detail})` : ""} × ${line.quantity} = ${formatIls(line.lineSubtotalAgorot)}`;
   });
   return [
-    "مرحباً MAYTHA،",
+    "مرحباً MAYTHA MARKET،",
     `أريد تأكيد طلبي رقم ${order.publicReference}`,
     ...lines,
     `مجموع المنتجات: ${formatIls(order.itemsSubtotalAgorot)}`,
@@ -90,7 +90,7 @@ export function whatsAppCartMessage(
     ];
   });
   return [
-    ar ? "مرحباً MAYTHA 🌿" : "Hello MAYTHA 🌿",
+    ar ? "مرحباً MAYTHA MARKET 🌿" : "Hello MAYTHA MARKET 🌿",
     "",
     ar ? "بدي أطلب المنتجات التالية:" : "I'd like to order:",
     "",
