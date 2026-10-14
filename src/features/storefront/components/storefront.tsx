@@ -13,12 +13,16 @@ import {
 } from "@/features/catalog/domain/category";
 import type { CategoryId, Product } from "@/features/catalog/domain/product";
 import { filterProducts } from "@/features/catalog/domain/product-search";
+import {
+  sortProducts,
+  type ProductSort,
+} from "@/features/catalog/domain/product-sort";
+import { CatalogToolbar } from "@/features/storefront/components/catalog-toolbar";
 import { Hero } from "@/features/storefront/components/hero";
 import {
   BestSellers,
   EditorialBanners,
   FeaturedBrands,
-  PromoBanners,
   StoreBenefits,
 } from "@/features/storefront/components/home-sections";
 import { MobileNavigation } from "@/features/storefront/components/mobile-navigation";
@@ -37,16 +41,12 @@ export interface HomeMerchandising {
   heroProducts: readonly Product[];
   brands: readonly CatalogBrand[];
   bestSellers: readonly Product[];
-  offerProducts: readonly Product[];
-  featured: { category: ProductCategory; product: Product | null } | null;
 }
 
 const emptyMerchandising: HomeMerchandising = {
   heroProducts: [],
   brands: [],
   bestSellers: [],
-  offerProducts: [],
-  featured: null,
 };
 
 function ProductSearch({
@@ -171,8 +171,15 @@ function CategoryPicker({
 }
 
 /** Mirrors the filters into the address, so a search or category can be shared and survives a reload. */
-function writeFiltersToUrl(category: CategoryId, query: string) {
+function writeFiltersToUrl(
+  category: CategoryId,
+  query: string,
+  sort: ProductSort,
+) {
+  // Only the catalog's own parameters change; anything else in the address is kept.
   const url = new URL(window.location.href);
+  if (sort === "featured") url.searchParams.delete("sort");
+  else url.searchParams.set("sort", sort);
   if (category === ALL_CATEGORIES) url.searchParams.delete("category");
   else url.searchParams.set("category", category);
   if (query.trim()) url.searchParams.set("q", query.trim());
@@ -185,33 +192,48 @@ export function Storefront({
   categories,
   initialCategory = ALL_CATEGORIES,
   initialQuery = "",
+  initialSort = "featured",
   merchandising = emptyMerchandising,
 }: {
   products: readonly Product[];
   categories: readonly ProductCategory[];
   initialCategory?: CategoryId;
   initialQuery?: string;
+  initialSort?: ProductSort;
   merchandising?: HomeMerchandising;
 }) {
   const { m, locale } = useI18n();
   const [query, setQueryState] = useState(initialQuery);
   const [category, setCategoryState] = useState<CategoryId>(initialCategory);
+  const [sort, setSortState] = useState<ProductSort>(initialSort);
+  // The phone sheet edits a draft category that only applies on «Show results».
+  const [draftCategory, setDraftCategory] =
+    useState<CategoryId>(initialCategory);
   const setCategory = (code: CategoryId) => {
     setCategoryState(code);
-    writeFiltersToUrl(code, query);
+    setDraftCategory(code);
+    writeFiltersToUrl(code, query, sort);
   };
   const setQuery = (value: string) => {
     setQueryState(value);
-    writeFiltersToUrl(category, value);
+    writeFiltersToUrl(category, value, sort);
+  };
+  const setSort = (value: ProductSort) => {
+    setSortState(value);
+    writeFiltersToUrl(category, query, value);
   };
   const searchInputRef = useRef<HTMLInputElement>(null);
   const covers = useMemo(() => categoryCovers(products), [products]);
 
   const filteredProducts = useMemo(
-    () => filterProducts(products, { query, categoryId: category }),
-    [category, products, query],
+    () =>
+      sortProducts(
+        filterProducts(products, { query, categoryId: category }),
+        sort,
+      ),
+    [category, products, query, sort],
   );
-  const filterKey = `${category}|${query.trim()}`;
+  const filterKey = `${category}|${query.trim()}|${sort}`;
   const [batch, setBatch] = useState({ key: filterKey, count: CATALOG_BATCH });
   // A new search or category starts again from the first batch.
   const visibleCount = batch.key === filterKey ? batch.count : CATALOG_BATCH;
@@ -229,7 +251,8 @@ export function Storefront({
   const resetFilters = () => {
     setQueryState("");
     setCategoryState(ALL_CATEGORIES);
-    writeFiltersToUrl(ALL_CATEGORIES, "");
+    setDraftCategory(ALL_CATEGORIES);
+    writeFiltersToUrl(ALL_CATEGORIES, "", sort);
     queueMicrotask(() => searchInputRef.current?.focus());
   };
 
@@ -256,30 +279,11 @@ export function Storefront({
           selected={category}
           onSelect={setCategory}
         />
-        {hasActiveFilter ? (
-          <div className="active-filter-summary" role="status">
-            <span>
-              {query.trim() ? m.store.searchQuery(query.trim()) : null}
-              {query.trim() && category !== ALL_CATEGORIES ? " · " : null}
-              {category !== ALL_CATEGORIES && selectedCategory
-                ? m.store.categoryFilter(
-                    localizedCategoryName(selectedCategory, locale),
-                  )
-                : null}
-            </span>
-            <button type="button" onClick={resetFilters}>
-              {m.store.clearFilters}
-            </button>
-          </div>
-        ) : (
+        {hasActiveFilter ? null : (
           <>
             <FeaturedBrands brands={merchandising.brands} />
             <BestSellers products={merchandising.bestSellers} />
             <EditorialBanners categories={categories} />
-            <PromoBanners
-              offerProducts={merchandising.offerProducts}
-              featured={merchandising.featured}
-            />
           </>
         )}
         <section
@@ -291,10 +295,64 @@ export function Storefront({
             <h2 id="catalog-title">
               {hasActiveFilter ? m.store.searchResults : m.store.allProducts}
             </h2>
-            <span className="results-count" aria-live="polite">
-              {m.common.productCount(filteredProducts.length)}
-            </span>
           </div>
+          <CatalogToolbar
+            count={filteredProducts.length}
+            sort={sort}
+            onSort={setSort}
+            chips={[
+              ...(query.trim()
+                ? [
+                    {
+                      key: "q",
+                      label: m.store.searchQuery(query.trim()),
+                      onRemove: () => setQuery(""),
+                    },
+                  ]
+                : []),
+              ...(category !== ALL_CATEGORIES && selectedCategory
+                ? [
+                    {
+                      key: "category",
+                      label: m.store.categoryFilter(
+                        localizedCategoryName(selectedCategory, locale),
+                      ),
+                      onRemove: () => setCategory(ALL_CATEGORIES),
+                    },
+                  ]
+                : []),
+            ]}
+            onClearFilters={resetFilters}
+            sheet={{
+              activeCount: category === ALL_CATEGORIES ? 0 : 1,
+              onApply: () => setCategory(draftCategory),
+              onReset: () => setDraftCategory(ALL_CATEGORIES),
+              content: (
+                <fieldset className="filter-sheet-group">
+                  <legend>{m.store.categoryHeading}</legend>
+                  <div className="filter-sheet-options">
+                    {[
+                      { code: ALL_CATEGORIES, name: m.store.allFilter },
+                      ...categories.map((item) => ({
+                        code: item.code,
+                        name: localizedCategoryName(item, locale),
+                      })),
+                    ].map((option) => (
+                      <button
+                        key={option.code}
+                        type="button"
+                        className="filter-option"
+                        aria-pressed={draftCategory === option.code}
+                        onClick={() => setDraftCategory(option.code)}
+                      >
+                        {option.name}
+                      </button>
+                    ))}
+                  </div>
+                </fieldset>
+              ),
+            }}
+          />
 
           {filteredProducts.length ? (
             <>

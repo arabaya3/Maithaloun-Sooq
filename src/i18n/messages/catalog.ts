@@ -51,6 +51,10 @@ const ar = {
   showImage: (position: number, total: number) =>
     `عرض الصورة ${position} من ${total}`,
   zoomImage: "تكبير صورة المنتج",
+  zoomHint: "مرّر المؤشر للتكبير",
+  openViewer: "فتح الصورة بحجم كامل",
+  descriptionTitle: "وصف المنتج",
+  usageTitle: "طريقة الاستعمال",
   close: "إغلاق",
   specificationsTitle: "تفاصيل المنتج",
   trustLabel: "التوصيل والدفع",
@@ -116,6 +120,10 @@ const en: typeof ar = {
   showImage: (position: number, total: number) =>
     `Show image ${position} of ${total}`,
   zoomImage: "Enlarge product image",
+  zoomHint: "Hover to zoom",
+  openViewer: "Open full-size image",
+  descriptionTitle: "Product description",
+  usageTitle: "How to use",
   close: "Close",
   specificationsTitle: "Product details",
   trustLabel: "Delivery and payment",

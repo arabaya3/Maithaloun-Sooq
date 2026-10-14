@@ -10,7 +10,6 @@ import {
 import Image from "next/image";
 
 import { ProductCard } from "@/features/catalog/components/product-card";
-import { ProductMedia } from "@/features/catalog/components/product-media";
 import {
   localizedCategoryDescription,
   localizedCategoryName,
@@ -161,69 +160,6 @@ export function EditorialBanners({
           </Link>
         );
       })}
-    </section>
-  );
-}
-
-export function PromoBanners({
-  offerProducts,
-  featured,
-}: {
-  offerProducts: readonly Product[];
-  featured: { category: ProductCategory; product: Product | null } | null;
-}) {
-  const { m, locale } = useI18n();
-  const offer = offerProducts.find((product) => product.image.kind === "image");
-  if (!offerProducts.length && !featured) return null;
-  const featuredDescription = featured
-    ? localizedCategoryDescription(featured.category, locale)
-    : null;
-  return (
-    <section className="home-section" aria-labelledby="collections-title">
-      <SectionHeading id="collections-title" title={m.store.collections} />
-      <div className="promo-grid">
-        {offerProducts.length ? (
-          <article className="promo promo-dark">
-            <div className="promo-body">
-              <h2>{m.store.currentOffers}</h2>
-              <p>{m.store.offerCount(offerProducts.length)}</p>
-              <Link href="/offers" className="promo-cta">
-                {m.store.shopOffers}
-                <ArrowLeft className="rtl-flip" aria-hidden="true" />
-              </Link>
-            </div>
-            {offer ? (
-              <ProductMedia
-                product={offer}
-                className="promo-image"
-                sizes="(min-width: 48rem) 220px, 40vw"
-              />
-            ) : null}
-          </article>
-        ) : null}
-        {featured ? (
-          <article className="promo promo-light">
-            <div className="promo-body">
-              <h2>{localizedCategoryName(featured.category, locale)}</h2>
-              {featuredDescription ? <p>{featuredDescription}</p> : null}
-              <Link
-                href={`/categories/${encodeURIComponent(featured.category.code)}`}
-                className="promo-cta"
-              >
-                {m.store.shopCategory}
-                <ArrowLeft className="rtl-flip" aria-hidden="true" />
-              </Link>
-            </div>
-            {featured.product ? (
-              <ProductMedia
-                product={featured.product}
-                className="promo-image"
-                sizes="(min-width: 48rem) 220px, 40vw"
-              />
-            ) : null}
-          </article>
-        ) : null}
-      </div>
     </section>
   );
 }

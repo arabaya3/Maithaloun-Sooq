@@ -5,13 +5,13 @@ import { useMemo, useState } from "react";
 
 import { OfferPrice } from "@/features/catalog/components/offer-price";
 import { OptionSelectors } from "@/features/catalog/components/option-selectors";
-import { ProductDescription } from "@/features/catalog/components/product-description";
 import { ProductDetailActions } from "@/features/catalog/components/product-detail-actions";
 import {
   ProductGallery,
   type GalleryItem,
 } from "@/features/catalog/components/product-gallery";
 import { ProductMedia } from "@/features/catalog/components/product-media";
+import { ProductInformation } from "@/features/catalog/components/product-information";
 import { ProductSpecifications } from "@/features/catalog/components/product-specifications";
 import { ProductTrust } from "@/features/catalog/components/product-trust";
 import { SellingUnitSelector } from "@/features/catalog/components/selling-unit-selector";
@@ -218,12 +218,16 @@ export function ProductDetailPanel({
     rememberVariant(picked.variantId, product.defaultVariantId);
   }
 
-  // With several photos the description sits under them on wide screens, beside the buying panel.
-  const describedBelow = gallery.length > 1;
+  // Every photographed product uses the same gallery, with its information under the photos on wide screens.
+  const describedBelow = gallery.length > 0;
   const description = (
-    <ProductDescription
-      text={text.description ?? m.catalog.descriptionPending}
-    />
+    <>
+      <ProductInformation
+        description={text.description}
+        usageNotes={text.usageNotes}
+      />
+      <ProductSpecifications specifications={product.specifications} />
+    </>
   );
 
   return (
@@ -234,7 +238,7 @@ export function ProductDetailPanel({
           : "product-detail"
       }
     >
-      {gallery.length > 1 ? (
+      {gallery.length > 0 ? (
         <ProductGallery
           images={gallery}
           activeId={activeImage?.id ?? null}
@@ -318,13 +322,6 @@ export function ProductDetailPanel({
           />
         ) : null}
         {describedBelow ? null : description}
-        {text.usageNotes ? (
-          <section aria-labelledby="usage-title">
-            <h2 id="usage-title">{m.catalog.usageNotes}</h2>
-            <p>{text.usageNotes}</p>
-          </section>
-        ) : null}
-        <ProductSpecifications specifications={product.specifications} />
         <ProductDetailActions
           product={product}
           variantId={

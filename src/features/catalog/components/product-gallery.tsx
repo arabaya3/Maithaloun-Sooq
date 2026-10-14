@@ -1,14 +1,22 @@
 "use client";
 
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Expand, X } from "lucide-react";
 import Image from "next/image";
-import { useRef, useState, type KeyboardEvent, type PointerEvent } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+  type KeyboardEvent,
+  type PointerEvent,
+} from "react";
 
 import { ProductPlaceholder } from "@/features/catalog/components/product-placeholder";
 import type { GalleryImage } from "@/features/catalog/domain/product-gallery";
 import { useI18n } from "@/i18n/i18n-provider";
 
 const SWIPE_DISTANCE = 40;
+const ZOOM_SCALE = 2.2;
 
 export interface GalleryItem extends GalleryImage {
   /** What the image shows, such as «اللون: أزرق»; null for a shared product image. */
@@ -35,7 +43,12 @@ export function ProductGallery({
   const forward = locale === "ar" ? -1 : 1;
   const thumbsRef = useRef<HTMLDivElement>(null);
   const swipe = useRef<{ x: number; y: number } | null>(null);
+  const moved = useRef(false);
   const [failed, setFailed] = useState<ReadonlySet<string>>(new Set());
+  const [zoom, setZoom] = useState<{ id: string; style: CSSProperties } | null>(
+    null,
+  );
+  const [viewerOpen, setViewerOpen] = useState(false);
   const index = Math.max(
     0,
     images.findIndex((image) => image.id === activeId),
@@ -73,6 +86,23 @@ export function ProductGallery({
 
   function onPointerDown(event: PointerEvent<HTMLDivElement>) {
     swipe.current = { x: event.clientX, y: event.clientY };
+    moved.current = false;
+  }
+
+  // A mouse zooms toward the cursor, clipped by the stage; touch keeps swipe and opens the viewer instead.
+  function onPointerMove(event: PointerEvent<HTMLDivElement>) {
+    if (event.pointerType !== "mouse" || !active) return;
+    if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
+    const rect = event.currentTarget.getBoundingClientRect();
+    const x = ((event.clientX - rect.left) / rect.width) * 100;
+    const y = ((event.clientY - rect.top) / rect.height) * 100;
+    setZoom({
+      id: active.id,
+      style: {
+        transform: `scale(${ZOOM_SCALE})`,
+        transformOrigin: `${Math.min(100, Math.max(0, x))}% ${Math.min(100, Math.max(0, y))}%`,
+      },
+    });
   }
 
   // A sideways swipe on the main image changes it; vertical movement is left to the page scroll.
@@ -83,6 +113,7 @@ export function ProductGallery({
     const dx = event.clientX - start.x;
     const dy = event.clientY - start.y;
     if (Math.abs(dx) < SWIPE_DISTANCE || Math.abs(dy) > Math.abs(dx)) return;
+    moved.current = true;
     show(dx * forward < 0 ? index + 1 : index - 1);
   }
 
@@ -90,6 +121,9 @@ export function ProductGallery({
   const activeAlt = active.scopeLabel
     ? `${active.alt} — ${active.scopeLabel}`
     : active.alt;
+  // Zoom belongs to one image, so switching images always starts unzoomed.
+  const zoomStyle = zoom?.id === active.id ? zoom.style : undefined;
+  const multiple = images.length > 1;
 
   return (
     <section
@@ -99,8 +133,11 @@ export function ProductGallery({
     >
       <div
         className="product-gallery-stage"
+        data-zooming={Boolean(zoomStyle)}
         onPointerDown={onPointerDown}
         onPointerUp={onPointerUp}
+        onPointerMove={onPointerMove}
+        onPointerLeave={() => setZoom(null)}
         onPointerCancel={() => {
           swipe.current = null;
         }}
@@ -126,9 +163,30 @@ export function ProductGallery({
             loading={active.id === priorityId ? "eager" : "lazy"}
             onError={() => markFailed(active.id)}
             draggable={false}
+            style={zoomStyle}
           />
         )}
-        <p className="product-gallery-position" aria-live="polite">
+        {failed.has(active.id) ? null : (
+          <button
+            type="button"
+            className="product-gallery-expand"
+            aria-label={m.catalog.openViewer}
+            aria-haspopup="dialog"
+            onClick={() => {
+              if (!moved.current) setViewerOpen(true);
+            }}
+          >
+            <Expand aria-hidden="true" />
+            <span className="product-gallery-zoom-hint" aria-hidden="true">
+              {m.catalog.zoomHint}
+            </span>
+          </button>
+        )}
+        <p
+          className="product-gallery-position"
+          aria-live="polite"
+          hidden={!multiple && !active.scopeLabel}
+        >
           <span className="sr-only">{m.catalog.imagePrefix}</span>
           {position}
           {active.scopeLabel ? (
@@ -194,6 +252,108 @@ export function ProductGallery({
           ))}
         </div>
       ) : null}
+      {viewerOpen ? (
+        <GalleryViewer
+          images={images}
+          index={index}
+          onShow={(next) => show(next)}
+          onClose={() => setViewerOpen(false)}
+        />
+      ) : null}
     </section>
+  );
+}
+
+/** Full-screen viewer for touch and keyboard; the browser's own pinch zoom stays available. */
+function GalleryViewer({
+  images,
+  index,
+  onShow,
+  onClose,
+}: {
+  images: readonly GalleryItem[];
+  index: number;
+  onShow: (index: number) => void;
+  onClose: () => void;
+}) {
+  const { m, locale } = useI18n();
+  const closeRef = useRef<HTMLButtonElement>(null);
+  const forward = locale === "ar" ? -1 : 1;
+  const image = images[index]!;
+
+  useEffect(() => {
+    const previous = document.activeElement as HTMLElement | null;
+    const overflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    closeRef.current?.focus();
+    return () => {
+      document.body.style.overflow = overflow;
+      previous?.focus();
+    };
+  }, []);
+
+  useEffect(() => {
+    const onKey = (event: globalThis.KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+      if (event.key === "ArrowLeft") onShow(index - forward);
+      if (event.key === "ArrowRight") onShow(index + forward);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [forward, index, onClose, onShow]);
+
+  return (
+    <div
+      className="gallery-viewer"
+      role="dialog"
+      aria-modal="true"
+      aria-label={m.catalog.openViewer}
+      onClick={onClose}
+    >
+      <button
+        ref={closeRef}
+        type="button"
+        className="gallery-viewer-close"
+        aria-label={m.catalog.close}
+        onClick={onClose}
+      >
+        <X aria-hidden="true" />
+      </button>
+      {/* eslint-disable-next-line @next/next/no-img-element -- the viewer shows the original file at its natural size */}
+      <img
+        className="gallery-viewer-image"
+        src={image.src}
+        alt={
+          image.scopeLabel ? `${image.alt} — ${image.scopeLabel}` : image.alt
+        }
+        onClick={(event) => event.stopPropagation()}
+      />
+      {images.length > 1 ? (
+        <div
+          className="gallery-viewer-nav"
+          onClick={(event) => event.stopPropagation()}
+        >
+          <button
+            type="button"
+            aria-label={m.catalog.previousImage}
+            disabled={index === 0}
+            onClick={() => onShow(index - 1)}
+          >
+            <ChevronRight className="rtl-flip" aria-hidden="true" />
+          </button>
+          <span aria-live="polite">
+            {m.catalog.imagePosition(index + 1, images.length)}
+          </span>
+          <button
+            type="button"
+            aria-label={m.catalog.nextImage}
+            disabled={index === images.length - 1}
+            onClick={() => onShow(index + 1)}
+          >
+            <ChevronLeft className="rtl-flip" aria-hidden="true" />
+          </button>
+        </div>
+      ) : null}
+    </div>
   );
 }
