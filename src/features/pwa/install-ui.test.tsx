@@ -69,7 +69,7 @@ describe("storefront install banner", () => {
     dispatchInstallPrompt("dismissed");
     const logo = container.querySelector(".install-banner-logo");
     expect(decodeURIComponent(logo?.getAttribute("src") ?? "")).toContain(
-      "/brand/app/icon-192-v3.png",
+      "/brand/app/icon-192-v4.png",
     );
     expect(screen.getByText("ثبّت MAYTHA")).toBeVisible();
     expect(screen.getByText(/التثبيت اختياري/)).toBeVisible();

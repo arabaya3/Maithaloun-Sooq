@@ -10,7 +10,7 @@ import { Link } from "@/i18n/link";
 
 import { infoPages } from "@/features/storefront/info-pages";
 
-import { BrandWordmark } from "./brand-logo";
+import { BrandLockup } from "./brand-logo";
 
 export function StoreFooter({
   storeWhatsApp = null,
@@ -31,9 +31,24 @@ export function StoreFooter({
     <footer className="store-footer">
       <div className="store-footer-inner page-shell">
         <div className="store-footer-identity">
-          <BrandWordmark className="store-footer-wordmark" />
+          <BrandLockup className="store-footer-wordmark" />
           <p className="store-footer-note">{m.common.trustLine}</p>
-          <p className="store-footer-note">{m.common.deliveryAndCash}</p>
+        </div>
+        <nav className="store-footer-links" aria-label={m.store.storeLinks}>
+          {links.map((link) => (
+            <Link key={link.href} href={link.href}>
+              {link.label}
+            </Link>
+          ))}
+        </nav>
+        <nav className="store-footer-links" aria-label={m.info.pagesLabel}>
+          {infoPages.map((link) => (
+            <Link key={link.href} href={link.href}>
+              {m.info[link.key].title}
+            </Link>
+          ))}
+        </nav>
+        <div className="store-footer-bottom">
           {chatUrl && storeWhatsApp ? (
             <a
               className="store-footer-whatsapp"
@@ -47,23 +62,11 @@ export function StoreFooter({
               <bdi dir="ltr">{formatWhatsAppDisplay(storeWhatsApp)}</bdi>
             </a>
           ) : null}
+          <div className="store-footer-meta">
+            <p className="store-footer-attribution">{m.store.managedBy}</p>
+            <LanguageSwitcher />
+          </div>
         </div>
-        <nav className="store-footer-links" aria-label={m.store.storeLinks}>
-          {links.map((link) => (
-            <Link key={link.href} href={link.href}>
-              {link.label}
-            </Link>
-          ))}
-          <LanguageSwitcher />
-        </nav>
-        <nav className="store-footer-links" aria-label={m.info.pagesLabel}>
-          {infoPages.map((link) => (
-            <Link key={link.href} href={link.href}>
-              {m.info[link.key].title}
-            </Link>
-          ))}
-        </nav>
-        <p className="store-footer-attribution">{m.store.managedBy}</p>
       </div>
     </footer>
   );

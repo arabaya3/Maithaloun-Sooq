@@ -1352,3 +1352,175 @@ body:has(.store-footer) > main {
     transition: none;
   }
 }
+
+/* Brand lockup: monogram beside the wordmark */
+.brand-lockup {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.brand-monogram {
+  width: 2.35rem;
+  height: 2.35rem;
+  flex: none;
+  color: var(--forest);
+}
+
+.brand-monogram-leaf {
+  fill: #6f9f80;
+}
+
+.brand-monogram-rib {
+  stroke: var(--ivory);
+}
+
+.brand .brand-wordmark {
+  justify-items: start;
+}
+
+@media (max-width: 22.4rem) {
+  .brand-monogram {
+    width: 1.9rem;
+    height: 1.9rem;
+  }
+
+  .brand .brand-name {
+    font-size: 1.4rem;
+  }
+}
+
+@media (min-width: 48rem) {
+  .brand-monogram {
+    width: 2.75rem;
+    height: 2.75rem;
+  }
+}
+
+/* Footer: content-sized, three columns on wide screens, compact link grids on phones */
+.store-footer-inner {
+  gap: var(--space-4);
+  padding-block: var(--space-6) var(--space-3);
+}
+
+.store-footer-identity {
+  gap: 0.4rem;
+}
+
+.store-footer-wordmark .brand-monogram {
+  width: 2.25rem;
+  height: 2.25rem;
+  color: var(--ivory);
+}
+
+.store-footer-wordmark .brand-monogram-leaf {
+  fill: #a9c9b2;
+}
+
+.store-footer-wordmark .brand-monogram-rib {
+  stroke: var(--forest);
+}
+
+.store-footer-wordmark .brand-name {
+  font-size: 1.5rem;
+}
+
+.store-footer-wordmark .brand-wordmark {
+  justify-items: start;
+}
+
+.store-footer-note {
+  max-width: 34ch;
+  font-size: var(--text-sm);
+  line-height: 1.6;
+}
+
+.store-footer-whatsapp {
+  min-height: 2.5rem;
+  margin-top: 0.15rem;
+}
+
+.store-footer-links {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0 var(--space-3);
+  align-content: start;
+}
+
+.store-footer-links a {
+  min-height: 2.25rem;
+  line-height: 1.35;
+}
+
+.store-footer-bottom {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-4);
+  padding-top: var(--space-2);
+  border-top: 1px solid rgb(255 255 255 / 14%);
+}
+
+.store-footer-bottom .store-footer-attribution {
+  padding-top: 0;
+  border-top: 0;
+}
+
+.store-footer-bottom .language-switcher {
+  min-height: 2.25rem;
+  padding-inline: 0.75rem;
+  color: var(--white);
+  border: 1px solid rgb(255 255 255 / 22%);
+}
+
+.store-footer-bottom .language-switcher:focus-visible {
+  outline-color: var(--white);
+}
+
+@media (min-width: 48rem) {
+  .store-footer-inner {
+    grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr) minmax(0, 1fr);
+    gap: var(--space-3) var(--space-6);
+    padding-block: var(--space-6) var(--space-3);
+  }
+
+  .store-footer-links {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .store-footer-bottom {
+    grid-column: 1 / -1;
+  }
+}
+
+/* Mouse users get tighter rows; touch keeps 36px targets. */
+@media (min-width: 48rem) and (pointer: fine) {
+  .store-footer-links a {
+    min-height: 2rem;
+  }
+}
+
+.store-footer-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-4);
+}
+
+.store-footer-bottom .store-footer-whatsapp {
+  margin-top: 0;
+}
+
+/* Section titles share the display face used by the home sections. */
+.section-heading h2 {
+  color: var(--forest);
+  font-family: var(--font-display);
+  font-weight: 600;
+}
+
+/* Phones: a tighter gap between the two link groups in the footer. */
+@media (max-width: 47.99rem) {
+  .store-footer-inner {
+    gap: var(--space-3);
+  }
+}
