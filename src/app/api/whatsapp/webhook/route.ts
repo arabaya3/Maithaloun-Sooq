@@ -39,15 +39,16 @@ export function GET(request: Request) {
  */
 export async function POST(request: Request) {
   const appSecret = process.env.WHATSAPP_APP_SECRET?.trim();
-  const verifyToken = process.env.WHATSAPP_VERIFY_TOKEN?.trim();
-  if (!appSecret && !verifyToken) {
+  const webhookKey = process.env.WHATSAPP_WEBHOOK_KEY?.trim();
+  if (!appSecret && !webhookKey) {
     return new NextResponse(null, { status: 404 });
   }
   const raw = await request.text();
   if (raw.length > MAX_WEBHOOK_BYTES) {
     return new NextResponse(null, { status: 413 });
   }
-  // Meta signs the body with the app secret; a provider that cannot sign uses a secret in the URL.
+  // Meta signs the body with the app secret. A provider that cannot sign (360dialog) sends a secret
+  // header configured with its webhook; secrets never travel in the URL, where logs could keep them.
   const authentic = appSecret
     ? validCloudSignature(
         raw,
@@ -55,8 +56,8 @@ export async function POST(request: Request) {
         appSecret,
       )
     : sameSecret(
-        new URL(request.url).searchParams.get("key"),
-        verifyToken as string,
+        request.headers.get("x-maytha-webhook-key"),
+        webhookKey as string,
       );
   if (!authentic) return new NextResponse(null, { status: 401 });
 

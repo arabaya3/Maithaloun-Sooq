@@ -2,6 +2,7 @@ import type { LanguageModelV4, LanguageModelV4Content } from "@ai-sdk/provider";
 import { count, eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
+import { rankBestSellers } from "@/features/catalog/infrastructure/best-sellers";
 import { listStorefrontCategories } from "@/features/catalog/infrastructure/category-queries";
 import { PostgresProductRepository } from "@/features/catalog/infrastructure/postgres-product-repository";
 import { OrderService } from "@/features/orders/application/order-service";
@@ -130,6 +131,30 @@ describe("shop assistant", () => {
     expect(priced).toContain(
       (order!.finalTotalAgorot! / 100).toFixed(2).replace(/\.00$/, ""),
     );
+  });
+
+  it("ignores a late or replayed yes", async () => {
+    const service = new ShopAssistantService(
+      db,
+      new OrderService(db),
+      scripted([
+        async (context) => {
+          await context.saveCart([line("general-cleaner", 1)]);
+          await context.prepareOrder({ name: "سلمى", deliveryNote: null });
+          return "";
+        },
+      ]),
+      STORE,
+    );
+    const sender = new SimulatorSender();
+    await service.handleInbound(inbound("بدي منظف"), sender);
+    const late = {
+      ...inbound("نعم"),
+      receivedAt: new Date(Date.now() - 7 * 60 * 60 * 1000),
+    };
+    expect((await service.handleInbound(late, sender)).handled).toBe("stale");
+    expect(sender.sent).toHaveLength(1);
+    expect(await orderCount()).toBe(0);
   });
 
   it("needs a fresh yes after the cart changes", async () => {
@@ -345,5 +370,6 @@ describe("shop assistant", () => {
         .from(schema.adminNotifications)
         .where(eq(schema.adminNotifications.orderId, order!.id)),
     ).toEqual([]);
+    expect(await rankBestSellers(db, 10)).toEqual([]);
   });
 });

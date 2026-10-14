@@ -40,6 +40,10 @@ type Locale = "ar" | "en";
 // Spending and abuse limits: a conversation answers at most this many messages an hour.
 export const MAX_REPLIES_PER_HOUR = 30;
 
+// A message delivered this late (provider retries after an outage, or a replay) is kept but not acted on,
+// so an old "yes" can never place an order.
+export const MAX_MESSAGE_AGE_MS = 6 * 60 * 60 * 1000;
+
 /** What the AI turn may change; everything that touches money or orders goes through these. */
 export interface AssistantTurnContext {
   conversation: Conversation;
@@ -67,6 +71,7 @@ export type AiTurn = (
 export interface HandleResult {
   handled:
     | "duplicate"
+    | "stale"
     | "paused"
     | "human"
     | "order"
@@ -115,6 +120,9 @@ export class ShopAssistantService {
       .onConflictDoNothing()
       .returning({ id: schema.shopMessages.id });
     if (!stored) return { handled: "duplicate", replies: [] };
+    if (Date.now() - inbound.receivedAt.getTime() > MAX_MESSAGE_AGE_MS) {
+      return { handled: "stale", replies: [] };
+    }
 
     await this.database
       .update(schema.shopConversations)
