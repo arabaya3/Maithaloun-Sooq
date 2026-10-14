@@ -42,5 +42,5 @@ Cash on delivery.
 No account needed; your cart and favorites stay on your device.
 
 ## Notes for the owner
-- Screenshots are not included; capture them from a real device or emulator (phone 1080×1920+, at least 2; Play also needs a 1024×500 feature graphic).
+- Phone screenshots (1080×2340, captured from the Android 16 emulator against the live store) are in `store/screenshots/`: `01-ar-home`, `02-ar-catalog`, `03-ar-product`, `04-ar-cart`, `05-en-home`, `06-en-product`. Play also needs a 1024×500 feature graphic (not included). Product names come from the store data and are currently Arabic in both languages.
 - Do not claim features the app does not have (no online payment, no order tracking, no accounts).
