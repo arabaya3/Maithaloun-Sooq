@@ -145,10 +145,15 @@ class _ProductBodyState extends State<_ProductBody> {
       ..hideCurrentSnackBar()
       ..showSnackBar(SnackBar(
         content: Text(l.addedToCart),
+        // A SnackBar with an action persists by default; it would then sit over the
+        // cart's WhatsApp button after navigating. Auto-dismiss it instead.
+        persist: false,
+        duration: const Duration(seconds: 3),
         action: SnackBarAction(
           label: l.viewCart,
           textColor: BrandColors.sage,
           onPressed: () {
+            ScaffoldMessenger.of(context).hideCurrentSnackBar();
             Navigator.of(context).popUntil((r) => r.isFirst);
             context.read<ShellController>().go(3);
           },

@@ -172,6 +172,28 @@ void main() {
     expect(find.text('سائل جلي فيري ليمون'), findsWidgets);
   });
 
+  testWidgets('added-to-cart snackbar auto-dismisses so it cannot cover the WhatsApp button', (tester) async {
+    tester.view.physicalSize = const Size(1080, 2340);
+    tester.view.devicePixelRatio = 2.75;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(MaythaApp(prefs: prefs, api: FakeStoreApi(quoteResult: sampleQuote), enableDeepLinks: false));
+    await tester.pumpAndSettle();
+    openProduct(tester.element(find.byType(AppShell)), 'fairy-lemon');
+    await tester.pumpAndSettle();
+    await tester.tap(find.textContaining('أضف إلى السلة'));
+    await tester.pump();
+    expect(find.text('تمت الإضافة إلى السلة'), findsOneWidget);
+    tester.state<NavigatorState>(find.byType(Navigator).first).pop();
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('السلة'));
+    await tester.pump(const Duration(seconds: 5));
+    await tester.pumpAndSettle();
+    expect(find.text('تمت الإضافة إلى السلة'), findsNothing);
+    expect(find.byType(SnackBar), findsNothing);
+    await tester.tap(find.text('اطلب عبر واتساب'));
+    await tester.pump();
+  });
+
   test('api exception carries code', () {
     expect(ApiException('x', code: 'rate_limited').code, 'rate_limited');
   });

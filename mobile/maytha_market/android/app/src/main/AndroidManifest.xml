@@ -31,7 +31,9 @@
                 <data android:scheme="maytha" android:host="product"/>
             </intent-filter>
             <!-- https://<store>/products/<slug> (optionally /ar or /en prefix).
-                 No autoVerify and no assetlinks.json: Android shows a chooser. -->
+                 No autoVerify and no assetlinks.json: on Android 12+ unverified https links
+                 open in the browser unless the user enables "Open supported links" for the
+                 app in system settings; the maytha:// scheme always opens the app. -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW"/>
                 <category android:name="android.intent.category.DEFAULT"/>

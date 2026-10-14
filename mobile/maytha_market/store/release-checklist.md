@@ -33,7 +33,7 @@ Build with a non-default API if needed:
 - [ ] Countries: choose where to publish.
 - [ ] Closed test → production review.
 
-Optional later: verified App Links for `https://<domain>/products/<slug>` need `/.well-known/assetlinks.json` on the website with the Play App Signing SHA-256. Not set up in this version (links open a chooser instead).
+Optional later: verified App Links for `https://<domain>/products/<slug>` need `/.well-known/assetlinks.json` on the website with the Play App Signing SHA-256. Not set up in this version: on Android 12+ these https links open in the browser unless the user enables "Open supported links" for the app (verified on an Android 16 emulator); `maytha://product/<slug>` always opens the app.
 
 ## 2. Apple App Store (iOS)
 iOS cannot be built on Windows. The iOS project is generated in `ios/` but has **never been compiled**.
