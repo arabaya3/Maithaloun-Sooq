@@ -31,12 +31,8 @@ describe("StoreLaunchSplash", () => {
     const { container } = render(await StoreLaunchSplash());
     const brand = container.querySelector(".launch-splash-brand");
     expect(brand).toHaveAttribute("aria-hidden", "true");
-    expect(brand?.querySelector(".brand-name")).toHaveTextContent(
-      "MAYTHA MARKET",
-    );
-    expect(brand?.querySelector(".brand-subtitle")).toHaveTextContent(
-      "HOME & CARE",
-    );
+    expect(brand?.querySelector(".brand-name")).toHaveTextContent("MAYTHA");
+    expect(brand?.querySelector(".brand-subtitle")).toHaveTextContent("MARKET");
     expect(screen.getByRole("status")).toHaveTextContent(
       "جارٍ فتح MAYTHA MARKET",
     );

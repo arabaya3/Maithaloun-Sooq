@@ -64,10 +64,10 @@ test("brand name is spelled MAYTHA MARKET everywhere it renders", async ({
   ]) {
     await page.goto(route);
     await expect(page.locator("header .brand .brand-name")).toHaveText(
-      "MAYTHA MARKET",
+      "MAYTHA",
     );
     await expect(page.locator("header .brand .brand-subtitle")).toHaveText(
-      "HOME & CARE",
+      "MARKET",
     );
     expect(await page.locator("body").innerText()).not.toMatch(
       /سوق ميثلون|سوق ميثون/,

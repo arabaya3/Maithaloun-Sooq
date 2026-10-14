@@ -4,7 +4,10 @@ import { useI18n } from "@/i18n/i18n-provider";
 import { Link } from "@/i18n/link";
 
 export const STORE_NAME = "MAYTHA MARKET";
-export const STORE_SUBTITLE = "HOME & CARE";
+// The lockup keeps the original short wordmark; "MARKET" sits on the small line under it so the
+// header still fits beside the cart at 320px. Titles and metadata use the full STORE_NAME.
+export const BRAND_WORDMARK = "MAYTHA";
+export const STORE_SUBTITLE = "MARKET";
 
 /** The MAYTHA MARKET monogram: an M whose central valley grows a leaf. Same geometry as tools/brand. */
 export function BrandMonogram({ className = "" }: { className?: string }) {
@@ -41,7 +44,7 @@ export function BrandMonogram({ className = "" }: { className?: string }) {
 export function BrandWordmark({ className = "" }: { className?: string }) {
   return (
     <span className={`brand-wordmark ${className}`.trim()} dir="ltr">
-      <span className="brand-name">{STORE_NAME}</span>
+      <span className="brand-name">{BRAND_WORDMARK}</span>
       <span className="brand-subtitle">{STORE_SUBTITLE}</span>
     </span>
   );
