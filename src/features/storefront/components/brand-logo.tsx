@@ -3,10 +3,10 @@
 import { useI18n } from "@/i18n/i18n-provider";
 import { Link } from "@/i18n/link";
 
-export const STORE_NAME = "MAYTHA";
+export const STORE_NAME = "MAYTHA MARKET";
 export const STORE_SUBTITLE = "HOME & CARE";
 
-/** The MAYTHA monogram: an M whose central valley grows a leaf. Same geometry as tools/brand. */
+/** The MAYTHA MARKET monogram: an M whose central valley grows a leaf. Same geometry as tools/brand. */
 export function BrandMonogram({ className = "" }: { className?: string }) {
   return (
     <svg

@@ -22,7 +22,7 @@ test("manifest, favicon and Apple touch icon serve the new logo set", async ({
   const response = await request.get("/manifest.webmanifest");
   expect(response.status()).toBe(200);
   const manifest = await response.json();
-  expect(manifest.name).toBe("MAYTHA");
+  expect(manifest.name).toBe("MAYTHA MARKET");
   expect(manifest.short_name).toBe("MAYTHA");
   expect(manifest.dir).toBe("rtl");
   expect(manifest.lang).toBe("ar");
@@ -77,7 +77,7 @@ for (const viewport of viewports) {
       await page.goto("/");
       await dispatchInstallPrompt(page);
       await expect(
-        page.getByRole("complementary", { name: "ثبّت MAYTHA" }),
+        page.getByRole("complementary", { name: "ثبّت MAYTHA MARKET" }),
       ).toBeVisible();
       await expectNoHorizontalOverflow(page);
       await page.screenshot({
@@ -115,7 +115,7 @@ test("standalone mode hides the install banner and keeps the footer", async ({
   await page.goto("/");
   await dispatchInstallPrompt(page);
   await expect(
-    page.getByRole("complementary", { name: "ثبّت MAYTHA" }),
+    page.getByRole("complementary", { name: "ثبّت MAYTHA MARKET" }),
   ).toHaveCount(0);
   await expect(
     page.getByRole("contentinfo").getByText(ATTRIBUTION, { exact: true }),

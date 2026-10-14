@@ -47,7 +47,7 @@ export async function InfoPage({ pageKey }: { pageKey: InfoPageKey }) {
       <SiteHeader />
       <main className="page-shell info-page">
         <article className="info-article" aria-labelledby="info-title">
-          <span className="eyebrow">MAYTHA</span>
+          <span className="eyebrow">MAYTHA MARKET</span>
           <h1 id="info-title">{page.title}</h1>
           {pageKey === "contact" && chatUrl && display ? (
             <section

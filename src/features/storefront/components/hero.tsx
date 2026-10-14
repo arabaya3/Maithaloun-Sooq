@@ -29,7 +29,7 @@ export function Hero({ products }: { products: readonly Product[] }) {
       </div>
       <div className="hero-body">
         <p className="hero-eyebrow" dir="ltr">
-          MAYTHA · HOME &amp; CARE
+          MAYTHA MARKET · HOME &amp; CARE
         </p>
         <h1 id="hero-title">{m.store.heroTitle}</h1>
         <p className="hero-lead">{m.common.trustLine}</p>

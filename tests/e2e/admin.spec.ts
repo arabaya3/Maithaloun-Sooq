@@ -379,7 +379,7 @@ test("admin authentication, operations, and privacy controls", async ({
   const moreSheet = await openMoreSheet(page);
   await moreSheet.getByRole("button", { name: "تسجيل الخروج" }).click();
   await expect(
-    page.getByRole("heading", { name: "دخول إدارة MAYTHA" }),
+    page.getByRole("heading", { name: "دخول إدارة MAYTHA MARKET" }),
   ).toBeVisible();
   await page.goto("/admin");
   await expect(page).toHaveURL(/\/admin\/login/);

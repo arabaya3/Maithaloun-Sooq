@@ -11,7 +11,7 @@ const siteUrl =
 
 export const baseMetadata: Metadata = {
   metadataBase: new URL(siteUrl),
-  applicationName: "MAYTHA",
+  applicationName: "MAYTHA MARKET",
   manifest: "/manifest.webmanifest",
   icons: {
     icon: [

@@ -12,7 +12,7 @@ vi.mock("next/navigation", () => ({
 }));
 
 describe("SiteHeader", () => {
-  it("shows the MAYTHA wordmark, a plain search and hides the badge for an empty cart", () => {
+  it("shows the MAYTHA MARKET wordmark, a plain search and hides the badge for an empty cart", () => {
     const { container } = renderWithProviders(
       <StoreNavigationProvider
         categories={[
@@ -26,10 +26,12 @@ describe("SiteHeader", () => {
     );
 
     expect(
-      screen.getByRole("link", { name: "MAYTHA، الرئيسية" }),
+      screen.getByRole("link", { name: "MAYTHA MARKET، الرئيسية" }),
     ).toHaveAttribute("href", "/");
     const brand = container.querySelector(".brand")!;
-    expect(brand.querySelector(".brand-name")).toHaveTextContent(/^MAYTHA$/);
+    expect(brand.querySelector(".brand-name")).toHaveTextContent(
+      /^MAYTHA MARKET$/,
+    );
     expect(brand.querySelector(".brand-subtitle")).toHaveTextContent(
       /^HOME & CARE$/,
     );

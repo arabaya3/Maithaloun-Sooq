@@ -4,7 +4,7 @@ import { expect, test } from "@playwright/test";
 import { expectNoHorizontalOverflow, withTestDb } from "./support";
 
 const pages = [
-  ["/about", "عن MAYTHA", "About MAYTHA"],
+  ["/about", "عن MAYTHA MARKET", "About MAYTHA MARKET"],
   ["/contact", "تواصل معنا", "Contact us"],
   ["/delivery", "التوصيل", "Delivery"],
   ["/returns", "المنتجات التالفة أو الخاطئة", "Damaged or incorrect items"],

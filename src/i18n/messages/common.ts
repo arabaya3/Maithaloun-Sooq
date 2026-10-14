@@ -1,7 +1,7 @@
 const arPlural = new Intl.PluralRules("ar-PS");
 
 const ar = {
-  storeName: "MAYTHA",
+  storeName: "MAYTHA MARKET",
   home: "الرئيسية",
   categories: "الأقسام",
   offers: "العروض",
@@ -29,7 +29,7 @@ const ar = {
 };
 
 const en: typeof ar = {
-  storeName: "MAYTHA",
+  storeName: "MAYTHA MARKET",
   home: "Home",
   categories: "Categories",
   offers: "Offers",

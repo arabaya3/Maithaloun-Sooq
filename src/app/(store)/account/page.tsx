@@ -41,7 +41,7 @@ export default async function AccountPage({
       <SiteHeader />
       <main className="page-shell account-page">
         <div className="account-heading">
-          <span className="eyebrow">MAYTHA</span>
+          <span className="eyebrow">MAYTHA MARKET</span>
           <h1>{profile ? t.greeting(profile.displayName ?? null) : t.title}</h1>
         </div>
 

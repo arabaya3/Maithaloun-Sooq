@@ -21,18 +21,18 @@ const ar = {
   contactByConversation: "في محادثة الواتساب الخاصة بطلبك",
   officialWhatsAppTitle: "واتساب المتجر",
   officialWhatsAppText: "لأي سؤال عن المنتجات أو الطلبات، راسلنا على:",
-  officialWhatsAppLabel: "رقم واتساب MAYTHA",
+  officialWhatsAppLabel: "رقم واتساب MAYTHA MARKET",
   // Shown on the contact page only while no store number is configured.
   whatsappUnavailable:
     "بعد إرسال طلبك نتواصل معك على واتساب، ويمكنك الرد في المحادثة نفسها بأي سؤال.",
   about: {
-    title: "عن MAYTHA",
-    description: "MAYTHA متجر صغير في ميثلون لمنتجات التنظيف والعناية.",
+    title: "عن MAYTHA MARKET",
+    description: "MAYTHA MARKET متجر صغير في ميثلون لمنتجات التنظيف والعناية.",
     sections: [
       {
         title: "من نحن",
         paragraphs: [
-          "MAYTHA متجر صغير في ميثلون لمنتجات التنظيف والعناية الشخصية ومستلزمات البيت، نوصلها لبيتك داخل ميثلون.",
+          "MAYTHA MARKET متجر صغير في ميثلون لمنتجات التنظيف والعناية الشخصية ومستلزمات البيت، نوصلها لبيتك داخل ميثلون.",
           "نختار منتجاتنا من ماركات بتعرفها وبتثق فيها، ونعرضها بأسمائها وصورها كما تصلنا.",
         ],
       },
@@ -51,7 +51,7 @@ const ar = {
   } satisfies InfoPage,
   contact: {
     title: "تواصل معنا",
-    description: "كيف تتواصل مع MAYTHA.",
+    description: "كيف تتواصل مع MAYTHA MARKET.",
     sections: [
       {
         title: "بخصوص طلبك",
@@ -139,7 +139,7 @@ const ar = {
   } satisfies InfoPage,
   terms: {
     title: "الشروط",
-    description: "شروط الطلب من MAYTHA باختصار.",
+    description: "شروط الطلب من MAYTHA MARKET باختصار.",
     sections: [
       {
         title: "الأسعار والعروض",
@@ -189,17 +189,17 @@ const en: typeof ar = {
   officialWhatsAppTitle: "WhatsApp",
   officialWhatsAppText:
     "For any question about products or orders, message us on:",
-  officialWhatsAppLabel: "MAYTHA's WhatsApp number",
+  officialWhatsAppLabel: "MAYTHA MARKET's WhatsApp number",
   whatsappUnavailable:
     "After you place an order we'll message you on WhatsApp, and you can reply in that conversation with any question.",
   about: {
-    title: "About MAYTHA",
-    description: "MAYTHA is a small home and care store in Maythaloun.",
+    title: "About MAYTHA MARKET",
+    description: "MAYTHA MARKET is a small home and care store in Maythaloun.",
     sections: [
       {
         title: "Who we are",
         paragraphs: [
-          "MAYTHA is a small store in Maythaloun for cleaning products, personal care and household essentials, delivered to your door within Maythaloun.",
+          "MAYTHA MARKET is a small store in Maythaloun for cleaning products, personal care and household essentials, delivered to your door within Maythaloun.",
           "We choose our products from brands you know and trust, and show them with their names and photos as they reach us.",
         ],
       },
@@ -218,7 +218,7 @@ const en: typeof ar = {
   },
   contact: {
     title: "Contact us",
-    description: "How to reach MAYTHA.",
+    description: "How to reach MAYTHA MARKET.",
     sections: [
       {
         title: "About your order",
@@ -307,7 +307,7 @@ const en: typeof ar = {
   },
   terms: {
     title: "Terms",
-    description: "The terms for ordering from MAYTHA, in short.",
+    description: "The terms for ordering from MAYTHA MARKET, in short.",
     sections: [
       {
         title: "Prices and offers",

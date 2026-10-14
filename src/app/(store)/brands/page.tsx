@@ -30,7 +30,7 @@ export default async function BrandsPage() {
       <SiteHeader />
       <main className="page-shell listing-page">
         <div className="listing-heading">
-          <span className="eyebrow">MAYTHA</span>
+          <span className="eyebrow">MAYTHA MARKET</span>
           <h1>{m.common.brands}</h1>
         </div>
         {brands.length ? (

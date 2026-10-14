@@ -25,7 +25,7 @@ export default async function OffersPage() {
       <SiteHeader />
       <main className="page-shell listing-page">
         <div className="listing-heading">
-          <span className="eyebrow">MAYTHA</span>
+          <span className="eyebrow">MAYTHA MARKET</span>
           <h1>{m.common.offers}</h1>
           <span className="results-count">
             {m.common.productCount(products.length)}

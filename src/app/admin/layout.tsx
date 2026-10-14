@@ -57,10 +57,10 @@ export const viewport: Viewport = {
 
 export const metadata: Metadata = {
   title: {
-    default: "إدارة MAYTHA",
-    template: "%s | إدارة MAYTHA",
+    default: "إدارة MAYTHA MARKET",
+    template: "%s | إدارة MAYTHA MARKET",
   },
-  applicationName: "إدارة MAYTHA",
+  applicationName: "إدارة MAYTHA MARKET",
   manifest: ADMIN_MANIFEST_PATH,
   appleWebApp: { capable: true, title: "إدارة السوق" },
   robots: { index: false, follow: false, nocache: true, noarchive: true },

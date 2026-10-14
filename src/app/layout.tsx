@@ -17,7 +17,7 @@ export async function generateMetadata(): Promise<Metadata> {
   ]);
   return {
     ...baseMetadata,
-    title: { default: "MAYTHA", template: "%s | MAYTHA" },
+    title: { default: "MAYTHA MARKET", template: "%s | MAYTHA MARKET" },
     description: m.meta.siteDescription,
     // Each page names both languages; Arabic is the default for everyone else.
     alternates: {
@@ -29,7 +29,7 @@ export async function generateMetadata(): Promise<Metadata> {
       },
     },
     openGraph: {
-      siteName: "MAYTHA",
+      siteName: "MAYTHA MARKET",
       locale: locale === "ar" ? "ar_PS" : "en_US",
       alternateLocale: locale === "ar" ? "en_US" : "ar_PS",
     },

@@ -1,5 +1,5 @@
 const ar = {
-  homeAriaLabel: "MAYTHA، الرئيسية",
+  homeAriaLabel: "MAYTHA MARKET، الرئيسية",
   searchLabel: "ابحث في المنتجات",
   searchPlaceholder: "ابحث عن منتج أو ماركة…",
   clearSearch: "مسح البحث",
@@ -19,14 +19,14 @@ const ar = {
   heroPicks: "من رفوفنا",
   editorialLabel: "أقسام من البيت",
   shopCategory: "تسوّق القسم",
-  whyStore: "لماذا MAYTHA",
+  whyStore: "لماذا MAYTHA MARKET",
   benefitBrandsText: "للتنظيف والعناية بالبيت",
   benefitDeliveryText: (free: string, fee: string) =>
     `مجاني من ${free}، وإلا ${fee}`,
   benefitCash: "نقداً عند التوصيل",
   benefitReplace: "استبدال التالف أو الخاطئ",
   benefitReplaceText: "بدون رسوم توصيل إضافية بعد التحقق",
-  shopHeading: "تسوّق منتجات MAYTHA",
+  shopHeading: "تسوّق منتجات MAYTHA MARKET",
   searchQuery: (query: string) => `البحث: ${query}`,
   categoryFilter: (name: string) => `القسم: ${name}`,
   clearFilters: "مسح الكل",
@@ -59,12 +59,12 @@ const ar = {
   noBrands: "لم تُضف الماركات بعد",
   browseCategories: "تصفّح الأقسام",
   allBrandsBack: "كل الماركات",
-  opening: "جارٍ فتح MAYTHA",
+  opening: "جارٍ فتح MAYTHA MARKET",
   loadingProducts: "جارٍ تحميل المنتجات…",
 };
 
 const en: typeof ar = {
-  homeAriaLabel: "MAYTHA, home",
+  homeAriaLabel: "MAYTHA MARKET, home",
   searchLabel: "Search products",
   searchPlaceholder: "Search for products or brands…",
   clearSearch: "Clear search",
@@ -84,14 +84,14 @@ const en: typeof ar = {
   heroPicks: "From our shelves",
   editorialLabel: "Around the home",
   shopCategory: "Shop now",
-  whyStore: "Why MAYTHA",
+  whyStore: "Why MAYTHA MARKET",
   benefitBrandsText: "For cleaning and caring for your home",
   benefitDeliveryText: (free: string, fee: string) =>
     `Free from ${free}, otherwise ${fee}`,
   benefitCash: "Pay in cash when it arrives",
   benefitReplace: "Damaged or wrong items replaced",
   benefitReplaceText: "No extra delivery fee once checked",
-  shopHeading: "Shop MAYTHA products",
+  shopHeading: "Shop MAYTHA MARKET products",
   searchQuery: (query: string) => `Search: ${query}`,
   categoryFilter: (name: string) => `Category: ${name}`,
   clearFilters: "Clear all",
@@ -124,7 +124,7 @@ const en: typeof ar = {
   noBrands: "Brands haven't been added yet",
   browseCategories: "Browse categories",
   allBrandsBack: "All brands",
-  opening: "Opening MAYTHA",
+  opening: "Opening MAYTHA MARKET",
   loadingProducts: "Loading products…",
 };
 

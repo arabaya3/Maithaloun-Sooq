@@ -4,7 +4,7 @@ import { manifestIcons } from "./app-icons";
 
 export const storefrontManifest: MetadataRoute.Manifest = {
   id: "/",
-  name: "MAYTHA",
+  name: "MAYTHA MARKET",
   short_name: "MAYTHA",
   description: "منتجات التنظيف والعناية من ماركات بتعرفها وبتثق فيها.",
   start_url: "/",

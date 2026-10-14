@@ -27,15 +27,19 @@ afterEach(() => {
 });
 
 describe("StoreLaunchSplash", () => {
-  it("shows the MAYTHA wordmark, with decoration hidden from screen readers", async () => {
+  it("shows the MAYTHA MARKET wordmark, with decoration hidden from screen readers", async () => {
     const { container } = render(await StoreLaunchSplash());
     const brand = container.querySelector(".launch-splash-brand");
     expect(brand).toHaveAttribute("aria-hidden", "true");
-    expect(brand?.querySelector(".brand-name")).toHaveTextContent("MAYTHA");
+    expect(brand?.querySelector(".brand-name")).toHaveTextContent(
+      "MAYTHA MARKET",
+    );
     expect(brand?.querySelector(".brand-subtitle")).toHaveTextContent(
       "HOME & CARE",
     );
-    expect(screen.getByRole("status")).toHaveTextContent("جارٍ فتح MAYTHA");
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "جارٍ فتح MAYTHA MARKET",
+    );
     expect(container.querySelector("button, a, input, [tabindex]")).toBeNull();
     expect(container.innerHTML).not.toContain("/icons/icon-");
   });
@@ -87,9 +91,9 @@ describe("StoreLaunchSplash", () => {
 });
 
 describe("offline page", () => {
-  it("uses the MAYTHA app icon", async () => {
+  it("uses the MAYTHA MARKET app icon", async () => {
     render(await OfflinePage());
-    const logo = screen.getByAltText("MAYTHA");
+    const logo = screen.getByAltText("MAYTHA MARKET");
     expect(decodeURIComponent(logo.getAttribute("src") ?? "")).toContain(
       "/brand/app/icon-192-v4.png",
     );

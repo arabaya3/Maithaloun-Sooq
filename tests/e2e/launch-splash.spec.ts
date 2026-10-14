@@ -35,7 +35,7 @@ for (const viewport of [
 
     const splash = page.getByTestId("launch-splash");
     await expect(splash).toBeVisible();
-    await expect(splash.locator(".brand-name")).toHaveText("MAYTHA");
+    await expect(splash.locator(".brand-name")).toHaveText("MAYTHA MARKET");
     await expect(splash.locator(".brand-subtitle")).toHaveText("HOME & CARE");
     if (viewport.width === 390) {
       await page.screenshot({
