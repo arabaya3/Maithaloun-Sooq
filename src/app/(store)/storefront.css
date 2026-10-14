@@ -1524,3 +1524,43 @@ body:has(.store-footer) > main {
     gap: var(--space-3);
   }
 }
+
+/* 320 px phones: a slimmer language pill gives the logo breathing room; every control stays visible. */
+@media (max-width: 22.4rem) {
+  .header-language {
+    min-width: 2.75rem;
+    padding-inline: 0.5rem;
+    font-size: 0.72rem;
+  }
+
+  .brand-lockup {
+    gap: 0.3rem;
+  }
+}
+
+@media (max-width: 22.4rem) {
+  .brand .brand-monogram {
+    width: 1.65rem;
+    height: 1.65rem;
+  }
+
+  .brand .brand-name {
+    font-size: 1.3rem;
+  }
+
+  /* The number stays visible; the label is still read out through the link's aria-label. */
+  .store-footer-whatsapp span {
+    display: none;
+  }
+}
+
+.brand-subtitle {
+  white-space: nowrap;
+}
+
+@media (max-width: 22.4rem) {
+  .brand .brand-subtitle {
+    letter-spacing: 0.22em;
+    padding-inline-start: 0.22em;
+  }
+}
