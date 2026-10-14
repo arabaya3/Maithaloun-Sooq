@@ -6,3 +6,4 @@ export * from "./schema-admin-assistant";
 export * from "./schema-accounts";
 export * from "./schema-catalog-media";
 export * from "./schema-qa";
+export * from "./schema-shop-assistant";
