@@ -1,0 +1,72 @@
+# Builds and tests the MAYTHA MARKET Flutter app on every change to mobile/.
+# No signing secrets are used: Android builds are debug-signed and iOS builds are unsigned,
+# so nothing here can be uploaded to a store.
+name: mobile
+
+on:
+  pull_request:
+    paths: ["mobile/**", ".github/workflows/mobile.yml"]
+  push:
+    branches: [main]
+    paths: ["mobile/**", ".github/workflows/mobile.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mobile-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    working-directory: mobile/maytha_market
+
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: 3.41.6
+          cache: true
+      - run: flutter pub get
+      - run: flutter analyze
+      - run: flutter test
+      - run: flutter build apk --debug
+      - run: flutter build appbundle --release
+
+  ios:
+    runs-on: macos-15
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: 3.41.6
+          cache: true
+      - run: flutter pub get
+      - run: flutter test
+      - name: Build for the iOS simulator
+        run: flutter build ios --simulator --debug
+      - name: Build the device app without signing
+        run: flutter build ios --release --no-codesign
+      - name: Boot an iPhone simulator
+        id: sim
+        working-directory: .
+        run: |
+          udid=$(xcrun simctl list devices available -j | python3 -c 'import json,sys; d=json.load(sys.stdin)["devices"]; print(next(x["udid"] for k,v in d.items() if "iOS" in k for x in v if x["name"].startswith("iPhone")))')
+          xcrun simctl boot "$udid"
+          xcrun simctl bootstatus "$udid" -b
+          echo "udid=$udid" >> "$GITHUB_OUTPUT"
+      # Reads the live catalog and prices a cart; it never creates orders.
+      - name: Integration test on the simulator against the live API
+        run: flutter test integration_test -d ${{ steps.sim.outputs.udid }}
