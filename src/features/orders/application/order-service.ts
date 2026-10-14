@@ -1,28 +1,17 @@
 import "server-only";
 
-import { and, asc, eq, inArray } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 
-import { calculateLineSubtotal } from "@/features/cart/cart-store";
 import { getProductDisplayName } from "@/features/catalog/domain/product";
-import {
-  formatVariantAttributes,
-  variantAttributesSchema,
-} from "@/features/catalog/domain/product-variant";
-import {
-  ACTIVE_SERVICE_AREA_CODE,
-  calculateDeliveryFeeAgorot,
-} from "@/features/delivery/delivery-policy";
+import { formatVariantAttributes } from "@/features/catalog/domain/product-variant";
+import { ACTIVE_SERVICE_AREA_CODE } from "@/features/delivery/delivery-policy";
 import type { CheckoutRequest } from "@/features/orders/domain/checkout-request";
 import type { OrderConfirmation } from "@/features/orders/domain/order-confirmation";
-import { priceSellingUnit } from "@/features/catalog/domain/offer-pricing";
-import { liveOffersForVariants } from "@/features/catalog/infrastructure/offer-queries";
-import { incompleteProductIds } from "@/features/catalog/infrastructure/product-structure";
 import {
-  loadVariantCommerce,
-  singlePiecePrice,
-} from "@/features/catalog/infrastructure/variant-commerce";
-import { unitsToMilli } from "@/features/inventory/domain/quantity";
+  CartPricingError,
+  priceCart,
+} from "@/features/orders/application/cart-pricing";
 import { StoreContactService } from "@/features/orders/application/store-contact-service";
 import { orderLineSnapshots } from "@/features/orders/infrastructure/order-line-snapshots";
 import * as schema from "@/server/db/schema";
@@ -101,129 +90,26 @@ export class OrderService {
           throw new OrderCreationError("whatsapp_unavailable");
         }
 
-        const requestedVariantIds = request.items.map((item) => item.variantId);
-        const variantRows = await transaction
-          .select({
-            variant: schema.productVariants,
-            product: schema.products,
-          })
-          .from(schema.productVariants)
-          .innerJoin(
-            schema.products,
-            eq(schema.productVariants.productId, schema.products.id),
-          )
-          .where(inArray(schema.productVariants.domainId, requestedVariantIds));
-
-        const variantsById = new Map(
-          variantRows.map((row) => [row.variant.domainId, row]),
-        );
-        if (variantsById.size !== new Set(requestedVariantIds).size) {
-          throw new OrderCreationError("unknown_product");
+        // Prices, offers and stock come from the shared cart pricing, the same check every quote uses.
+        let priced: Awaited<ReturnType<typeof priceCart>>;
+        try {
+          priced = await priceCart(transaction, request.items, {
+            allowQaProbe,
+          });
+        } catch (error) {
+          if (error instanceof CartPricingError) {
+            throw new OrderCreationError(error.code);
+          }
+          throw error;
         }
-
-        // Selling units, free stock and offers are all read again here: the client supplies only
-        // identifiers and counts, and the server prices and checks the order at this moment.
-        const commerce = await loadVariantCommerce(
-          transaction,
-          variantRows.map((row) => row.variant.id),
-        );
-        const incomplete = await incompleteProductIds(
-          transaction,
-          variantRows.map((row) => row.product.id),
-        );
-        const offers = await liveOffersForVariants(
-          transaction,
-          variantRows.map((row) => ({
-            variantId: row.variant.id,
-            productId: row.product.id,
-            categoryCode: row.product.categoryId,
-            priceAgorot: singlePiecePrice(row.variant, commerce),
-          })),
-          new Date(),
-        );
-
-        const resolvedItems = request.items.map((item) => {
-          const row = variantsById.get(item.variantId);
-          if (!row) throw new OrderCreationError("unknown_product");
-          if (row.product.domainId !== item.productId) {
-            throw new OrderCreationError("unknown_product");
-          }
-          const qaProbe = allowQaProbe && row.variant.qaOwned;
-          if (
-            (row.variant.qaOwned && !qaProbe) ||
-            row.variant.availability !== "available" ||
-            row.variant.archivedAt ||
-            row.product.archivedAt ||
-            incomplete.has(row.product.id) ||
-            (row.product.publication !== "published" && !qaProbe)
-          ) {
-            throw new OrderCreationError("unavailable_product");
-          }
-          const units = (commerce.get(row.variant.id)?.units ?? []).filter(
-            (unit) => !unit.archivedAt,
-          );
-          // A request without a unit comes from a client that bought single pieces only.
-          const unit = item.sellingUnitId
-            ? units.find((entry) => entry.id === item.sellingUnitId)
-            : units.find((entry) => entry.unitsPerSale === 1);
-          if (
-            !unit ||
-            (item.unitsPerSale !== undefined &&
-              item.unitsPerSale !== unit.unitsPerSale)
-          ) {
-            throw new OrderCreationError("selling_unit_changed");
-          }
-          const attributes = variantAttributesSchema.parse(
-            row.variant.attributes ?? {},
-          );
-          const priced = priceSellingUnit(
-            unit,
-            offers.get(row.variant.id),
-            item.quantity,
-          );
-          const lineSubtotalAgorot = calculateLineSubtotal(
-            priced.unitPriceAgorot,
-            item.quantity,
-          );
-          return {
-            ...item,
-            product: row.product,
-            variant: row.variant,
-            unit,
-            attributes,
-            priced,
-            lineSubtotalAgorot,
-          };
-        });
-
-        // Packs and singles of one variant draw on the same base stock, so they are checked together.
-        const requiredMilli = new Map<string, number>();
-        for (const item of resolvedItems) {
-          requiredMilli.set(
-            item.variant.id,
-            (requiredMilli.get(item.variant.id) ?? 0) +
-              unitsToMilli(item.quantity * item.unit.unitsPerSale),
-          );
-        }
-        for (const [variantId, milli] of requiredMilli) {
-          const free = commerce.get(variantId)?.freeBaseMilli ?? null;
-          if (free !== null && milli > free) {
-            throw new OrderCreationError("insufficient_stock");
-          }
-        }
+        const resolvedItems = priced.lines;
+        const { itemsSubtotalAgorot, deliveryFeeAgorot, finalTotalAgorot } =
+          priced;
 
         const snapshots = await orderLineSnapshots(
           transaction,
           resolvedItems.map((item) => item.variant),
         );
-
-        const itemsSubtotalAgorot = resolvedItems.reduce(
-          (total, item) => total + item.lineSubtotalAgorot,
-          0,
-        );
-        const deliveryFeeAgorot =
-          calculateDeliveryFeeAgorot(itemsSubtotalAgorot);
-        const finalTotalAgorot = itemsSubtotalAgorot + deliveryFeeAgorot;
 
         const [serviceArea] = await transaction
           .select()

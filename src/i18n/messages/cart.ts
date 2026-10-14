@@ -39,7 +39,12 @@ const ar = {
   reviewMarked: "راجع المنتجات المعلَّمة في السلة قبل المتابعة.",
   orderViaWhatsApp: "الطلب عبر واتساب",
   orderViaWeb: "الطلب عبر الموقع",
-  whatsAppNote: "سنجهّز رسالة طلبك لتُرسل مباشرة إلى MAYTHA.",
+  whatsAppNote:
+    "يفتح واتساب برسالة جاهزة فيها طلبك، اضغط إرسال وسنؤكده معك هناك.",
+  whatsAppPreparing: "نجهّز رسالة طلبك…",
+  whatsAppCartChanged:
+    "تغيّر توفر أو سعر منتج في سلتك. راجع السلة ثم حاول مرة أخرى.",
+  whatsAppFailed: "تعذّر تجهيز رسالة الطلب الآن. حاول مرة أخرى بعد قليل.",
   webNote: "يصل طلبك إلى المتجر وسنتواصل معك عبر واتساب.",
   freeDeliveryBanner: "توصيل مجاني للطلبات بقيمة 50 ₪ أو أكثر",
   freeDeliveryReached: "مبروك، حصلت على توصيل مجاني",
@@ -89,7 +94,13 @@ const en: typeof ar = {
   reviewMarked: "Review the highlighted items in your cart before continuing.",
   orderViaWhatsApp: "Order via WhatsApp",
   orderViaWeb: "Order on the website",
-  whatsAppNote: "We’ll prepare your order message to send straight to MAYTHA.",
+  whatsAppNote:
+    "Opens WhatsApp with your order already written. Tap send and we’ll confirm it there.",
+  whatsAppPreparing: "Preparing your order message…",
+  whatsAppCartChanged:
+    "An item in your cart changed in price or availability. Review your cart and try again.",
+  whatsAppFailed:
+    "We couldn’t prepare your order message right now. Please try again shortly.",
   webNote: "Your order goes to the store and we’ll contact you on WhatsApp.",
   freeDeliveryBanner: "Free delivery on orders of ₪50 or more",
   freeDeliveryReached: "You’ve unlocked free delivery",

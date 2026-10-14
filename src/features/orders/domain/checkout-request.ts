@@ -28,7 +28,7 @@ const optionalTrimmedString = (maximumLength: number, tooLong: string) =>
     z.string().trim().max(maximumLength, tooLong).optional(),
   );
 
-const checkoutItemSchema = z
+export const checkoutItemSchema = z
   .object({
     productId: productIdSchema,
     variantId: variantDomainIdSchema,
@@ -174,3 +174,5 @@ export const checkoutRequestSchema = z
   });
 
 export type CheckoutRequest = z.output<typeof checkoutRequestSchema>;
+
+export type CheckoutItem = z.output<typeof checkoutItemSchema>;
