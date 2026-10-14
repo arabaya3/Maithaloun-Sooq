@@ -31,10 +31,10 @@
                 <data android:scheme="maytha" android:host="product"/>
             </intent-filter>
             <!-- https://<store>/products/<slug> (optionally /ar or /en prefix).
-                 No autoVerify and no assetlinks.json: on Android 12+ unverified https links
-                 open in the browser unless the user enables "Open supported links" for the
-                 app in system settings; the maytha:// scheme always opens the app. -->
-            <intent-filter>
+                 autoVerify: Android checks /.well-known/assetlinks.json on the site. It is served
+                 once ANDROID_APP_CERT_SHA256 is set in Vercel (release certificate fingerprints);
+                 until then these links open in the browser. maytha:// always opens the app. -->
+            <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW"/>
                 <category android:name="android.intent.category.DEFAULT"/>
                 <category android:name="android.intent.category.BROWSABLE"/>

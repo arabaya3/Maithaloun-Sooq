@@ -33,16 +33,22 @@ Build with a non-default API if needed:
 - [ ] Countries: choose where to publish.
 - [ ] Closed test → production review.
 
-Optional later: verified App Links for `https://<domain>/products/<slug>` need `/.well-known/assetlinks.json` on the website with the Play App Signing SHA-256. Not set up in this version: on Android 12+ these https links open in the browser unless the user enables "Open supported links" for the app (verified on an Android 16 emulator); `maytha://product/<slug>` always opens the app.
+- [ ] **Verified App Links** (product links open the app instead of the browser):
+      1. In Play Console → Test and release → App integrity → App signing, copy **both** SHA-256 fingerprints (app signing key and upload key).
+      2. In Vercel → Project → Settings → Environment Variables (Production), add `ANDROID_APP_CERT_SHA256` = the two fingerprints separated by a comma, then redeploy.
+      3. Check `https://maithaloun-sooq.vercel.app/.well-known/assetlinks.json` returns them (it is 404 until set). The app already declares `android:autoVerify="true"` for `/products/*`, `/ar/products/*`, `/en/products/*`.
+      4. On a phone with the Play build: `adb shell pm get-app-links market.maytha.app` should show `verified`.
+      `maytha://product/<slug>` always opens the app.
 
 ## 2. Apple App Store (iOS)
-iOS cannot be built on Windows. The iOS project is generated in `ios/` but has **never been compiled**.
+iOS is built and tested in CI on every app change (`.github/workflows/mobile.yml`, GitHub macOS runner): simulator build, unsigned device build, unit tests and the live-API integration test on an iPhone simulator. Signing and upload still need the steps below.
 - [ ] **[Owner]** Apple Developer Program membership (USD 99/year; organization enrollment needs a D-U-N-S number).
 - [ ] **[Owner]** A Mac with current Xcode, and Flutter + CocoaPods installed.
 - [ ] On the Mac: `cd mobile/maytha_market && flutter pub get && cd ios && pod install`.
 - [ ] Open `ios/Runner.xcworkspace` in Xcode → Runner target → Signing & Capabilities → select the Team; bundle id `market.maytha.app` (register it in the developer portal if Xcode does not do it automatically).
 - [ ] Check app icon (no alpha) and launch screen in the simulator; run on a real iPhone.
 - [ ] Test deep link `maytha://product/<slug>` and WhatsApp ordering on the iPhone.
+- [ ] **Universal Links**: in the developer portal enable **Associated Domains** for the App ID `market.maytha.app` (the app already requests `applinks:maithaloun-sooq.vercel.app`). In Vercel add `APPLE_TEAM_ID` = your 10-character Team ID and redeploy; `https://maithaloun-sooq.vercel.app/.well-known/apple-app-site-association` then lists `<TEAM_ID>.market.maytha.app` for product pages.
 - [ ] `flutter build ipa --release` (or Xcode → Product → Archive) and upload with Xcode Organizer or Transporter.
 - [ ] **[Owner]** App Store Connect: create the app (name, primary language Arabic, bundle id, SKU), category Shopping, privacy policy URL, App Privacy = Data Not Collected, age rating, screenshots (6.7" and 6.5" iPhone at least), description from `store/listing.md`, support URL, review contact details.
 - [ ] TestFlight internal test, then submit for review. Explain in the review notes that ordering happens through WhatsApp and payment is cash on delivery (no in-app purchases of digital goods).
