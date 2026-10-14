@@ -1,4 +1,4 @@
-package market.maytha.maytha_market
+package market.maytha.app
 
 import io.flutter.embedding.android.FlutterActivity
 
