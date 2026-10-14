@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, desc, gte, ne, sql } from "drizzle-orm";
+import { and, desc, eq, gte, ne, sql } from "drizzle-orm";
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import { cache } from "react";
 
@@ -27,6 +27,7 @@ export async function rankBestSellers(
     .where(
       and(
         ne(schema.orders.status, "cancelled"),
+        eq(schema.orders.isTest, false),
         gte(schema.orders.createdAt, since),
       ),
     )

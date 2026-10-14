@@ -63,7 +63,13 @@ export class OrderService {
     request: CheckoutRequest,
     owner: { customerAccountId: string | null } = { customerAccountId: null },
     // Internal only: the public checkout route never passes these.
-    options: { test?: boolean; allowQaProbe?: boolean } = {},
+    // confirmedInChat: the customer already confirmed in the WhatsApp assistant, so the order skips
+    // the "awaiting WhatsApp" step and arrives pending like a website order.
+    options: {
+      test?: boolean;
+      allowQaProbe?: boolean;
+      confirmedInChat?: boolean;
+    } = {},
   ): Promise<OrderConfirmation> {
     const test = options.test === true;
     // The QA probe variant is orderable only by the owner stock simulation, never by checkout.
@@ -142,7 +148,7 @@ export class OrderService {
             landmark: request.landmark ?? null,
             checkoutChannel: request.checkoutChannel,
             status:
-              request.checkoutChannel === "whatsapp"
+              request.checkoutChannel === "whatsapp" && !options.confirmedInChat
                 ? "awaiting_whatsapp"
                 : "pending",
             customerNote: request.customerNote,
