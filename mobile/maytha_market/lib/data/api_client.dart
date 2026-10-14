@@ -35,13 +35,14 @@ abstract class StoreApi {
 }
 
 class HttpStoreApi implements StoreApi {
-  HttpStoreApi({http.Client? client, String? baseUrl})
+  HttpStoreApi({http.Client? client, String? baseUrl, Duration timeout = const Duration(seconds: 20)})
       : _client = client ?? http.Client(),
+        _timeout = timeout,
         _base = baseUrl ?? AppConfig.normalizedBaseUrl;
 
   final http.Client _client;
   final String _base;
-  static const _timeout = Duration(seconds: 20);
+  final Duration _timeout;
 
   Uri _uri(String path, String locale) =>
       Uri.parse('$_base$path').replace(queryParameters: {'locale': locale});

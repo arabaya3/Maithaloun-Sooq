@@ -23,6 +23,10 @@ dependencies:
 dev_dependencies:
   flutter_test:
     sdk: flutter
+  integration_test:
+    sdk: flutter
+  url_launcher_platform_interface: ^2.3.2
+  plugin_platform_interface: ^2.1.8
   flutter_lints: ^6.0.0
   flutter_launcher_icons: ^0.14.1
   flutter_native_splash: ^2.4.1

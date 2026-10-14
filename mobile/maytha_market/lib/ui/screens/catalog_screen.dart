@@ -133,7 +133,9 @@ class _CatalogScreenState extends State<CatalogScreen> {
           if (results.isEmpty)
             SliverFillRemaining(
               hasScrollBody: false,
-              child: EmptyView(icon: Icons.search_off, message: l.noResults),
+              child: EmptyView(
+                  icon: Icons.search_off,
+                  message: catalog.products.isEmpty ? l.catalogEmpty : l.noResults),
             )
           else
             ProductSliverGrid(products: results, onOpen: (p) => openProduct(context, p.slug)),

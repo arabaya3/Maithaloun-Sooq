@@ -44,6 +44,14 @@ class HomeScreen extends StatelessWidget {
           }
           return const LoadingView();
         }
+        if (catalog.products.isEmpty) {
+          return EmptyView(
+            icon: Icons.inventory_2_outlined,
+            message: l.catalogEmpty,
+            action: OutlinedButton.icon(
+                onPressed: store.retry, icon: const Icon(Icons.refresh), label: Text(l.retry)),
+          );
+        }
         return RefreshIndicator(
           onRefresh: store.retry,
           child: CustomScrollView(slivers: [

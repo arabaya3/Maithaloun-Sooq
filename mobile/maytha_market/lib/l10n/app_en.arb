@@ -19,6 +19,7 @@
   "sortPriceHigh": "Price: high to low",
   "sortLabel": "Sort",
   "noResults": "No products match your search.",
+  "catalogEmpty": "No products are available right now. Please check back soon.",
   "loadError": "Couldn't load the store. Check your connection and try again.",
   "retry": "Retry",
   "outOfStock": "Out of stock",
