@@ -57,7 +57,7 @@ test("without a store number only the website channel is offered", async ({
   await page.setViewportSize({ width: 390, height: 844 });
   await fillCart(page);
   await expect(
-    page.getByRole("link", { name: "الطلب عبر واتساب" }),
+    page.getByRole("button", { name: "الطلب عبر واتساب" }),
   ).toHaveCount(0);
   await expect(
     page.getByRole("link", { name: "الطلب عبر الموقع" }),
@@ -72,7 +72,7 @@ test("without a store number only the website channel is offered", async ({
   ).toHaveCount(0);
 });
 
-test("phone: the owner sets the number, a customer is handed to WhatsApp in the same tab", async ({
+test("phone: the owner sets the number, the cart opens WhatsApp with the order and creates nothing", async ({
   page,
   context,
 }) => {
@@ -94,83 +94,52 @@ test("phone: the owner sets the number, a customer is handed to WhatsApp in the 
   );
 
   await context.clearCookies();
+  const [before] = await withTestDb(
+    (sql) =>
+      sql<{ count: string }[]>`select count(*)::text as count from orders`,
+  );
   await fillCart(page);
   await expect(
-    page.getByText("سنجهّز رسالة طلبك لتُرسل مباشرة إلى MAYTHA."),
+    page.getByText(
+      "يفتح واتساب برسالة جاهزة فيها طلبك، اضغط إرسال وسنؤكده معك هناك.",
+    ),
   ).toBeVisible();
-  await page.screenshot({ path: `${SHOTS}/cart-390.png`, fullPage: true });
-  await page.getByRole("link", { name: "الطلب عبر واتساب" }).click();
-  await expect(page).toHaveURL(/\/checkout\?channel=whatsapp$/);
-  await expect(page.getByLabel(/العنوان/)).toHaveCount(0);
-  await fillContact(page);
   await expectNoHorizontalOverflow(page);
-  await page.screenshot({ path: `${SHOTS}/checkout-390.png`, fullPage: true });
+  await page.screenshot({ path: `${SHOTS}/cart-390.png`, fullPage: true });
 
+  // One tap: no name or phone form, straight to the store chat in the same tab.
   const handedOff = page.waitForRequest(/^https:\/\/wa\.me\//);
-  await page.getByRole("button", { name: "إرسال الطلب عبر واتساب" }).click();
+  await page.getByRole("button", { name: "الطلب عبر واتساب" }).click();
   await handedOff;
   await expect.poll(() => visited.length).toBe(1);
   expect(popups).toEqual([]);
-  const app = visited[0]!;
-  expect(app).toMatch(/^https:\/\/wa\.me\/970590000000\?text=/);
-  const text = decodeURIComponent(app.split("text=")[1]!);
-  expect(text.split("\n")[0]).toBe("مرحباً MAYTHA،");
-  const reference = /MS-[A-Za-z0-9_-]{24}/.exec(text)![0];
-  expect(text).toContain("الدفع نقداً عند الاستلام.");
-  // The message never carries the customer's details or internal ids.
-  expect(text).not.toMatch(/0591234567|عنوان|عميل واتساب|general-cleaner/);
-
-  // Coming back shows the fallback links instead of opening WhatsApp again.
-  await page.goto(`/orders/${reference}/confirmation`);
-  await expect(
-    page.getByRole("heading", {
-      level: 1,
-      name: "خطوة أخيرة: أرسل الطلب على واتساب",
-    }),
-  ).toBeVisible();
-  const handoff = page.getByRole("region", {
-    name: "أرسل الطلب على واتساب لتأكيده",
-  });
-  await expect(
-    handoff.getByRole("link", { name: "فتح واتساب" }),
-  ).toHaveAttribute("href", app);
-  await expect(
-    handoff.getByRole("link", { name: "واتساب ويب" }),
-  ).toHaveAttribute(
-    "href",
-    /^https:\/\/web\.whatsapp\.com\/send\?phone=970590000000&text=/,
-  );
-  await expect(handoff.getByLabel("نص الرسالة")).toHaveValue(text);
-  expect(visited).toHaveLength(1);
-  await expectNoHorizontalOverflow(page);
+  // Checked after the tab count: axe opens its own blank helper page.
+  await page.goBack();
   const axe = await new AxeBuilder({ page })
     .include("main")
     .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"])
     .analyze();
   expect(axe.violations.map((violation) => violation.id)).toEqual([]);
-  await page.screenshot({
-    path: `${SHOTS}/confirmation-390.png`,
-    fullPage: true,
-  });
+  const app = visited[0]!;
+  expect(app).toMatch(/^https:\/\/wa\.me\/970590000000\?text=/);
+  const text = decodeURIComponent(app.split("text=")[1]!);
+  expect(text.split("\n")[0]).toBe("مرحباً MAYTHA 🌿");
+  expect(text).toContain("بدي أطلب المنتجات التالية:");
+  expect(text).toContain("الكمية: 1");
+  // Server prices: one general cleaner is 7 ₪, plus 5 ₪ delivery below 50 ₪.
+  expect(text).toContain("المجموع: 7 ₪");
+  expect(text).toContain("التوصيل: 5 ₪");
+  expect(text).toContain("الإجمالي: 12 ₪");
+  expect(text).toContain("الدفع نقداً عند الاستلام.");
+  expect(text).toMatch(/رابط المتجر: http/);
+  expect(text).not.toMatch(/general-cleaner/);
 
-  const [order] = await withTestDb(
-    (sql) => sql<
-      { status: string; checkout_channel: string; address: string | null }[]
-    >`
-      select status, checkout_channel, address from orders
-      where public_reference = ${reference}`,
+  // Opening WhatsApp is not an order: nothing is created and no stock is reserved.
+  const [after] = await withTestDb(
+    (sql) =>
+      sql<{ count: string }[]>`select count(*)::text as count from orders`,
   );
-  expect(order).toEqual({
-    status: "awaiting_whatsapp",
-    checkout_channel: "whatsapp",
-    address: null,
-  });
-
-  // The owner sees it waiting, with the place still to be agreed on WhatsApp.
-  await login(page);
-  await page.goto(`/admin/orders/${reference}`);
-  await expect(page.getByText("بانتظار تأكيد واتساب").first()).toBeVisible();
-  await expect(page.getByText("يُحدّد عبر واتساب")).toBeVisible();
+  expect(after!.count).toBe(before!.count);
   expect(issues.consoleErrors).toEqual([]);
 });
 

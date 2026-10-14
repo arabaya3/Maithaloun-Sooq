@@ -24,10 +24,7 @@ export default async function CartRoute() {
     <>
       <SiteHeader />
       <main className="page-shell cart-page">
-        <CartPage
-          products={products}
-          whatsAppOrdering={Boolean(storeWhatsApp)}
-        />
+        <CartPage products={products} storeWhatsApp={storeWhatsApp} />
       </main>
       <MobileNavigation />
     </>

@@ -62,3 +62,45 @@ export function whatsAppChatUrl(storeE164: string): string | null {
   if (!isSupportedWhatsAppE164(storeE164)) return null;
   return `https://wa.me/${storeE164.slice(1)}`;
 }
+
+export interface WhatsAppCartQuote {
+  lines: readonly WhatsAppOrderLine[];
+  itemsSubtotalAgorot: number;
+  deliveryFeeAgorot: number;
+  totalAgorot: number;
+}
+
+/**
+ * The cart as a ready-to-send WhatsApp message, built only from the server quote.
+ * Opening WhatsApp with it creates no order and reserves nothing; the store confirms in the chat.
+ */
+export function whatsAppCartMessage(
+  quote: WhatsAppCartQuote,
+  locale: "ar" | "en",
+  storeUrl: string,
+): string {
+  const ar = locale === "ar";
+  const lines = quote.lines.flatMap((line, index) => {
+    const detail = [line.options, line.unit].filter(Boolean).join(" · ");
+    return [
+      `${index + 1}. ${line.name}`,
+      ...(detail ? [`   ${ar ? "النوع" : "Option"}: ${detail}`] : []),
+      `   ${ar ? "الكمية" : "Quantity"}: ${line.quantity}`,
+      `   ${ar ? "السعر" : "Price"}: ${formatIls(line.lineSubtotalAgorot)}`,
+    ];
+  });
+  return [
+    ar ? "مرحباً MAYTHA 🌿" : "Hello MAYTHA 🌿",
+    "",
+    ar ? "بدي أطلب المنتجات التالية:" : "I'd like to order:",
+    "",
+    ...lines,
+    "",
+    `${ar ? "المجموع" : "Subtotal"}: ${formatIls(quote.itemsSubtotalAgorot)}`,
+    `${ar ? "التوصيل" : "Delivery"}: ${formatIls(quote.deliveryFeeAgorot)}`,
+    `${ar ? "الإجمالي" : "Total"}: ${formatIls(quote.totalAgorot)}`,
+    ar ? "الدفع نقداً عند الاستلام." : "Cash on delivery.",
+    "",
+    `${ar ? "رابط المتجر" : "Store"}: ${storeUrl}`,
+  ].join("\n");
+}

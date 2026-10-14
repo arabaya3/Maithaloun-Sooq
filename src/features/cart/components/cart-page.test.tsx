@@ -1,6 +1,6 @@
 import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { CartPage } from "@/features/cart/components/cart-page";
 import {
@@ -231,19 +231,22 @@ describe("cart page", () => {
       JSON.stringify({ version: 3, lines: [clothLine(blueSingle, 1, 2)] }),
     );
     const { unmount } = renderWithProviders(
-      <CartPage products={products} whatsAppOrdering />,
+      <CartPage products={products} storeWhatsApp="+972599105456" />,
       { products },
     );
     const review = await screen.findByRole("list", { name: "منتجات الطلب" });
     expect(within(review).getAllByRole("listitem")).toHaveLength(1);
+    // WhatsApp ordering is a button now: it opens the chat directly, with no form.
     expect(
-      screen.getByRole("link", { name: "الطلب عبر واتساب" }),
-    ).toHaveAttribute("href", "/checkout?channel=whatsapp");
+      screen.getByRole("button", { name: "الطلب عبر واتساب" }),
+    ).toBeEnabled();
     expect(
       screen.getByRole("link", { name: "الطلب عبر الموقع" }),
     ).toHaveAttribute("href", "/checkout?channel=web");
     expect(
-      screen.getByText("سنجهّز رسالة طلبك لتُرسل مباشرة إلى MAYTHA."),
+      screen.getByText(
+        "يفتح واتساب برسالة جاهزة فيها طلبك، اضغط إرسال وسنؤكده معك هناك.",
+      ),
     ).toBeInTheDocument();
     expect(
       screen.getByText("يصل طلبك إلى المتجر وسنتواصل معك عبر واتساب."),
@@ -254,13 +257,86 @@ describe("cart page", () => {
       CART_STORAGE_KEY,
       JSON.stringify({ version: 3, lines: [clothLine(bluePack, 2, 1)] }),
     );
-    renderWithProviders(<CartPage products={products} whatsAppOrdering />, {
-      products,
-    });
+    renderWithProviders(
+      <CartPage products={products} storeWhatsApp="+972599105456" />,
+      {
+        products,
+      },
+    );
     expect(
       await screen.findByText("راجع المنتجات المعلَّمة في السلة قبل المتابعة."),
     ).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /الطلب عبر/ })).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: "الطلب عبر واتساب" }),
+    ).toBeNull();
+  });
+
+  it("opens the store chat with the server-priced cart and creates no order", async () => {
+    const products = [multipackClothFixture({ blueFreePieces: 10 })];
+    window.localStorage.setItem(
+      CART_STORAGE_KEY,
+      JSON.stringify({ version: 3, lines: [clothLine(blueSingle, 1, 2)] }),
+    );
+    const calls: string[] = [];
+    const fetchSpy = vi
+      .spyOn(globalThis, "fetch")
+      .mockImplementation(async (input) => {
+        calls.push(String(input));
+        return new Response(
+          JSON.stringify({
+            ok: true,
+            quote: {
+              lines: [
+                {
+                  name: "فوطة تنظيف",
+                  options: "اللون: أزرق",
+                  unit: null,
+                  quantity: 2,
+                  lineSubtotalAgorot: 1200,
+                },
+              ],
+              itemsSubtotalAgorot: 1200,
+              deliveryFeeAgorot: 500,
+              totalAgorot: 1700,
+            },
+          }),
+          { headers: { "content-type": "application/json" } },
+        );
+      });
+    const assign = vi.fn();
+    const originalLocation = window.location;
+    Object.defineProperty(window, "location", {
+      configurable: true,
+      value: { ...originalLocation, assign, origin: "https://shop.test" },
+    });
+    try {
+      renderWithProviders(
+        <CartPage products={products} storeWhatsApp="+972599105456" />,
+        { products },
+      );
+      await userEvent.click(
+        await screen.findByRole("button", { name: "الطلب عبر واتساب" }),
+      );
+      await vi.waitFor(() => expect(assign).toHaveBeenCalledTimes(1));
+      expect(calls).toHaveLength(1);
+      expect(calls[0]).toContain("/api/v1/cart/quote");
+      expect(calls.some((url) => url.includes("/api/orders"))).toBe(false);
+      const link = new URL(assign.mock.calls[0]![0] as string);
+      expect(link.origin + link.pathname).toBe("https://wa.me/972599105456");
+      const text = link.searchParams.get("text")!;
+      expect(text).toContain("فوطة تنظيف");
+      expect(text).toContain("الكمية: 2");
+      expect(text).toContain("التوصيل: 5 ₪");
+      expect(text).toContain("الإجمالي: 17 ₪");
+      expect(text).toContain("https://shop.test/");
+    } finally {
+      fetchSpy.mockRestore();
+      Object.defineProperty(window, "location", {
+        configurable: true,
+        value: originalLocation,
+      });
+    }
   });
 });
 
@@ -282,7 +358,7 @@ describe("cart page in English", () => {
     );
     renderWithProviders(
       <I18nProvider locale="en">
-        <CartPage products={products} whatsAppOrdering />
+        <CartPage products={products} storeWhatsApp="+972599105456" />
       </I18nProvider>,
       { products },
     );
@@ -307,8 +383,8 @@ describe("cart page in English", () => {
       screen.getByRole("link", { name: "Order on the website" }),
     ).toHaveAttribute("href", "/en/checkout?channel=web");
     expect(
-      screen.getByRole("link", { name: "Order via WhatsApp" }),
-    ).toHaveAttribute("href", "/en/checkout?channel=whatsapp");
+      screen.getByRole("button", { name: "Order via WhatsApp" }),
+    ).toBeEnabled();
     expect(
       screen.getByRole("button", { name: "Remove منظف عام Secret from cart" }),
     ).toBeInTheDocument();

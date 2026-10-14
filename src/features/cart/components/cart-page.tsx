@@ -3,6 +3,7 @@
 import { ShoppingBasket, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
 
+import { DirectWhatsAppOrder } from "@/features/cart/components/direct-whatsapp-order";
 import { QuantityControl } from "@/features/cart/components/quantity-control";
 import {
   cartMerchandiseSubtotal,
@@ -29,11 +30,13 @@ import { formatIls } from "@/shared/lib/format-currency";
 
 export function CartPage({
   products,
-  whatsAppOrdering = false,
+  storeWhatsApp = null,
 }: {
   products: readonly Product[];
-  whatsAppOrdering?: boolean;
+  /** The store's WhatsApp number from Admin settings; without it only web checkout is offered. */
+  storeWhatsApp?: string | null;
 }) {
+  const whatsAppOrdering = Boolean(storeWhatsApp);
   const { m: messages, locale } = useI18n();
   const m = messages.cart;
   const {
@@ -402,19 +405,11 @@ export function CartPage({
           </>
         ) : (
           <>
-            {whatsAppOrdering ? (
-              <>
-                <Link
-                  className="checkout-action checkout-whatsapp-action"
-                  href="/checkout?channel=whatsapp"
-                  aria-describedby="cart-whatsapp-note"
-                >
-                  {m.orderViaWhatsApp}
-                </Link>
-                <p id="cart-whatsapp-note" className="cart-channel-note">
-                  {m.whatsAppNote}
-                </p>
-              </>
+            {storeWhatsApp ? (
+              <DirectWhatsAppOrder
+                lines={lines}
+                storeWhatsApp={storeWhatsApp}
+              />
             ) : null}
             <Link
               className={
