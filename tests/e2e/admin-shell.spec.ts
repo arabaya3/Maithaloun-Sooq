@@ -138,7 +138,7 @@ test("phone: every area sheet lists its pages, closes with Escape and returns fo
   await login(page);
   const nav = page.getByRole("navigation", { name: "التنقل السفلي" });
   const expected: Record<string, string[]> = {
-    البيع: ["الطلبات", "المبيعات", "الزبائن والديون"],
+    البيع: ["الطلبات", "المبيعات", "الزبائن والديون", "مساعد واتساب"],
     المخزون: [
       "المخزون",
       "فواتير الشراء",
