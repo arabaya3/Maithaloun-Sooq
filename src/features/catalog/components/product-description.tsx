@@ -76,3 +76,22 @@ export function ProductDescription({
     </div>
   );
 }
+
+// The owner's text often holds the usage instructions after a label line such as «طريقة الاستعمال:».
+const USAGE_LABEL =
+  /^\s*(?:طريقة\s+(?:الاستعمال|الاستخدام)|الاستعمال|الاستخدام|how\s+to\s+use|directions(?:\s+for\s+use)?|usage)\s*[:：]\s*(.*)$/i;
+
+/** Splits description and usage at the first usage label; anything uncertain stays in the description. */
+export function splitProductText(text: string): {
+  description: string;
+  usage: string | null;
+} {
+  const lines = text.replace(/\r\n?/g, "\n").replace(/\n/g, "\n").split("\n");
+  const at = lines.findIndex((line) => USAGE_LABEL.test(line));
+  if (at < 0) return { description: text, usage: null };
+  const inline = lines[at]!.match(USAGE_LABEL)![1]!.trim();
+  const usage = [inline, ...lines.slice(at + 1)].join("\n").trim();
+  const description = lines.slice(0, at).join("\n").trim();
+  if (!usage || !description) return { description: text, usage: null };
+  return { description, usage };
+}

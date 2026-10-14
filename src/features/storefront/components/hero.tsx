@@ -49,23 +49,37 @@ export function Hero({ products }: { products: readonly Product[] }) {
         </ul>
       </div>
       {products.length ? (
-        <ul className="hero-picks" aria-label={m.store.heroPicks}>
-          {products.map((product) => (
-            <li key={product.id}>
-              <Link
-                href={`/products/${product.slug}`}
-                className="hero-pick"
-                aria-label={localizedProductName(product, locale)}
-              >
-                <ProductMedia
-                  product={product}
-                  className="hero-pick-image"
-                  sizes="96px"
-                />
-              </Link>
-            </li>
-          ))}
-        </ul>
+        <div className="hero-shelf" data-count={products.length}>
+          <p className="hero-shelf-label" id="hero-shelf-label">
+            {m.store.heroPicks}
+          </p>
+          <ul className="hero-picks" aria-labelledby="hero-shelf-label">
+            {products.map((product) => (
+              <li key={product.id}>
+                <Link
+                  href={`/products/${product.slug}`}
+                  className="hero-pick"
+                  aria-label={localizedProductName(product, locale)}
+                >
+                  <ProductMedia
+                    product={product}
+                    className="hero-pick-image"
+                    sizes="(min-width: 48rem) 120px, 28vw"
+                  />
+                  {product.brand ? (
+                    <bdi
+                      dir="auto"
+                      className="hero-pick-brand"
+                      aria-hidden="true"
+                    >
+                      {product.brand}
+                    </bdi>
+                  ) : null}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </div>
       ) : null}
     </section>
   );

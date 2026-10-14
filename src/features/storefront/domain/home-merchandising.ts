@@ -1,4 +1,3 @@
-import type { ProductCategory } from "@/features/catalog/domain/category";
 import {
   isProductAvailable,
   type Product,
@@ -77,29 +76,6 @@ export function productsOnOffer(products: readonly Product[]): Product[] {
       isProductAvailable(product) &&
       product.variants.some((variant) => Boolean(variant.offer)),
   );
-}
-
-/** The visible category with the most products, for the second promotion. */
-export function featuredCategory(
-  products: readonly Product[],
-  categories: readonly ProductCategory[],
-): { category: ProductCategory; product: Product | null } | null {
-  let best: { category: ProductCategory; count: number } | null = null;
-  for (const category of categories) {
-    const count = products.filter(
-      (product) => product.categoryId === category.code,
-    ).length;
-    if (count > 0 && (!best || count > best.count)) best = { category, count };
-  }
-  if (!best) return null;
-  const code = best.category.code;
-  return {
-    category: best.category,
-    product:
-      products.find(
-        (product) => product.categoryId === code && hasPhoto(product),
-      ) ?? null,
-  };
 }
 
 /** One product photo per category for image-led category cards, branded and available first. */

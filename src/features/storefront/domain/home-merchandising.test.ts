@@ -7,7 +7,6 @@ import {
   bestSellers,
   brandPath,
   catalogBrands,
-  featuredCategory,
   pickHeroProducts,
 } from "./home-merchandising";
 
@@ -76,37 +75,5 @@ describe("home merchandising", () => {
     expect(
       bestSellers(products, ["c", "gone", "b", "a"]).map((item) => item.id),
     ).toEqual(["c", "a"]);
-  });
-
-  it("features the visible category with the most products", () => {
-    const categories = [
-      {
-        code: "laundry",
-        nameAr: "الغسيل",
-        description: null,
-        icon: "shirt" as const,
-        sortOrder: 0,
-        visible: true,
-      },
-      {
-        code: "kitchen",
-        nameAr: "المطبخ",
-        description: null,
-        icon: "cooking-pot" as const,
-        sortOrder: 1,
-        visible: true,
-      },
-    ];
-    const featured = featuredCategory(
-      [
-        product("a", "kitchen", {}, false),
-        product("b", "kitchen"),
-        product("c", "laundry"),
-      ],
-      categories,
-    );
-    expect(featured?.category.code).toBe("kitchen");
-    expect(featured?.product?.id).toBe("b");
-    expect(featuredCategory([], categories)).toBeNull();
   });
 });

@@ -122,8 +122,10 @@ test("mobile header, hero, RTL categories, and bottom spacing remain usable", as
 
   const categoryList = page.locator(".category-list");
   const firstCategory = page.getByRole("button", { name: "الكل" });
+  // Exact, because the active-filter chip «إزالة القسم: …» also contains the name.
   const lastCategory = page.getByRole("button", {
     name: "مستلزمات منزلية",
+    exact: true,
   });
 
   const listBox = await categoryList.boundingBox();
@@ -180,16 +182,26 @@ test("mobile header, hero, RTL categories, and bottom spacing remain usable", as
     const root = getComputedStyle(document.documentElement);
     return {
       token: root.getPropertyValue("--mobile-nav-height").trim(),
-      bodyPadding: Number.parseFloat(
-        getComputedStyle(document.body).paddingBottom,
+      // The footer reserves the bottom bar, so the page ends on the footer, not on a blank strip.
+      footerPadding: Number.parseFloat(
+        getComputedStyle(document.querySelector(".store-footer")!)
+          .paddingBottom,
       ),
+      gapBelowFooter:
+        document.documentElement.scrollHeight -
+        (document.querySelector(".store-footer")!.getBoundingClientRect()
+          .bottom +
+          window.scrollY),
       navigationHeight: document
         .querySelector(".mobile-navigation")!
         .getBoundingClientRect().height,
     };
   });
   expect(spacing.token).toBe("4.25rem");
-  expect(spacing.bodyPadding).toBeGreaterThan(spacing.navigationHeight);
+  expect(spacing.footerPadding).toBeGreaterThanOrEqual(
+    spacing.navigationHeight - 1,
+  );
+  expect(Math.abs(spacing.gapBelowFooter)).toBeLessThanOrEqual(1);
   expect(issues.consoleErrors).toEqual([]);
   expect(issues.failedRequests).toEqual([]);
 });

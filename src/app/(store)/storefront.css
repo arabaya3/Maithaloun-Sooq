@@ -107,23 +107,50 @@ body:has(.storefront-font-scope) {
   color: var(--forest);
 }
 
-.hero-picks {
-  display: flex;
+/* One shared shelf for the featured products: a single surface, equal slots, hairline dividers. */
+.hero-shelf {
+  display: grid;
   grid-area: picks;
   gap: var(--space-2);
+  margin: 0 var(--space-5) var(--space-5);
+  padding: var(--space-3) var(--space-3) var(--space-2);
+  border-radius: var(--radius-card);
+  background: var(--white);
+}
+
+.hero-shelf-label {
   margin: 0;
-  padding: 0 var(--space-5) var(--space-5);
+  color: var(--forest);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+.hero-picks {
+  display: grid;
+  grid-auto-columns: minmax(0, 1fr);
+  grid-auto-flow: column;
+  margin: 0;
+  padding: 0;
   list-style: none;
 }
 
+.hero-picks li + li {
+  border-inline-start: 1px solid var(--hairline);
+}
+
 .hero-pick {
-  display: block;
-  width: 4.5rem;
-  height: 4.5rem;
-  overflow: hidden;
-  border: 1px solid var(--hairline);
+  display: grid;
+  justify-items: center;
+  gap: 0.25rem;
+  padding: 0.25rem 0.5rem;
   border-radius: var(--radius-tile);
-  background: var(--white);
+  color: var(--text-muted);
+  text-decoration: none;
+}
+
+.hero-pick:hover .hero-pick-brand {
+  color: var(--forest);
 }
 
 .hero-pick:focus-visible {
@@ -134,12 +161,50 @@ body:has(.storefront-font-scope) {
 .hero-pick-image {
   position: relative;
   width: 100%;
-  height: 100%;
+  max-width: 6.5rem;
+  aspect-ratio: 1;
 }
 
 .hero-pick-image img {
   object-fit: contain;
-  transform: scale(0.86);
+  padding: 0.15rem;
+  transition: transform 0.25s ease;
+}
+
+.hero-pick:hover .hero-pick-image img {
+  transform: translateY(-2px);
+}
+
+.hero-pick-brand {
+  max-width: 100%;
+  overflow: hidden;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+/* Phones: a shorter photo and a compact shelf keep the call to action and products near the fold. */
+@media (max-width: 47.99rem) {
+  .hero-photo {
+    aspect-ratio: 16 / 9;
+  }
+
+  .hero-body {
+    gap: var(--space-2);
+    padding: var(--space-4) var(--space-4) var(--space-3);
+  }
+
+  .hero-shelf {
+    margin: 0 var(--space-4) var(--space-4);
+    padding: var(--space-2) var(--space-2) var(--space-1);
+  }
+
+  .hero-pick-image {
+    max-width: 3.75rem;
+  }
 }
 
 @media (min-width: 48rem) {
@@ -162,13 +227,8 @@ body:has(.storefront-font-scope) {
     padding: var(--space-8) clamp(2rem, 4vw, 3.5rem) var(--space-4);
   }
 
-  .hero-picks {
-    padding: 0 clamp(2rem, 4vw, 3.5rem) var(--space-8);
-  }
-
-  .hero-pick {
-    width: 5.25rem;
-    height: 5.25rem;
+  .hero-shelf {
+    margin: 0 clamp(2rem, 4vw, 3.5rem) clamp(1.5rem, 3vw, 2.5rem);
   }
 }
 
@@ -180,6 +240,24 @@ body:has(.storefront-font-scope) {
 
   .hero-body {
     padding-inline: 3.5rem;
+  }
+
+  .hero h1 {
+    font-size: clamp(2.25rem, 3.4vw, 3rem);
+  }
+
+  .hero-shelf {
+    margin-inline: 3.5rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-pick-image img {
+    transition: none;
+  }
+
+  .hero-pick:hover .hero-pick-image img {
+    transform: none;
   }
 }
 
@@ -530,32 +608,6 @@ body:has(.storefront-font-scope) {
   }
 }
 
-/* Curated collections */
-.promo {
-  border-radius: var(--radius-card);
-}
-
-.promo-dark {
-  background: var(--forest);
-}
-
-.promo-light {
-  background: var(--sage-soft);
-}
-
-.promo-light h2 {
-  color: var(--forest);
-}
-
-.promo-cta {
-  border-radius: var(--radius-tile);
-}
-
-.promo-image {
-  border: 1px solid var(--hairline);
-  border-radius: var(--radius-tile);
-}
-
 /* Benefits */
 .store-benefits ul {
   padding: var(--space-5);
@@ -712,10 +764,6 @@ body:has(.storefront-font-scope) {
 }
 
 /* Footer */
-.store-footer {
-  background: var(--forest-deep);
-}
-
 .store-footer-wordmark .brand-subtitle {
   color: var(--sage-line);
 }
@@ -731,13 +779,576 @@ body:has(.storefront-font-scope) {
 }
 
 /* Product photos sit on white wherever they are framed. */
-.category-cover.product-art--photo,
-.hero-pick-image.product-art--photo {
+.category-cover.product-art--photo {
   aspect-ratio: auto;
+  background: var(--white);
+}
+
+.hero-pick-image.product-art--photo {
+  aspect-ratio: 1;
   background: var(--white);
 }
 
 /* Sunsilk's file is a square badge, so it needs more height to read at the same size. */
 .brand-mark-logo[src$="sunsilk.png"] {
   max-height: 3.5rem;
+}
+
+/* Product gallery: one stage for one or many photos */
+.product-gallery {
+  padding: var(--space-3);
+  background: var(--white);
+}
+
+.product-gallery-stage {
+  max-width: 100%;
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-card);
+  background: var(--white);
+  cursor: zoom-in;
+}
+
+.product-gallery-image {
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  max-height: none;
+  padding: 7%;
+  object-fit: contain;
+  transform-origin: center;
+  transition: transform 0.18s ease-out;
+}
+
+.product-gallery-stage[data-zooming="true"] .product-gallery-image {
+  transition: transform 0.06s linear;
+}
+
+/* The whole stage opens the viewer; the corner icon says so. */
+.product-gallery-expand {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-end;
+  gap: 0.4rem;
+  padding: 0.6rem;
+  color: var(--forest);
+  border: 0;
+  background: transparent;
+  cursor: zoom-in;
+}
+
+.product-gallery-expand svg {
+  width: 2.25rem;
+  height: 2.25rem;
+  padding: 0.55rem;
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-pill);
+  background: var(--white);
+}
+
+.product-gallery-zoom-hint {
+  display: none;
+}
+
+.product-gallery-expand:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: -3px;
+}
+
+.product-gallery-arrows,
+.product-gallery-position {
+  z-index: 2;
+}
+
+.product-gallery-arrows button {
+  border-color: var(--hairline);
+  color: var(--forest);
+  background: var(--white);
+}
+
+.product-gallery-position {
+  border: 1px solid var(--hairline);
+  background: var(--white);
+}
+
+.product-gallery-thumbs button {
+  width: 3.25rem;
+  height: 3.25rem;
+  border-color: var(--hairline);
+  border-radius: var(--radius-tile);
+  background: var(--white);
+}
+
+.product-gallery-thumbs img {
+  padding: 0.2rem;
+}
+
+.product-gallery-thumbs button[aria-current="true"] {
+  border: 2px solid var(--forest);
+}
+
+.product-gallery-thumbs button[aria-current="true"]::after {
+  background: var(--forest);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .product-gallery-zoom-hint {
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.25rem;
+    padding-inline: 0.75rem;
+    border: 1px solid var(--hairline);
+    border-radius: var(--radius-pill);
+    background: var(--white);
+    font-size: 0.75rem;
+    font-weight: 600;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+  }
+
+  .product-gallery-stage:hover .product-gallery-zoom-hint {
+    opacity: 1;
+  }
+
+  .product-gallery-stage[data-zooming="true"] .product-gallery-expand {
+    opacity: 0;
+  }
+}
+
+/* Full-screen viewer: a solid dark backdrop, the photo at its own proportions, pinch zoom kept. */
+.gallery-viewer {
+  position: fixed;
+  z-index: 90;
+  inset: 0;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  justify-items: center;
+  padding: max(0.75rem, env(safe-area-inset-top)) 0.75rem
+    max(1rem, env(safe-area-inset-bottom));
+  background: rgb(17 44 36 / 96%);
+}
+
+.gallery-viewer-close {
+  display: grid;
+  width: 2.75rem;
+  height: 2.75rem;
+  place-items: center;
+  justify-self: end;
+  color: var(--forest);
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: var(--white);
+  cursor: pointer;
+}
+
+.gallery-viewer-image {
+  align-self: center;
+  max-width: 100%;
+  max-height: 100%;
+  padding: 1rem;
+  object-fit: contain;
+  border-radius: var(--radius-card);
+  background: var(--white);
+  touch-action: pinch-zoom;
+}
+
+.gallery-viewer-nav {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  color: var(--white);
+  font-weight: 600;
+}
+
+.gallery-viewer-nav button {
+  display: grid;
+  width: 2.75rem;
+  height: 2.75rem;
+  place-items: center;
+  color: var(--forest);
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: var(--white);
+  cursor: pointer;
+}
+
+.gallery-viewer-nav button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.gallery-viewer button:focus-visible {
+  outline: 2px solid var(--white);
+  outline-offset: 2px;
+}
+
+/* Product information */
+.product-info {
+  display: grid;
+  gap: var(--space-5);
+}
+
+.product-info-section h2 {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0 0 0.5rem;
+  color: var(--forest);
+  font-family: var(--font-display);
+  font-size: 1.2rem;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.product-info-section h2 svg {
+  width: 1.15rem;
+  height: 1.15rem;
+  stroke-width: 1.8;
+}
+
+.product-info .product-description {
+  max-width: 68ch;
+  color: #2c3a33;
+  font-size: 0.98rem;
+  line-height: 1.95;
+}
+
+.product-info .product-description p {
+  margin: 0 0 0.75rem;
+}
+
+.product-info .product-description p:last-child {
+  margin-bottom: 0;
+}
+
+.product-info-usage {
+  padding: var(--space-4) var(--space-5);
+  border-radius: var(--radius-card);
+  background: #eef3ef;
+}
+
+.product-detail-below {
+  padding: var(--space-5);
+}
+
+.product-specs {
+  margin-top: var(--space-5);
+}
+
+/* Catalog toolbar: count, sort and active filters in one quiet row */
+.catalog-toolbar {
+  display: grid;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+
+.catalog-toolbar-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.catalog-toolbar-actions {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.toolbar-button {
+  position: relative;
+  display: inline-flex;
+  min-height: 2.75rem;
+  align-items: center;
+  gap: 0.4rem;
+  padding-inline: 0.9rem;
+  color: var(--forest);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-pill);
+  background: var(--white);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.toolbar-button:hover {
+  border-color: var(--forest);
+}
+
+.toolbar-button svg {
+  width: 1rem;
+  height: 1rem;
+  flex: none;
+}
+
+.toolbar-button:focus-within,
+.toolbar-button:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.sort-control select {
+  min-height: 2.6rem;
+  padding: 0;
+  color: inherit;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  cursor: pointer;
+  appearance: none;
+}
+
+.sort-control select:focus-visible {
+  outline: none;
+}
+
+.toolbar-badge {
+  display: grid;
+  min-width: 1.25rem;
+  height: 1.25rem;
+  place-items: center;
+  padding-inline: 0.3rem;
+  color: var(--white);
+  border-radius: var(--radius-pill);
+  background: var(--forest);
+  font-size: 0.7rem;
+}
+
+.filter-chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.filter-chip {
+  display: inline-flex;
+  min-height: 2.75rem;
+  align-items: center;
+  gap: 0.4rem;
+  padding-inline: 0.9rem 0.7rem;
+  color: var(--forest);
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: var(--sage-soft);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.filter-chip svg {
+  width: 0.95rem;
+  height: 0.95rem;
+}
+
+.filter-chip:hover {
+  background: var(--sage-line);
+}
+
+.filter-clear {
+  min-height: 2.75rem;
+  padding-inline: 0.5rem;
+  color: var(--forest);
+  border: 0;
+  background: transparent;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.filter-chip:focus-visible,
+.filter-clear:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.catalog-heading {
+  margin-bottom: var(--space-2);
+}
+
+/* Category tiles already filter on wide screens, so the sheet is for phones and tablets. */
+@media (min-width: 64rem) {
+  .filter-trigger {
+    display: none;
+  }
+}
+
+.filter-sheet-backdrop {
+  position: fixed;
+  z-index: 80;
+  inset: 0;
+  display: grid;
+  align-items: end;
+  background: rgb(17 44 36 / 45%);
+}
+
+.filter-sheet {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  width: 100%;
+  max-width: 34rem;
+  max-height: 82svh;
+  margin-inline: auto;
+  border-radius: 1.125rem 1.125rem 0 0;
+  background: var(--ivory);
+}
+
+.filter-sheet-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-4) var(--space-5) var(--space-2);
+}
+
+.filter-sheet-header h2 {
+  margin: 0;
+  color: var(--forest);
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.filter-sheet-close {
+  display: grid;
+  width: 2.75rem;
+  height: 2.75rem;
+  place-items: center;
+  color: var(--forest);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-pill);
+  background: var(--white);
+  cursor: pointer;
+}
+
+.filter-sheet-body {
+  overflow-y: auto;
+  padding: var(--space-2) var(--space-5) var(--space-4);
+}
+
+.filter-sheet-group {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.filter-sheet-group legend {
+  margin-bottom: var(--space-3);
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.filter-sheet-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.filter-option {
+  min-height: 2.75rem;
+  padding-inline: 1rem;
+  color: var(--forest);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-pill);
+  background: var(--white);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.filter-option[aria-pressed="true"] {
+  color: var(--white);
+  border-color: var(--forest);
+  background: var(--forest);
+}
+
+.filter-sheet-footer {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-5)
+    max(var(--space-4), env(safe-area-inset-bottom));
+  border-top: 1px solid var(--hairline);
+}
+
+.filter-sheet-reset,
+.filter-sheet-apply {
+  min-height: 3rem;
+  border-radius: var(--radius-tile);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.filter-sheet-reset {
+  color: var(--forest);
+  border: 1px solid var(--forest);
+  background: var(--white);
+}
+
+.filter-sheet-apply {
+  color: var(--white);
+  border: 0;
+  background: var(--forest);
+}
+
+.filter-sheet button:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: 2px;
+}
+
+/* Footer: the page ends on the footer itself. Phones reserve the bottom bar inside it, not below it. */
+body:has(.store-footer) {
+  display: flex;
+  min-height: 100svh;
+  flex-direction: column;
+  padding-bottom: 0;
+}
+
+/* Short pages push the footer to the bottom of the window instead of leaving ivory under it. */
+/* Only the page content: fixed bars such as the phone navigation must keep their place. */
+body:has(.store-footer) > main {
+  margin-bottom: 2.5rem;
+}
+
+.store-footer {
+  position: relative;
+  margin-top: auto;
+  padding-bottom: calc(var(--mobile-nav-height) + env(safe-area-inset-bottom));
+  background: linear-gradient(
+    180deg,
+    var(--forest) 0%,
+    var(--forest-deep) 100%
+  );
+}
+
+/* A faint wash of the footer colour fades the page into it instead of a hard edge. */
+.store-footer::before {
+  position: absolute;
+  inset-inline: 0;
+  bottom: 100%;
+  height: 3rem;
+  background: linear-gradient(
+    to bottom,
+    rgb(24 61 50 / 0%),
+    rgb(24 61 50 / 7%)
+  );
+  content: "";
+  pointer-events: none;
+}
+
+@media (min-width: 64rem) {
+  .store-footer {
+    padding-bottom: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .product-gallery-image,
+  .product-gallery-zoom-hint {
+    transition: none;
+  }
 }

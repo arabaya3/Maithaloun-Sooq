@@ -118,18 +118,18 @@ describe("storefront", () => {
             { name: "Arar", productCount: 1 },
           ],
           bestSellers: products.slice(0, 2),
-          offerProducts: [],
-          featured: null,
         }}
       />,
       { products },
     );
     expect(screen.queryByRole("heading", { name: "ماركات مختارة" })).toBeNull();
     expect(screen.queryByRole("heading", { name: "منتجات مختارة" })).toBeNull();
-    expect(container.querySelector(".promo-grid")).toBeNull();
+    // The curated collections block is gone for good.
+    expect(container.querySelector(".promo-grid, .promo")).toBeNull();
+    expect(container.textContent).not.toMatch(/تشكيلات مختارة/);
   });
 
-  it("shows owner-entered brands, best sellers and live offers when present", () => {
+  it("shows owner-entered brands and featured products when present", () => {
     renderWithProviders(
       <Storefront
         products={products}
@@ -146,8 +146,6 @@ describe("storefront", () => {
             ...product,
             id: `${product.id}-${index}`,
           })),
-          offerProducts: [products[0]!],
-          featured: null,
         }}
       />,
       { products },
@@ -164,10 +162,6 @@ describe("storefront", () => {
     expect(
       screen.getByRole("heading", { name: "منتجات مختارة" }),
     ).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /تسوّق العروض/ })).toHaveAttribute(
-      "href",
-      "/offers",
-    );
     // A verified logo replaces the wordmark; other brands keep their name.
     expect(
       within(brands).getByRole("link", { name: "Clear" }).querySelector("img"),
