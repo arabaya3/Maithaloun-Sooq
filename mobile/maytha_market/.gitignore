@@ -56,3 +56,6 @@ android/key.properties
 /android/app/build/
 /ios/Pods/
 /ios/build/
+
+# Generated localizations (flutter gen-l10n / pub get)
+/lib/l10n/gen/
