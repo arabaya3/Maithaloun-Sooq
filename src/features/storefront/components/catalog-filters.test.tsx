@@ -108,4 +108,25 @@ describe("catalog filters and sorting", () => {
     expect(screen.queryByRole("dialog")).toBeNull();
     expect(names()).toEqual(["منظف b"]);
   });
+  it("sorts the whole matching catalog before the first batch, not only the visible cards", async () => {
+    const user = userEvent.setup();
+    // 15 products, the cheapest last, so it is outside the first batch of 12.
+    const many = Array.from({ length: 15 }, (_, index) =>
+      item(`p${index}`, "home", 2000 - index * 100),
+    );
+    renderWithProviders(
+      <Storefront products={many} categories={categories} />,
+      {
+        products: many,
+      },
+    );
+    expect(names()).toHaveLength(12);
+    expect(names()).not.toContain("منظف p14");
+    await user.selectOptions(
+      screen.getByRole("combobox", { name: "ترتيب المنتجات" }),
+      "price-asc",
+    );
+    expect(names()[0]).toBe("منظف p14");
+    expect(names()).toHaveLength(12);
+  });
 });

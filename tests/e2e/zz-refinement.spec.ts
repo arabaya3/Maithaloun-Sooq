@@ -148,3 +148,41 @@ test("the home page has no curated collections and ends cleanly on the footer", 
     await expectNoHorizontalOverflow(page);
   }
 });
+
+test("on a phone, a tap still opens the viewer right after swiping photos", async ({
+  browser,
+}) => {
+  const context = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+    hasTouch: true,
+    isMobile: true,
+  });
+  const page = await context.newPage();
+  const cdp = await context.newCDPSession(page);
+  await stageBox(page, DOUBLE);
+  const box = (await page.locator(".product-gallery-stage").boundingBox())!;
+  const y = box.y + box.height / 2;
+  const x = box.x + box.width / 2;
+  // Arabic reads right to left, so the finger moves right to reach the next photo.
+  await cdp.send("Input.dispatchTouchEvent", {
+    type: "touchStart",
+    touchPoints: [{ x: x - 100, y }],
+  });
+  for (let step = 1; step <= 8; step++)
+    await cdp.send("Input.dispatchTouchEvent", {
+      type: "touchMove",
+      touchPoints: [{ x: x - 100 + step * 25, y }],
+    });
+  await cdp.send("Input.dispatchTouchEvent", {
+    type: "touchEnd",
+    touchPoints: [],
+  });
+  await expect(page.locator(".product-gallery-image")).toHaveAttribute(
+    "src",
+    /arar-oven-cleaner/,
+  );
+  await expect(page.locator(".gallery-viewer")).toHaveCount(0);
+  await page.touchscreen.tap(x, y);
+  await expect(page.locator(".gallery-viewer")).toHaveCount(1);
+  await context.close();
+});

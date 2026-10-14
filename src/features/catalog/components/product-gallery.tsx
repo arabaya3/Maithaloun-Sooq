@@ -17,6 +17,7 @@ import { useI18n } from "@/i18n/i18n-provider";
 
 const SWIPE_DISTANCE = 40;
 const ZOOM_SCALE = 2.2;
+const TAP_SLOP = 10;
 
 export interface GalleryItem extends GalleryImage {
   /** What the image shows, such as «اللون: أزرق»; null for a shared product image. */
@@ -112,6 +113,16 @@ export function ProductGallery({
     if (!start) return;
     const dx = event.clientX - start.x;
     const dy = event.clientY - start.y;
+    // A touch tap opens the viewer here, because browsers may drop the click that follows a swipe.
+    const tapped = Math.abs(dx) < TAP_SLOP && Math.abs(dy) < TAP_SLOP;
+    if (
+      tapped &&
+      event.pointerType !== "mouse" &&
+      (event.target as Element).closest(".product-gallery-expand")
+    ) {
+      setViewerOpen(true);
+      return;
+    }
     if (Math.abs(dx) < SWIPE_DISTANCE || Math.abs(dy) > Math.abs(dx)) return;
     moved.current = true;
     show(dx * forward < 0 ? index + 1 : index - 1);
