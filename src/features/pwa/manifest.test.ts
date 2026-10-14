@@ -49,7 +49,7 @@ describe("web app manifest", () => {
       { src: appIcons.appleTouch, size: 180 },
     ];
     for (const { src, size } of declared) {
-      expect(src).toMatch(/^\/brand\/app\/.+-v3\.png$/);
+      expect(src).toMatch(/^\/brand\/app\/.+-v4.png$/);
       const file = join(process.cwd(), "public", src);
       expect(existsSync(file)).toBe(true);
       const info = await sharp(file).metadata();
