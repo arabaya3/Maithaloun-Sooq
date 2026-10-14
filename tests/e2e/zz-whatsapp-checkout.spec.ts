@@ -123,7 +123,7 @@ test("phone: the owner sets the number, the cart opens WhatsApp with the order a
   const app = visited[0]!;
   expect(app).toMatch(/^https:\/\/wa\.me\/970590000000\?text=/);
   const text = decodeURIComponent(app.split("text=")[1]!);
-  expect(text.split("\n")[0]).toBe("مرحباً MAYTHA 🌿");
+  expect(text.split("\n")[0]).toBe("مرحباً MAYTHA MARKET 🌿");
   expect(text).toContain("بدي أطلب المنتجات التالية:");
   expect(text).toContain("الكمية: 1");
   // Server prices: one general cleaner is 7 ₪, plus 5 ₪ delivery below 50 ₪.

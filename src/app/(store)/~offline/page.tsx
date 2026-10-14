@@ -20,7 +20,7 @@ export default async function OfflinePage() {
         <Image
           className="offline-logo"
           src={appIcons.icon192}
-          alt="MAYTHA"
+          alt="MAYTHA MARKET"
           width={192}
           height={192}
           sizes="72px"

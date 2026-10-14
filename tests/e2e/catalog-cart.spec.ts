@@ -51,7 +51,9 @@ test("product details, favorites, and cart stay synchronized", async ({
     page.getByText("تمت إضافة منظف عام Secret إلى السلة."),
   ).toBeVisible();
 
-  await page.getByRole("link", { name: /^MAYTHA\s?، الرئيسية$/ }).click();
+  await page
+    .getByRole("link", { name: /^MAYTHA MARKET\s?، الرئيسية$/ })
+    .click();
   await expect(
     page.getByRole("button", {
       name: "إزالة منظف عام Secret من المفضلة",

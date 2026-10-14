@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 
 import { expectNoHorizontalOverflow } from "./support";
 
-// Every width the MAYTHA brief names, in both languages, for the pages a shopper sees.
+// Every width the MAYTHA MARKET brief names, in both languages, for the pages a shopper sees.
 const widths = [320, 360, 375, 390, 430, 768, 1024, 1440];
 const pages = [
   "/",

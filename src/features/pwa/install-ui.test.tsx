@@ -63,7 +63,7 @@ describe("storefront install banner", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("shows the MAYTHA app icon and says installing is optional", async () => {
+  it("shows the MAYTHA MARKET app icon and says installing is optional", async () => {
     const Banner = await loadBanner();
     const { container } = render(<Banner />);
     dispatchInstallPrompt("dismissed");
@@ -71,7 +71,7 @@ describe("storefront install banner", () => {
     expect(decodeURIComponent(logo?.getAttribute("src") ?? "")).toContain(
       "/brand/app/icon-192-v4.png",
     );
-    expect(screen.getByText("ثبّت MAYTHA")).toBeVisible();
+    expect(screen.getByText("ثبّت MAYTHA MARKET")).toBeVisible();
     expect(screen.getByText(/التثبيت اختياري/)).toBeVisible();
   });
 

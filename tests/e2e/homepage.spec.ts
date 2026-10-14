@@ -22,7 +22,7 @@ test("homepage search, filtering, and cart work in RTL", async ({ page }) => {
   await expect(page.locator("html")).toHaveAttribute("lang", "ar");
   await expect(page.locator("html")).toHaveAttribute("dir", "rtl");
   await expect(
-    page.getByRole("link", { name: /^MAYTHA\s?، الرئيسية$/ }),
+    page.getByRole("link", { name: /^MAYTHA MARKET\s?، الرئيسية$/ }),
   ).toBeVisible();
   const search = page.getByRole("searchbox", {
     name: "ابحث في المنتجات",
@@ -50,7 +50,9 @@ test("homepage search, filtering, and cart work in RTL", async ({ page }) => {
   expect(issues.failedRequests).toEqual([]);
 });
 
-test("brand name is spelled MAYTHA everywhere it renders", async ({ page }) => {
+test("brand name is spelled MAYTHA MARKET everywhere it renders", async ({
+  page,
+}) => {
   for (const route of [
     "/",
     "/products/general-cleaner-secret",
@@ -65,7 +67,7 @@ test("brand name is spelled MAYTHA everywhere it renders", async ({ page }) => {
       "MAYTHA",
     );
     await expect(page.locator("header .brand .brand-subtitle")).toHaveText(
-      "HOME & CARE",
+      "MARKET",
     );
     expect(await page.locator("body").innerText()).not.toMatch(
       /سوق ميثلون|سوق ميثون/,
@@ -244,7 +246,7 @@ test("keyboard users reach search and products in RTL order with a visible focus
   await expect(page.locator(".header-menu")).toBeFocused();
   await page.keyboard.press("Tab");
   await expect(
-    page.getByRole("link", { name: /^MAYTHA\s?، الرئيسية$/ }),
+    page.getByRole("link", { name: /^MAYTHA MARKET\s?، الرئيسية$/ }),
   ).toBeFocused();
 
   const search = page.getByRole("searchbox", { name: "ابحث في المنتجات" });

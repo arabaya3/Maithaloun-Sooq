@@ -36,7 +36,7 @@ describe("admin operational helpers", () => {
     );
     expect(url).toContain("https://wa.me/970591234567");
     expect(url).toContain(encodeURIComponent("MS-abcdefghijklmnopqrstuvwx"));
-    expect(url).toContain(encodeURIComponent("MAYTHA"));
+    expect(url).toContain(encodeURIComponent("MAYTHA MARKET"));
     expect(url).not.toContain("address=");
     expect(decodeURIComponent(url!)).not.toMatch(/عنوان|هاتف/);
   });

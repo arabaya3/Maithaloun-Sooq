@@ -12,10 +12,10 @@ import { adminManifest } from "./admin-manifest";
 import { storefrontManifest } from "./storefront-manifest";
 
 describe("web app manifest", () => {
-  it("uses the MAYTHA identity and RTL direction", () => {
+  it("uses the MAYTHA MARKET identity and RTL direction", () => {
     const value = storefrontManifest;
 
-    expect(value.name).toBe("MAYTHA");
+    expect(value.name).toBe("MAYTHA MARKET");
     expect(value.short_name).toBe("MAYTHA");
     expect(value.lang).toBe("ar");
     expect(value.dir).toBe("rtl");

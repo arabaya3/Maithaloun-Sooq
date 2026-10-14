@@ -87,7 +87,7 @@ export function publicCategory(category: ProductCategory, locale: Locale) {
 
 export function publicStoreInfo(whatsAppE164: string | null) {
   return {
-    name: "MAYTHA",
+    name: "MAYTHA MARKET",
     currency: "ILS",
     whatsAppE164,
     delivery: {

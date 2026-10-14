@@ -19,7 +19,9 @@ test("storefront install banner appears, installs and remembers dismissal", asyn
   await expect(page.getByRole("button", storefrontAction)).toHaveCount(0);
 
   await dispatchInstallPrompt(page);
-  const banner = page.getByRole("complementary", { name: "ثبّت MAYTHA" });
+  const banner = page.getByRole("complementary", {
+    name: "ثبّت MAYTHA MARKET",
+  });
   await expect(banner).toBeVisible();
   await expectNoHorizontalOverflow(page);
   await expect(banner.locator("img")).toHaveAttribute("src", /icon-192-v4.png/);
@@ -43,7 +45,7 @@ test("storefront install banner appears, installs and remembers dismissal", asyn
   await page.getByRole("button", { name: "تثبيت التطبيق على الهاتف" }).click();
   await expect(
     page.getByRole("dialog", {
-      name: "إضافة MAYTHA إلى الشاشة الرئيسية",
+      name: "إضافة MAYTHA MARKET إلى الشاشة الرئيسية",
     }),
   ).toBeVisible();
 
@@ -65,7 +67,7 @@ test.describe("iPhone", () => {
     const action = page.getByRole("button", storefrontAction);
     await action.click();
     const sheet = page.getByRole("dialog", {
-      name: "إضافة MAYTHA إلى الشاشة الرئيسية",
+      name: "إضافة MAYTHA MARKET إلى الشاشة الرئيسية",
     });
     await expect(sheet).toBeVisible();
     await expect(sheet.getByRole("listitem")).toHaveCount(3);

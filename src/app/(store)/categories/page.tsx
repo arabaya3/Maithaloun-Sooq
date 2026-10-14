@@ -43,7 +43,7 @@ export default async function CategoriesPage() {
       <SiteHeader />
       <main className="page-shell categories-page">
         <div className="categories-page-heading">
-          <span className="eyebrow">MAYTHA</span>
+          <span className="eyebrow">MAYTHA MARKET</span>
           <h1>{m.common.categories}</h1>
         </div>
         {categories.length ? (

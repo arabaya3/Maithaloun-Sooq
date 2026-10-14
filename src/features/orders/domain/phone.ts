@@ -68,7 +68,7 @@ export function buildWhatsAppContactUrl(
   if (!isSupportedWhatsAppE164(e164)) return null;
   const digits = e164.slice(1);
   const text = encodeURIComponent(
-    `مرحباً، بخصوص طلبك ${publicReference} في MAYTHA`,
+    `مرحباً، بخصوص طلبك ${publicReference} في MAYTHA MARKET`,
   );
   return `https://wa.me/${digits}?text=${text}`;
 }

@@ -21,7 +21,7 @@ export interface ShareableInvoice {
 export function buildInvoiceShareText(invoice: ShareableInvoice): string {
   const remaining = invoice.totalAgorot - invoice.paidAtSaleAgorot;
   return [
-    `MAYTHA — فاتورة رقم ${invoice.invoiceNumber}`,
+    `MAYTHA MARKET — فاتورة رقم ${invoice.invoiceNumber}`,
     invoice.customerName ? `الزبون: ${invoice.customerName}` : null,
     `التاريخ: ${invoice.date}`,
     "",

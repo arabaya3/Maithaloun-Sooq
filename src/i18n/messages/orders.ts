@@ -6,7 +6,7 @@ const ar = {
   reference: "رقم الطلب",
   savedNoWhatsApp: "حُفظ طلبك وسيتواصل معك المتجر لتأكيده. احتفظ برقم الطلب.",
   reachedStore:
-    "وصل طلبك إلى MAYTHA، وسنتواصل معك عبر واتساب لتأكيد الطلب ومكان التوصيل.",
+    "وصل طلبك إلى MAYTHA MARKET، وسنتواصل معك عبر واتساب لتأكيد الطلب ومكان التوصيل.",
   orderLines: "منتجات الطلب",
   subtotal: "مجموع المنتجات",
   deliveryCost: "تكلفة التوصيل",
@@ -59,7 +59,7 @@ const en: typeof ar = {
   savedNoWhatsApp:
     "Your order is saved and the store will contact you to confirm it. Keep your order number.",
   reachedStore:
-    "Your order has reached MAYTHA. We’ll contact you on WhatsApp to confirm it and agree on the delivery spot.",
+    "Your order has reached MAYTHA MARKET. We’ll contact you on WhatsApp to confirm it and agree on the delivery spot.",
   orderLines: "Items in your order",
   subtotal: "Subtotal",
   deliveryCost: "Delivery",

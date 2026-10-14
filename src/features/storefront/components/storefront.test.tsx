@@ -65,7 +65,7 @@ describe("storefront", () => {
     renderStorefront();
 
     expect(
-      screen.getByRole("link", { name: "MAYTHA، الرئيسية" }),
+      screen.getByRole("link", { name: "MAYTHA MARKET، الرئيسية" }),
     ).toBeInTheDocument();
     expect(screen.getByText("منظف عام Secret")).toHaveAttribute("dir", "auto");
     expect(screen.getByText("7 ₪")).toHaveAttribute("dir", "ltr");
