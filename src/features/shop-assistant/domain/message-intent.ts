@@ -17,8 +17,13 @@ export function normalizeMessage(text: string): string {
 }
 
 export function messageLocale(text: string): "ar" | "en" {
-  const arabic = (text.match(/[؀-ۿ]/g) ?? []).length;
-  const latin = (text.match(/[A-Za-z]/g) ?? []).length;
+  // Cart codes, links and the shop's Latin name say nothing about the customer's language.
+  const words = text
+    .replace(/MC1-[A-Za-z0-9_-]+/g, " ")
+    .replace(/https?:\/\/\S+/g, " ")
+    .replace(/MAYTHA(?: MARKET)?/gi, " ");
+  const arabic = (words.match(/[؀-ۿ]/g) ?? []).length;
+  const latin = (words.match(/[A-Za-z]/g) ?? []).length;
   return latin > arabic ? "en" : "ar";
 }
 

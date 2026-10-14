@@ -463,6 +463,26 @@ export class ShopAssistantService {
     });
   }
 
+  async conversations(limit = 50) {
+    return this.database
+      .select()
+      .from(schema.shopConversations)
+      .orderBy(
+        desc(schema.shopConversations.humanRequestedAt),
+        desc(schema.shopConversations.updatedAt),
+      )
+      .limit(limit);
+  }
+
+  async conversation(id: string): Promise<Conversation | null> {
+    const [row] = await this.database
+      .select()
+      .from(schema.shopConversations)
+      .where(eq(schema.shopConversations.id, id))
+      .limit(1);
+    return row ?? null;
+  }
+
   async messages(conversationId: string) {
     return this.database
       .select()

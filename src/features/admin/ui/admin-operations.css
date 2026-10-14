@@ -1609,3 +1609,59 @@
   outline: 2px solid var(--admin-focus);
   outline-offset: 2px;
 }
+
+.admin-badge[data-tone="warn"] {
+  color: var(--admin-danger-text);
+  background: var(--admin-danger-bg);
+}
+
+.admin-wa-conversations {
+  display: grid;
+  gap: 0.25rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.admin-wa-conversations li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+  padding-block: 0.5rem;
+  border-bottom: 1px solid var(--admin-divider);
+}
+
+.admin-wa-thread {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.admin-wa-thread li {
+  max-width: min(36rem, 92%);
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--admin-divider);
+  border-radius: var(--admin-radius-md);
+}
+
+.admin-wa-thread li[data-author="customer"] {
+  justify-self: start;
+}
+
+.admin-wa-thread li:not([data-author="customer"]) {
+  justify-self: end;
+  background: var(--admin-nav-selected);
+}
+
+.admin-wa-thread p {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.admin-wa-thread small {
+  color: var(--admin-muted);
+}
