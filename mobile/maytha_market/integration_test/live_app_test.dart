@@ -270,9 +270,11 @@ void main() {
     expect(find.text('Products'), findsOneWidget);
     expect(find.text('Shop'), findsOneWidget);
 
-    // Categories come from the live English catalog.
+    // Categories come from the live English catalog, which reloads after the switch: wait for it,
+    // because the Arabic product cards are already on screen.
     final en = await getJson('/api/v1/catalog?locale=en');
     final firstCat = ((en['categories'] as List).first as Map)['name'] as String;
+    await pumpUntil(tester, find.text(firstCat));
     expect(find.text(firstCat), findsWidgets);
 
     await tester.tap(find.text('Settings'));
