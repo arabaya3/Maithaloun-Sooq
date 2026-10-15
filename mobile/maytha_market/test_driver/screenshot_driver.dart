@@ -43,8 +43,7 @@ Future<int> capture(String udid, String path, String name) async {
 Future<void> main() async {
   final env = Platform.environment;
   final udid = env['SIM_UDID'] ?? 'booted';
-  final out = Directory(env['SCREENSHOT_DIR'] ?? 'build/store-screenshots')
-    ..createSync(recursive: true);
+  final out = Directory(env['SCREENSHOT_DIR'] ?? 'build/store-screenshots')..createSync(recursive: true);
   final sync = Directory(env['SHOT_SYNC_DIR'] ?? '/tmp/maytha-shots');
   if (sync.existsSync()) sync.deleteSync(recursive: true);
   sync.createSync(recursive: true);
@@ -54,9 +53,7 @@ Future<void> main() async {
     if (busy) return;
     busy = true;
     try {
-      for (final f in sync.listSync().whereType<File>().where(
-        (f) => f.path.endsWith('.req'),
-      )) {
+      for (final f in sync.listSync().whereType<File>().where((f) => f.path.endsWith('.req'))) {
         final name = f.uri.pathSegments.last.replaceAll('.req', '');
         f.deleteSync();
         final code = await capture(udid, '${out.path}/$name.png', name);
