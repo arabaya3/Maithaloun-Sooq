@@ -13,12 +13,13 @@ Build with a non-default API if needed:
 `flutter build appbundle --release --dart-define=API_BASE_URL=https://<domain>`
 
 ## 1. Google Play (Android)
-- [ ] **[Owner]** Create a Google Play Console developer account (one-time USD 25 fee, identity verification; a new personal account must run a closed test with testers for 14 days before production access).
+- [ ] **[Owner]** Create a Google Play Console developer account (one-time USD 25 fee, identity verification; a new personal account must run a **closed test with at least 12 testers opted in for 14 days in a row** before it can apply for production access).
 - [ ] **[Owner]** Create the upload key once, on your own computer: from `mobile/maytha_market` run
       `powershell -ExecutionPolicy Bypass -File tool/create-upload-key.ps1`. You type the password; the key is saved
       outside the repository in `%USERPROFILE%/.maytha/maytha-upload.jks`, and the gitignored `android/key.properties`
       is written for you. It prints the SHA-256 fingerprint. **Back up the .jks file and the password.**
       Without the key a release build now stops with an error instead of producing a debug-signed bundle.
+- [ ] Windows prerequisite: Android SDK **Command-line Tools (latest)** must be installed (Android Studio → Settings → Languages & Frameworks → Android SDK → SDK Tools). Without them Flutter cannot run its final check of the bundle and reports "failed to strip debug symbols" even though Gradle stripped them; `flutter doctor` then shows "cmdline-tools component is missing". Afterwards run `flutter doctor --android-licenses`.
 - [ ] Build: `flutter build appbundle --release` → `build/app/outputs/bundle/release/app-release.aab`.
       Check the signer: `keytool -printcert -jarfile app-release.aab` must NOT say `CN=Android Debug`.
 - [ ] **[Owner]** Create the app in Play Console (name MAYTHA MARKET, default language Arabic, App, Free).
@@ -28,11 +29,20 @@ Build with a non-default API if needed:
 - [ ] Countries: choose where to publish.
 - [ ] Closed test → production review.
 
-- [ ] **Verified App Links** (product links open the app instead of the browser):
-      1. In Play Console → Test and release → App integrity → App signing, copy **both** SHA-256 fingerprints (app signing key and upload key).
-      2. In Vercel → Project → Settings → Environment Variables (Production), add `ANDROID_APP_CERT_SHA256` = the two fingerprints separated by a comma, then redeploy.
-      3. Check `https://maithaloun-sooq.vercel.app/.well-known/assetlinks.json` returns them (it is 404 until set). The app already declares `android:autoVerify="true"` for `/products/*`, `/ar/products/*`, `/en/products/*`.
-      4. On a phone with the Play build: `adb shell pm get-app-links market.maytha.app` should show `verified`.
+- [ ] **Verified App Links** (product links open the app instead of the browser). Two different certificates matter:
+      - the **upload key** (yours, `CN=MAYTHA MARKET, O=MAYTHA MARKET, L=Maythaloun, C=PS`) signs what you upload;
+      - the **app signing key** (Google's, created when Play App Signing is enabled) signs what users install.
+      Android verifies links against the certificate of the installed app, so the **app signing** fingerprint is required;
+      the upload fingerprint alone does not work for Play installs.
+      1. Upload the first AAB with Play App Signing enabled (the default).
+      2. Play Console → Test and release → App integrity → App signing: copy the **App signing key certificate** SHA-256,
+         and the **Upload key certificate** SHA-256 (it must equal the one printed by `keytool -printcert -jarfile app-release.aab`).
+      3. Vercel → Project → Settings → Environment Variables (Production): `ANDROID_APP_CERT_SHA256` =
+         `<app signing SHA-256>,<upload SHA-256>` (the upload one lets locally installed release builds verify too). Redeploy.
+         Do not set it before step 2: with the upload fingerprint only, Play installs will not verify.
+      4. Check `https://maithaloun-sooq.vercel.app/.well-known/assetlinks.json` lists both (404 until set). The app already
+         declares `android:autoVerify="true"` for `/products/*`, `/ar/products/*`, `/en/products/*`.
+      5. On a phone with the Play build: `adb shell pm get-app-links market.maytha.app` shows `verified`.
       `maytha://product/<slug>` always opens the app.
 
 ## 2. Apple App Store (iOS)
