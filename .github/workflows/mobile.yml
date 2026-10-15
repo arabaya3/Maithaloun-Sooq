@@ -76,7 +76,7 @@ jobs:
         id: integration
         timeout-minutes: 12
         continue-on-error: true
-        run: flutter test integration_test -d ${{ steps.sim.outputs.udid }}
+        run: flutter test integration_test/live_app_test.dart -d ${{ steps.sim.outputs.udid }}
       - name: Retry the integration test on a rebooted simulator
         if: steps.integration.outcome != 'success'
         timeout-minutes: 15
@@ -84,4 +84,4 @@ jobs:
           xcrun simctl shutdown "${{ steps.sim.outputs.udid }}" || true
           xcrun simctl boot "${{ steps.sim.outputs.udid }}"
           xcrun simctl bootstatus "${{ steps.sim.outputs.udid }}" -b
-          flutter test integration_test -d ${{ steps.sim.outputs.udid }}
+          flutter test integration_test/live_app_test.dart -d ${{ steps.sim.outputs.udid }}
