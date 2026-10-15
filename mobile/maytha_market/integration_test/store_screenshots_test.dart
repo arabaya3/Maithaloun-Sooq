@@ -20,10 +20,16 @@ import 'package:maytha_market/ui/screens/shell.dart';
 import 'package:maytha_market/ui/widgets/common.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-const syncDir = String.fromEnvironment('SHOT_SYNC_DIR', defaultValue: '/tmp/maytha-shots');
+const syncDir = String.fromEnvironment(
+  'SHOT_SYNC_DIR',
+  defaultValue: '/tmp/maytha-shots',
+);
 
-Future<void> pumpUntil(WidgetTester tester, Finder finder,
-    {Duration timeout = const Duration(seconds: 40)}) async {
+Future<void> pumpUntil(
+  WidgetTester tester,
+  Finder finder, {
+  Duration timeout = const Duration(seconds: 40),
+}) async {
   final end = DateTime.now().add(timeout);
   while (DateTime.now().isBefore(end)) {
     await tester.pump(const Duration(milliseconds: 200));
@@ -42,11 +48,15 @@ Future<void> idle(WidgetTester tester, [int seconds = 1]) async {
 /// decoded (a CachedNetworkImage still loading shows its sage placeholder box).
 Future<void> settleScreen(WidgetTester tester) async {
   ScaffoldMessenger.of(tester.element(find.byType(AppShell))).clearSnackBars();
-  final loading = find.descendant(of: find.byType(CachedNetworkImage), matching: find.byType(ColoredBox));
+  final loading = find.descendant(
+    of: find.byType(CachedNetworkImage),
+    matching: find.byType(ColoredBox),
+  );
   final end = DateTime.now().add(const Duration(seconds: 60));
   while (true) {
     await idle(tester);
-    final busy = loading.evaluate().isNotEmpty ||
+    final busy =
+        loading.evaluate().isNotEmpty ||
         find.byType(CircularProgressIndicator).evaluate().isNotEmpty ||
         find.byType(SnackBar).evaluate().isNotEmpty;
     if (!busy) break;
@@ -60,7 +70,8 @@ Future<void> shot(WidgetTester tester, String name) async {
   await settleScreen(tester);
   File('$syncDir/$name.req').writeAsStringSync(name);
   final done = File('$syncDir/$name.done');
-  final end = DateTime.now().add(const Duration(seconds: 30));
+  // The host may retry a stalled capture up to three times (40 s each).
+  final end = DateTime.now().add(const Duration(seconds: 150));
   while (!done.existsSync()) {
     if (DateTime.now().isAfter(end)) fail('Host did not capture $name');
     await tester.pump(const Duration(milliseconds: 200));
@@ -74,7 +85,9 @@ Future<void> addToCart(WidgetTester tester, String slug, String addText) async {
   await idle(tester);
   await tester.tap(find.textContaining(addText).last);
   await idle(tester);
-  Navigator.of(tester.element(find.textContaining(addText).last)).popUntil((r) => r.isFirst);
+  Navigator.of(
+    tester.element(find.textContaining(addText).last),
+  ).popUntil((r) => r.isFirst);
   await idle(tester);
 }
 
@@ -86,24 +99,36 @@ void main() {
     final prefs = await SharedPreferences.getInstance();
     await prefs.clear();
 
-    final res = await http.get(Uri.parse('${AppConfig.normalizedBaseUrl}/api/v1/catalog?locale=ar'));
+    final res = await http.get(
+      Uri.parse('${AppConfig.normalizedBaseUrl}/api/v1/catalog?locale=ar'),
+    );
     expect(res.statusCode, 200);
-    final products = ((jsonDecode(utf8.decode(res.bodyBytes)) as Map)['products'] as List)
-        .cast<Map>()
-        .where((p) => p['available'] == true && p['image'] != null)
-        .toList();
+    final products =
+        ((jsonDecode(utf8.decode(res.bodyBytes)) as Map)['products'] as List)
+            .cast<Map>()
+            .where((p) => p['available'] == true && p['image'] != null)
+            .toList();
     // Product page: one with several options. Cart: the priciest item of three different
     // categories, so the cart is full and usually above the free-delivery threshold.
-    final product = products.firstWhere((p) => (p['variants'] as List).length > 1, orElse: () => products.first);
+    final product = products.firstWhere(
+      (p) => (p['variants'] as List).length > 1,
+      orElse: () => products.first,
+    );
     final slug = product['slug'] as String;
     final byCat = <String, Map>{};
-    for (final p in [...products]..sort((a, b) => (b['priceAgorot'] as int).compareTo(a['priceAgorot'] as int))) {
+    for (final p
+        in [...products]..sort(
+          (a, b) =>
+              (b['priceAgorot'] as int).compareTo(a['priceAgorot'] as int),
+        )) {
       byCat.putIfAbsent(p['categoryCode'] as String, () => p);
     }
     final cartItems = byCat.values.take(3).toList();
     expect(cartItems, hasLength(3));
 
-    await tester.pumpWidget(MaythaApp(prefs: prefs, api: HttpStoreApi(), enableDeepLinks: false));
+    await tester.pumpWidget(
+      MaythaApp(prefs: prefs, api: HttpStoreApi(), enableDeepLinks: false),
+    );
     await pumpUntil(tester, find.byType(ProductCard));
     await shot(tester, '01-ar-home');
 
@@ -113,7 +138,9 @@ void main() {
     openProduct(tester.element(find.byType(AppShell)), slug);
     await pumpUntil(tester, find.textContaining('أضف إلى السلة'));
     await shot(tester, '03-ar-product');
-    Navigator.of(tester.element(find.textContaining('أضف إلى السلة').last)).pop();
+    Navigator.of(
+      tester.element(find.textContaining('أضف إلى السلة').last),
+    ).pop();
     await idle(tester);
 
     for (final p in cartItems) {
