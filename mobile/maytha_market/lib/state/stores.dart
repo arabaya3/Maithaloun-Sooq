@@ -3,6 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../data/api_client.dart';
 import '../data/models.dart';
+import 'dispose_safe.dart';
 
 /// App language; Arabic is the default.
 class LocaleStore extends ChangeNotifier {
@@ -43,7 +44,7 @@ class FavoritesStore extends ChangeNotifier {
 enum LoadState { loading, ready, error }
 
 /// Catalog for the current locale.
-class CatalogStore extends ChangeNotifier {
+class CatalogStore extends ChangeNotifier with DisposeSafeNotifier {
   CatalogStore(this.api);
   final StoreApi api;
 

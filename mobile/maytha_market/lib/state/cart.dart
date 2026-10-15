@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../data/api_client.dart';
 import '../data/models.dart';
+import 'dispose_safe.dart';
 
 /// One cart line: a product variant sold in a given selling unit.
 @immutable
@@ -155,7 +156,7 @@ class CartModel {
 enum QuoteStatus { idle, loading, ready, error }
 
 /// Cart state persisted to shared_preferences, with server-side totals from the quote endpoint.
-class CartStore extends ChangeNotifier {
+class CartStore extends ChangeNotifier with DisposeSafeNotifier {
   CartStore(this._api, this._prefs) : _model = CartModel.decode(_prefs.getString(_key));
 
   static const _key = 'cart.v1';
