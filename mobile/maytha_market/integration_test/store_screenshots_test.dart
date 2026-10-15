@@ -60,7 +60,8 @@ Future<void> shot(WidgetTester tester, String name) async {
   await settleScreen(tester);
   File('$syncDir/$name.req').writeAsStringSync(name);
   final done = File('$syncDir/$name.done');
-  final end = DateTime.now().add(const Duration(seconds: 30));
+  // The host may retry a stalled capture up to three times (40 s each).
+  final end = DateTime.now().add(const Duration(seconds: 150));
   while (!done.existsSync()) {
     if (DateTime.now().isAfter(end)) fail('Host did not capture $name');
     await tester.pump(const Duration(milliseconds: 200));

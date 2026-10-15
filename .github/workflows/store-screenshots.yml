@@ -27,7 +27,7 @@ defaults:
 jobs:
   ios-6-9-inch:
     runs-on: macos-15
-    timeout-minutes: 45
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
       - uses: subosito/flutter-action@v2
@@ -49,8 +49,12 @@ jobs:
           xcrun simctl bootstatus "$udid" -b
           xcrun simctl status_bar "$udid" override --time 9:41 --dataNetwork wifi --wifiMode active --wifiBars 3 --cellularMode active --cellularBars 4 --batteryState charged --batteryLevel 100
           echo "udid=$udid" >> "$GITHUB_OUTPUT"
+      # A run normally takes a few minutes. The simulator sometimes never connects to the freshly
+      # installed app, so a hung run is cut off and retried once on a rebooted simulator.
       - name: Capture screenshots against the live API
-        timeout-minutes: 25
+        id: capture
+        timeout-minutes: 15
+        continue-on-error: true
         env:
           SCREENSHOT_DIR: build/store-screenshots/iphone-6.9
           SIM_UDID: ${{ steps.sim.outputs.udid }}
@@ -58,6 +62,22 @@ jobs:
         run: |
           flutter drive --driver=test_driver/screenshot_driver.dart \
             --target=integration_test/store_screenshots_test.dart --dart-define=SHOT_SYNC_DIR=/tmp/maytha-shots -d ${{ steps.sim.outputs.udid }}
+      - name: Retry the capture on a rebooted simulator
+        if: steps.capture.outcome != 'success'
+        timeout-minutes: 20
+        env:
+          SCREENSHOT_DIR: build/store-screenshots/iphone-6.9
+          SIM_UDID: ${{ steps.sim.outputs.udid }}
+          SHOT_SYNC_DIR: /tmp/maytha-shots
+        run: |
+          udid="${{ steps.sim.outputs.udid }}"
+          rm -rf "$SCREENSHOT_DIR"
+          xcrun simctl shutdown "$udid" || true
+          xcrun simctl boot "$udid"
+          xcrun simctl bootstatus "$udid" -b
+          xcrun simctl status_bar "$udid" override --time 9:41 --dataNetwork wifi --wifiMode active --wifiBars 3 --cellularMode active --cellularBars 4 --batteryState charged --batteryLevel 100
+          flutter drive --driver=test_driver/screenshot_driver.dart \
+            --target=integration_test/store_screenshots_test.dart --dart-define=SHOT_SYNC_DIR=/tmp/maytha-shots -d "$udid"
       - name: Check App Store 6.9" pixel size
         run: |
           ls build/store-screenshots/iphone-6.9

@@ -9,6 +9,37 @@ import 'dart:io';
 
 import 'package:integration_test/integration_test_driver.dart';
 
+/// `simctl io screenshot` occasionally stalls on a busy CI runner. Each attempt is cut off after
+/// 40 seconds and retried, up to three times, so the app always gets an answer.
+Future<int> capture(String udid, String path, String name) async {
+  var code = -1;
+  for (var attempt = 1; attempt <= 3; attempt++) {
+    final process = await Process.start('xcrun', [
+      'simctl',
+      'io',
+      udid,
+      'screenshot',
+      '--type=png',
+      path,
+    ]);
+    final stderrText = process.stderr
+        .transform(const SystemEncoding().decoder)
+        .join();
+    code = await process.exitCode.timeout(
+      const Duration(seconds: 40),
+      onTimeout: () {
+        process.kill(ProcessSignal.sigkill);
+        return -1;
+      },
+    );
+    stdout.writeln(
+      'screenshot $name (attempt $attempt): exit $code ${await stderrText.timeout(const Duration(seconds: 2), onTimeout: () => '')}',
+    );
+    if (code == 0) break;
+  }
+  return code;
+}
+
 Future<void> main() async {
   final env = Platform.environment;
   final udid = env['SIM_UDID'] ?? 'booted';
@@ -24,10 +55,9 @@ Future<void> main() async {
     try {
       for (final f in sync.listSync().whereType<File>().where((f) => f.path.endsWith('.req'))) {
         final name = f.uri.pathSegments.last.replaceAll('.req', '');
-        final r = await Process.run('xcrun', ['simctl', 'io', udid, 'screenshot', '--type=png', '${out.path}/$name.png']);
-        stdout.writeln('screenshot $name: exit ${r.exitCode} ${r.stderr}');
         f.deleteSync();
-        File('${sync.path}/$name.done').writeAsStringSync('${r.exitCode}');
+        final code = await capture(udid, '${out.path}/$name.png', name);
+        File('${sync.path}/$name.done').writeAsStringSync('$code');
       }
     } finally {
       busy = false;
