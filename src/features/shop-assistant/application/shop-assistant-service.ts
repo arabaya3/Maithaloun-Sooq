@@ -97,6 +97,11 @@ export class ShopAssistantService {
     private readonly orders: OrderService,
     private readonly aiTurn: AiTurn,
     private readonly storeUrl: string,
+    private readonly options: {
+      // Real (non-simulator) conversations may place orders only when the owner allows it.
+      // Off by default, so a first live test can never create a real order.
+      realOrdersEnabled?: () => boolean;
+    } = {},
   ) {}
 
   async handleInbound(
@@ -151,6 +156,16 @@ export class ShopAssistantService {
       conversation.awaitingConfirmationVersion === conversation.cartVersion &&
       isAffirmation(inbound.text)
     ) {
+      if (
+        !conversation.isTest &&
+        !(this.options.realOrdersEnabled?.() ?? false)
+      ) {
+        // Ordering through the assistant is not open yet: a person confirms the order instead.
+        await this.handOver(conversation, locale);
+        const text = replies.ordersNotOpen(locale);
+        await send(text);
+        return { handled: "human", replies: [text] };
+      }
       const text = await this.placeOrder(conversation, locale);
       await send(text);
       return { handled: "order", replies: [text] };

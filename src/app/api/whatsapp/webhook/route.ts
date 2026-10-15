@@ -7,7 +7,7 @@ import {
 } from "@/features/shop-assistant/application/shop-assistant-instance";
 import {
   assistantAnswers,
-  parseAllowlist,
+  assistantAudience,
 } from "@/features/shop-assistant/domain/rollout";
 import {
   parseCloudWebhook,
@@ -73,7 +73,10 @@ export async function POST(request: Request) {
   }
 
   const sender = liveSender();
-  const allowlist = parseAllowlist(process.env.SHOP_ASSISTANT_ALLOWLIST);
+  const audience = assistantAudience({
+    SHOP_ASSISTANT_ALLOWLIST: process.env.SHOP_ASSISTANT_ALLOWLIST,
+    SHOP_ASSISTANT_OPEN_TO_ALL: process.env.SHOP_ASSISTANT_OPEN_TO_ALL,
+  });
   if (!liveAssistantEnabled() || !sender) {
     return NextResponse.json({ ok: true, handled: 0 });
   }
@@ -86,7 +89,7 @@ export async function POST(request: Request) {
       text: "(the customer sent a photo, voice note or file; only text can be read)",
       receivedAt: new Date(),
     })),
-  ].filter((message) => assistantAnswers(message.fromE164, allowlist));
+  ].filter((message) => assistantAnswers(message.fromE164, audience));
   after(async () => {
     for (const message of inbound) {
       try {

@@ -1,8 +1,15 @@
 # WhatsApp assistant — activation runbook
 
-The assistant (PR #85) is deployed but **off**. The webhook refuses every request until the
-provider settings below exist, and it answers nobody until `SHOP_ASSISTANT=on`. This runbook turns
-it on in stages, so the first real messages are the owner's own.
+The assistant (PR #85) is deployed but **off**. Every switch below fails closed:
+
+- the webhook refuses every request until the provider settings exist;
+- the assistant answers nobody until `SHOP_ASSISTANT=on` **and** the number is on
+  `SHOP_ASSISTANT_ALLOWLIST`, or `SHOP_ASSISTANT_OPEN_TO_ALL=true` is set (full rollout);
+- a missing, blank or malformed allowlist answers **nobody**, never everyone;
+- real WhatsApp conversations **never place orders** until `SHOP_ASSISTANT_ORDERS=on`. Until
+  then, a customer's "yes" to an order summary hands the chat to the store team, who confirm the
+  order in the WhatsApp Business app as today. Only the Admin simulator places orders, and those
+  are test orders (hidden from lists and reports, no notifications, no stock movement).
 
 Official number: **+972599105456**. Website: https://maithaloun-sooq.vercel.app
 
@@ -46,9 +53,11 @@ them in the repository, a chat or a ticket.
 | `WHATSAPP_API_TOKEN`            | the 360dialog API key                                                             |
 | `WHATSAPP_API_AUTH`             | `d360`                                                                            |
 | `WHATSAPP_WEBHOOK_KEY`          | a new random secret, at least 32 characters (e.g. a password manager's generator) |
-| `SHOP_ASSISTANT_ALLOWLIST`      | the owner's own test number only, e.g. `+9705XXXXXXXX` (not the shop number)      |
 | `SHOP_ASSISTANT_DAILY_AI_TURNS` | `100` to start (whole-shop daily cap on AI calls)                                 |
-| `SHOP_ASSISTANT`                | leave **unset** for now                                                           |
+| `SHOP_ASSISTANT`                | leave **unset** until step 4                                                      |
+| `SHOP_ASSISTANT_ALLOWLIST`      | leave **unset** until step 4                                                      |
+| `SHOP_ASSISTANT_OPEN_TO_ALL`    | leave **unset** until step 5                                                      |
+| `SHOP_ASSISTANT_ORDERS`         | leave **unset** (see step 6)                                                      |
 
 `OPENAI_API_KEY` already exists for the admin assistant; `SHOP_ASSISTANT_MODEL` is optional.
 
@@ -72,33 +81,48 @@ Content-Type: application/json
 
 Checks:
 
-- A request without the header is refused: `curl -i -X POST -H 'content-type: application/json' --data '{}' https://maithaloun-sooq.vercel.app/api/whatsapp/webhook` → **401**.
-- With `SHOP_ASSISTANT` unset, real messages reach the webhook and are acknowledged but nobody is
-  answered by the bot (`{"ok":true,"handled":0}`); customers are answered in the app as today.
+- A request without the header is refused:
+  `curl -i -X POST -H 'content-type: application/json' --data '{}' https://maithaloun-sooq.vercel.app/api/whatsapp/webhook` → **401**.
+- With `SHOP_ASSISTANT` unset, real messages reach the webhook and are acknowledged
+  (`{"ok":true,"handled":0}`) but the bot answers nobody; customers are answered in the app as today.
 
-## 4. Test with the owner's phone only
+## 4. Test with the owner's own phone (no orders)
 
-1. Set `SHOP_ASSISTANT=on` and redeploy. With the allowlist set, **only the listed test number**
-   gets bot replies; every other customer is still answered by people in the app.
+1. Set `SHOP_ASSISTANT=on` and `SHOP_ASSISTANT_ALLOWLIST` = the owner's own test number, e.g.
+   `+9705XXXXXXXX` (not the shop number), and redeploy. Leave `SHOP_ASSISTANT_ORDERS` unset.
+   Only that number gets bot replies; every other customer is still answered by people in the app.
 2. From the test phone, message +972599105456 and check, in Admin → مساعد واتساب:
+   - the message arrives and the bot replies;
    - a product question gets real catalog results and prices;
    - adding items and asking for the total gives the server's exact total and delivery fee;
-   - the order summary asks for confirmation, and **only "نعم" places the order**;
-   - sending "بدي احكي مع حدا" pauses the bot; the owner's reply from Admin arrives on the phone;
-   - "إعادة تشغيل المساعد" resumes it.
-3. The order created in step 2 is a **real** order from the owner's number: cancel it in Admin
-   after the test. (Use the Admin simulator for repeated tests; its orders are marked as tests.)
+   - "بدي احكي مع حدا" pauses the bot; the owner's reply from Admin arrives on the phone;
+   - "إعادة تشغيل المساعد لهذه المحادثة" resumes it.
+3. If the bot shows an order summary, a "yes" is **not** turned into an order: the chat is handed
+   to the store team. This is expected, and nothing is written to orders, stock or reports.
+4. Order placement itself is tested only in the **Admin simulator** (test orders) or on a staging
+   copy of the database, never with real orders in Production.
 
-## 5. Open to customers
+## 5. Open to customers (answers only, still no orders)
 
-Remove `SHOP_ASSISTANT_ALLOWLIST` (or empty it) and redeploy. Watch Admin → مساعد واتساب for the
-first day; raise `SHOP_ASSISTANT_DAILY_AI_TURNS` only if the cap is reached by real traffic.
+Set `SHOP_ASSISTANT_OPEN_TO_ALL=true` (exactly `true`) and redeploy. The assistant now answers
+every customer's questions and prepares carts; confirmed orders are still handed to the store team.
+Watch Admin → مساعد واتساب for the first day; raise `SHOP_ASSISTANT_DAILY_AI_TURNS` only if real
+traffic reaches the cap.
+
+## 6. Let the assistant place orders (separate owner decision)
+
+Only when the owner decides that confirmed carts should become orders automatically: set
+`SHOP_ASSISTANT_ORDERS=on` and redeploy. Orders are then created only after the customer's clear
+"yes" to the exact server-priced summary, once per cart version, and arrive in Admin like website
+orders. Do not use real orders to test this step; it is covered by the automated tests and the simulator.
 
 ## Turning it off
 
 - **Immediately, per customer:** Admin → مساعد واتساب → "إيقاف المساعد والرد بنفسي".
-- **For everyone:** unset `SHOP_ASSISTANT` (or set the allowlist back) and redeploy. The webhook
-  keeps acknowledging messages, and the app keeps working.
+- **Stop automatic orders:** unset `SHOP_ASSISTANT_ORDERS` and redeploy.
+- **Back to the test phone only:** unset `SHOP_ASSISTANT_OPEN_TO_ALL` and redeploy.
+- **For everyone:** unset `SHOP_ASSISTANT` and redeploy. The webhook keeps acknowledging
+  messages, and the app keeps working.
 - **Disconnect the API:** remove the webhook in 360dialog, then the `WHATSAPP_*` settings.
 - **Remove the data tables:** `docs/operations/rollback-0027-shop-assistant.sql` (tested on a
   staging copy; existing orders, products and stock are untouched). Only with owner approval.

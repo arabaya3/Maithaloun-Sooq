@@ -83,4 +83,5 @@ export const shopAssistantService = new ShopAssistantService(
   orderService,
   aiTurn,
   shopAssistantStoreUrl(),
+  { realOrdersEnabled: () => process.env.SHOP_ASSISTANT_ORDERS === "on" },
 );
