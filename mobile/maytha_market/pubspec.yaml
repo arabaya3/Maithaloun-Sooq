@@ -1,0 +1,53 @@
+name: maytha_market
+description: "MAYTHA MARKET — native shopping app for the Maythaloun store."
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.11.4
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+  intl: any
+  provider: ^6.1.2
+  http: ^1.2.2
+  cached_network_image: ^3.4.1
+  shared_preferences: ^2.3.2
+  url_launcher: ^6.3.1
+  flutter_svg: ^2.0.10
+  app_links: ^6.3.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  integration_test:
+    sdk: flutter
+  url_launcher_platform_interface: ^2.3.2
+  plugin_platform_interface: ^2.1.8
+  flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.14.1
+  flutter_native_splash: ^2.4.1
+
+flutter:
+  uses-material-design: true
+  generate: true
+  assets:
+    - assets/brand/
+
+flutter_launcher_icons:
+  android: "ic_launcher"
+  ios: true
+  image_path: "assets/brand/icon-512.png"
+  adaptive_icon_background: "#F7F5EF"
+  adaptive_icon_foreground: "assets/brand/maskable-512.png"
+  remove_alpha_ios: true
+
+flutter_native_splash:
+  color: "#F7F5EF"
+  image: "assets/brand/icon-512.png"
+  android_12:
+    color: "#F7F5EF"
+    image: "assets/brand/icon-512.png"

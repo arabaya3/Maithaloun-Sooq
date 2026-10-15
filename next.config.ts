@@ -27,6 +27,18 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  async rewrites() {
+    return [
+      {
+        source: "/.well-known/assetlinks.json",
+        destination: "/api/app-links/android",
+      },
+      {
+        source: "/.well-known/apple-app-site-association",
+        destination: "/api/app-links/apple",
+      },
+    ];
+  },
   async headers() {
     return [
       {

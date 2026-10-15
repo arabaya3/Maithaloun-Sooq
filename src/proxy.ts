@@ -91,6 +91,6 @@ export const config = {
   matcher: [
     "/admin/:path*",
     // Storefront pages only: no API, Next internals, service worker, manifests or files.
-    "/((?!api|_next|admin|sw\\.js|swe-worker|manifest\\.webmanifest|admin-manifest\\.webmanifest|robots\\.txt|sitemap\\.xml|opengraph-image|favicon\\.ico|.*\\.[a-zA-Z0-9]+$).*)",
+    "/((?!api|_next|admin|\\.well-known|sw\\.js|swe-worker|manifest\\.webmanifest|admin-manifest\\.webmanifest|robots\\.txt|sitemap\\.xml|opengraph-image|favicon\\.ico|.*\\.[a-zA-Z0-9]+$).*)",
   ],
 };
