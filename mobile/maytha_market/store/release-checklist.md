@@ -23,7 +23,7 @@ Build with a non-default API if needed:
       Check the signer: `keytool -printcert -jarfile app-release.aab` must NOT say `CN=Android Debug`.
 - [ ] **[Owner]** Create the app in Play Console (name MAYTHA MARKET, default language Arabic, App, Free).
 - [ ] **[Owner]** Enrol in Play App Signing (default) and upload the first AAB to Internal testing.
-- [ ] Store listing: text from `store/listing.md`, 512×512 icon (`assets/brand/icon-512.png`), 1024×500 feature graphic, phone screenshots.
+- [ ] Store listing: text from `store/listing.md` (title ≤ 30, short description ≤ 80, full description ≤ 4000 characters; lengths are listed there), 512×512 32-bit icon `store/play/icon-512.png`, 1024×500 feature graphic `store/play/feature-graphic-1024x500.png` (24-bit PNG, no alpha), phone screenshots `store/screenshots/*.png` (1080×2340). Re-render the graphics with `node mobile/maytha_market/store/source/render-store-graphics.mjs`.
 - [ ] App content: privacy policy URL, Data safety (see `store/privacy-and-permissions.md`), ads = No, content rating questionnaire, target audience (not children), news app = No.
 - [ ] Countries: choose where to publish.
 - [ ] Closed test → production review.
@@ -45,7 +45,7 @@ iOS is built and tested in CI on every app change (`.github/workflows/mobile.yml
 - [ ] Test deep link `maytha://product/<slug>` and WhatsApp ordering on the iPhone.
 - [ ] **Universal Links**: in the developer portal enable **Associated Domains** for the App ID `market.maytha.app` (the app already requests `applinks:maithaloun-sooq.vercel.app`). In Vercel add `APPLE_TEAM_ID` = your 10-character Team ID and redeploy; `https://maithaloun-sooq.vercel.app/.well-known/apple-app-site-association` then lists `<TEAM_ID>.market.maytha.app` for product pages.
 - [ ] `flutter build ipa --release` (or Xcode → Product → Archive) and upload with Xcode Organizer or Transporter.
-- [ ] **[Owner]** App Store Connect: create the app (name, primary language Arabic, bundle id, SKU), category Shopping, privacy policy URL, App Privacy = Data Not Collected, age rating, screenshots (6.7" and 6.5" iPhone at least), description from `store/listing.md`, support URL, review contact details.
+- [ ] **[Owner]** App Store Connect: create the app (name, primary language Arabic, bundle id, SKU), category Shopping, privacy policy URL, App Privacy = Data Not Collected, age rating, screenshots: iPhone 6.9" set `store/app-store/*.png` (1320×2868, from the `store-screenshots` workflow artifact; the app is iPhone only, so no iPad set), name ≤ 30, subtitle ≤ 30, promotional text ≤ 170, description ≤ 4000 and keywords ≤ 100 characters from `store/listing.md`, support/marketing URL https://maithaloun-sooq.vercel.app, review contact details.
 - [ ] TestFlight internal test, then submit for review. Explain in the review notes that ordering happens through WhatsApp and payment is cash on delivery (no in-app purchases of digital goods).
 
 ## 3. After release
