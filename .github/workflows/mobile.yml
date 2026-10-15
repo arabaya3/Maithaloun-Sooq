@@ -42,6 +42,8 @@ jobs:
       - run: flutter test
       - run: flutter build apk --debug
       - run: flutter build appbundle --release
+        env:
+          ALLOW_DEBUG_SIGNED_RELEASE: "1"
 
   ios:
     runs-on: macos-15

@@ -63,6 +63,18 @@ android {
     }
 }
 
+// A release build without the upload key would be debug-signed and rejected by Google Play, or worse,
+// uploaded by mistake. Stop it unless CI explicitly asks for a compile-only release build.
+gradle.taskGraph.whenReady {
+    val buildsRelease = allTasks.any { it.name == "bundleRelease" || it.name == "assembleRelease" }
+    if (buildsRelease && !hasReleaseKey && System.getenv("ALLOW_DEBUG_SIGNED_RELEASE") != "1") {
+        throw GradleException(
+            "android/key.properties is missing, so this release cannot be signed for Google Play. " +
+                "Create the upload key with tool/create-upload-key.ps1 (see store/release-checklist.md).",
+        )
+    }
+}
+
 flutter {
     source = "../.."
 }

@@ -14,16 +14,11 @@ Build with a non-default API if needed:
 
 ## 1. Google Play (Android)
 - [ ] **[Owner]** Create a Google Play Console developer account (one-time USD 25 fee, identity verification; a new personal account must run a closed test with testers for 14 days before production access).
-- [ ] **[Owner]** Create the upload key on a trusted machine and keep it backed up outside the repo:
-      `keytool -genkey -v -keystore %USERPROFILE%\maytha-upload.jks -keyalg RSA -keysize 2048 -validity 10000 -alias upload`
-- [ ] **[Owner]** Create `mobile/maytha_market/android/key.properties` (gitignored, never commit):
-      ```
-      storePassword=...
-      keyPassword=...
-      keyAlias=upload
-      storeFile=C:\\Users\\<you>\\maytha-upload.jks
-      ```
-      Without this file the release build is signed with the **debug key** and Play will reject it.
+- [ ] **[Owner]** Create the upload key once, on your own computer: from `mobile/maytha_market` run
+      `powershell -ExecutionPolicy Bypass -File tooleate-upload-key.ps1`. You type the password; the key is saved
+      outside the repository in `%USERPROFILE%.maythamaytha-upload.jks`, and the gitignored `android/key.properties`
+      is written for you. It prints the SHA-256 fingerprint. **Back up the .jks file and the password.**
+      Without the key a release build now stops with an error instead of producing a debug-signed bundle.
 - [ ] Build: `flutter build appbundle --release` → `build/app/outputs/bundle/release/app-release.aab`.
       Check the signer: `keytool -printcert -jarfile app-release.aab` must NOT say `CN=Android Debug`.
 - [ ] **[Owner]** Create the app in Play Console (name MAYTHA MARKET, default language Arabic, App, Free).
