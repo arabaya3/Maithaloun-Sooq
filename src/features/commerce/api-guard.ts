@@ -2,14 +2,11 @@ import "server-only";
 
 import { NextResponse } from "next/server";
 
-import { PostgresRateLimiter } from "@/features/admin/auth/postgres-rate-limiter";
-import {
-  getApprovedNetworkKey,
-  hashRateLimitIdentifier,
-} from "@/features/admin/auth/rate-limit-key";
 import { isLocale, type Locale } from "@/i18n/config";
 import { db } from "@/server/db/db";
 import { getServerEnv } from "@/server/env/env";
+
+import { hitPublicApiBudget } from "./public-api-limit";
 
 export const noStoreHeaders = { "Cache-Control": "no-store, max-age=0" };
 // Catalog reads change rarely and are the same for everyone, so the edge may keep them briefly.
@@ -32,27 +29,23 @@ export function apiError(code: string, status: number) {
   );
 }
 
-/** Per-client request budget for the public API; clients without a trusted address share one bucket. */
+/** Per-client request budget for the public API, inside a shared ceiling for all clients. */
 export async function allowPublicApiRequest(
   request: Request,
   scope: string,
   limit: number,
 ): Promise<boolean> {
   const env = getServerEnv();
-  const network = getApprovedNetworkKey(request.headers, env.trustProxy);
-  const client = network ?? "anonymous";
-  const verdict = await new PostgresRateLimiter(db).hit({
+  return hitPublicApiBudget(db, {
+    pepper: env.ORDER_RATE_LIMIT_PEPPER,
     scope,
-    keyHash: hashRateLimitIdentifier(
-      env.ORDER_RATE_LIMIT_PEPPER,
-      scope,
-      client,
-    ),
-    // Without a trusted client address everyone shares one bucket, so it gets a larger budget.
-    limit: network ? limit : limit * 20,
-    windowMs: 60_000,
+    limit,
+    headers: request.headers,
+    source: {
+      trustProxy: env.trustProxy,
+      onVercel: process.env.VERCEL === "1",
+    },
   });
-  return verdict.allowed;
 }
 
 export async function readJsonBody(
