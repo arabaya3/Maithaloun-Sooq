@@ -93,6 +93,7 @@ describe("shop assistant", () => {
         },
       ]),
       STORE,
+      { realOrdersEnabled: () => true },
     );
 
     const summary = await service.handleInbound(
@@ -155,6 +156,32 @@ describe("shop assistant", () => {
     expect((await service.handleInbound(late, sender)).handled).toBe("stale");
     expect(sender.sent).toHaveLength(1);
     expect(await orderCount()).toBe(0);
+  });
+
+  it("never places a real order while real ordering is switched off", async () => {
+    const sender = new SimulatorSender();
+    const service = new ShopAssistantService(
+      db,
+      new OrderService(db),
+      scripted([
+        async (context) => {
+          await context.saveCart([line("general-cleaner", 1)]);
+          await context.prepareOrder({ name: "سلمى", deliveryNote: null });
+          return "";
+        },
+      ]),
+      STORE,
+    );
+    await service.handleInbound(inbound("بدي منظف"), sender);
+    const yes = await service.handleInbound(inbound("نعم"), sender);
+    expect(yes.handled).toBe("human");
+    expect(yes.replies[0]).toContain("فريق المتجر");
+    expect(await orderCount()).toBe(0);
+    const [conversation] = await service.conversations();
+    expect(conversation).toMatchObject({ botPaused: true, isTest: false });
+    expect(conversation!.humanRequestedAt).not.toBeNull();
+    // The cart and its summary stay, so the owner sees exactly what the customer confirmed.
+    expect(conversation!.cart).toMatchObject([line("general-cleaner", 1)]);
   });
 
   it("needs a fresh yes after the cart changes", async () => {

@@ -69,6 +69,11 @@ export const replies = {
       : "One of the items in your order changed or is no longer available. Tell me what to adjust.";
   },
 
+  ordersNotOpen(locale: Locale): string {
+    return locale === "ar"
+      ? "تمام! حوّلت طلبك لفريق المتجر ليثبّتوه معك هنا بأقرب وقت. 🌿"
+      : "Great! I've passed your order to the store team, who will confirm it with you here shortly. 🌿";
+  },
   humanHandoff(locale: Locale): string {
     return locale === "ar"
       ? "تمام، حوّلت محادثتك لفريق المتجر وراح يرد عليك أحد قريباً هنا. 🌿"
