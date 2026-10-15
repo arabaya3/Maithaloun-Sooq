@@ -6,6 +6,10 @@ import {
   shopAssistantService,
 } from "@/features/shop-assistant/application/shop-assistant-instance";
 import {
+  assistantAnswers,
+  parseAllowlist,
+} from "@/features/shop-assistant/domain/rollout";
+import {
   parseCloudWebhook,
   sameSecret,
   validCloudSignature,
@@ -69,6 +73,7 @@ export async function POST(request: Request) {
   }
 
   const sender = liveSender();
+  const allowlist = parseAllowlist(process.env.SHOP_ASSISTANT_ALLOWLIST);
   if (!liveAssistantEnabled() || !sender) {
     return NextResponse.json({ ok: true, handled: 0 });
   }
@@ -81,7 +86,7 @@ export async function POST(request: Request) {
       text: "(the customer sent a photo, voice note or file; only text can be read)",
       receivedAt: new Date(),
     })),
-  ];
+  ].filter((message) => assistantAnswers(message.fromE164, allowlist));
   after(async () => {
     for (const message of inbound) {
       try {
