@@ -1,0 +1,77 @@
+# Captures App Store screenshots (iPhone 6.9", 1320x2868, full screen with a fixed status bar)
+# of the real app on an iOS simulator
+# against the live, read-only store API, and uploads them as an artifact. No signing, no upload
+# to any store, no orders: only catalog, product and cart-quote requests are made.
+name: store-screenshots
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "mobile/maytha_market/integration_test/store_screenshots_test.dart"
+      - "mobile/maytha_market/test_driver/**"
+      - "mobile/maytha_market/lib/**"
+      - ".github/workflows/store-screenshots.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: store-screenshots-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    working-directory: mobile/maytha_market
+
+jobs:
+  ios-6-9-inch:
+    runs-on: macos-15
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: 3.41.6
+          cache: true
+      - run: flutter pub get
+      - name: Boot an iPhone 16 Pro Max simulator (6.9")
+        id: sim
+        working-directory: .
+        run: |
+          udid=$(xcrun simctl list devices available -j | python3 -c 'import json,sys; d=json.load(sys.stdin)["devices"]; print(next((x["udid"] for k,v in sorted(d.items(), reverse=True) if "iOS" in k for x in v if x["name"]=="iPhone 16 Pro Max"), ""))')
+          if [ -z "$udid" ]; then
+            runtime=$(xcrun simctl list runtimes available -j | python3 -c 'import json,sys; print([r["identifier"] for r in json.load(sys.stdin)["runtimes"] if r["platform"]=="iOS"][-1])')
+            udid=$(xcrun simctl create "Store 6.9" com.apple.CoreSimulator.SimDeviceType.iPhone-16-Pro-Max "$runtime")
+          fi
+          xcrun simctl boot "$udid"
+          xcrun simctl bootstatus "$udid" -b
+          xcrun simctl status_bar "$udid" override --time 9:41 --dataNetwork wifi --wifiMode active --wifiBars 3 --cellularMode active --cellularBars 4 --batteryState charged --batteryLevel 100
+          echo "udid=$udid" >> "$GITHUB_OUTPUT"
+      - name: Capture screenshots against the live API
+        timeout-minutes: 25
+        env:
+          SCREENSHOT_DIR: build/store-screenshots/iphone-6.9
+          SIM_UDID: ${{ steps.sim.outputs.udid }}
+          SHOT_SYNC_DIR: /tmp/maytha-shots
+        run: |
+          flutter drive --driver=test_driver/screenshot_driver.dart \
+            --target=integration_test/store_screenshots_test.dart --dart-define=SHOT_SYNC_DIR=/tmp/maytha-shots -d ${{ steps.sim.outputs.udid }}
+      - name: Check App Store 6.9" pixel size
+        run: |
+          ls build/store-screenshots/iphone-6.9
+          for f in build/store-screenshots/iphone-6.9/*.png; do
+            w=$(sips -g pixelWidth "$f" | awk '/pixelWidth/{print $2}')
+            h=$(sips -g pixelHeight "$f" | awk '/pixelHeight/{print $2}')
+            echo "$f ${w}x${h}"
+            if ! { [ "$w" = 1320 ] && [ "$h" = 2868 ]; } && ! { [ "$w" = 1290 ] && [ "$h" = 2796 ]; }; then
+              echo "::error::$f is ${w}x${h}, not an App Store 6.9\" size"; exit 1
+            fi
+          done
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: app-store-screenshots-6.9
+          path: mobile/maytha_market/build/store-screenshots/iphone-6.9/
+          if-no-files-found: error
