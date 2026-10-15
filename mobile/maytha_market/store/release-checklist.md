@@ -6,7 +6,7 @@ Items marked **[Owner]** need the store owner's accounts, money, devices or keys
 - [ ] The store API endpoints (`/api/v1/catalog`, `/api/v1/products/<slug>`, `/api/v1/cart/quote`) are live in Production.
 - [ ] `flutter analyze` clean and `flutter test` green in `mobile/maytha_market`.
 - [ ] Manual smoke test on a real Android phone: browse, search in Arabic, product page, add to cart, totals, "Order via WhatsApp" opens WhatsApp with the right message, language switch, deep link `maytha://product/<slug>`.
-- [ ] Publish a privacy policy page on the website and note its URL. **[Owner]** approves the text.
+- [x] Privacy policy: https://maithaloun-sooq.vercel.app/privacy (English: /en/privacy), with an app section. **[Owner]** reviews the text.
 - [ ] Bump `version:` in `pubspec.yaml` for every upload (`1.0.0+1` → `1.0.1+2`...). The build number must always increase.
 
 Build with a non-default API if needed:

@@ -120,6 +120,20 @@ const ar = {
         ],
       },
       {
+        title: "تطبيق MAYTHA MARKET",
+        paragraphs: [
+          "التطبيق لا يحتاج حساباً ولا يطلب اسمك أو رقمك. يعرض المنتجات والأسعار من موقعنا، ويحفظ السلة والمفضلة واللغة على جهازك فقط.",
+          "عند الطلب يفتح التطبيق واتساب برسالة جاهزة فيها المنتجات والأسعار، وأنت من يرسلها. لا يجمع التطبيق موقعك أو جهات اتصالك أو صورك، ولا يستخدم إعلانات أو أدوات تتبّع.",
+        ],
+      },
+      {
+        title: "الرد الآلي على واتساب",
+        paragraphs: [
+          "قد يرد على رسائلك لرقم واتساب المتجر مساعد آلي يعرض المنتجات والأسعار ويجهّز الطلب، ولا يُسجَّل أي طلب إلا بعد تأكيدك الصريح.",
+          "عندها نحفظ نص المحادثة ورقمك واسمك إن ذكرته، لخدمة طلبك ومتابعته، وتمر الرسائل على مزود ذكاء اصطناعي في الولايات المتحدة لصياغة الرد. يمكنك في أي وقت أن تطلب التحدث مع شخص من المتجر.",
+        ],
+      },
+      {
         title: "خدمات نستخدمها",
         paragraphs: [
           "الموقع وبيانات الطلبات مستضافة لدى مزودي خدمات سحابية على خوادم في الاتحاد الأوروبي.",
@@ -285,6 +299,20 @@ const en: typeof ar = {
           "When you order, we keep your name, WhatsApp number, the products and prices, so we can fulfil your order, contact you and keep our sales records, for as long as the store needs them and the law requires.",
           "We never ask for card details.",
           "Your cart and wishlist are saved in your browser, and your language choice in a cookie.",
+        ],
+      },
+      {
+        title: "The MAYTHA MARKET app",
+        paragraphs: [
+          "The app needs no account and never asks for your name or number. It shows products and prices from our website, and keeps your cart, wishlist and language on your device only.",
+          "When you order, the app opens WhatsApp with a ready message listing the products and prices, and you send it yourself. The app does not collect your location, contacts or photos, and has no ads or tracking.",
+        ],
+      },
+      {
+        title: "Automatic replies on WhatsApp",
+        paragraphs: [
+          "Messages to the store's WhatsApp number may be answered by an automated assistant that shows products and prices and prepares your order; no order is placed until you clearly confirm it.",
+          "In that case we keep the conversation, your number and your name if you give it, to serve and follow up your order, and messages pass through an AI provider in the United States to write the replies. You can ask to talk to a person from the store at any time.",
         ],
       },
       {

@@ -30,8 +30,8 @@ Verify them again against the final build before submitting.
 - Tracking: No.
 - `ITSAppUsesNonExemptEncryption` = false is set in Info.plist (HTTPS only).
 
-A public **privacy policy URL** is still required by both stores. The owner must publish one
-(for example on the store website) that matches the points above.
+**Privacy policy URL** (both stores): https://maithaloun-sooq.vercel.app/privacy (Arabic) and
+https://maithaloun-sooq.vercel.app/en/privacy (English). It has a section on the app that matches the points above.
 
 ## Permissions
 - Android: `android.permission.INTERNET` only (main manifest). No location, camera, contacts, storage, or notifications.
