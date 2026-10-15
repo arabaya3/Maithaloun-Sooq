@@ -1,4 +1,5 @@
-# Captures App Store screenshots (iPhone 6.9", 1320x2868) of the real app on an iOS simulator
+# Captures App Store screenshots (iPhone 6.9", 1320x2868, full screen with a fixed status bar)
+# of the real app on an iOS simulator
 # against the live, read-only store API, and uploads them as an artifact. No signing, no upload
 # to any store, no orders: only catalog, product and cart-quote requests are made.
 name: store-screenshots
@@ -9,6 +10,7 @@ on:
     paths:
       - "mobile/maytha_market/integration_test/store_screenshots_test.dart"
       - "mobile/maytha_market/test_driver/**"
+      - "mobile/maytha_market/lib/**"
       - ".github/workflows/store-screenshots.yml"
 
 permissions:
@@ -45,15 +47,17 @@ jobs:
           fi
           xcrun simctl boot "$udid"
           xcrun simctl bootstatus "$udid" -b
-          xcrun simctl status_bar "$udid" override --time 9:41 --dataNetwork wifi --wifiBars 3 --cellularBars 4 --batteryState charged --batteryLevel 100 || true
+          xcrun simctl status_bar "$udid" override --time 9:41 --dataNetwork wifi --wifiMode active --wifiBars 3 --cellularMode active --cellularBars 4 --batteryState charged --batteryLevel 100
           echo "udid=$udid" >> "$GITHUB_OUTPUT"
       - name: Capture screenshots against the live API
         timeout-minutes: 25
         env:
           SCREENSHOT_DIR: build/store-screenshots/iphone-6.9
+          SIM_UDID: ${{ steps.sim.outputs.udid }}
+          SHOT_SYNC_DIR: /tmp/maytha-shots
         run: |
           flutter drive --driver=test_driver/screenshot_driver.dart \
-            --target=integration_test/store_screenshots_test.dart -d ${{ steps.sim.outputs.udid }}
+            --target=integration_test/store_screenshots_test.dart --dart-define=SHOT_SYNC_DIR=/tmp/maytha-shots -d ${{ steps.sim.outputs.udid }}
       - name: Check App Store 6.9" pixel size
         run: |
           ls build/store-screenshots/iphone-6.9
