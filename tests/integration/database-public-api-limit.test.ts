@@ -92,6 +92,25 @@ describe("public API rate limit", () => {
     expect(others.filter(Boolean)).toHaveLength(LIMIT);
   });
 
+  it("counts parallel requests from one client exactly", async () => {
+    const results = await Promise.all(
+      Array.from({ length: 12 }, () => hit("198.51.100.90", vercel)),
+    );
+    expect(results.filter(Boolean)).toHaveLength(LIMIT);
+  });
+
+  it("holds the shared ceiling under a parallel burst from many clients", async () => {
+    const results = await Promise.all(
+      Array.from(
+        { length: LIMIT * SHARED_BUDGET_MULTIPLIER + 15 },
+        (_, index) => hit(`192.0.2.${index % 250}`, vercel),
+      ),
+    );
+    expect(results.filter(Boolean)).toHaveLength(
+      LIMIT * SHARED_BUDGET_MULTIPLIER,
+    );
+  });
+
   it("keeps budgets separate per endpoint", async () => {
     await hits(LIMIT, () => hit("198.51.100.5", vercel, "api:quote"));
     expect(await hit("198.51.100.5", vercel, "api:catalog")).toBe(true);
