@@ -414,7 +414,7 @@ class _ProductBodyState extends State<_ProductBody> {
                   icon: Icon(_justAdded ? Icons.check_circle : Icons.add_shopping_cart, size: 20),
                   label: Text(
                     canBuy ? '${l.addToCart} · ${formatAgorot(price * _qty)}' : l.outOfStock,
-                  maxLines: 1,
+                    maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
