@@ -404,7 +404,7 @@ class QuantityStepper extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context);
-    const box = BoxConstraints(minWidth: 44, minHeight: 44);
+    const box = BoxConstraints(minWidth: 48, minHeight: 48);
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,

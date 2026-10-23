@@ -259,6 +259,66 @@ void main() {
       expect(categoryIconData('sparkles'), isNot(Icons.category_outlined));
     });
   });
+
+  testWidgets('product page: quantity respects the max already in the cart; no duplicate adds', (tester) async {
+    tester.view.physicalSize = const Size(360 * 3, 740 * 3);
+    tester.view.devicePixelRatio = 3;
+    addTearDown(tester.view.reset);
+    final l = await AppLocalizations.delegate.load(const Locale('ar'));
+    await tester.pumpWidget(MaythaApp(prefs: prefs, api: _LongApi(), enableDeepLinks: false));
+    await tester.pumpAndSettle();
+    final appCtx = tester.element(find.byType(AppShell));
+    final cart = appCtx.read<CartStore>()..add(_line.copyWith(quantity: 3)); // max is 5
+    openProduct(appCtx, 'fairy-lemon');
+    await tester.pumpAndSettle();
+    final inc = find.byTooltip(l.increase);
+    await tester.ensureVisible(inc);
+    for (var i = 0; i < 5; i++) {
+      await tester.tap(inc, warnIfMissed: false);
+      await tester.pump();
+    }
+    // Only 2 more fit (3 already in the cart).
+    expect(find.descendant(of: find.byType(QuantityStepper), matching: find.text('2')), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('add-to-cart')));
+    await tester.tap(find.byKey(const ValueKey('add-to-cart')), warnIfMissed: false);
+    await tester.pump();
+    expect(cart.lines.single.quantity, 5);
+    await tester.pump(const Duration(seconds: 2));
+    expect(find.text(l.maxInCart), findsOneWidget);
+    final btn = tester.widget<ButtonStyleButton>(find.byKey(const ValueKey('add-to-cart')));
+    expect(btn.onPressed, isNull);
+    // Removing from the cart re-enables adding.
+    cart.setQuantity(_line.key, 4);
+    await tester.pumpAndSettle();
+    expect(find.text(l.maxInCart), findsNothing);
+    await tester.pumpAndSettle(const Duration(seconds: 4));
+  });
+
+  test('a quote that returns after the cart changed is discarded (no stale totals)', () async {
+    final gate = Completer<Quote>();
+    final api = _SlowQuoteApi(gate.future);
+    final cart = CartStore(api, prefs)..add(_line);
+    final pending = cart.refreshQuote('ar');
+    cart.setQuantity(_line.key, 3);
+    gate.complete(sampleQuote); // totals for quantity 2, now stale
+    expect(await pending, isNull);
+    expect(cart.quote, isNull);
+    expect(cart.quoteStatus, QuoteStatus.idle);
+  });
+
+  test('an unexpected quote error ends in the error state, not an endless spinner', () async {
+    final cart = CartStore(_SlowQuoteApi(Future.error(const FormatException('bad json'))), prefs)..add(_line);
+    expect(await cart.refreshQuote('ar'), isNull);
+    expect(cart.quoteStatus, QuoteStatus.error);
+    expect(cart.quoteErrorCode, isNull);
+  });
+}
+
+class _SlowQuoteApi extends FakeStoreApi {
+  _SlowQuoteApi(this._result);
+  final Future<Quote> _result;
+  @override
+  Future<Quote> quote(List<QuoteItem> items, String locale) => _result;
 }
 
 class _NoImageCategoryApi extends FakeStoreApi {

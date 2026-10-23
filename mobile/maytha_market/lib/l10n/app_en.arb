@@ -104,5 +104,6 @@
   "settingsAbout": "About",
   "orderingTitle": "Ordering via WhatsApp",
   "openOnWebsite": "View the full page on the website",
-  "restoreProductMissing": "The product you were viewing is no longer available."
+  "restoreProductMissing": "The product you were viewing is no longer available.",
+  "maxInCart": "Maximum quantity is already in your cart"
 }

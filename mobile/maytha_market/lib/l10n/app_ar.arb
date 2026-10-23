@@ -80,5 +80,6 @@
   "settingsAbout": "حول التطبيق",
   "orderingTitle": "الطلب عبر واتساب",
   "openOnWebsite": "عرض الصفحة الكاملة على الموقع",
-  "restoreProductMissing": "المنتج الذي كنت تشاهده لم يعد متاحاً."
+  "restoreProductMissing": "المنتج الذي كنت تشاهده لم يعد متاحاً.",
+  "maxInCart": "الكمية القصوى موجودة في سلتك"
 }

@@ -75,7 +75,10 @@ class _CartScreenState extends State<CartScreen> {
       final quote = await cart.refreshQuote(locale.code);
       if (!mounted) return;
       if (quote == null) {
-        messenger.showSnackBar(SnackBar(content: Text(quoteErrorMessage(l, cart.quoteErrorCode))));
+        // A null quote with no error means the cart changed meanwhile: nothing is sent.
+        if (cart.quoteStatus == QuoteStatus.error) {
+          messenger.showSnackBar(SnackBar(content: Text(quoteErrorMessage(l, cart.quoteErrorCode))));
+        }
         return;
       }
       final message = buildWhatsAppOrderMessage(

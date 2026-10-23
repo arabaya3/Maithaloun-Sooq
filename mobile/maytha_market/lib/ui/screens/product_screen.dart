@@ -178,8 +178,25 @@ class _ProductBodyState extends State<_ProductBody> {
     _jumpToVariantImage(v);
   }
 
+  /// How many more of the selected variant + selling unit may be added,
+  /// given the unit's max quantity and what is already in the cart.
+  int _remainingFor(CartStore cart) {
+    final v = _variant;
+    final u = _unit;
+    if (v == null || u == null) return 0;
+    final key = '${widget.product.id}|${v.id}|${u.id}';
+    var inCart = 0;
+    for (final line in cart.lines) {
+      if (line.key == key) inCart += line.quantity;
+    }
+    final r = u.maxQuantity - inCart;
+    return r > 0 ? r : 0;
+  }
+
   void _addToCart() {
     if (_justAdded) return; // ignore double taps while the confirmation shows
+    final remaining = _remainingFor(context.read<CartStore>());
+    if (remaining <= 0) return;
     final l = AppLocalizations.of(context);
     final p = widget.product;
     final v = _variant!;
@@ -196,7 +213,7 @@ class _ProductBodyState extends State<_ProductBody> {
         unitsPerSale: u.unitsPerSale,
         unitPriceAgorot: u.priceAgorot,
         maxQuantity: u.maxQuantity,
-        quantity: _qty,
+        quantity: _qty > remaining ? remaining : _qty,
         imageSrc: (v.image ?? p.image)?.src,
       ),
     );
@@ -237,6 +254,10 @@ class _ProductBodyState extends State<_ProductBody> {
     final v = _variant;
     final u = _unit;
     final canBuy = p.available && v != null && v.available && u != null && u.maxQuantity > 0;
+    // Re-evaluated whenever the cart changes (e.g. lines removed elsewhere).
+    final remaining = canBuy ? context.select<CartStore, int>(_remainingFor) : 0;
+    final canAdd = canBuy && remaining > 0;
+    final qty = _qty > remaining && remaining > 0 ? remaining : _qty;
     final price = u?.priceAgorot ?? p.priceAgorot;
     final parts = p.description == null ? null : splitDescription(p.description!);
     final usage = [
@@ -385,7 +406,11 @@ class _ProductBodyState extends State<_ProductBody> {
                       Row(
                         children: [
                           Expanded(child: Text(l.quantity, style: t.titleSmall)),
-                          QuantityStepper(value: _qty, max: u.maxQuantity, onChanged: (q) => setState(() => _qty = q)),
+                          QuantityStepper(
+                            value: qty,
+                            max: remaining < 1 ? 1 : remaining,
+                            onChanged: (q) => setState(() => _qty = q),
+                          ),
                         ],
                       ),
                     ],
@@ -415,10 +440,14 @@ class _ProductBodyState extends State<_ProductBody> {
                 width: double.infinity,
                 child: FilledButton.icon(
                   key: const ValueKey('add-to-cart'),
-                  onPressed: canBuy ? _addToCart : null,
+                  onPressed: canAdd ? _addToCart : null,
                   icon: Icon(_justAdded ? Icons.check_circle : Icons.add_shopping_cart, size: 20),
                   label: Text(
-                    canBuy ? '${l.addToCart} · ${formatAgorot(price * _qty)}' : l.outOfStock,
+                    !canBuy
+                        ? l.outOfStock
+                        : canAdd
+                        ? '${l.addToCart} · ${formatAgorot(price * qty)}'
+                        : l.maxInCart,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
