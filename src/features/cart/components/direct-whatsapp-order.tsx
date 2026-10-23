@@ -1,7 +1,7 @@
 "use client";
 
 import { MessageCircle } from "lucide-react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 import type { CartLine } from "@/features/cart/cart-store";
 import {
@@ -28,8 +28,12 @@ export function DirectWhatsAppOrder({
   const { m, locale, href } = useI18n();
   const [state, setState] = useState<"idle" | "pricing" | "error">("idle");
   const [error, setError] = useState<string | null>(null);
+  const pricing = useRef(false);
 
   async function open() {
+    // A second tap before the button re-renders disabled must not price or open twice.
+    if (pricing.current) return;
+    pricing.current = true;
     setState("pricing");
     setError(null);
     try {
@@ -70,6 +74,8 @@ export function DirectWhatsAppOrder({
     } catch {
       setError(m.cart.whatsAppFailed);
       setState("error");
+    } finally {
+      pricing.current = false;
     }
   }
 
