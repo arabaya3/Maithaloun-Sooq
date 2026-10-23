@@ -42,34 +42,35 @@
 }
 
 :root {
-  --canvas: #f8f7f3;
+  --canvas: #f7f8f3;
   --surface: #ffffff;
-  --surface-warm: #f3f0ea;
-  --surface-sand: #eee9e1;
-  --text: #1c2722;
-  --text-muted: #5f6a64;
-  --action: #183d32;
-  --action-hover: #122d26;
-  --action-tint: #e7ede8;
-  --action-strong: #122d26;
-  --action-tint-strong: #d5dfd7;
-  --hero-tint: #eee9e1;
-  --divider: #ebe6dd;
-  --fresh: #2f6b4f;
-  --fresh-tint: #e7efe9;
+  --surface-warm: #eff3ea;
+  --surface-sand: #e5ebdd;
+  --text: #15241b;
+  --text-muted: #55635a;
+  --action: #0e5a2f;
+  --action-hover: #0a4524;
+  --action-tint: #e6efe4;
+  --action-strong: #0a4524;
+  --action-tint-strong: #cfe0cd;
+  --hero-tint: #e9f0e2;
+  --divider: #e5e9df;
+  --fresh: #3b7d2a;
+  --fresh-tint: #ebf4e4;
   --lavender: #4f5d73;
   --lavender-tint: #eef0f3;
   --accent-offer: #8a5a1f;
   --offer-tint: #f6eee2;
-  --border: #e2ddd3;
+  --border: #dce3d5;
   --danger: #b33a3a;
   --success: #2e7d3e;
   --warning: #9a5c0b;
   --error: #b33a3a;
   --error-tint: #fbeceb;
   --white: #ffffff;
-  --sage: #a6b7a6;
-  --font-display: "Playfair Display", "MAYTHA Naskh", Georgia, serif;
+  --sage: #a3c49a;
+  --font-display:
+    "Readex Pro", "Readex Pro Fallback", Tahoma, Arial, sans-serif;
 
   --green-950: var(--text);
   --green-900: var(--action);
@@ -102,8 +103,8 @@
   --space-5: 1.25rem;
   --space-6: 1.5rem;
   --space-8: 2rem;
-  --shadow-soft: 0 1px 2px rgb(18 45 38 / 6%);
-  --shadow-raised: 0 10px 28px rgb(18 45 38 / 8%);
+  --shadow-soft: 0 1px 2px rgb(14 60 32 / 6%);
+  --shadow-raised: 0 8px 24px rgb(14 60 32 / 8%);
   --elevation-1: var(--shadow-soft);
   --elevation-2: var(--shadow-raised);
   --focus-ring: 2px solid var(--action);
@@ -2373,9 +2374,9 @@ select:focus-visible {
 
 .brand-name {
   font-family: var(--font-display);
-  font-size: 1.65rem;
-  font-weight: 500;
-  letter-spacing: 0.06em;
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
 }
 
 .brand-subtitle {
@@ -3824,6 +3825,11 @@ html[data-launch="skip"] .launch-splash {
   text-align: center;
 }
 
+.launch-splash-logo.brand-logo-tile {
+  width: min(11rem, 48vw);
+  animation: launch-rise 420ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+
 .launch-splash-brand .brand-name {
   font-size: 2.6rem;
   animation: launch-rise 420ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
@@ -3865,6 +3871,7 @@ html[data-launch="skip"] .launch-splash {
 @media (prefers-reduced-motion: reduce) {
   .launch-splash-brand .brand-name,
   .launch-splash-brand .brand-subtitle,
+  .launch-splash-logo.brand-logo-tile,
   .launch-splash-rule {
     animation: launch-fade 200ms ease-out both;
   }

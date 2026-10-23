@@ -9,6 +9,7 @@ import {
   orderService,
   storeContactService,
 } from "@/features/orders/application/order-service-instance";
+import { BrandSymbol } from "@/features/storefront/components/brand-logo";
 import { WhatsAppHandoff } from "@/features/orders/components/whatsapp-handoff";
 import {
   whatsAppLinks,
@@ -62,6 +63,7 @@ export default async function OrderConfirmationPage({
   return (
     <main className="page-shell order-confirmation-page">
       <section aria-labelledby="confirmation-title">
+        <BrandSymbol className="confirmation-brand-symbol" />
         <CheckCircle2 aria-hidden="true" />
         <span className="eyebrow">{m.received}</span>
         <h1 id="confirmation-title">

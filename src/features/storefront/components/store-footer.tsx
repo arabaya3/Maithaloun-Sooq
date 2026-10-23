@@ -10,7 +10,7 @@ import { Link } from "@/i18n/link";
 
 import { infoPages } from "@/features/storefront/info-pages";
 
-import { BrandLockup } from "./brand-logo";
+import { BrandLogoTile, BrandWordmark } from "./brand-logo";
 
 export function StoreFooter({
   storeWhatsApp = null,
@@ -31,7 +31,10 @@ export function StoreFooter({
     <footer className="store-footer">
       <div className="store-footer-inner page-shell">
         <div className="store-footer-identity">
-          <BrandLockup className="store-footer-wordmark" />
+          <span className="brand-lockup store-footer-wordmark" dir="ltr">
+            <BrandLogoTile decorative className="store-footer-logo" />
+            <BrandWordmark />
+          </span>
           <p className="store-footer-note">{m.common.trustLine}</p>
         </div>
         <nav className="store-footer-links" aria-label={m.store.storeLinks}>

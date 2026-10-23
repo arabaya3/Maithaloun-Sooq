@@ -1,12 +1,12 @@
 /* MAYTHA storefront design layer. Loaded by the store layout only, so admin keeps its styles. */
 :root {
-  --forest: #183d32;
-  --forest-deep: #112c24;
-  --ivory: #f7f5ef;
-  --sage-soft: #dde8df;
-  --sage-line: #c9d8cd;
-  --hairline: rgb(24 61 50 / 12%);
-  --radius-card: 0.875rem;
+  --forest: #0e5a2f;
+  --forest-deep: #0a4524;
+  --ivory: #f8faf5;
+  --sage-soft: #e2ecdc;
+  --sage-line: #c8dbc2;
+  --hairline: rgb(14 90 47 / 12%);
+  --radius-card: 1rem;
   --radius-tile: 0.625rem;
 }
 
@@ -63,7 +63,7 @@ body:has(.storefront-font-scope) {
 .hero-photo {
   position: relative;
   grid-area: photo;
-  aspect-ratio: 16 / 11;
+  aspect-ratio: 2 / 1;
   overflow: hidden;
 }
 
@@ -801,7 +801,8 @@ body:has(.storefront-font-scope) {
 }
 
 .product-gallery-stage {
-  max-width: 100%;
+  /* Phones keep the price and add-to-cart in the first screen. */
+  max-width: min(100%, 44svh);
   border: 1px solid var(--hairline);
   border-radius: var(--radius-card);
   background: var(--white);
@@ -1353,26 +1354,30 @@ body:has(.store-footer) > main {
   }
 }
 
-/* Brand lockup: monogram beside the wordmark */
+/* Brand lockup: logo mark beside the wordmark */
 .brand-lockup {
   display: inline-flex;
   align-items: center;
   gap: 0.45rem;
 }
 
-.brand-monogram {
-  width: 2.35rem;
+/* The official logo mark keeps its 356:216 proportions; only the height is set. */
+.brand-symbol {
+  width: auto;
   height: 2.35rem;
   flex: none;
+}
+
+.brand-logo-tile {
+  display: block;
+  width: 4.5rem;
+  height: auto;
+  aspect-ratio: 1;
+  border-radius: 22%;
+}
+
+.brand .brand-name {
   color: var(--forest);
-}
-
-.brand-monogram-leaf {
-  fill: #6f9f80;
-}
-
-.brand-monogram-rib {
-  stroke: var(--ivory);
 }
 
 .brand .brand-wordmark {
@@ -1380,8 +1385,7 @@ body:has(.store-footer) > main {
 }
 
 @media (max-width: 22.4rem) {
-  .brand-monogram {
-    width: 1.9rem;
+  .brand-symbol {
     height: 1.9rem;
   }
 
@@ -1391,8 +1395,7 @@ body:has(.store-footer) > main {
 }
 
 @media (min-width: 48rem) {
-  .brand-monogram {
-    width: 2.75rem;
+  .brand-symbol {
     height: 2.75rem;
   }
 }
@@ -1407,18 +1410,13 @@ body:has(.store-footer) > main {
   gap: 0.4rem;
 }
 
-.store-footer-wordmark .brand-monogram {
-  width: 2.25rem;
-  height: 2.25rem;
-  color: var(--ivory);
+/* The logo keeps its own light tile on the dark footer, like an app icon. */
+.store-footer-wordmark {
+  gap: 0.75rem;
 }
 
-.store-footer-wordmark .brand-monogram-leaf {
-  fill: #a9c9b2;
-}
-
-.store-footer-wordmark .brand-monogram-rib {
-  stroke: var(--forest);
+.store-footer-logo.brand-logo-tile {
+  width: 3.5rem;
 }
 
 .store-footer-wordmark .brand-name {
@@ -1539,13 +1537,12 @@ body:has(.store-footer) > main {
 }
 
 @media (max-width: 22.4rem) {
-  .brand .brand-monogram {
-    width: 1.65rem;
-    height: 1.65rem;
+  .brand .brand-symbol {
+    height: 1.4rem;
   }
 
   .brand .brand-name {
-    font-size: 1.3rem;
+    font-size: 1.12rem;
   }
 
   /* The number stays visible; the label is still read out through the link's aria-label. */
@@ -1563,4 +1560,14 @@ body:has(.store-footer) > main {
     letter-spacing: 0.22em;
     padding-inline-start: 0.22em;
   }
+}
+
+/* The logo mark on empty and confirmation states. */
+.brand-symbol.empty-brand-symbol,
+.brand-symbol.confirmation-brand-symbol {
+  display: block;
+  width: auto;
+  height: 3.5rem;
+  margin-inline: auto;
+  margin-bottom: var(--space-2);
 }
