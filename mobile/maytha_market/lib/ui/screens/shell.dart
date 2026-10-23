@@ -71,6 +71,10 @@ class ShellController extends ChangeNotifier {
     catalogQuery = s.query;
     catalogCategory = s.category;
     catalogSort = s.sort;
+    // Keep the product in the persisted snapshot until restoration resolves,
+    // so a failed catalog load (or a tab change meanwhile) does not drop it.
+    productSlug = s.productSlug;
+    variantId = s.variantId;
   }
 
   void persist() {

@@ -29,6 +29,9 @@ class _ProductScreenState extends State<ProductScreen> {
   Product? _fetched;
   bool _loading = false;
   bool _failed = false;
+  /// True only when the server answered 404; network errors keep the generic
+  /// "could not load" message so a flaky connection never claims deletion.
+  bool _notFound = false;
   String? _fetchedLocale;
   late final ShellController _shell;
 
@@ -58,11 +61,12 @@ class _ProductScreenState extends State<ProductScreen> {
         _fetchedLocale = locale;
         _loading = false;
       });
-    } catch (_) {
+    } catch (e) {
       if (!mounted) return;
       setState(() {
         _loading = false;
         _failed = true;
+        _notFound = e is ApiException && e.statusCode == 404;
         _fetchedLocale = locale;
       });
     }
@@ -91,7 +95,7 @@ class _ProductScreenState extends State<ProductScreen> {
         onVariantChanged: (id) => _shell.productOpened(widget.slug, id),
       );
     } else if (_failed) {
-      body = ErrorView(message: l.productNotFound, onRetry: () => _fetch(locale));
+      body = ErrorView(message: _notFound ? l.productNotFound : l.loadError, onRetry: () => _fetch(locale));
     } else {
       body = const LoadingView();
     }

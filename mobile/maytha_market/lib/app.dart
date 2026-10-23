@@ -65,6 +65,8 @@ class _AppViewState extends State<_AppView> with WidgetsBindingObserver {
   final _messengerKey = GlobalKey<ScaffoldMessengerState>();
   StreamSubscription<Uri>? _linkSub;
   SessionSnapshot? _pendingRestore;
+  CatalogStore? _catalogStore;
+  LocaleStore? _localeStore;
 
   @override
   void initState() {
@@ -82,22 +84,30 @@ class _AppViewState extends State<_AppView> with WidgetsBindingObserver {
       _linkSub = AppLinks().uriLinkStream.listen(_openLink, onError: (_) {});
     }
     final localeStore = context.read<LocaleStore>();
-    final catalogStore = context.read<CatalogStore>();
-    void loadCatalog() => catalogStore.load(localeStore.code);
-    localeStore.addListener(loadCatalog);
+    final catalogStore = _catalogStore = context.read<CatalogStore>();
+    _localeStore = localeStore;
+    localeStore.addListener(_loadCatalog);
     if (_pendingRestore != null) catalogStore.addListener(_tryRestoreProduct);
-    WidgetsBinding.instance.addPostFrameCallback((_) => loadCatalog());
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadCatalog());
   }
 
+  void _loadCatalog() => _catalogStore?.load(_localeStore!.code);
+
   /// Re-opens the restored product once fresh catalog data confirms it still exists.
+  ///
+  /// Only a successfully loaded catalog that genuinely lacks the product means
+  /// "no longer available". A failed load (offline, timeout, server error)
+  /// keeps the snapshot and keeps listening: the normal error/retry state is
+  /// shown and the product opens as soon as a retry succeeds.
   void _tryRestoreProduct() {
+    if (!mounted) return;
     final snap = _pendingRestore;
-    final store = context.read<CatalogStore>();
-    if (snap == null || store.state == LoadState.loading) return;
+    final store = _catalogStore!;
+    if (snap == null || store.state != LoadState.ready || store.catalog == null) return;
     _pendingRestore = null;
     store.removeListener(_tryRestoreProduct);
     final shell = context.read<ShellController>();
-    final product = store.catalog?.bySlug(snap.productSlug!);
+    final product = store.catalog!.bySlug(snap.productSlug!);
     if (product != null) {
       _navKey.currentState?.push(
         MaterialPageRoute(
@@ -107,10 +117,10 @@ class _AppViewState extends State<_AppView> with WidgetsBindingObserver {
       );
       return;
     }
-    // Missing product (or offline): gently fall back to home.
+    // The catalog loaded successfully and genuinely lacks the product.
     shell.productClosed(snap.productSlug!);
     shell.go(0);
-    if (store.state == LoadState.ready) {
+    {
       final ctx = _navKey.currentContext;
       if (ctx != null) {
         _messengerKey.currentState?.showSnackBar(
@@ -141,6 +151,8 @@ class _AppViewState extends State<_AppView> with WidgetsBindingObserver {
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _localeStore?.removeListener(_loadCatalog);
+    _catalogStore?.removeListener(_tryRestoreProduct);
     _linkSub?.cancel();
     super.dispose();
   }

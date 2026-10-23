@@ -57,9 +57,11 @@ Map<String, dynamic> _catalogWithFinish({String locale = 'ar'}) {
 
 class _Api extends FakeStoreApi {
   int catalogCalls = 0;
+  bool offline = false;
   @override
   Future<Catalog> fetchCatalog(String locale) async {
     catalogCalls++;
+    if (offline) throw ApiException('offline');
     return Catalog.fromJson(_catalogWithFinish(locale: locale));
   }
 
@@ -69,6 +71,11 @@ class _Api extends FakeStoreApi {
     if (p == null) throw ApiException('not found', statusCode: 404);
     return p;
   }
+}
+
+class _NetworkFailProductApi extends _Api {
+  @override
+  Future<Product> fetchProduct(String slug, String locale) async => throw ApiException('timeout');
 }
 
 void main() {
@@ -265,6 +272,50 @@ void main() {
       expect(context(tester).read<ShellController>().index, 0);
       expect(find.text('المنتج الذي كنت تشاهده لم يعد متاحاً.'), findsOneWidget);
       expect(api.quoteCalls, 0);
+      final saved = SessionSnapshot.fromJson(jsonDecode(prefs.getString(SessionStore.key)!))!;
+      expect(saved.productSlug, isNull, reason: 'a genuinely missing product is dropped from the snapshot');
+    });
+
+    testWidgets('network failure during restore: no "deleted" message, snapshot kept, retry restores', (
+      tester,
+    ) async {
+      seed(const Duration(minutes: 2), slug: 'finish-quantum', variant: 'v72');
+      prefs = await SharedPreferences.getInstance();
+      final api = _Api()..offline = true;
+      await tester.pumpWidget(MaythaApp(prefs: prefs, api: api, enableDeepLinks: false));
+      await tester.pumpAndSettle();
+      expect(find.byType(ProductScreen), findsNothing);
+      expect(find.text('المنتج الذي كنت تشاهده لم يعد متاحاً.'), findsNothing);
+      expect(find.text('تعذّر تحميل المتجر. تحقق من الاتصال وحاول مرة أخرى.'), findsOneWidget);
+      // The snapshot (product + variant) survives the failure and any tab move.
+      context(tester).read<ShellController>().go(1);
+      await tester.pumpAndSettle();
+      var saved = SessionSnapshot.fromJson(jsonDecode(prefs.getString(SessionStore.key)!))!;
+      expect(saved.productSlug, 'finish-quantum');
+      expect(saved.variantId, 'v72');
+      context(tester).read<ShellController>().go(0);
+      await tester.pumpAndSettle();
+
+      api.offline = false;
+      await tester.tap(find.text('إعادة المحاولة'));
+      await tester.pumpAndSettle();
+      expect(find.byType(ProductScreen), findsOneWidget);
+      expect(tester.widget<Text>(find.byKey(const ValueKey('product-price'))).data, '48 ₪');
+      expect(find.text('المنتج الذي كنت تشاهده لم يعد متاحاً.'), findsNothing);
+      saved = SessionSnapshot.fromJson(jsonDecode(prefs.getString(SessionStore.key)!))!;
+      expect(saved.productSlug, 'finish-quantum');
+      expect(api.quoteCalls, 0);
+    });
+
+    testWidgets('product screen: network error is not reported as "not found"', (tester) async {
+      prefs = await SharedPreferences.getInstance();
+      final api = _NetworkFailProductApi();
+      await tester.pumpWidget(MaythaApp(prefs: prefs, api: api, enableDeepLinks: false));
+      await tester.pumpAndSettle();
+      openProduct(tester.element(find.byType(AppShell, skipOffstage: false)), 'not-in-catalog');
+      await tester.pumpAndSettle();
+      expect(find.text('المنتج غير موجود.'), findsNothing);
+      expect(find.text('تعذّر تحميل المتجر. تحقق من الاتصال وحاول مرة أخرى.'), findsOneWidget);
     });
 
     testWidgets('navigation is persisted as the user moves; cart/favorites keys are untouched', (tester) async {
