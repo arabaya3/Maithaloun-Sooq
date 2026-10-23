@@ -1538,11 +1538,11 @@ body:has(.store-footer) > main {
 
 @media (max-width: 22.4rem) {
   .brand .brand-symbol {
-    height: 1.65rem;
+    height: 1.4rem;
   }
 
   .brand .brand-name {
-    font-size: 1.3rem;
+    font-size: 1.12rem;
   }
 
   /* The number stays visible; the label is still read out through the link's aria-label. */
