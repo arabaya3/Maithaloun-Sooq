@@ -1,6 +1,6 @@
 import { getMessages } from "@/i18n/server";
 
-import { BrandWordmark } from "./brand-logo";
+import { BrandLogoTile, BrandWordmark } from "./brand-logo";
 import { LaunchSplashReady } from "./launch-splash-ready";
 
 export const LAUNCH_SESSION_KEY = "souq:launched";
@@ -18,7 +18,8 @@ export async function StoreLaunchSplash() {
           {m.store.opening}
         </p>
         <div className="launch-splash-brand" aria-hidden="true">
-          <BrandWordmark />
+          <BrandLogoTile decorative className="launch-splash-logo" />
+          <BrandWordmark className="sr-only" />
           <span className="launch-splash-rule" />
         </div>
       </div>

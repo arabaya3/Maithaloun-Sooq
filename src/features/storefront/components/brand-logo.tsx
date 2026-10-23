@@ -1,43 +1,54 @@
 "use client";
 
+import Image from "next/image";
+
 import { useI18n } from "@/i18n/i18n-provider";
 import { Link } from "@/i18n/link";
 
 export const STORE_NAME = "MAYTHA MARKET";
-// The lockup keeps the original short wordmark; "MARKET" sits on the small line under it so the
+// The lockup keeps the short wordmark; "MARKET" sits on the small line under it so the
 // header still fits beside the cart at 320px. Titles and metadata use the full STORE_NAME.
 export const BRAND_WORDMARK = "MAYTHA";
 export const STORE_SUBTITLE = "MARKET";
 
-/** The MAYTHA MARKET monogram: an M whose central valley grows a leaf. Same geometry as tools/brand. */
-export function BrandMonogram({ className = "" }: { className?: string }) {
+// Generated from the approved original logo by tools/brand/render-brand-assets.mjs.
+export const BRAND_SYMBOL_SRC = "/brand/logo/maytha-mark-v5.png";
+export const BRAND_LOGO_SRC = "/brand/logo/maytha-logo-512-v5.png";
+
+/** The roof-and-cart mark from the official logo, its light background keyed out, for light surfaces. */
+export function BrandSymbol({ className = "" }: { className?: string }) {
   return (
-    <svg
-      className={`brand-monogram ${className}`.trim()}
-      viewBox="0 0 64 64"
+    <Image
+      className={`brand-symbol ${className}`.trim()}
+      src={BRAND_SYMBOL_SRC}
+      width={356}
+      height={216}
+      alt=""
       aria-hidden="true"
-      focusable="false"
-    >
-      <path
-        d="M13.5 51V18.2c0-2 2.5-2.9 3.7-1.3L32 36.6l14.8-19.7c1.2-1.6 3.7-.7 3.7 1.3V51"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="7"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <path
-        className="brand-monogram-leaf"
-        d="M32 31.2c-6.4-3.7-7.6-11.4-.1-19.7 7.6 8.3 6.4 16 .1 19.7Z"
-      />
-      <path
-        className="brand-monogram-rib"
-        d="M32 29.2V15.4"
-        fill="none"
-        strokeWidth="1.1"
-        strokeLinecap="round"
-      />
-    </svg>
+      unoptimized
+      priority
+    />
+  );
+}
+
+/** The full official logo tile: the mark and the MAYTHA MARKET wordmark on the logo's own light square. */
+export function BrandLogoTile({
+  className = "",
+  decorative = false,
+}: {
+  className?: string;
+  decorative?: boolean;
+}) {
+  return (
+    <Image
+      className={`brand-logo-tile ${className}`.trim()}
+      src={BRAND_LOGO_SRC}
+      width={512}
+      height={512}
+      alt={decorative ? "" : STORE_NAME}
+      aria-hidden={decorative ? "true" : undefined}
+      unoptimized
+    />
   );
 }
 
@@ -50,11 +61,11 @@ export function BrandWordmark({ className = "" }: { className?: string }) {
   );
 }
 
-/** Monogram and wordmark side by side; the wordmark stays real text for search and screen readers. */
+/** Logo mark and wordmark side by side; the wordmark stays real text for search and screen readers. */
 export function BrandLockup({ className = "" }: { className?: string }) {
   return (
     <span className={`brand-lockup ${className}`.trim()} dir="ltr">
-      <BrandMonogram />
+      <BrandSymbol />
       <BrandWordmark />
     </span>
   );
