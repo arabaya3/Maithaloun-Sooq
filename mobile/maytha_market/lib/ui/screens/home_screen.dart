@@ -233,13 +233,7 @@ class _CategoryStrip extends StatelessWidget {
         separatorBuilder: (_, _) => const SizedBox(width: 6),
         itemBuilder: (context, i) {
           final c = catalog.categories[i];
-          ProductImage? img;
-          for (final p in catalog.products) {
-            if (p.categoryCode == c.code && p.image != null) {
-              img = p.image;
-              break;
-            }
-          }
+          final img = categoryCoverImage(catalog, c.code);
           return Semantics(
             button: true,
             label: c.name,
@@ -261,7 +255,11 @@ class _CategoryStrip extends StatelessWidget {
                           borderRadius: BorderRadius.circular(Radii.md),
                           border: Border.all(color: BrandColors.hairline),
                         ),
-                        child: NetImage(image: img, fit: BoxFit.contain),
+                        child: NetImage(
+                          image: img,
+                          fit: BoxFit.contain,
+                          fallback: CategoryIconFallback(icon: c.icon),
+                        ),
                       ),
                       const SizedBox(height: 6),
                       Text(

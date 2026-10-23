@@ -12,6 +12,7 @@ import 'package:maytha_market/ui/screens/cart_screen.dart';
 import 'package:maytha_market/ui/screens/product_screen.dart';
 import 'package:maytha_market/ui/screens/shell.dart';
 import 'package:maytha_market/ui/theme.dart';
+import 'package:maytha_market/ui/widgets/common.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -236,5 +237,35 @@ void main() {
         expect(tester.takeException(), isNull);
       });
     }
+  }
+
+  group('category tiles', () {
+    test('cover image prefers an in-stock product; null without images', () {
+      final c = Catalog.fromJson(catalogJson());
+      expect(categoryCoverImage(c, 'cleaning')?.src, '/products/fairy.webp');
+      // "tools" only has an out-of-stock product with an image: still used.
+      expect(categoryCoverImage(c, 'tools')?.src, contains('broom.webp'));
+      expect(categoryCoverImage(c, 'nothing-here'), isNull);
+    });
+
+    testWidgets('home shows a real image per category and a designed icon tile otherwise', (tester) async {
+      final api = _NoImageCategoryApi();
+      await tester.pumpWidget(MaythaApp(prefs: prefs, api: api, enableDeepLinks: false));
+      await tester.pumpAndSettle();
+      expect(find.text('منظفات'), findsOneWidget);
+      expect(find.text('فارغة'), findsOneWidget);
+      // One designed fallback (for the image-less category), never an empty box.
+      expect(find.byKey(const ValueKey('category-icon-fallback')), findsOneWidget);
+      expect(categoryIconData('sparkles'), isNot(Icons.category_outlined));
+    });
+  });
+}
+
+class _NoImageCategoryApi extends FakeStoreApi {
+  @override
+  Future<Catalog> fetchCatalog(String locale) async {
+    final j = catalogJson(locale: locale);
+    (j['categories'] as List).add({'code': 'empty', 'name': 'فارغة', 'icon': 'sparkles'});
+    return Catalog.fromJson(j);
   }
 }

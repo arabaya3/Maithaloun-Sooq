@@ -95,14 +95,17 @@ class BrandHeader extends StatelessWidget {
 
 /// Network image with relative-URL resolution and a quiet placeholder.
 class NetImage extends StatelessWidget {
-  const NetImage({super.key, required this.image, this.fit = BoxFit.cover});
+  const NetImage({super.key, required this.image, this.fit = BoxFit.cover, this.fallback});
   final ProductImage? image;
   final BoxFit fit;
+
+  /// Shown when there is no image or it fails to load (default: brand mark).
+  final Widget? fallback;
 
   @override
   Widget build(BuildContext context) {
     final img = image;
-    if (img == null) return const _ImagePlaceholder();
+    if (img == null) return fallback ?? const _ImagePlaceholder();
     return Semantics(
       image: true,
       label: img.alt.isEmpty ? null : img.alt,
@@ -111,7 +114,7 @@ class NetImage extends StatelessWidget {
         fit: fit,
         fadeInDuration: const Duration(milliseconds: 150),
         placeholder: (_, _) => const ColoredBox(color: BrandColors.sage),
-        errorWidget: (_, _, _) => const _ImagePlaceholder(),
+        errorWidget: (_, _, _) => fallback ?? const _ImagePlaceholder(),
       ),
     );
   }
@@ -441,4 +444,47 @@ class QuantityStepper extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Cover image for a category tile. The API has no category images, so the
+/// first in-stock product with an image represents the category (falling back
+/// to any product with an image). Null when the category has no images.
+ProductImage? categoryCoverImage(Catalog catalog, String categoryCode) {
+  ProductImage? any;
+  for (final p in catalog.products) {
+    if (p.categoryCode != categoryCode || p.image == null) continue;
+    if (p.available) return p.image;
+    any ??= p.image;
+  }
+  return any;
+}
+
+/// Maps the catalog's category icon names (lucide names shared with the
+/// website) to Material icons for the designed fallback tile.
+IconData categoryIconData(String? icon) => switch (icon) {
+  'sparkles' => Icons.auto_awesome_outlined,
+  'cooking-pot' => Icons.soup_kitchen_outlined,
+  'shirt' => Icons.local_laundry_service_outlined,
+  'bath' => Icons.bathtub_outlined,
+  'sofa' => Icons.weekend_outlined,
+  'wind' => Icons.air,
+  'brush-cleaning' || 'broom' => Icons.cleaning_services_outlined,
+  'scroll-text' => Icons.receipt_long_outlined,
+  'heart' => Icons.favorite_border,
+  'baby' => Icons.child_care_outlined,
+  'spray' => Icons.sanitizer_outlined,
+  _ => Icons.category_outlined,
+};
+
+/// Designed fallback for a category without a usable image: brand-tinted
+/// tile with the category's icon (never an empty placeholder).
+class CategoryIconFallback extends StatelessWidget {
+  const CategoryIconFallback({super.key, this.icon});
+  final String? icon;
+  @override
+  Widget build(BuildContext context) => DecoratedBox(
+    key: const ValueKey('category-icon-fallback'),
+    decoration: BoxDecoration(color: BrandColors.sage, borderRadius: BorderRadius.circular(Radii.sm)),
+    child: Center(child: Icon(categoryIconData(icon), color: BrandColors.forest, size: 28)),
+  );
 }
