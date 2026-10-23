@@ -72,5 +72,13 @@
   "imageOf": "صورة {i} من {n}",
   "close": "إغلاق",
   "productNotFound": "المنتج غير موجود.",
-  "offerLabel": "عرض"
+  "offerLabel": "عرض",
+  "settingsPreferences": "التفضيلات",
+  "settingsShopping": "معلومات التسوق",
+  "settingsSupport": "الدعم",
+  "settingsLegal": "السياسات",
+  "settingsAbout": "حول التطبيق",
+  "orderingTitle": "الطلب عبر واتساب",
+  "openOnWebsite": "عرض الصفحة الكاملة على الموقع",
+  "restoreProductMissing": "المنتج الذي كنت تشاهده لم يعد متاحاً."
 }
