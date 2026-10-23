@@ -131,6 +131,22 @@ describe("checkout form", () => {
     ).toBeInTheDocument();
   });
 
+  it("sends one order when the form is submitted twice in the same tick", async () => {
+    let resolve: (value: unknown) => void = () => {};
+    const fetchMock = vi.fn(() => new Promise((settle) => (resolve = settle)));
+    vi.stubGlobal("fetch", fetchMock);
+    await renderCheckout();
+    const form = screen
+      .getByRole("button", { name: "إرسال الطلب عبر الموقع" })
+      .closest("form")!;
+
+    form.requestSubmit();
+    form.requestSubmit();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    resolve({ json: async () => ({ ok: false, message: "x" }) });
+    expect(await screen.findByRole("alert")).toHaveTextContent("x");
+  });
+
   it("blocks submission while a line's way of buying needs review", async () => {
     const products = [multipackClothFixture({ blueFreePieces: 10 })];
     window.localStorage.setItem(

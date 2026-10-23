@@ -58,6 +58,8 @@ export function CheckoutForm({
     whatsapp: crypto.randomUUID(),
   }));
   const [submitting, setSubmitting] = useState(false);
+  // State updates land after the event; a ref stops a second submit fired in the same tick.
+  const inFlight = useRef(false);
   const [generalError, setGeneralError] = useState("");
   const [fieldErrors, setFieldErrors] = useState<
     Record<string, string[] | undefined>
@@ -105,7 +107,7 @@ export function CheckoutForm({
 
   async function submitOrder(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (submitting) return;
+    if (submitting || inFlight.current) return;
     setGeneralError("");
     setFieldErrors({});
 
@@ -138,6 +140,7 @@ export function CheckoutForm({
       })),
     };
 
+    inFlight.current = true;
     setSubmitting(true);
     try {
       const response = await fetch("/api/orders", {
@@ -177,6 +180,7 @@ export function CheckoutForm({
       setGeneralError(m.connectionFailed);
       focusErrorSummary();
     } finally {
+      inFlight.current = false;
       setSubmitting(false);
     }
   }

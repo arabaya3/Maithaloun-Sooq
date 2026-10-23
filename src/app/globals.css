@@ -4817,3 +4817,69 @@ html[data-launch="skip"] .launch-splash {
   outline: 2px solid var(--white);
   outline-offset: 2px;
 }
+
+/* Status pages (404, error): outside the store layout, so styled here. */
+.status-panel {
+  display: grid;
+  justify-items: center;
+  gap: var(--space-2);
+  border-color: rgb(14 90 47 / 12%);
+  border-radius: 1rem;
+  box-shadow: 0 10px 30px rgb(14 60 32 / 7%);
+}
+
+.status-panel h1 {
+  font-family: var(--font-display);
+  font-size: clamp(1.5rem, 6vw, 2rem);
+  font-weight: 600;
+}
+
+.status-panel p {
+  margin-bottom: var(--space-2);
+}
+
+.status-brand-symbol {
+  width: 6rem;
+  height: auto;
+}
+
+.status-code {
+  margin: 0 !important;
+  color: var(--action) !important;
+  font-family: var(--font-display);
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+}
+
+.status-panel .status-icon {
+  width: 2.75rem;
+  height: 2.75rem;
+  color: var(--warning);
+}
+
+.status-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-2);
+}
+
+.status-actions a,
+.status-actions button {
+  border-radius: 0.75rem;
+  font-family: inherit;
+  font-size: var(--text-sm);
+}
+
+.placeholder-panel .status-secondary {
+  color: var(--action);
+  border: 1px solid var(--action);
+  background: transparent;
+}
+
+.placeholder-panel a:focus-visible,
+.status-actions button:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: 3px;
+}
