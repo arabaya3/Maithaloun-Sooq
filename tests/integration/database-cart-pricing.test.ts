@@ -11,6 +11,7 @@ import { checkoutRequestSchema } from "@/features/orders/domain/checkout-request
 import {
   inventoryItems,
   orders,
+  productSellingUnits,
   productVariants,
   products,
   serviceAreas,
@@ -111,4 +112,48 @@ describe("shared cart pricing", () => {
     expect(order.finalTotalAgorot).toBe(quote.finalTotalAgorot);
     expect(order.deliveryFeeAgorot).toBe(quote.deliveryFeeAgorot);
   });
+
+  it.each([
+    [4999, 500],
+    [5000, 0],
+    [5001, 0],
+  ])(
+    "at the 50 ₪ boundary a %i agorot cart pays %i agorot delivery in the quote and the order",
+    async (priceAgorot, deliveryFeeAgorot) => {
+      const [variant] = await db
+        .update(productVariants)
+        .set({ priceAgorot })
+        .where(eq(productVariants.domainId, "general-cleaner--default"))
+        .returning({ id: productVariants.id });
+      await db
+        .update(productSellingUnits)
+        .set({ priceAgorot })
+        .where(eq(productSellingUnits.variantId, variant!.id));
+      try {
+        const cart = [item("general-cleaner", 1)];
+        const quote = await priceCart(db, cart);
+        expect(quote.itemsSubtotalAgorot).toBe(priceAgorot);
+        expect(quote.deliveryFeeAgorot).toBe(deliveryFeeAgorot);
+        expect(quote.finalTotalAgorot).toBe(priceAgorot + deliveryFeeAgorot);
+
+        const order = await new OrderService(db).create(
+          checkoutRequestSchema.parse({
+            idempotencyKey: crypto.randomUUID(),
+            customerName: "عميل تجريبي",
+            whatsappCountryCode: "970",
+            whatsappNationalNumber: "0591234567",
+            serviceAreaCode: "maythalun",
+            paymentMethod: "cash_on_delivery",
+            honeypot: "",
+            items: cart,
+          }),
+        );
+        expect(order.itemsSubtotalAgorot).toBe(priceAgorot);
+        expect(order.deliveryFeeAgorot).toBe(deliveryFeeAgorot);
+        expect(order.finalTotalAgorot).toBe(priceAgorot + deliveryFeeAgorot);
+      } finally {
+        await resetTestDatabase();
+      }
+    },
+  );
 });
