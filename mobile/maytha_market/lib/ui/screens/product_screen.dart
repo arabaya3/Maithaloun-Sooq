@@ -29,6 +29,7 @@ class _ProductScreenState extends State<ProductScreen> {
   Product? _fetched;
   bool _loading = false;
   bool _failed = false;
+
   /// True only when the server answered 404; network errors keep the generic
   /// "could not load" message so a flaky connection never claims deletion.
   bool _notFound = false;

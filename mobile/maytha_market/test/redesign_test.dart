@@ -134,11 +134,11 @@ void main() {
     });
   }
 
-  testWidgets('product details at large text (1.3 clamp, 360dp): title capped, sticky add-to-cart, variant price', (
+  testWidgets('product details at text scale 2.0 (360dp): title capped, sticky add-to-cart, variant price', (
     tester,
   ) async {
     await phone(tester);
-    tester.platformDispatcher.textScaleFactorTestValue = 2.0; // clamped by the app to kMaxTextScale
+    tester.platformDispatcher.textScaleFactorTestValue = 2.0; // within kMaxTextScale
     addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
     final api = _Api();
     await tester.pumpWidget(MaythaApp(prefs: prefs, api: api, enableDeepLinks: false));
@@ -158,6 +158,8 @@ void main() {
     expect(button.bottom, lessThanOrEqualTo(screen.height));
     expect(find.textContaining('32 ₪'), findsWidgets);
 
+    await tester.ensureVisible(find.byKey(const ValueKey('variant-v72')));
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(const ValueKey('variant-v72')));
     await tester.pumpAndSettle();
     expect(find.byKey(const ValueKey('product-price')), findsOneWidget);
@@ -276,9 +278,7 @@ void main() {
       expect(saved.productSlug, isNull, reason: 'a genuinely missing product is dropped from the snapshot');
     });
 
-    testWidgets('network failure during restore: no "deleted" message, snapshot kept, retry restores', (
-      tester,
-    ) async {
+    testWidgets('network failure during restore: no "deleted" message, snapshot kept, retry restores', (tester) async {
       seed(const Duration(minutes: 2), slug: 'finish-quantum', variant: 'v72');
       prefs = await SharedPreferences.getInstance();
       final api = _Api()..offline = true;

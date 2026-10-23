@@ -174,7 +174,7 @@ class _AppViewState extends State<_AppView> with WidgetsBindingObserver {
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,
       ],
-      // Respect the system font size up to kMaxTextScale (see theme.dart).
+      // Respect the system font size up to kMaxTextScale (2.0, see theme.dart).
       builder: (context, child) {
         final mq = MediaQuery.of(context);
         return MediaQuery(

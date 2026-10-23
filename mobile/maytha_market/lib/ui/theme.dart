@@ -30,11 +30,14 @@ class Radii {
   static const lg = 20.0;
 }
 
-/// Largest text scale the layouts are designed for. Text still grows with the
-/// system setting up to this value; beyond it, Arabic display text made grid
-/// cells and app bars unusable on 360dp phones (see device screenshots).
-/// Layouts themselves are flexible and tested at 1.5 without the clamp.
-const double kMaxTextScale = 1.3;
+/// Upper bound for the system text scale. Every customer screen is tested at
+/// 1.5 and 2.0 on a 360x640dp phone (test/hardening_test.dart): grids, the
+/// product page (sticky add-to-cart) and the cart (summary scrolls, order
+/// button pinned) hold without overflow. 2.0 matches the largest Android
+/// font size; the cap only guards against extreme OEM/accessibility values
+/// (e.g. 3.0+) where a 360dp product grid can no longer show a name and
+/// price in one cell. It must never go below 1.5.
+const double kMaxTextScale = 2.0;
 
 /// One typography scale. Line heights are explicit so layouts can compute
 /// text block heights (see ProductSliverGrid).
