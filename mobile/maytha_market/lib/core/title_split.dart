@@ -56,3 +56,18 @@ List<String> shortOptionLabels(List<String> labels) {
   if (common == 0) return labels;
   return [for (final s in split) s.skip(common).join(' ')];
 }
+
+/// Compact chip text for a variant label (the full label stays in the chip's
+/// semantics): in Arabic UI a trailing Latin "(Soft Pink)" is dropped when
+/// Arabic text remains, and a leading "برائحة"/"رائحة" ("scented") is dropped
+/// when more words follow, so "برائحة سوفت بينك (Soft Pink)" shows "سوفت بينك".
+String compactOptionLabel(String label, {required bool arabicUi}) {
+  var s = label.trim();
+  if (arabicUi) {
+    final m = RegExp(r'^(.*[؀-ۿ].*?)\s*\([^()؀-ۿ]*\)$').firstMatch(s);
+    if (m != null) s = m.group(1)!.trim();
+  }
+  final words = s.split(RegExp(r'\s+'));
+  if (words.length > 1 && (words.first == 'برائحة' || words.first == 'رائحة')) s = words.skip(1).join(' ');
+  return s;
+}

@@ -380,7 +380,7 @@ class _ProductBodyState extends State<_ProductBody> {
                           for (var i = 0; i < p.variants.length; i++)
                             _OptionChip(
                               key: ValueKey('variant-${p.variants[i].id}'),
-                              label: chipLabels[i],
+                              label: compactOptionLabel(chipLabels[i], arabicUi: l.localeName.startsWith('ar')),
                               semanticLabel: p.variants[i].available
                                   ? p.variants[i].label
                                   : '${p.variants[i].label}, ${l.unavailableOption}',
@@ -594,7 +594,11 @@ class _Hero extends StatelessWidget {
                 key: const ValueKey('product-back'),
                 constraints: const BoxConstraints.tightFor(width: 48, height: 48),
                 tooltip: MaterialLocalizations.of(context).backButtonTooltip,
-                icon: const Icon(Icons.chevron_left_rounded, size: 30, color: BrandColors.text),
+                // Fixed physical direction: the chevron always points left (no RTL mirroring).
+                icon: const Directionality(
+                  textDirection: TextDirection.ltr,
+                  child: Icon(Icons.chevron_left_rounded, size: 30, color: BrandColors.text),
+                ),
                 onPressed: () => Navigator.of(context).maybePop(),
               ),
             ),

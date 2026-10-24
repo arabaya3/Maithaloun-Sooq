@@ -101,6 +101,13 @@ void main() {
       final t = splitProductTitle('Fairy Lemon - 500 ml');
       expect((t.title, t.subtitle), ('Fairy Lemon', '500 ml'));
     });
+    test('compact chip label', () {
+      expect(compactOptionLabel('برائحة سوفت بينك (Soft Pink)', arabicUi: true), 'سوفت بينك');
+      expect(compactOptionLabel('برائحة سوفت بينك (Soft Pink)', arabicUi: false), 'سوفت بينك (Soft Pink)');
+      expect(compactOptionLabel('الأزرق (Finish Cleaner – Odour)', arabicUi: true), 'الأزرق');
+      expect(compactOptionLabel('45 قرص', arabicUi: true), '45 قرص');
+      expect(compactOptionLabel('(Soft Pink)', arabicUi: true), '(Soft Pink)');
+    });
     test('option labels drop shared leading words only', () {
       expect(shortOptionLabels(['لويال برائحة أ', 'لويال برائحة ب']), ['أ', 'ب']);
       expect(shortOptionLabels(['لويال أ', 'لويال']), ['لويال أ', 'لويال']);
@@ -164,7 +171,7 @@ void main() {
     expect(find.text('منعّم ومعطّر الملابس لويال'), findsOneWidget);
     expect(find.text('بعدة روائح – 750 مل'), findsOneWidget);
     // Chip labels drop the shared brand word.
-    expect(find.text('سوفت بينك (Soft Pink)'), findsOneWidget);
+    expect(find.text('سوفت بينك'), findsOneWidget);
     expect(find.bySemanticsLabel('لويال برائحة سوفت بينك (Soft Pink)'), findsOneWidget);
     expect(priceText(tester), '10 ₪');
     expect(find.textContaining('أضف إلى السلة · 10 ₪'), findsOneWidget);
