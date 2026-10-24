@@ -7,6 +7,7 @@ import {
   assistantMode,
   canUseAssistant,
 } from "@/features/assistant/domain/assistant-policy";
+import { socialEnabled } from "@/features/social/application/social-instance";
 import { assignableCategories } from "@/features/catalog/infrastructure/category-repository";
 
 export default async function AdminConsoleLayout({
@@ -25,6 +26,7 @@ export default async function AdminConsoleLayout({
         actor,
         assistantMode(process.env.ADMIN_ASSISTANT),
       )}
+      features={socialEnabled() ? ["social"] : []}
     >
       <AdminCategoriesProvider categories={categories}>
         {children}

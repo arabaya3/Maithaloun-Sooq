@@ -150,6 +150,8 @@ test("phone: every area sheet lists its pages, closes with Escape and returns fo
     الكتالوج: ["المنتجات", "الأقسام", "العروض"],
     المزيد: [
       "التقارير",
+      // The e2e server runs with SOCIAL_MANAGER=on.
+      "فيسبوك",
       "الإشعارات",
       "تسجيل عملية بالصوت",
       "إعدادات المتجر",
