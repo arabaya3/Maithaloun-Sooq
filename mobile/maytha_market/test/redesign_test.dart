@@ -150,9 +150,10 @@ void main() {
     expect(tester.takeException(), isNull);
 
     final title = tester.widget<Text>(find.byKey(const ValueKey('product-title')));
-    expect(title.maxLines, 3);
-    // The title is shown once (not duplicated in the app bar).
-    expect(find.text(_longName), findsOneWidget);
+    expect(title.maxLines, 2);
+    // The name is shown once, split into a bold title and a grey subtitle.
+    expect(title.data, 'أقراص غسالة الصحون فينيش');
+    expect(find.text('كوانتوم باوربول برائحة الليمون – 45 او 72 قرص'), findsOneWidget);
     final screen = tester.view.physicalSize / tester.view.devicePixelRatio;
     final button = tester.getRect(find.byKey(const ValueKey('add-to-cart')));
     expect(button.bottom, lessThanOrEqualTo(screen.height));

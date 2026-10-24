@@ -81,5 +81,12 @@
   "orderingTitle": "الطلب عبر واتساب",
   "openOnWebsite": "عرض الصفحة الكاملة على الموقع",
   "restoreProductMissing": "المنتج الذي كنت تشاهده لم يعد متاحاً.",
-  "maxInCart": "الكمية القصوى موجودة في سلتك"
+  "maxInCart": "الكمية القصوى موجودة في سلتك",
+  "chooseOption": "اختر {name}",
+  "chooseOptionFallback": "اختر النوع",
+  "optionScent": "الرائحة",
+  "optionSize": "الحجم",
+  "optionColor": "اللون",
+  "optionType": "النوع",
+  "unavailableOption": "غير متوفر"
 }

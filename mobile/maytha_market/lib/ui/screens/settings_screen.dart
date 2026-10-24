@@ -11,7 +11,7 @@ import '../theme.dart';
 import '../widgets/common.dart';
 
 /// Fallback when the platform version is unavailable (tests); keep in sync with pubspec.
-const appVersion = '1.0.1';
+const appVersion = '1.0.2';
 
 /// Store website pages for the full policies (verified to exist: /privacy, /terms,
 /// /returns for Arabic and /en/... for English).

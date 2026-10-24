@@ -140,6 +140,12 @@ class _AppViewState extends State<_AppView> with WidgetsBindingObserver {
   void _openLink(Uri uri) {
     final slug = slugFromDeepLink(uri);
     if (slug == null) return;
+    // An explicit link wins over cold-start restoration: without this the
+    // restored product would be pushed on top of the linked one.
+    if (_pendingRestore != null) {
+      _pendingRestore = null;
+      _catalogStore?.removeListener(_tryRestoreProduct);
+    }
     _navKey.currentState?.push(
       MaterialPageRoute(
         settings: RouteSettings(name: '/product/$slug'),
