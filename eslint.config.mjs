@@ -10,5 +10,7 @@ export default defineConfig([
     "coverage/**",
     "playwright-report/**",
     "public/sw.js",
+    // The Flutter app has its own tooling; Prettier skips it too.
+    "mobile/**",
   ]),
 ]);

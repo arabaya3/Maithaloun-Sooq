@@ -734,8 +734,12 @@ test("selection, quantity and picture survive the cart and checkout at 360, 390,
   ] as const) {
     await page.setViewportSize({ width, height });
     await page.goto(`/products/${LOYAL.slug}`);
+    // The cart restores and then re-saves itself after hydration; clearing before that settles
+    // lets the previous width's line be written back.
+    await page.waitForLoadState("networkidle");
     await page.evaluate(() => window.localStorage.clear());
     await page.reload();
+    await expect(page.locator(".cart-button")).toContainText("عدد المنتجات 0");
     const gallery = page.getByRole("region", { name: `صور ${LOYAL.name}` });
     await gallery
       .getByRole("button", { name: /— اللون: أزرق$/ })

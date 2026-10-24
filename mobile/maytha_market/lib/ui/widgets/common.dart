@@ -1,6 +1,5 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/config.dart';
@@ -10,45 +9,112 @@ import '../../l10n/gen/app_localizations.dart';
 import '../../state/stores.dart';
 import '../theme.dart';
 
-String monogramSvg({bool onDark = false}) => '''
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-<path d="M13.5 51V18.2c0-2 2.5-2.9 3.7-1.3L32 36.6l14.8-19.7c1.2-1.6 3.7-.7 3.7 1.3V51" fill="none" stroke="${onDark ? '#F7F5EF' : '#183D32'}" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
-<path d="M32 31.2c-6.4-3.7-7.6-11.4-.1-19.7 7.6 8.3 6.4 16 .1 19.7Z" fill="${onDark ? '#A9C9B2' : '#6F9F80'}"/>
-<path d="M32 29.2V15.4" stroke="#F7F5EF" stroke-width="1.1" fill="none"/>
-</svg>
-''';
-
-class Monogram extends StatelessWidget {
-  const Monogram({super.key, this.size = 40, this.onDark = false});
-  final double size;
-  final bool onDark;
+/// The logo symbol (roof + cart + leaves), cropped from the official logo file.
+class BrandMark extends StatelessWidget {
+  const BrandMark({super.key, this.height = 28});
+  final double height;
   @override
-  Widget build(BuildContext context) => SvgPicture.string(
-        monogramSvg(onDark: onDark),
-        width: size,
-        height: size,
-        semanticsLabel: 'MAYTHA MARKET',
-      );
+  Widget build(BuildContext context) => Image.asset(
+    'assets/brand/logo-mark.png',
+    height: height,
+    fit: BoxFit.contain,
+    filterQuality: FilterQuality.medium,
+    excludeFromSemantics: true,
+  );
+}
+
+/// Full official logo (symbol + wordmark) as supplied.
+class BrandLogo extends StatelessWidget {
+  const BrandLogo({super.key, this.size = 72});
+  final double size;
+  @override
+  Widget build(BuildContext context) => ClipRRect(
+    borderRadius: BorderRadius.circular(size * 0.18),
+    child: Image.asset(
+      'assets/brand/logo-original.png',
+      width: size,
+      height: size,
+      semanticLabel: 'MAYTHA MARKET',
+      filterQuality: FilterQuality.medium,
+    ),
+  );
+}
+
+/// Compact app-bar brand: symbol + two-line wordmark. Does not dominate the bar.
+class BrandHeader extends StatelessWidget {
+  const BrandHeader({super.key});
+  @override
+  Widget build(BuildContext context) {
+    final t = Theme.of(context).textTheme;
+    return Semantics(
+      header: true,
+      label: 'MAYTHA MARKET',
+      child: ExcludeSemantics(
+        child: MediaQuery.withNoTextScaling(
+          // The wordmark is a logo, not body text: fixed size keeps the bar compact.
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const BrandMark(height: 30),
+              const SizedBox(width: 8),
+              Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'MAYTHA',
+                    textDirection: TextDirection.ltr,
+                    style: t.titleMedium?.copyWith(
+                      fontSize: 16,
+                      height: 1.0,
+                      letterSpacing: 1.6,
+                      fontWeight: FontWeight.w800,
+                      color: BrandColors.forest,
+                    ),
+                  ),
+                  Text(
+                    'MARKET',
+                    textDirection: TextDirection.ltr,
+                    style: t.labelSmall?.copyWith(
+                      fontSize: 9.5,
+                      height: 1.2,
+                      letterSpacing: 3.2,
+                      fontWeight: FontWeight.w700,
+                      color: BrandColors.leaf,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 /// Network image with relative-URL resolution and a quiet placeholder.
 class NetImage extends StatelessWidget {
-  const NetImage({super.key, required this.image, this.fit = BoxFit.cover});
+  const NetImage({super.key, required this.image, this.fit = BoxFit.cover, this.fallback});
   final ProductImage? image;
   final BoxFit fit;
+
+  /// Shown when there is no image or it fails to load (default: brand mark).
+  final Widget? fallback;
 
   @override
   Widget build(BuildContext context) {
     final img = image;
-    if (img == null) return const _ImagePlaceholder();
+    if (img == null) return fallback ?? const _ImagePlaceholder();
     return Semantics(
       image: true,
       label: img.alt.isEmpty ? null : img.alt,
       child: CachedNetworkImage(
         imageUrl: AppConfig.resolveUrl(img.src),
         fit: fit,
+        fadeInDuration: const Duration(milliseconds: 150),
         placeholder: (_, _) => const ColoredBox(color: BrandColors.sage),
-        errorWidget: (_, _, _) => const _ImagePlaceholder(),
+        errorWidget: (_, _, _) => fallback ?? const _ImagePlaceholder(),
       ),
     );
   }
@@ -58,9 +124,9 @@ class _ImagePlaceholder extends StatelessWidget {
   const _ImagePlaceholder();
   @override
   Widget build(BuildContext context) => const ColoredBox(
-        color: BrandColors.sage,
-        child: Center(child: Monogram(size: 36)),
-      );
+    color: BrandColors.sage,
+    child: Center(child: Opacity(opacity: 0.5, child: BrandMark(height: 28))),
+  );
 }
 
 class LoadingView extends StatelessWidget {
@@ -77,15 +143,18 @@ class ErrorView extends StatelessWidget {
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context);
     return Center(
-      child: Padding(
+      child: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          const Icon(Icons.wifi_off_rounded, size: 48, color: BrandColors.muted),
-          const SizedBox(height: 12),
-          Text(message, textAlign: TextAlign.center),
-          const SizedBox(height: 16),
-          OutlinedButton.icon(onPressed: onRetry, icon: const Icon(Icons.refresh), label: Text(l.retry)),
-        ]),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.wifi_off_rounded, size: 44, color: BrandColors.muted),
+            const SizedBox(height: 12),
+            Text(message, textAlign: TextAlign.center),
+            const SizedBox(height: 16),
+            OutlinedButton.icon(onPressed: onRetry, icon: const Icon(Icons.refresh), label: Text(l.retry)),
+          ],
+        ),
       ),
     );
   }
@@ -98,33 +167,68 @@ class EmptyView extends StatelessWidget {
   final Widget? action;
   @override
   Widget build(BuildContext context) => Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
-            Icon(icon, size: 48, color: BrandColors.leaf),
-            const SizedBox(height: 12),
-            Text(message, textAlign: TextAlign.center),
-            if (action != null) ...[const SizedBox(height: 16), action!],
-          ]),
-        ),
-      );
+    child: SingleChildScrollView(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 44, color: BrandColors.leaf),
+          const SizedBox(height: 12),
+          Text(message, textAlign: TextAlign.center),
+          if (action != null) ...[const SizedBox(height: 16), action!],
+        ],
+      ),
+    ),
+  );
 }
 
 class FavoriteButton extends StatelessWidget {
-  const FavoriteButton({super.key, required this.productId});
+  const FavoriteButton({super.key, required this.productId, this.compact = false});
   final String productId;
+  final bool compact;
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context);
     final fav = context.watch<FavoritesStore>().contains(productId);
+    final icon = Icon(
+      fav ? Icons.favorite : Icons.favorite_border,
+      size: compact ? 20 : 24,
+      color: fav ? BrandColors.forest : BrandColors.muted,
+    );
     return IconButton(
-      constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+      constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
       tooltip: fav ? l.removeFavorite : l.addFavorite,
-      icon: Icon(fav ? Icons.favorite : Icons.favorite_border,
-          color: fav ? BrandColors.forest : BrandColors.muted),
+      icon: compact
+          ? DecoratedBox(
+              decoration: const BoxDecoration(color: Color(0xE6FFFFFF), shape: BoxShape.circle),
+              child: Padding(padding: const EdgeInsets.all(6), child: icon),
+            )
+          : icon,
       onPressed: () => context.read<FavoritesStore>().toggle(productId),
     );
   }
+}
+
+/// Text metrics shared by [ProductCard] and [ProductSliverGrid] so the grid can
+/// give each cell exactly the height its text needs at the current text scale.
+class ProductCardMetrics {
+  static const padH = 10.0;
+  static const padTop = 8.0;
+  static const padBottom = 10.0;
+  static const brandSize = 11.5, brandHeight = 1.3;
+  static const titleSize = 13.5, titleHeight = 1.35;
+  static const priceSize = 15.0, priceHeight = 1.3;
+  static const gapTitle = 2.0, gapPrice = 4.0;
+
+  /// Height of the text block below the image.
+  static double textBlockHeight(TextScaler s) =>
+      padTop +
+      s.scale(brandSize) * brandHeight +
+      gapTitle +
+      2 * s.scale(titleSize) * titleHeight +
+      gapPrice +
+      s.scale(priceSize) * priceHeight +
+      padBottom;
 }
 
 class ProductCard extends StatelessWidget {
@@ -137,86 +241,159 @@ class ProductCard extends StatelessWidget {
     final l = AppLocalizations.of(context);
     final t = Theme.of(context).textTheme;
     final price = formatAgorot(product.priceAgorot);
+    StrutStyle strut(double size, double h) => StrutStyle(fontSize: size, height: h, forceStrutHeight: true);
+    final brand = product.brand?.trim() ?? '';
     return Semantics(
       button: true,
       label: '${product.name}, $price${product.available ? '' : ', ${l.outOfStock}'}',
-      excludeSemantics: false,
       child: Card(
         clipBehavior: Clip.antiAlias,
         child: InkWell(
           onTap: onTap,
-          child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-            AspectRatio(
-              aspectRatio: 1,
-              child: Stack(fit: StackFit.expand, children: [
-                ExcludeSemantics(child: NetImage(image: product.image)),
-                PositionedDirectional(top: 0, end: 0, child: FavoriteButton(productId: product.id)),
-                if (!product.available)
-                  PositionedDirectional(
-                    bottom: 8,
-                    start: 8,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                          color: BrandColors.deepGreen, borderRadius: BorderRadius.circular(8)),
-                      child: Text(l.outOfStock,
-                          style: t.labelSmall?.copyWith(color: Colors.white)),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // The image takes whatever height the text block leaves, so the
+              // text (and price) can never be pushed out of the cell.
+              Expanded(
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    ColoredBox(
+                      color: Colors.white,
+                      child: Padding(
+                        padding: const EdgeInsets.all(8),
+                        child: ExcludeSemantics(
+                          child: NetImage(image: product.image, fit: BoxFit.contain),
+                        ),
+                      ),
                     ),
-                  ),
-              ]),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                if (product.brand != null && product.brand!.isNotEmpty)
-                  Text(product.brand!,
+                    PositionedDirectional(top: 2, end: 2, child: FavoriteButton(productId: product.id, compact: true)),
+                    if (!product.available)
+                      PositionedDirectional(
+                        bottom: 6,
+                        start: 6,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: BrandColors.deepGreen,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(l.outOfStock, style: t.labelSmall?.copyWith(color: Colors.white)),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              const Divider(),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  ProductCardMetrics.padH,
+                  ProductCardMetrics.padTop,
+                  ProductCardMetrics.padH,
+                  ProductCardMetrics.padBottom,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      brand.isEmpty ? ' ' : brand,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: t.labelSmall?.copyWith(color: BrandColors.muted)),
-                Text(product.name,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: t.bodyMedium?.copyWith(fontWeight: FontWeight.w600, height: 1.25)),
-                const SizedBox(height: 4),
-                Text(price,
-                    textDirection: TextDirection.ltr,
-                    style: t.titleSmall?.copyWith(color: BrandColors.forest, fontWeight: FontWeight.w700)),
-              ]),
-            ),
-          ]),
+                      strutStyle: strut(ProductCardMetrics.brandSize, ProductCardMetrics.brandHeight),
+                      style: t.labelSmall?.copyWith(
+                        fontSize: ProductCardMetrics.brandSize,
+                        height: ProductCardMetrics.brandHeight,
+                        color: BrandColors.muted,
+                      ),
+                    ),
+                    const SizedBox(height: ProductCardMetrics.gapTitle),
+                    SizedBox(
+                      height:
+                          2 *
+                          MediaQuery.textScalerOf(context).scale(ProductCardMetrics.titleSize) *
+                          ProductCardMetrics.titleHeight,
+                      child: Text(
+                        product.name,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        strutStyle: strut(ProductCardMetrics.titleSize, ProductCardMetrics.titleHeight),
+                        style: t.bodyMedium?.copyWith(
+                          fontSize: ProductCardMetrics.titleSize,
+                          height: ProductCardMetrics.titleHeight,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: ProductCardMetrics.gapPrice),
+                    Text(
+                      price,
+                      key: const ValueKey('product-card-price'),
+                      maxLines: 1,
+                      textDirection: TextDirection.ltr,
+                      strutStyle: strut(ProductCardMetrics.priceSize, ProductCardMetrics.priceHeight),
+                      style: t.titleSmall?.copyWith(
+                        fontSize: ProductCardMetrics.priceSize,
+                        height: ProductCardMetrics.priceHeight,
+                        color: BrandColors.forest,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 }
 
-/// Responsive product grid as a sliver.
+/// Responsive product grid. Cell height = image area + the measured text block
+/// at the current text scale (replaces the old fixed childAspectRatio: 0.62,
+/// which clipped prices whenever the system font was enlarged).
 class ProductSliverGrid extends StatelessWidget {
   const ProductSliverGrid({super.key, required this.products, required this.onOpen});
   final List<Product> products;
   final void Function(Product) onOpen;
 
+  static const _spacing = 12.0;
+  static const _maxCellWidth = 220.0;
+
   @override
   Widget build(BuildContext context) {
+    final scaler = MediaQuery.textScalerOf(context);
     return SliverPadding(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-      sliver: SliverGrid(
-        gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-          maxCrossAxisExtent: 220,
-          mainAxisSpacing: 12,
-          crossAxisSpacing: 12,
-          childAspectRatio: 0.62,
-        ),
-        delegate: SliverChildBuilderDelegate(
-          (context, i) => ProductCard(product: products[i], onTap: () => onOpen(products[i])),
-          childCount: products.length,
-        ),
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
+      sliver: SliverLayoutBuilder(
+        builder: (context, constraints) {
+          final width = constraints.crossAxisExtent;
+          final columns = ((width + _spacing) / (_maxCellWidth + _spacing)).ceil().clamp(2, 6);
+          final cellWidth = (width - _spacing * (columns - 1)) / columns;
+          // Image area ~0.8 of the cell width; +1 for the divider.
+          final extent = cellWidth * 0.8 + 1 + ProductCardMetrics.textBlockHeight(scaler);
+          return SliverGrid(
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: columns,
+              mainAxisSpacing: _spacing,
+              crossAxisSpacing: _spacing,
+              mainAxisExtent: extent.ceilToDouble() + 2,
+            ),
+            delegate: SliverChildBuilderDelegate(
+              (context, i) => ProductCard(product: products[i], onTap: () => onOpen(products[i])),
+              childCount: products.length,
+            ),
+          );
+        },
       ),
     );
   }
 }
 
-/// Quantity stepper with 48dp targets.
+/// Compact quantity stepper with 44dp targets. In RTL the row mirrors, so
+/// "decrease" sits at the reading start and "increase" at the reading end.
 class QuantityStepper extends StatelessWidget {
   const QuantityStepper({super.key, required this.value, required this.max, required this.onChanged, this.min = 1});
   final int value;
@@ -227,36 +404,87 @@ class QuantityStepper extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context);
+    const box = BoxConstraints(minWidth: 48, minHeight: 48);
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
         border: Border.all(color: BrandColors.hairline),
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(Radii.md),
       ),
-      child: Row(mainAxisSize: MainAxisSize.min, children: [
-        IconButton(
-          constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
-          tooltip: l.decrease,
-          onPressed: value > min ? () => onChanged(value - 1) : null,
-          icon: const Icon(Icons.remove),
-        ),
-        Semantics(
-          label: l.quantity,
-          value: '$value',
-          child: SizedBox(
-            width: 32,
-            child: Text('$value',
-                textAlign: TextAlign.center,
-                style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          IconButton(
+            constraints: box,
+            iconSize: 20,
+            tooltip: l.decrease,
+            onPressed: value > min ? () => onChanged(value - 1) : null,
+            icon: const Icon(Icons.remove),
           ),
-        ),
-        IconButton(
-          constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
-          tooltip: l.increase,
-          onPressed: value < max ? () => onChanged(value + 1) : null,
-          icon: const Icon(Icons.add),
-        ),
-      ]),
+          Semantics(
+            label: l.quantity,
+            value: '$value',
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(minWidth: 28),
+              child: Text(
+                '$value',
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
+              ),
+            ),
+          ),
+          IconButton(
+            constraints: box,
+            iconSize: 20,
+            tooltip: l.increase,
+            onPressed: value < max ? () => onChanged(value + 1) : null,
+            icon: const Icon(Icons.add),
+          ),
+        ],
+      ),
     );
   }
+}
+
+/// Cover image for a category tile. The API has no category images, so the
+/// first in-stock product with an image represents the category (falling back
+/// to any product with an image). Null when the category has no images.
+ProductImage? categoryCoverImage(Catalog catalog, String categoryCode) {
+  ProductImage? any;
+  for (final p in catalog.products) {
+    if (p.categoryCode != categoryCode || p.image == null) continue;
+    if (p.available) return p.image;
+    any ??= p.image;
+  }
+  return any;
+}
+
+/// Maps the catalog's category icon names (lucide names shared with the
+/// website) to Material icons for the designed fallback tile.
+IconData categoryIconData(String? icon) => switch (icon) {
+  'sparkles' => Icons.auto_awesome_outlined,
+  'cooking-pot' => Icons.soup_kitchen_outlined,
+  'shirt' => Icons.local_laundry_service_outlined,
+  'bath' => Icons.bathtub_outlined,
+  'sofa' => Icons.weekend_outlined,
+  'wind' => Icons.air,
+  'brush-cleaning' || 'broom' => Icons.cleaning_services_outlined,
+  'scroll-text' => Icons.receipt_long_outlined,
+  'heart' => Icons.favorite_border,
+  'baby' => Icons.child_care_outlined,
+  'spray' => Icons.sanitizer_outlined,
+  _ => Icons.category_outlined,
+};
+
+/// Designed fallback for a category without a usable image: brand-tinted
+/// tile with the category's icon (never an empty placeholder).
+class CategoryIconFallback extends StatelessWidget {
+  const CategoryIconFallback({super.key, this.icon});
+  final String? icon;
+  @override
+  Widget build(BuildContext context) => DecoratedBox(
+    key: const ValueKey('category-icon-fallback'),
+    decoration: BoxDecoration(color: BrandColors.sage, borderRadius: BorderRadius.circular(Radii.sm)),
+    child: Center(child: Icon(categoryIconData(icon), color: BrandColors.forest, size: 28)),
+  );
 }

@@ -147,7 +147,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(Directionality.of(tester.element(find.byType(AppShell))), TextDirection.rtl);
     expect(find.text('ماركات بتعرفها وبتثق فيها، لبيت أنظف وأجمل'), findsOneWidget);
-    expect(find.text('MAYTHA MARKET'), findsWidgets);
+    expect(find.byType(BrandHeader), findsWidgets);
 
     // Switch language from Settings.
     await tester.tap(find.text('الإعدادات'));

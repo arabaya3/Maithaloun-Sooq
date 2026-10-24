@@ -24,7 +24,7 @@ test("storefront install banner appears, installs and remembers dismissal", asyn
   });
   await expect(banner).toBeVisible();
   await expectNoHorizontalOverflow(page);
-  await expect(banner.locator("img")).toHaveAttribute("src", /icon-192-v4.png/);
+  await expect(banner.locator("img")).toHaveAttribute("src", /icon-192-v5.png/);
   await page.screenshot({
     path: "artifacts/store-ops/install-storefront-android-390.png",
   });

@@ -44,7 +44,13 @@
   "total": "Total",
   "free": "Free",
   "freeDeliveryHint": "Add {amount} more for free delivery",
-  "@freeDeliveryHint": {"placeholders": {"amount": {"type": "String"}}},
+  "@freeDeliveryHint": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
   "freeDeliveryReached": "You get free delivery",
   "deliveryNote": "Delivery within Maythaloun only. Cash on delivery.",
   "orderViaWhatsApp": "Order via WhatsApp",
@@ -70,10 +76,34 @@
   "termsTitle": "Terms",
   "termsBody": "Prices and availability are confirmed when you order via WhatsApp. Placing a message does not charge you anything; payment is cash on delivery.",
   "version": "Version {v}",
-  "@version": {"placeholders": {"v": {"type": "String"}}},
+  "@version": {
+    "placeholders": {
+      "v": {
+        "type": "String"
+      }
+    }
+  },
   "imageOf": "Image {i} of {n}",
-  "@imageOf": {"placeholders": {"i": {"type": "int"}, "n": {"type": "int"}}},
+  "@imageOf": {
+    "placeholders": {
+      "i": {
+        "type": "int"
+      },
+      "n": {
+        "type": "int"
+      }
+    }
+  },
   "close": "Close",
   "productNotFound": "Product not found.",
-  "offerLabel": "Offer"
+  "offerLabel": "Offer",
+  "settingsPreferences": "Preferences",
+  "settingsShopping": "Shopping info",
+  "settingsSupport": "Support",
+  "settingsLegal": "Legal",
+  "settingsAbout": "About",
+  "orderingTitle": "Ordering via WhatsApp",
+  "openOnWebsite": "View the full page on the website",
+  "restoreProductMissing": "The product you were viewing is no longer available.",
+  "maxInCart": "Maximum quantity is already in your cart"
 }

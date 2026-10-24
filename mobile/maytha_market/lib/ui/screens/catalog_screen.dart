@@ -43,10 +43,24 @@ class CatalogScreen extends StatefulWidget {
 }
 
 class _CatalogScreenState extends State<CatalogScreen> {
-  final _search = TextEditingController();
+  late final TextEditingController _search;
+  final _searchFocus = FocusNode();
   String? _category;
   SortMode _sort = SortMode.recommended;
   int _seenRequest = 0;
+  int _seenFocus = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    // Start from the shell state (restored after process death, or empty).
+    final shell = context.read<ShellController>();
+    _search = TextEditingController(text: shell.catalogQuery);
+    _category = shell.catalogCategory;
+    _sort = SortMode.values.firstWhere((m) => m.name == shell.catalogSort, orElse: () => SortMode.recommended);
+    _seenRequest = shell.categoryRequest;
+    _seenFocus = shell.searchFocusRequest;
+  }
 
   @override
   void didChangeDependencies() {
@@ -55,12 +69,28 @@ class _CatalogScreenState extends State<CatalogScreen> {
     if (shell.categoryRequest != _seenRequest) {
       _seenRequest = shell.categoryRequest;
       _category = shell.pendingCategory;
+      _report();
     }
+    if (shell.searchFocusRequest != _seenFocus) {
+      _seenFocus = shell.searchFocusRequest;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _searchFocus.requestFocus();
+      });
+    }
+  }
+
+  void _report() =>
+      context.read<ShellController>().updateCatalog(query: _search.text, category: _category, sort: _sort.name);
+
+  void _update(VoidCallback change) {
+    setState(change);
+    _report();
   }
 
   @override
   void dispose() {
     _search.dispose();
+    _searchFocus.dispose();
     super.dispose();
   }
 
@@ -71,81 +101,89 @@ class _CatalogScreenState extends State<CatalogScreen> {
     final catalog = store.catalog;
     return Scaffold(
       appBar: AppBar(title: Text(l.navCatalog)),
-      body: Builder(builder: (context) {
-        if (catalog == null) {
-          return store.state == LoadState.error
-              ? ErrorView(message: l.loadError, onRetry: store.retry)
-              : const LoadingView();
-        }
-        final results = filterProducts(catalog.products, query: _search.text, category: _category, sort: _sort);
-        return CustomScrollView(slivers: [
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
-              child: Row(children: [
-                Expanded(
-                  child: TextField(
-                    controller: _search,
-                    textInputAction: TextInputAction.search,
-                    onChanged: (_) => setState(() {}),
-                    decoration: InputDecoration(
-                      hintText: l.searchHint,
-                      prefixIcon: const Icon(Icons.search),
-                      suffixIcon: _search.text.isEmpty
-                          ? null
-                          : IconButton(
-                              tooltip: l.close,
-                              icon: const Icon(Icons.clear),
-                              onPressed: () => setState(_search.clear),
-                            ),
-                    ),
+      body: Builder(
+        builder: (context) {
+          if (catalog == null) {
+            return store.state == LoadState.error
+                ? ErrorView(message: l.loadError, onRetry: store.retry)
+                : const LoadingView();
+          }
+          final results = filterProducts(catalog.products, query: _search.text, category: _category, sort: _sort);
+          return CustomScrollView(
+            slivers: [
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: _search,
+                          focusNode: _searchFocus,
+                          textInputAction: TextInputAction.search,
+                          onChanged: (_) => _update(() {}),
+                          decoration: InputDecoration(
+                            hintText: l.searchHint,
+                            prefixIcon: const Icon(Icons.search),
+                            suffixIcon: _search.text.isEmpty
+                                ? null
+                                : IconButton(
+                                    tooltip: l.close,
+                                    icon: const Icon(Icons.clear),
+                                    onPressed: () => _update(_search.clear),
+                                  ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      PopupMenuButton<SortMode>(
+                        tooltip: l.sortLabel,
+                        icon: const Icon(Icons.sort),
+                        initialValue: _sort,
+                        onSelected: (s) => _update(() => _sort = s),
+                        itemBuilder: (_) => [
+                          PopupMenuItem(value: SortMode.recommended, child: Text(l.sortRecommended)),
+                          PopupMenuItem(value: SortMode.priceLow, child: Text(l.sortPriceLow)),
+                          PopupMenuItem(value: SortMode.priceHigh, child: Text(l.sortPriceHigh)),
+                        ],
+                      ),
+                    ],
                   ),
                 ),
-                const SizedBox(width: 8),
-                PopupMenuButton<SortMode>(
-                  tooltip: l.sortLabel,
-                  icon: const Icon(Icons.sort),
-                  initialValue: _sort,
-                  onSelected: (s) => setState(() => _sort = s),
-                  itemBuilder: (_) => [
-                    PopupMenuItem(value: SortMode.recommended, child: Text(l.sortRecommended)),
-                    PopupMenuItem(value: SortMode.priceLow, child: Text(l.sortPriceLow)),
-                    PopupMenuItem(value: SortMode.priceHigh, child: Text(l.sortPriceHigh)),
-                  ],
-                ),
-              ]),
-            ),
-          ),
-          SliverToBoxAdapter(
-            child: SizedBox(
-              height: 52,
-              child: ListView(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                scrollDirection: Axis.horizontal,
-                children: [
-                  _chip(l.allCategories, _category == null, () => setState(() => _category = null)),
-                  for (final c in catalog.categories)
-                    _chip(c.name, _category == c.code, () => setState(() => _category = c.code)),
-                ],
               ),
-            ),
-          ),
-          if (results.isEmpty)
-            SliverFillRemaining(
-              hasScrollBody: false,
-              child: EmptyView(
-                  icon: Icons.search_off,
-                  message: catalog.products.isEmpty ? l.catalogEmpty : l.noResults),
-            )
-          else
-            ProductSliverGrid(products: results, onOpen: (p) => openProduct(context, p.slug)),
-        ]);
-      }),
+              SliverToBoxAdapter(
+                child: SizedBox(
+                  height: 48 + 8 * MediaQuery.textScalerOf(context).scale(1),
+                  child: ListView(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    scrollDirection: Axis.horizontal,
+                    children: [
+                      _chip(l.allCategories, _category == null, () => _update(() => _category = null)),
+                      for (final c in catalog.categories)
+                        _chip(c.name, _category == c.code, () => _update(() => _category = c.code)),
+                    ],
+                  ),
+                ),
+              ),
+              if (results.isEmpty)
+                SliverFillRemaining(
+                  hasScrollBody: false,
+                  child: EmptyView(
+                    icon: Icons.search_off,
+                    message: catalog.products.isEmpty ? l.catalogEmpty : l.noResults,
+                  ),
+                )
+              else
+                ProductSliverGrid(products: results, onOpen: (p) => openProduct(context, p.slug)),
+            ],
+          );
+        },
+      ),
     );
   }
 
   Widget _chip(String label, bool selected, VoidCallback onTap) => Padding(
-        padding: const EdgeInsetsDirectional.only(end: 8),
-        child: ChoiceChip(label: Text(label), selected: selected, onSelected: (_) => onTap()),
-      );
+    padding: const EdgeInsetsDirectional.only(end: 8),
+    child: ChoiceChip(label: Text(label), selected: selected, onSelected: (_) => onTap()),
+  );
 }

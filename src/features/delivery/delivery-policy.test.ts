@@ -25,6 +25,20 @@ describe("delivery policy", () => {
     expect(calculateDeliveryFeeAgorot(12_500)).toBe(0);
   });
 
+  it.each([
+    [4999, STANDARD_DELIVERY_FEE_AGOROT, 1],
+    [5000, 0, 0],
+    [5001, 0, 0],
+  ])(
+    "at the 50 ₪ boundary a %i agorot subtotal pays %i agorot delivery",
+    (subtotal, fee, remaining) => {
+      expect(STANDARD_DELIVERY_FEE_AGOROT).toBe(500);
+      expect(FREE_DELIVERY_THRESHOLD_AGOROT).toBe(5000);
+      expect(calculateDeliveryFeeAgorot(subtotal)).toBe(fee);
+      expect(amountUntilFreeDeliveryAgorot(subtotal)).toBe(remaining);
+    },
+  );
+
   it("reports remaining amount until free delivery", () => {
     expect(amountUntilFreeDeliveryAgorot(2000)).toBe(3000);
     expect(amountUntilFreeDeliveryAgorot(5000)).toBe(0);

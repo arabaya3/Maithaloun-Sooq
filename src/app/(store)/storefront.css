@@ -1,12 +1,12 @@
 /* MAYTHA storefront design layer. Loaded by the store layout only, so admin keeps its styles. */
 :root {
-  --forest: #183d32;
-  --forest-deep: #112c24;
-  --ivory: #f7f5ef;
-  --sage-soft: #dde8df;
-  --sage-line: #c9d8cd;
-  --hairline: rgb(24 61 50 / 12%);
-  --radius-card: 0.875rem;
+  --forest: #0e5a2f;
+  --forest-deep: #0a4524;
+  --ivory: #f8faf5;
+  --sage-soft: #e2ecdc;
+  --sage-line: #c8dbc2;
+  --hairline: rgb(14 90 47 / 12%);
+  --radius-card: 1rem;
   --radius-tile: 0.625rem;
 }
 
@@ -63,7 +63,7 @@ body:has(.storefront-font-scope) {
 .hero-photo {
   position: relative;
   grid-area: photo;
-  aspect-ratio: 16 / 11;
+  aspect-ratio: 2 / 1;
   overflow: hidden;
 }
 
@@ -801,7 +801,8 @@ body:has(.storefront-font-scope) {
 }
 
 .product-gallery-stage {
-  max-width: 100%;
+  /* Phones keep the price and add-to-cart in the first screen. */
+  max-width: min(100%, 44svh);
   border: 1px solid var(--hairline);
   border-radius: var(--radius-card);
   background: var(--white);
@@ -1353,26 +1354,30 @@ body:has(.store-footer) > main {
   }
 }
 
-/* Brand lockup: monogram beside the wordmark */
+/* Brand lockup: logo mark beside the wordmark */
 .brand-lockup {
   display: inline-flex;
   align-items: center;
   gap: 0.45rem;
 }
 
-.brand-monogram {
-  width: 2.35rem;
+/* The official logo mark keeps its 356:216 proportions; only the height is set. */
+.brand-symbol {
+  width: auto;
   height: 2.35rem;
   flex: none;
+}
+
+.brand-logo-tile {
+  display: block;
+  width: 4.5rem;
+  height: auto;
+  aspect-ratio: 1;
+  border-radius: 22%;
+}
+
+.brand .brand-name {
   color: var(--forest);
-}
-
-.brand-monogram-leaf {
-  fill: #6f9f80;
-}
-
-.brand-monogram-rib {
-  stroke: var(--ivory);
 }
 
 .brand .brand-wordmark {
@@ -1380,8 +1385,7 @@ body:has(.store-footer) > main {
 }
 
 @media (max-width: 22.4rem) {
-  .brand-monogram {
-    width: 1.9rem;
+  .brand-symbol {
     height: 1.9rem;
   }
 
@@ -1391,8 +1395,7 @@ body:has(.store-footer) > main {
 }
 
 @media (min-width: 48rem) {
-  .brand-monogram {
-    width: 2.75rem;
+  .brand-symbol {
     height: 2.75rem;
   }
 }
@@ -1407,18 +1410,13 @@ body:has(.store-footer) > main {
   gap: 0.4rem;
 }
 
-.store-footer-wordmark .brand-monogram {
-  width: 2.25rem;
-  height: 2.25rem;
-  color: var(--ivory);
+/* The logo keeps its own light tile on the dark footer, like an app icon. */
+.store-footer-wordmark {
+  gap: 0.75rem;
 }
 
-.store-footer-wordmark .brand-monogram-leaf {
-  fill: #a9c9b2;
-}
-
-.store-footer-wordmark .brand-monogram-rib {
-  stroke: var(--forest);
+.store-footer-logo.brand-logo-tile {
+  width: 3.5rem;
 }
 
 .store-footer-wordmark .brand-name {
@@ -1539,13 +1537,12 @@ body:has(.store-footer) > main {
 }
 
 @media (max-width: 22.4rem) {
-  .brand .brand-monogram {
-    width: 1.65rem;
-    height: 1.65rem;
+  .brand .brand-symbol {
+    height: 1.4rem;
   }
 
   .brand .brand-name {
-    font-size: 1.3rem;
+    font-size: 1.12rem;
   }
 
   /* The number stays visible; the label is still read out through the link's aria-label. */
@@ -1562,5 +1559,263 @@ body:has(.store-footer) > main {
   .brand .brand-subtitle {
     letter-spacing: 0.22em;
     padding-inline-start: 0.22em;
+  }
+}
+
+/* The logo mark on empty and confirmation states. */
+.brand-symbol.empty-brand-symbol,
+.brand-symbol.confirmation-brand-symbol {
+  display: block;
+  width: auto;
+  height: 3.5rem;
+  margin-inline: auto;
+  margin-bottom: var(--space-2);
+}
+
+/* ───────────────────────── MAYTHA design system: shared patterns ─────────────────────────
+   One button, chip, badge, price, stepper, section header and empty/error pattern for every
+   storefront page. Values come from the tokens at the top of this file and globals.css. */
+:root {
+  --ds-radius-control: 0.75rem;
+  --ds-control-height: 2.75rem;
+  --ds-shadow-card: 0 1px 2px rgb(14 60 32 / 5%), 0 8px 24px rgb(14 60 32 / 5%);
+  --ds-focus: 0 0 0 3px var(--ivory), 0 0 0 5px var(--forest);
+}
+
+/* Buttons: primary (filled forest), secondary (outlined), ghost (text). */
+.add-button,
+.retry-button,
+.info-cta,
+.checkout-action,
+.checkout-summary > button,
+.cart-empty a,
+.empty-state a,
+.placeholder-panel a {
+  min-height: var(--ds-control-height);
+  border-radius: var(--ds-control-radius, var(--ds-radius-control));
+  font-weight: 600;
+  transition:
+    background-color 150ms ease,
+    box-shadow 150ms ease;
+}
+
+.empty-state a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: var(--space-4);
+  padding-inline: var(--space-5);
+  color: var(--forest);
+  border: 1px solid var(--forest);
+  background: var(--white);
+  font-size: var(--text-sm);
+  text-decoration: none;
+}
+
+.empty-state a:hover {
+  background: var(--sage-soft);
+}
+
+.add-button:focus-visible,
+.retry-button:focus-visible,
+.info-cta:focus-visible,
+.checkout-action:focus-visible,
+.checkout-summary > button:focus-visible,
+.empty-state a:focus-visible,
+.remove-line-button:focus-visible,
+.detail-favorite-button:focus-visible {
+  outline: none;
+  box-shadow: var(--ds-focus);
+}
+
+.detail-favorite-button {
+  border-radius: var(--ds-radius-control);
+  border-color: var(--sage-line);
+}
+
+/* Ghost destructive action: quiet until needed, still a 44px target. */
+.remove-line-button {
+  min-width: var(--ds-control-height);
+  padding-inline: 0.75rem;
+  color: var(--danger);
+  border-color: transparent;
+  border-radius: var(--ds-radius-control);
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.remove-line-button:hover {
+  background: var(--error-tint);
+}
+
+/* Badges and status chips. */
+.availability-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.25rem 0.7rem;
+  color: var(--forest);
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: var(--sage-soft);
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.availability-status::before {
+  width: 0.45rem;
+  height: 0.45rem;
+  flex: none;
+  border-radius: 50%;
+  background: currentcolor;
+  content: "";
+}
+
+.availability-status[data-available="false"] {
+  color: var(--danger);
+  background: var(--error-tint);
+}
+
+/* Section headers: small forest eyebrow over a display title. */
+.section-heading .eyebrow,
+.info-article > .eyebrow,
+.checkout-fields > .eyebrow {
+  color: var(--accent, var(--fresh));
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.section-heading h2,
+.section-heading h1 {
+  color: var(--forest);
+  font-family: var(--font-display);
+  font-weight: 600;
+}
+
+/* Empty states: one calm card with the brand colour on the icon. */
+.empty-state,
+.cart-empty {
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-card);
+  background: var(--white);
+  box-shadow: var(--ds-shadow-card);
+}
+
+.empty-state > svg {
+  width: 3.25rem;
+  height: 3.25rem;
+  padding: 0.75rem;
+  color: var(--forest);
+  border-radius: 50%;
+  background: var(--sage-soft);
+}
+
+.empty-state h3 {
+  color: var(--text);
+  font-family: var(--font-display);
+  font-weight: 600;
+}
+
+/* Cards: cart lines, checkout panels and the cart summary share the product card's surface. */
+.cart-line,
+.checkout-fields,
+.checkout-summary,
+.cart-summary {
+  border-color: var(--hairline);
+  border-radius: var(--radius-card);
+  box-shadow: var(--ds-shadow-card);
+}
+
+.payment-method {
+  border-radius: var(--ds-radius-control);
+}
+
+.checkout-field input,
+.checkout-field textarea,
+.checkout-whatsapp-prefix select,
+.checkout-whatsapp-national input {
+  min-height: var(--ds-control-height);
+  border-color: var(--sage-line);
+  border-radius: var(--ds-radius-control);
+  background: var(--white);
+}
+
+.checkout-field input:focus-visible,
+.checkout-field textarea:focus-visible,
+.checkout-whatsapp-prefix select:focus-visible,
+.checkout-whatsapp-national input:focus-visible {
+  border-color: var(--forest);
+  outline: none;
+  box-shadow: 0 0 0 3px rgb(14 90 47 / 18%);
+}
+
+.free-delivery-hint {
+  border-radius: var(--ds-radius-control);
+}
+
+/* Policy and info pages: each section reads as its own card. */
+.info-article {
+  max-width: 48rem;
+}
+
+.info-article h1 {
+  color: var(--forest);
+}
+
+.info-article section {
+  gap: 0.5rem;
+  padding: var(--space-5);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-card);
+  background: var(--white);
+  box-shadow: var(--ds-shadow-card);
+}
+
+.info-article h2 {
+  color: var(--forest);
+}
+
+/* Product page on phones: the add-to-cart button stays reachable above the bottom navigation. */
+@media (max-width: 47.99rem) {
+  /* hidden would make the card a scroll container and stop the sticky button; clip keeps the corners. */
+  .product-detail {
+    overflow: clip;
+  }
+
+  /* Like the gallery stage, a single image leaves room for the price and the button. */
+  .product-detail-media {
+    max-height: 44svh;
+  }
+
+  .product-detail-content > .product-detail-actions {
+    display: contents;
+  }
+
+  .product-detail-actions > * {
+    order: 1;
+  }
+
+  .product-detail-actions > .detail-add-button {
+    position: sticky;
+    z-index: 5;
+    bottom: calc(
+      var(--mobile-nav-height) + env(safe-area-inset-bottom) + 0.5rem
+    );
+    box-shadow:
+      0 0 0 4px var(--white),
+      0 10px 24px rgb(14 60 32 / 22%);
+  }
+}
+
+/* Short phones (e.g. 320×640): a smaller image keeps the add-to-cart button above the navigation. */
+@media (max-width: 47.99rem) and (max-height: 43.75rem) {
+  .product-detail-media {
+    max-height: 36svh;
+  }
+
+  .product-gallery-stage {
+    max-width: min(100%, 36svh);
   }
 }

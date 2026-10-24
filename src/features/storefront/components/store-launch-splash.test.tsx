@@ -91,7 +91,7 @@ describe("offline page", () => {
     render(await OfflinePage());
     const logo = screen.getByAltText("MAYTHA MARKET");
     expect(decodeURIComponent(logo.getAttribute("src") ?? "")).toContain(
-      "/brand/app/icon-192-v4.png",
+      "/brand/app/icon-192-v5.png",
     );
   });
 });

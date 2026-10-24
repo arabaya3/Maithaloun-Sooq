@@ -1,8 +1,9 @@
 "use client";
 
-import { ShoppingBasket, Trash2 } from "lucide-react";
+import { Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
 
+import { BrandSymbol } from "@/features/storefront/components/brand-logo";
 import { DirectWhatsAppOrder } from "@/features/cart/components/direct-whatsapp-order";
 import { QuantityControl } from "@/features/cart/components/quantity-control";
 import {
@@ -78,7 +79,7 @@ export function CartPage({
   if (!resolvedLines.length && !removedLines.length) {
     return (
       <section className="cart-empty" aria-labelledby="empty-cart-title">
-        <ShoppingBasket aria-hidden="true" />
+        <BrandSymbol className="empty-brand-symbol" />
         <h1 id="empty-cart-title">{m.emptyTitle}</h1>
         <p>{m.emptyText}</p>
         <Link href="/#catalog">{m.continueShopping}</Link>

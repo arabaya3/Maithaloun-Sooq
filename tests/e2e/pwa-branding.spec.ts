@@ -37,9 +37,9 @@ test("manifest, favicon and Apple touch icon serve the new logo set", async ({
     );
   expect(links).toEqual(
     expect.arrayContaining([
-      "/brand/app/favicon-16-v4.png",
-      "/brand/app/favicon-32-v4.png",
-      "/brand/app/apple-touch-icon-v4.png",
+      "/brand/app/favicon-16-v5.png",
+      "/brand/app/favicon-32-v5.png",
+      "/brand/app/apple-touch-icon-v5.png",
     ]),
   );
   expect(links.join(" ")).not.toContain("/icons/icon-");

@@ -175,6 +175,9 @@ class CartStore extends ChangeNotifier with DisposeSafeNotifier {
   CartModel get model => _model;
 
   void _changed() {
+    // Any in-flight quote is for the old contents: invalidate it so it can
+    // never overwrite the idle state with stale totals.
+    _quoteSeq++;
     _prefs.setString(_key, _model.encode());
     quote = null;
     quoteStatus = QuoteStatus.idle;
@@ -221,11 +224,12 @@ class CartStore extends ChangeNotifier with DisposeSafeNotifier {
       quoteStatus = QuoteStatus.ready;
       notifyListeners();
       return q;
-    } on ApiException catch (e) {
+    } catch (e) {
       if (seq != _quoteSeq) return null;
       quote = null;
       quoteStatus = QuoteStatus.error;
-      quoteErrorCode = e.code;
+      // Unexpected errors (e.g. a malformed response) map to the generic message.
+      quoteErrorCode = e is ApiException ? e.code : null;
       notifyListeners();
       return null;
     }
