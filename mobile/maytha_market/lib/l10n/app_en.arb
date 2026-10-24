@@ -105,5 +105,13 @@
   "orderingTitle": "Ordering via WhatsApp",
   "openOnWebsite": "View the full page on the website",
   "restoreProductMissing": "The product you were viewing is no longer available.",
-  "maxInCart": "Maximum quantity is already in your cart"
+  "maxInCart": "Maximum quantity is already in your cart",
+  "chooseOption": "Choose {name}",
+  "@chooseOption": {"placeholders":{"name":{"type":"String"}}},
+  "chooseOptionFallback": "Choose option",
+  "optionScent": "scent",
+  "optionSize": "size",
+  "optionColor": "colour",
+  "optionType": "type",
+  "unavailableOption": "Unavailable"
 }

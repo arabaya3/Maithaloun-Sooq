@@ -2,10 +2,12 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/description_split.dart';
 import '../../core/money.dart';
+import '../../core/title_split.dart';
 import '../../data/api_client.dart';
 import '../../data/models.dart';
 import '../../l10n/gen/app_localizations.dart';
@@ -87,29 +89,26 @@ class _ProductScreenState extends State<ProductScreen> {
       });
     }
 
-    Widget body;
     if (product != null) {
-      body = _ProductBody(
-        key: ValueKey('${product.id}-$locale'),
-        product: product,
-        initialVariantId: widget.initialVariantId,
-        onVariantChanged: (id) => _shell.productOpened(widget.slug, id),
+      // Edge-to-edge: the product image runs under the status bar, so the
+      // page has no app bar; back/favorite float over the image.
+      return AnnotatedRegion<SystemUiOverlayStyle>(
+        value: SystemUiOverlayStyle.dark.copyWith(statusBarColor: Colors.transparent),
+        child: Scaffold(
+          body: _ProductBody(
+            key: ValueKey('${product.id}-$locale'),
+            product: product,
+            initialVariantId: widget.initialVariantId,
+            onVariantChanged: (id) => _shell.productOpened(widget.slug, id),
+          ),
+        ),
       );
-    } else if (_failed) {
-      body = ErrorView(message: _notFound ? l.productNotFound : l.loadError, onRetry: () => _fetch(locale));
-    } else {
-      body = const LoadingView();
     }
     return Scaffold(
-      // The name is shown once, in the body; the bar stays compact.
-      appBar: AppBar(
-        toolbarHeight: 52,
-        actions: [
-          if (product != null) FavoriteButton(productId: product.id),
-          const SizedBox(width: 4),
-        ],
-      ),
-      body: body,
+      appBar: AppBar(toolbarHeight: 52),
+      body: _failed
+          ? ErrorView(message: _notFound ? l.productNotFound : l.loadError, onRetry: () => _fetch(locale))
+          : const LoadingView(),
     );
   }
 }
@@ -125,11 +124,11 @@ class _ProductBody extends StatefulWidget {
 
 class _ProductBodyState extends State<_ProductBody> {
   final _pager = PageController();
+  final _barKey = GlobalKey();
   int _page = 0;
   Variant? _variant;
   SellingUnit? _unit;
   int _qty = 1;
-  bool _titleExpanded = false;
   bool _justAdded = false;
   Timer? _addedTimer;
 
@@ -222,11 +221,16 @@ class _ProductBodyState extends State<_ProductBody> {
     _addedTimer = Timer(const Duration(milliseconds: 1500), () {
       if (mounted) setState(() => _justAdded = false);
     });
+    // The add button lives in the body (not a bottomNavigationBar), so lift
+    // the floating snackbar above it instead of covering it.
+    final barBox = _barKey.currentContext?.findRenderObject() as RenderBox?;
+    final lift = (barBox?.hasSize ?? false) ? barBox!.size.height : 0.0;
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(
         SnackBar(
           content: Text(l.addedToCart),
+          margin: EdgeInsets.fromLTRB(16, 0, 16, lift + 8),
           // A SnackBar with an action persists by default; it would then sit over the
           // cart's WhatsApp button after navigating. Auto-dismiss it instead.
           persist: false,
@@ -250,7 +254,6 @@ class _ProductBodyState extends State<_ProductBody> {
     final t = Theme.of(context).textTheme;
     final mq = MediaQuery.of(context);
     final p = widget.product;
-    final gallery = p.gallery;
     final v = _variant;
     final u = _unit;
     final canBuy = p.available && v != null && v.available && u != null && u.maxQuantity > 0;
@@ -264,8 +267,10 @@ class _ProductBodyState extends State<_ProductBody> {
       if (parts?.usage != null) parts!.usage!,
       if (p.usageNotes != null && p.usageNotes!.trim().isNotEmpty) p.usageNotes!.trim(),
     ].join('\n\n');
-    // Gallery is bounded so the title and price stay on the first screen.
-    final galleryHeight = math.min(mq.size.width * 0.85, mq.size.height * 0.38);
+    final title = splitProductTitle(p.name);
+    // ~39% of the screen, including the status bar the image runs under.
+    final heroHeight = math.max(260.0, mq.size.height * 0.39);
+    final chipLabels = shortOptionLabels([for (final x in p.variants) x.label]);
 
     return Column(
       children: [
@@ -273,127 +278,136 @@ class _ProductBodyState extends State<_ProductBody> {
           child: ListView(
             padding: EdgeInsets.zero,
             children: [
-              Container(
-                height: galleryHeight,
-                color: Colors.white,
-                child: gallery.isEmpty
-                    ? const NetImage(image: null)
-                    : Stack(
+              _Hero(
+                height: heroHeight,
+                product: p,
+                pager: _pager,
+                page: _page,
+                onPageChanged: (i) => setState(() => _page = i),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 18, 20, 16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    if (p.brand != null && p.brand!.isNotEmpty)
+                      Text(
+                        p.brand!.toUpperCase(),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: t.labelLarge?.copyWith(
+                          color: BrandColors.forest,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0.6,
+                        ),
+                      ),
+                    const SizedBox(height: 4),
+                    LayoutBuilder(
+                      builder: (context, c) => Row(
                         children: [
-                          PageView.builder(
-                            controller: _pager,
-                            itemCount: gallery.length,
-                            onPageChanged: (i) => setState(() => _page = i),
-                            itemBuilder: (context, i) => Semantics(
-                              button: true,
-                              label: l.imageOf(i + 1, gallery.length),
-                              child: GestureDetector(
-                                onTap: () => Navigator.of(context).push(
-                                  MaterialPageRoute(
-                                    fullscreenDialog: true,
-                                    builder: (_) => ImageViewer(images: gallery, initial: i),
+                          Expanded(
+                            child: Semantics(
+                              header: true,
+                              label: p.name,
+                              excludeSemantics: true,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    title.title,
+                                    key: const ValueKey('product-title'),
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: t.headlineSmall?.copyWith(fontSize: 21, height: 1.35),
                                   ),
-                                ),
-                                child: Padding(
-                                  padding: const EdgeInsets.all(12),
-                                  child: NetImage(image: gallery[i], fit: BoxFit.contain),
+                                  if (title.subtitle != null) ...[
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      title.subtitle!,
+                                      key: const ValueKey('product-subtitle'),
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: t.bodyLarge?.copyWith(color: BrandColors.muted, fontSize: 16),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          // Never clipped: scales down if very large text would
+                          // otherwise take more than ~45% of the row.
+                          ConstrainedBox(
+                            constraints: BoxConstraints(maxWidth: c.maxWidth * 0.45),
+                            child: FittedBox(
+                              fit: BoxFit.scaleDown,
+                              child: Text(
+                                formatAgorot(price),
+                                key: const ValueKey('product-price'),
+                                textDirection: TextDirection.ltr,
+                                maxLines: 1,
+                                style: const TextStyle(
+                                  fontSize: 34,
+                                  height: 1.1,
+                                  fontWeight: FontWeight.w800,
+                                  color: BrandColors.forest,
                                 ),
                               ),
                             ),
                           ),
-                          if (gallery.length > 1)
-                            Positioned(
-                              left: 0,
-                              right: 0,
-                              bottom: 8,
-                              child: PageDots(count: gallery.length, index: _page),
-                            ),
                         ],
                       ),
-              ),
-              const Divider(),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    if (p.brand != null && p.brand!.isNotEmpty)
-                      Text(
-                        p.brand!,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: t.labelMedium?.copyWith(color: BrandColors.leaf, fontWeight: FontWeight.w700),
-                      ),
-                    const SizedBox(height: 2),
-                    Semantics(
-                      header: true,
-                      child: GestureDetector(
-                        onTap: () => setState(() => _titleExpanded = !_titleExpanded),
-                        child: Text(
-                          p.name,
-                          key: const ValueKey('product-title'),
-                          maxLines: _titleExpanded ? null : 3,
-                          overflow: _titleExpanded ? null : TextOverflow.ellipsis,
-                          style: t.titleLarge,
-                        ),
-                      ),
                     ),
-                    const SizedBox(height: 8),
-                    Wrap(
-                      crossAxisAlignment: WrapCrossAlignment.center,
-                      spacing: 8,
-                      runSpacing: 4,
-                      children: [
-                        Text(
-                          formatAgorot(price),
-                          key: const ValueKey('product-price'),
-                          textDirection: TextDirection.ltr,
-                          style: t.titleLarge?.copyWith(color: BrandColors.forest, fontWeight: FontWeight.w800),
-                        ),
-                        if (!canBuy) _Pill(text: l.outOfStock, color: BrandColors.muted),
-                        if (v?.offer != null) _Pill(text: l.offerLabel, color: BrandColors.leaf),
-                      ],
-                    ),
-                    if (p.variants.length > 1) ...[
-                      const SizedBox(height: 16),
-                      Text(l.option, style: t.titleSmall),
+                    if (!canBuy || v.offer != null) ...[
                       const SizedBox(height: 8),
                       Wrap(
                         spacing: 8,
-                        runSpacing: 8,
+                        runSpacing: 4,
                         children: [
-                          for (final variant in p.variants)
-                            ChoiceChip(
-                              key: ValueKey('variant-${variant.id}'),
-                              label: Text(variant.label),
-                              selected: variant.id == v?.id,
-                              showCheckmark: true,
-                              side: BorderSide(
-                                color: variant.id == v?.id ? BrandColors.forest : BrandColors.hairline,
-                                width: variant.id == v?.id ? 1.5 : 1,
-                              ),
-                              onSelected: variant.available ? (_) => _selectVariant(variant) : null,
+                          if (!canBuy) _Pill(text: l.outOfStock, color: BrandColors.muted),
+                          if (v?.offer != null) _Pill(text: l.offerLabel, color: BrandColors.leaf),
+                        ],
+                      ),
+                    ],
+                    if (p.variants.length > 1) ...[
+                      const SizedBox(height: 22),
+                      Semantics(header: true, child: Text(optionTitle(l, p), style: t.titleMedium)),
+                      const SizedBox(height: 12),
+                      Wrap(
+                        spacing: 10,
+                        runSpacing: 10,
+                        children: [
+                          for (var i = 0; i < p.variants.length; i++)
+                            _OptionChip(
+                              key: ValueKey('variant-${p.variants[i].id}'),
+                              label: chipLabels[i],
+                              semanticLabel: p.variants[i].available
+                                  ? p.variants[i].label
+                                  : '${p.variants[i].label}, ${l.unavailableOption}',
+                              swatch: _Swatch(image: p.variants[i].image),
+                              selected: p.variants[i].id == v?.id,
+                              enabled: p.variants[i].available,
+                              onTap: () => _selectVariant(p.variants[i]),
                             ),
                         ],
                       ),
                     ],
                     if (v != null && v.sellingUnits.length > 1) ...[
-                      const SizedBox(height: 16),
-                      Text(l.sellingUnit, style: t.titleSmall),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 20),
+                      Semantics(header: true, child: Text(l.sellingUnit, style: t.titleMedium)),
+                      const SizedBox(height: 12),
                       Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
+                        spacing: 10,
+                        runSpacing: 10,
                         children: [
                           for (final unit in v.sellingUnits)
-                            ChoiceChip(
-                              label: Text('${unit.label} · ${formatAgorot(unit.priceAgorot)}'),
+                            _OptionChip(
+                              key: ValueKey('unit-${unit.id}'),
+                              label: '${unit.label} · ${formatAgorot(unit.priceAgorot)}',
+                              semanticLabel: '${unit.label} · ${formatAgorot(unit.priceAgorot)}',
                               selected: unit.id == u?.id,
-                              side: BorderSide(
-                                color: unit.id == u?.id ? BrandColors.forest : BrandColors.hairline,
-                                width: unit.id == u?.id ? 1.5 : 1,
-                              ),
-                              onSelected: (_) => setState(() {
+                              enabled: unit.maxQuantity > 0,
+                              onTap: () => setState(() {
                                 _unit = unit;
                                 _qty = _qty.clamp(1, unit.maxQuantity < 1 ? 1 : unit.maxQuantity);
                               }),
@@ -402,11 +416,13 @@ class _ProductBodyState extends State<_ProductBody> {
                       ),
                     ],
                     if (canBuy) ...[
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 22),
                       Row(
                         children: [
-                          Expanded(child: Text(l.quantity, style: t.titleSmall)),
+                          Expanded(child: Text(l.quantity, style: t.titleMedium)),
+                          const SizedBox(width: 12),
                           QuantityStepper(
+                            tinted: true,
                             value: qty,
                             max: remaining < 1 ? 1 : remaining,
                             onChanged: (q) => setState(() => _qty = q),
@@ -414,13 +430,12 @@ class _ProductBodyState extends State<_ProductBody> {
                         ],
                       ),
                     ],
-                    if (parts != null && parts.description.isNotEmpty) ...[
-                      const SizedBox(height: 16),
+                    if ((parts != null && parts.description.isNotEmpty) || usage.isNotEmpty) ...[
+                      const SizedBox(height: 18),
                       const Divider(),
-                      const SizedBox(height: 12),
-                      _TextSection(title: l.description, body: parts.description),
+                      const SizedBox(height: 6),
+                      _DescriptionSection(body: parts?.description ?? '', usage: usage),
                     ],
-                    if (usage.isNotEmpty) ...[const SizedBox(height: 12), _TextSection(title: l.howToUse, body: usage)],
                   ],
                 ),
               ),
@@ -428,9 +443,10 @@ class _ProductBodyState extends State<_ProductBody> {
           ),
         ),
         Container(
+          key: _barKey,
           decoration: const BoxDecoration(
-            color: Colors.white,
-            border: Border(top: BorderSide(color: BrandColors.hairline)),
+            color: BrandColors.ivory,
+            boxShadow: [BoxShadow(color: Color(0x14000000), blurRadius: 12, offset: Offset(0, -2))],
           ),
           child: SafeArea(
             top: false,
@@ -438,18 +454,32 @@ class _ProductBodyState extends State<_ProductBody> {
               padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
               child: SizedBox(
                 width: double.infinity,
-                child: FilledButton.icon(
+                child: FilledButton(
                   key: const ValueKey('add-to-cart'),
                   onPressed: canAdd ? _addToCart : null,
-                  icon: Icon(_justAdded ? Icons.check_circle : Icons.add_shopping_cart, size: 20),
-                  label: Text(
-                    !canBuy
-                        ? l.outOfStock
-                        : canAdd
-                        ? '${l.addToCart} · ${formatAgorot(price * qty)}'
-                        : l.maxInCart,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                  style: FilledButton.styleFrom(
+                    minimumSize: const Size(48, 56),
+                    backgroundColor: BrandColors.forest,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(Radii.lg)),
+                    textStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 17),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Flexible(
+                        child: Text(
+                          !canBuy
+                              ? l.outOfStock
+                              : canAdd
+                              ? '${l.addToCart} · ${formatAgorot(price * qty)}'
+                              : l.maxInCart,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Icon(_justAdded ? Icons.check_circle : Icons.shopping_cart_outlined, size: 24),
+                    ],
                   ),
                 ),
               ),
@@ -457,6 +487,231 @@ class _ProductBodyState extends State<_ProductBody> {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// "اختر الرائحة" / "Choose scent" from the product's real option name (the
+/// variants' attribute key); "اختر النوع" / "Choose option" otherwise.
+String optionTitle(AppLocalizations l, Product p) {
+  String? key;
+  for (final v in p.variants) {
+    if (v.attributes.isNotEmpty) {
+      key = v.attributes.keys.first.trim();
+      break;
+    }
+  }
+  if (key == null || key.isEmpty) return l.chooseOptionFallback;
+  final isArabicKey = RegExp(r'[؀-ۿ]').hasMatch(key);
+  if (l.localeName.startsWith('ar')) {
+    return isArabicKey ? l.chooseOption(key) : l.chooseOptionFallback;
+  }
+  if (!isArabicKey) return l.chooseOption(key.toLowerCase());
+  // English UI with an Arabic attribute key: translate the common ones.
+  final en = switch (key.replaceFirst(RegExp('^ال'), '')) {
+    'رائحة' || 'روائح' => l.optionScent,
+    'حجم' || 'سعة' => l.optionSize,
+    'لون' => l.optionColor,
+    'نوع' => l.optionType,
+    _ => null,
+  };
+  return en == null ? l.chooseOptionFallback : l.chooseOption(en);
+}
+
+/// Full-bleed image area: runs under the status bar, rounded bottom corners,
+/// swipeable real product photos (never cropped), floating back/favorite.
+class _Hero extends StatelessWidget {
+  const _Hero({
+    required this.height,
+    required this.product,
+    required this.pager,
+    required this.page,
+    required this.onPageChanged,
+  });
+  final double height;
+  final Product product;
+  final PageController pager;
+  final int page;
+  final ValueChanged<int> onPageChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
+    final top = MediaQuery.paddingOf(context).top;
+    final gallery = product.gallery;
+    return SizedBox(
+      height: height,
+      child: Stack(
+        children: [
+          Positioned.fill(
+            child: ClipRRect(
+              borderRadius: const BorderRadius.vertical(bottom: Radius.circular(28)),
+              child: ColoredBox(
+                color: Colors.white,
+                child: gallery.isEmpty
+                    ? const NetImage(image: null)
+                    : PageView.builder(
+                        controller: pager,
+                        itemCount: gallery.length,
+                        onPageChanged: onPageChanged,
+                        itemBuilder: (context, i) => Semantics(
+                          button: true,
+                          label: l.imageOf(i + 1, gallery.length),
+                          child: GestureDetector(
+                            onTap: () => Navigator.of(context).push(
+                              MaterialPageRoute(
+                                fullscreenDialog: true,
+                                builder: (_) => ImageViewer(images: gallery, initial: i),
+                              ),
+                            ),
+                            child: Padding(
+                              // Clear of the status bar at the top; room for
+                              // the page dots at the bottom.
+                              padding: EdgeInsets.fromLTRB(24, top + 20, 24, gallery.length > 1 ? 28 : 16),
+                              child: NetImage(image: gallery[i], fit: BoxFit.contain),
+                            ),
+                          ),
+                        ),
+                      ),
+              ),
+            ),
+          ),
+          if (gallery.length > 1)
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 12,
+              child: PageDots(count: gallery.length, index: page),
+            ),
+          // Mockup positions: back at the top-left, favorite at the top-right,
+          // in both reading directions (the chevron points left, toward the
+          // edge it sits on).
+          Positioned(
+            left: 16,
+            top: top + 10,
+            child: _RoundButton(
+              child: IconButton(
+                key: const ValueKey('product-back'),
+                constraints: const BoxConstraints.tightFor(width: 48, height: 48),
+                tooltip: MaterialLocalizations.of(context).backButtonTooltip,
+                icon: const Icon(Icons.chevron_left_rounded, size: 30, color: BrandColors.text),
+                onPressed: () => Navigator.of(context).maybePop(),
+              ),
+            ),
+          ),
+          Positioned(
+            right: 16,
+            top: top + 10,
+            child: _RoundButton(child: FavoriteButton(productId: product.id)),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _RoundButton extends StatelessWidget {
+  const _RoundButton({required this.child});
+  final Widget child;
+  @override
+  Widget build(BuildContext context) => Container(
+    width: 48,
+    height: 48,
+    decoration: const BoxDecoration(
+      color: Colors.white,
+      shape: BoxShape.circle,
+      boxShadow: [BoxShadow(color: Color(0x22000000), blurRadius: 10, offset: Offset(0, 2))],
+    ),
+    child: Center(child: child),
+  );
+}
+
+/// Leading swatch of a variant chip. The data has no colour field, so it is a
+/// small circular crop of the variant's own photo (neutral dot otherwise).
+class _Swatch extends StatelessWidget {
+  const _Swatch({required this.image});
+  final ProductImage? image;
+  static const _dot = DecoratedBox(
+    decoration: BoxDecoration(color: BrandColors.hairline, shape: BoxShape.circle),
+  );
+  @override
+  Widget build(BuildContext context) => SizedBox(
+    width: 24,
+    height: 24,
+    child: image == null
+        ? _dot
+        : ClipOval(
+            child: ExcludeSemantics(
+              child: NetImage(image: image, fit: BoxFit.cover, fallback: _dot),
+            ),
+          ),
+  );
+}
+
+/// Rounded pill option (variant or selling unit), as in the approved mockup.
+class _OptionChip extends StatelessWidget {
+  const _OptionChip({
+    super.key,
+    required this.label,
+    required this.semanticLabel,
+    required this.selected,
+    required this.enabled,
+    required this.onTap,
+    this.swatch,
+  });
+  final String label;
+  final String semanticLabel;
+  final bool selected;
+  final bool enabled;
+  final VoidCallback onTap;
+  final Widget? swatch;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = Theme.of(context).textTheme;
+    final tap = enabled && !selected ? onTap : null;
+    final chip = Material(
+      color: selected ? BrandColors.sage : Colors.white,
+      shape: StadiumBorder(
+        side: BorderSide(color: selected ? BrandColors.forest : BrandColors.hairline, width: selected ? 1.5 : 1),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: tap,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 44),
+          child: Padding(
+            padding: EdgeInsetsDirectional.fromSTEB(swatch == null ? 16 : 10, 8, 16, 8),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (swatch != null) ...[swatch!, const SizedBox(width: 8)],
+                Flexible(
+                  child: Text(
+                    label,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: t.bodyMedium?.copyWith(
+                      color: selected ? BrandColors.forest : BrandColors.text,
+                      fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                      decoration: enabled ? null : TextDecoration.lineThrough,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+    return Semantics(
+      button: true,
+      selected: selected,
+      enabled: enabled,
+      label: semanticLabel,
+      excludeSemantics: true,
+      onTap: tap,
+      child: Opacity(opacity: enabled ? 1 : 0.45, child: chip),
     );
   }
 }
@@ -473,23 +728,26 @@ class _Pill extends StatelessWidget {
   );
 }
 
-/// Plain section (no card chrome); long text collapses to 6 lines with a toggle.
-class _TextSection extends StatefulWidget {
-  const _TextSection({required this.title, required this.body});
-  final String title;
+/// "الوصف" with a chevron: collapsed shows three grey lines; expanded shows
+/// the full description plus the usage notes.
+class _DescriptionSection extends StatefulWidget {
+  const _DescriptionSection({required this.body, required this.usage});
   final String body;
+  final String usage;
   @override
-  State<_TextSection> createState() => _TextSectionState();
+  State<_DescriptionSection> createState() => _DescriptionSectionState();
 }
 
-class _TextSectionState extends State<_TextSection> {
+class _DescriptionSectionState extends State<_DescriptionSection> {
   bool _expanded = false;
-  static const _collapsedLines = 6;
+  static const _collapsedLines = 3;
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     final t = Theme.of(context).textTheme;
-    final style = t.bodyMedium;
+    final ml = MaterialLocalizations.of(context);
+    final style = t.bodyLarge?.copyWith(color: BrandColors.muted, height: 1.6);
     return LayoutBuilder(
       builder: (context, c) {
         final tp = TextPainter(
@@ -498,29 +756,49 @@ class _TextSectionState extends State<_TextSection> {
           textScaler: MediaQuery.textScalerOf(context),
           maxLines: _collapsedLines,
         )..layout(maxWidth: c.maxWidth);
-        final long = tp.didExceedMaxLines;
+        final expandable = tp.didExceedMaxLines || widget.usage.isNotEmpty;
         tp.dispose();
-        final ml = MaterialLocalizations.of(context);
         return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Semantics(header: true, child: Text(widget.title, style: t.titleSmall)),
-            const SizedBox(height: 6),
-            Text(
-              widget.body,
-              style: style,
-              maxLines: _expanded ? null : _collapsedLines,
-              overflow: _expanded ? null : TextOverflow.ellipsis,
-            ),
-            if (long)
-              TextButton(
-                style: TextButton.styleFrom(padding: EdgeInsets.zero, minimumSize: const Size(48, 40)),
-                onPressed: () => setState(() => _expanded = !_expanded),
-                child: Icon(
-                  _expanded ? Icons.expand_less : Icons.expand_more,
-                  semanticLabel: _expanded ? ml.expandedIconTapHint : ml.collapsedIconTapHint,
+            Semantics(
+              header: true,
+              button: expandable,
+              expanded: expandable ? _expanded : null,
+              child: InkWell(
+                key: const ValueKey('description-toggle'),
+                borderRadius: BorderRadius.circular(Radii.sm),
+                onTap: expandable ? () => setState(() => _expanded = !_expanded) : null,
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(minHeight: 48),
+                  child: Row(
+                    children: [
+                      Expanded(child: Text(l.description, style: t.titleMedium)),
+                      if (expandable)
+                        Icon(
+                          _expanded ? Icons.keyboard_arrow_up_rounded : Icons.keyboard_arrow_down_rounded,
+                          color: BrandColors.muted,
+                          semanticLabel: _expanded ? ml.expandedIconTapHint : ml.collapsedIconTapHint,
+                        ),
+                    ],
+                  ),
                 ),
               ),
+            ),
+            if (widget.body.isNotEmpty)
+              Text(
+                widget.body,
+                key: const ValueKey('description-body'),
+                style: style,
+                maxLines: _expanded ? null : _collapsedLines,
+                overflow: _expanded ? null : TextOverflow.ellipsis,
+              ),
+            if (_expanded && widget.usage.isNotEmpty) ...[
+              const SizedBox(height: 14),
+              Semantics(header: true, child: Text(l.howToUse, style: t.titleSmall)),
+              const SizedBox(height: 6),
+              Text(widget.usage, style: style),
+            ],
           ],
         );
       },
