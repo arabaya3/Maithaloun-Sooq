@@ -1,5 +1,8 @@
 const actionLabels: Readonly<Record<string, string>> = {
   login: "دخول",
+  social_connect: "ربط صفحة فيسبوك",
+  social_disconnect: "فصل صفحة فيسبوك",
+  social_settings: "تعديل إعدادات النشر",
   logout: "خروج",
   password_change: "تغيير كلمة المرور",
   session_revoke: "إنهاء جلسة جهاز",

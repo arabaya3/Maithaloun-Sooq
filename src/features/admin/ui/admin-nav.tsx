@@ -21,6 +21,7 @@ import {
   Search,
   Settings,
   Sheet as SheetIcon,
+  Megaphone,
   MessageCircle,
   ShoppingBag,
   Store,
@@ -57,6 +58,8 @@ interface NavLink {
   match: "exact" | "prefix";
   Icon: LucideIcon;
   ownerOnly?: boolean;
+  /** Shown only when the server turned this optional feature on. */
+  feature?: "social";
 }
 
 type GroupKey = "today" | "sell" | "stock" | "catalog" | "manage";
@@ -200,6 +203,13 @@ const groups: NavGroup[] = [
         ownerOnly: true,
       },
       {
+        href: "/admin/social",
+        label: "فيسبوك",
+        match: "prefix",
+        Icon: Megaphone,
+        feature: "social",
+      },
+      {
         href: "/admin/notifications",
         label: "الإشعارات",
         match: "prefix",
@@ -279,11 +289,16 @@ const addTasks: AddTask[] = [
   },
 ];
 
-function visible<T extends { ownerOnly?: boolean }>(
+function visible<T extends { ownerOnly?: boolean; feature?: string }>(
   items: T[],
   role: AdminRole,
+  features: readonly string[] = [],
 ): T[] {
-  return items.filter((item) => !item.ownerOnly || role === "owner");
+  return items.filter(
+    (item) =>
+      (!item.ownerOnly || role === "owner") &&
+      (!item.feature || features.includes(item.feature)),
+  );
 }
 
 function isActive(pathname: string, link: NavLink): boolean {
@@ -341,16 +356,18 @@ function SidebarLink({ link, pathname }: { link: NavLink; pathname: string }) {
 export function AdminDesktopNav({
   displayName,
   role,
+  features = [],
 }: {
   displayName: string;
   role: AdminRole;
+  features?: readonly string[];
 }) {
   const pathname = usePathname();
   return (
     <div className="admin-nav-desktop">
       <nav aria-label="تنقل الإدارة" className="admin-nav">
         {groups.map((group) => {
-          const links = visible(group.links, role);
+          const links = visible(group.links, role, features);
           if (!links.length) return null;
           if (group.key === "today") {
             return (
@@ -491,9 +508,11 @@ export function AdminMobileHeader({ role }: { role: AdminRole }) {
 export function AdminBottomNav({
   displayName,
   role,
+  features = [],
 }: {
   displayName: string;
   role: AdminRole;
+  features?: readonly string[];
 }) {
   const pathname = usePathname();
   const [sheet, setSheet] = useState<GroupKey | null>(null);
@@ -509,7 +528,7 @@ export function AdminBottomNav({
     <>
       <nav className="admin-bottom-nav" aria-label="التنقل السفلي">
         {groups.map((group) => {
-          const links = visible(group.links, role);
+          const links = visible(group.links, role, features);
           if (!links.length) return null;
           const active = groupActive(pathname, group);
           if (group.key === "today") {
@@ -551,7 +570,7 @@ export function AdminBottomNav({
         {opened ? (
           <>
             <ul className="admin-more-sheet">
-              {visible(opened.links, role).map((link) => (
+              {visible(opened.links, role, features).map((link) => (
                 <li key={link.href}>
                   <Link
                     href={link.href}

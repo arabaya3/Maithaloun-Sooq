@@ -20,6 +20,10 @@ export const permissions = [
   "reminders.manage",
   "reports.view",
   "settings.manage",
+  // Facebook: everyone on the team can see and prepare posts; only the owner approves and connects the Page.
+  "social.view",
+  "social.prepare",
+  "social.approve",
 ] as const;
 export type Permission = (typeof permissions)[number];
 
@@ -31,6 +35,8 @@ const operatorPermissions: ReadonlySet<Permission> = new Set([
   "payments.record",
   "customers.view",
   "reminders.manage",
+  "social.view",
+  "social.prepare",
 ]);
 
 export const permissionMatrix: Record<AdminRole, ReadonlySet<Permission>> = {
