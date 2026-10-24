@@ -8,7 +8,9 @@ export type MetaFailureKind =
   | "rate_limit"
   | "transient"
   | "invalid_request"
-  | "unknown";
+  | "unknown"
+  // A publish request whose answer was lost: Meta may or may not have published it.
+  | "unknown_outcome";
 
 export interface MetaFailure {
   kind: MetaFailureKind;
@@ -82,4 +84,6 @@ export const metaFailureLabels: Record<MetaFailureKind, string> = {
   transient: "خلل مؤقت عند فيسبوك. ستُعاد المحاولة تلقائياً.",
   invalid_request: "رفض فيسبوك الطلب. راجعي النص والوسائط.",
   unknown: "خطأ غير معروف من فيسبوك.",
+  unknown_outcome:
+    "لم يصل رد فيسبوك؛ نتحقق من الصفحة قبل أي محاولة جديدة حتى لا يتكرر النشر.",
 };

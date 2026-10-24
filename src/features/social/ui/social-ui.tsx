@@ -197,6 +197,16 @@ const errorMessages: Record<string, string> = {
   not_connected: "صفحة فيسبوك غير مربوطة.",
   token_invalid: "رمز فيسبوك غير صالح.",
   vault_missing: "مفتاح التشفير SOCIAL_TOKEN_KEY غير مضبوط على الخادم.",
+  meta_app_missing:
+    "لا يُحفظ رمز فيسبوك قبل فحصه. اضبطي META_APP_ID وMETA_APP_SECRET على الخادم.",
+  token_wrong_app: "هذا الرمز صادر لتطبيق فيسبوك آخر، لا لتطبيق المتجر.",
+  token_wrong_page: "هذا الرمز لصفحة أخرى، لا لصفحة MAYTHA MARKET.",
+  token_missing_scopes:
+    "الرمز ينقصه بعض الصلاحيات المطلوبة. أعيدي الربط ووافقي على كل الصلاحيات.",
+  already_published:
+    "وجدنا هذا المنشور على صفحة فيسبوك فعلاً، فسُجّل منشوراً ولم يُرسل مرة ثانية.",
+  still_processing:
+    "فيسبوك ما زال يعالج المحاولة السابقة. انتظري قليلاً ثم حدّثي الصفحة.",
   state: "انتهت محاولة الربط. ابدئي من جديد.",
   cancelled: "أُلغي الربط من فيسبوك.",
   no_page: "لم نجد صفحة MAYTHA MARKET بين الصفحات التي تديرينها.",

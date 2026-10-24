@@ -4,7 +4,14 @@ import { describe, expect, it, vi } from "vitest";
 
 import { MetaApiError } from "@/features/social/domain/meta-errors";
 
-import { inspectToken, MetaGraphClient } from "./meta-graph-client";
+import {
+  appSecretProof,
+  inspectToken,
+  MetaGraphClient,
+  requiredPageScopes,
+  sameCaption,
+  tokenProblems,
+} from "./meta-graph-client";
 import { choosePage, loginDialogUrl } from "./meta-oauth";
 import {
   openToken,
@@ -60,7 +67,7 @@ describe("Meta Graph client (mocked API)", () => {
       client.publishPhoto({ imageUrl: "https://cdn/x.jpg", caption: "مرحبا" }),
     ).resolves.toEqual({ objectId: "photo1", postId: "page_post1" });
     const [url, init] = fetch.mock.calls[0] as unknown as [string, RequestInit];
-    expect(url).toBe("https://graph.facebook.com/v24.0/123/photos");
+    expect(url).toBe("https://graph.facebook.com/v25.0/123/photos");
     expect(url).not.toContain("TOKEN");
     expect((init.headers as Record<string, string>).Authorization).toBe(
       "Bearer TOKEN",
@@ -91,9 +98,9 @@ describe("Meta Graph client (mocked API)", () => {
       client.publishReel({ videoUrl: "https://cdn/r.mp4", caption: "ريل" }),
     ).resolves.toEqual({ objectId: "v1", postId: "p1" });
     expect(calls).toEqual([
-      "https://graph.facebook.com/v24.0/123/video_reels",
-      "https://rupload.facebook.com/video-upload/v24.0/v1",
-      "https://graph.facebook.com/v24.0/123/video_reels",
+      "https://graph.facebook.com/v25.0/123/video_reels",
+      "https://rupload.facebook.com/video-upload/v25.0/v1",
+      "https://graph.facebook.com/v25.0/123/video_reels",
     ]);
   });
 
@@ -166,8 +173,144 @@ describe("Meta Graph client (mocked API)", () => {
     expect(result).toEqual({
       valid: true,
       expiresAt: null,
+      dataAccessExpiresAt: null,
       scopes: ["pages_manage_posts"],
+      appId: null,
+      profileId: null,
     });
+  });
+
+  it("rejects tokens for another app, another Page or with missing permissions", () => {
+    const base = {
+      valid: true,
+      expiresAt: null,
+      dataAccessExpiresAt: null,
+      scopes: [...requiredPageScopes],
+      appId: "app",
+      profileId: "61595987361563",
+    };
+    const expected = { appId: "app", pageId: "61595987361563" };
+    expect(tokenProblems(base, expected)).toEqual([]);
+    expect(tokenProblems({ ...base, appId: "other" }, expected)).toEqual([
+      "wrong_app",
+    ]);
+    expect(tokenProblems({ ...base, profileId: "123" }, expected)).toEqual([
+      "wrong_page",
+    ]);
+    expect(
+      tokenProblems({ ...base, scopes: ["pages_manage_posts"] }, expected),
+    ).toEqual(["missing_scopes"]);
+    expect(tokenProblems({ ...base, valid: false }, expected)).toEqual([
+      "invalid",
+    ]);
+  });
+
+  it("signs every Graph call with appsecret_proof when the app secret is known", async () => {
+    const fetch = vi.fn(async () => json({ id: "c1" }));
+    const client = new MetaGraphClient({
+      pageId: "1",
+      pageToken: "TOKEN",
+      appSecret: "SECRET",
+      fetch,
+    });
+    await client.replyToComment("c0", "رد");
+    const [url] = fetch.mock.calls[0] as unknown as [string];
+    expect(new URL(url).searchParams.get("appsecret_proof")).toBe(
+      appSecretProof("TOKEN", "SECRET"),
+    );
+    expect(url).not.toContain("SECRET");
+  });
+
+  it("never retries a publish whose answer was lost", async () => {
+    for (const reply of [
+      async () => {
+        throw new Error("socket hang up");
+      },
+      async () => new Response("<html>bad gateway</html>", { status: 502 }),
+      async () => new Response("not json", { status: 200 }),
+    ]) {
+      const client = new MetaGraphClient({
+        pageId: "1",
+        pageToken: "T",
+        fetch: reply,
+      });
+      await expect(
+        client.publishPhoto({ imageUrl: "https://x", caption: "c" }),
+      ).rejects.toMatchObject({ failure: { kind: "unknown_outcome" } });
+    }
+    // A read failing the same way is an ordinary transient error.
+    const reader = new MetaGraphClient({
+      pageId: "1",
+      pageToken: "T",
+      fetch: async () => {
+        throw new Error("x");
+      },
+    });
+    await expect(reader.comments("p")).rejects.toMatchObject({
+      failure: { kind: "transient" },
+    });
+  });
+
+  it("stores the Reel's video id before the final publish call", async () => {
+    const seen: string[] = [];
+    const fetch = vi.fn(async (url: string, init?: RequestInit) => {
+      if (url.includes("rupload")) return json({ success: true });
+      if (String(init?.body).includes("start")) return json({ video_id: "v9" });
+      expect(seen).toEqual(["v9"]);
+      throw new Error("lost");
+    });
+    const client = new MetaGraphClient({ pageId: "1", pageToken: "T", fetch });
+    await expect(
+      client.publishReel({
+        videoUrl: "https://cdn/r.mp4",
+        caption: "c",
+        onUploadStarted: async (id) => {
+          seen.push(id);
+        },
+      }),
+    ).rejects.toMatchObject({ failure: { kind: "unknown_outcome" } });
+  });
+
+  it("reads a Reel's state from its phases", async () => {
+    const state = (status: unknown) =>
+      new MetaGraphClient({
+        pageId: "1",
+        pageToken: "T",
+        fetch: async () => json({ status }),
+      }).reelState("v");
+    await expect(
+      state({
+        video_status: "ready",
+        publishing_phase: { status: "complete" },
+      }),
+    ).resolves.toBe("published");
+    await expect(
+      state({
+        video_status: "processing",
+        publishing_phase: { status: "completed" },
+      }),
+    ).resolves.toBe("published");
+    await expect(
+      state({
+        processing_phase: { status: "in_progress" },
+        publishing_phase: { status: "not_started" },
+        uploading_phase: { status: "complete" },
+      }),
+    ).resolves.toBe("processing");
+    await expect(
+      state({
+        uploading_phase: { status: "not_started" },
+        publishing_phase: { status: "not_started" },
+      }),
+    ).resolves.toBe("not_published");
+    await expect(state({ video_status: "error" })).resolves.toBe("failed");
+  });
+
+  it("matches captions the way a reader would", () => {
+    expect(sameCaption("سطر  أول\n\nسطر ثاني ", "سطر أول\nسطر ثاني")).toBe(
+      true,
+    );
+    expect(sameCaption("منشور 1", "منشور 2")).toBe(false);
   });
 });
 
@@ -183,6 +326,21 @@ describe("Facebook Login", () => {
     expect(scopes).toContain("pages_manage_posts");
     expect(scopes.some((scope) => scope.startsWith("ads_"))).toBe(false);
     expect(url.searchParams.get("state")).toBe("state");
+  });
+  it("uses the Login for Business configuration instead of scopes when one is set", () => {
+    const url = new URL(
+      loginDialogUrl(
+        {
+          appId: "1",
+          appSecret: "",
+          redirectUri: "https://shop/cb",
+          loginConfigId: "cfg",
+        },
+        "s",
+      ),
+    );
+    expect(url.searchParams.get("config_id")).toBe("cfg");
+    expect(url.searchParams.has("scope")).toBe(false);
   });
   it("never picks a Page by guessing among several", () => {
     const pages = [
@@ -213,6 +371,8 @@ describe("media and rendering", () => {
     expect(graph).toContain("s=1080x1920");
     expect(graph.match(/xfade/g)).toHaveLength(2);
     expect(args).toContain("libx264");
+    expect(args.join(" ")).toContain("-ar 48000");
+    expect(args.join(" ")).toContain("-g 60");
     expect(reelDurationSeconds(scenes)).toBeCloseTo(11.8);
   });
 });

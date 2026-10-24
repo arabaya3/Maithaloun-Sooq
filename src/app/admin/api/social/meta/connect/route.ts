@@ -44,6 +44,7 @@ export async function GET(request: Request) {
         appSecret: "",
         redirectUri: `${APP_ORIGIN}/admin/api/social/meta/callback`,
         graphVersion: process.env.META_GRAPH_VERSION || undefined,
+        loginConfigId: process.env.META_LOGIN_CONFIG_ID || undefined,
       },
       state,
     ),

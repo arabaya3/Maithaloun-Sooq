@@ -1,5 +1,5 @@
 {
-  "id": "e9b664ba-60e2-4bed-9a24-cdd92fa34292",
+  "id": "efcb7e01-6924-4f2a-aba1-f7ca95ddfaaa",
   "prevId": "ad21ad8f-bf3e-47fa-96f8-c1e1bcb4bd10",
   "version": "7",
   "dialect": "postgresql",
@@ -9730,7 +9730,7 @@
         },
         "social_comments_reply_status": {
           "name": "social_comments_reply_status",
-          "value": "\"social_comments\".\"reply_status\" IN ('pending','sent','failed','skipped','held')"
+          "value": "\"social_comments\".\"reply_status\" IN ('pending','sending','sent','failed','skipped','held')"
         }
       },
       "isRLSEnabled": false
@@ -10280,6 +10280,12 @@
         },
         "meta_object_id": {
           "name": "meta_object_id",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "meta_upload_id": {
+          "name": "meta_upload_id",
           "type": "varchar(100)",
           "primaryKey": false,
           "notNull": false

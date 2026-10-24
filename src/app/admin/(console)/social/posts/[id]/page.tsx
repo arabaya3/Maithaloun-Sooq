@@ -71,6 +71,8 @@ const eventLabels: Record<string, string> = {
   fail_permanent: "فشل النشر",
   retry_manually: "إعادة محاولة يدوية",
   reopen: "إعادة فتح",
+  reconcile: "وُجد على صفحة فيسبوك فسُجّل منشوراً",
+  uncertain: "لم يصل رد فيسبوك؛ سنتحقق من الصفحة قبل أي إعادة",
 };
 
 function Hidden({ id, version }: { id: string; version: number }) {

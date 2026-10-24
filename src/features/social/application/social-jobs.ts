@@ -45,7 +45,10 @@ export class SocialJobs {
     private readonly now: () => Date = () => new Date(),
   ) {}
 
-  async run(job: SocialJobName): Promise<{
+  async run(
+    job: SocialJobName,
+    options: { publishLimit?: number } = {},
+  ): Promise<{
     job: SocialJobName;
     status: "ok" | "failed" | "skipped";
     summary: Summary;
@@ -59,7 +62,7 @@ export class SocialJobs {
     let summary: Summary = {};
     let errorCode: string | undefined;
     try {
-      summary = await this.execute(job);
+      summary = await this.execute(job, options);
       if (typeof summary.skipped === "string") status = "skipped";
     } catch (error) {
       status = "failed";
@@ -77,7 +80,10 @@ export class SocialJobs {
     return { job, status, summary, errorCode };
   }
 
-  private async execute(job: SocialJobName): Promise<Summary> {
+  private async execute(
+    job: SocialJobName,
+    options: { publishLimit?: number },
+  ): Promise<Summary> {
     const today = todayInStoreZone(this.now());
     switch (job) {
       case "discover":
@@ -90,7 +96,7 @@ export class SocialJobs {
       case "render":
         return this.service.renderPending();
       case "publish":
-        return this.service.publishDue();
+        return this.service.publishDue(options.publishLimit);
       case "reconcile":
         return this.service.reconcileStale();
       case "engagement":
@@ -121,8 +127,11 @@ export class SocialJobs {
   }
 
   /** The frequent tick: publish what is due, recover stalled claims. */
-  async tick() {
-    return [await this.run("reconcile"), await this.run("publish")];
+  async tick(publishLimit?: number) {
+    return [
+      await this.run("reconcile"),
+      await this.run("publish", { publishLimit }),
+    ];
   }
 
   /** Once a day: catalog, drafts for the next two weeks, metrics, comments, token health; the report on Sundays. */

@@ -76,7 +76,14 @@ export default async function SocialInboxPage({
                 </p>
               )}
               <div className="social-actions">
+                {comment.replyStatus === "sending" ? (
+                  <p className="admin-muted">
+                    أُرسل الرد ولم يصل تأكيد فيسبوك؛ تأكدي من الصفحة قبل
+                    الإعادة.
+                  </p>
+                ) : null}
                 {comment.decision === "reply" &&
+                comment.replyStatus !== "sending" &&
                 can(actor, "social.approve") ? (
                   <form action={sendHeldReplyAction}>
                     <input type="hidden" name="id" value={comment.id} />

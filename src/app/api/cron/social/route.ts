@@ -32,13 +32,15 @@ function isAuthorized(request: Request): boolean {
  * GitHub Actions worker), `?run=daily` prepares drafts and reports (Vercel's daily cron).
  */
 export async function GET(request: Request) {
-  if (!socialEnabled())
-    return NextResponse.json({ ok: false }, { status: 404, headers });
   if (!isAuthorized(request))
     return NextResponse.json({ ok: false }, { status: 401, headers });
+  // Switched off: the scheduler still calls, and nothing at all runs.
+  if (!socialEnabled())
+    return NextResponse.json({ ok: true, skipped: "disabled" }, { headers });
   const run = new URL(request.url).searchParams.get("run") ?? "tick";
   let results;
-  if (run === "tick") results = await socialJobs.tick();
+  // One post per call keeps a publish well inside the 60-second function limit.
+  if (run === "tick") results = await socialJobs.tick(1);
   else if (run === "daily") results = await socialJobs.daily();
   else if ((socialJobNames as readonly string[]).includes(run))
     results = [await socialJobs.run(run as SocialJobName)];

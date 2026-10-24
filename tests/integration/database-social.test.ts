@@ -15,7 +15,10 @@ import {
   type PublicCatalog,
   type SocialCatalog,
 } from "@/features/social/domain/social-catalog";
-import type { FetchLike } from "@/features/social/infrastructure/meta-graph-client";
+import {
+  requiredPageScopes,
+  type FetchLike,
+} from "@/features/social/infrastructure/meta-graph-client";
 import * as schema from "@/server/db/schema";
 import {
   resetTestDatabase,
@@ -72,11 +75,17 @@ function publicCatalog(available: Record<string, boolean>): PublicCatalog {
 let clock = new Date("2026-10-24T08:00:00Z");
 let catalog: SocialCatalog;
 let metaCalls: string[];
-let metaReply: (url: string) => Response;
-const fetchMeta: FetchLike = async (url) => {
-  metaCalls.push(url);
-  return metaReply(url);
+let metaReply: (url: string, init?: RequestInit) => Response;
+const fetchMeta: FetchLike = async (url, init) => {
+  metaCalls.push(`${init?.method ?? "GET"} ${url}`);
+  return metaReply(url, init);
 };
+const posted = (path: string) =>
+  metaCalls.filter(
+    (call) =>
+      call.startsWith("POST ") &&
+      new URL(call.slice(5)).pathname.endsWith(path),
+  ).length;
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), {
     status,
@@ -126,6 +135,7 @@ describe("social manager (database)", () => {
     await db.delete(schema.socialConnections);
     await db.delete(schema.socialCatalogSeen);
     await db.delete(schema.socialJobRuns);
+    await db.delete(schema.socialSettings);
     clock = new Date("2026-10-24T08:00:00Z");
     catalog = toSocialCatalog(
       publicCatalog({ a: true, b: true, c: true, d: true, e: true }),
@@ -229,7 +239,7 @@ describe("social manager (database)", () => {
       service().publishDue(),
     ]);
     expect(result1.published + result2.published).toBe(1);
-    expect(metaCalls.filter((url) => url.endsWith("/photos"))).toHaveLength(1);
+    expect(posted("/photos")).toBe(1);
     expect((await social.publishDue()).published).toBe(0);
     const [published] = await db
       .select()
@@ -328,13 +338,260 @@ describe("social manager (database)", () => {
     expect(await social.reconcileStale()).toEqual({
       recovered: 1,
       requeued: 0,
+      waiting: 0,
     });
     const [row] = await db
       .select()
       .from(schema.socialPosts)
       .where(eq(schema.socialPosts.id, post.id));
     expect(row).toMatchObject({ status: "published", metaPostId: "page_99" });
-    expect(metaCalls.some((url) => url.endsWith("/photos"))).toBe(false);
+    expect(posted("/photos")).toBe(0);
+  });
+
+  it("keeps the claim after a lost answer and checks the Page before any re-send", async () => {
+    const post = await readyDraft();
+    await social.approve(owner, post.id, post.version);
+    await social.connectPage(owner, {
+      pageId: "61595987361563",
+      token: "page-token-0123456789",
+    });
+    clock = new Date("2026-10-26T00:00:00Z");
+    metaReply = (_url, init) => {
+      if (init?.method === "POST") throw new Error("socket hang up");
+      return json({ data: [] });
+    };
+    expect(await social.publishDue()).toMatchObject({
+      uncertain: 1,
+      published: 0,
+    });
+    let [row] = await db
+      .select()
+      .from(schema.socialPosts)
+      .where(eq(schema.socialPosts.id, post.id));
+    expect(row).toMatchObject({
+      status: "publishing",
+      lastErrorCode: "META_UNKNOWN_OUTCOME",
+    });
+    // Not due again, and the reconciler waits until the claim is stale.
+    expect((await social.publishDue()).published).toBe(0);
+    expect(await social.reconcileStale()).toEqual({
+      recovered: 0,
+      requeued: 0,
+      waiting: 0,
+    });
+    expect(posted("/photos")).toBe(1);
+
+    // Twenty minutes later the Page shows nothing: queued again, with backoff.
+    clock = new Date("2026-10-26T00:20:00Z");
+    expect(await social.reconcileStale()).toMatchObject({ requeued: 1 });
+    [row] = await db
+      .select()
+      .from(schema.socialPosts)
+      .where(eq(schema.socialPosts.id, post.id));
+    expect(row!.status).toBe("retry_wait");
+
+    // By the retry the post has shown up after all: it is recorded, never sent a second time.
+    clock = new Date("2026-10-26T01:00:00Z");
+    metaReply = (_url, init) =>
+      init?.method === "POST"
+        ? json({ id: "dup" })
+        : json({ data: [{ id: "page_7", message: ` ${post.caption}\n` }] });
+    expect((await social.publishDue()).published).toBe(1);
+    [row] = await db
+      .select()
+      .from(schema.socialPosts)
+      .where(eq(schema.socialPosts.id, post.id));
+    expect(row).toMatchObject({ status: "published", metaObjectId: "page_7" });
+    expect(posted("/photos")).toBe(1);
+  });
+
+  it("resolves a Reel with a lost final answer by its own video id", async () => {
+    await social.draftPlan(owner, { startDate: "2026-10-25", days: 2 });
+    await social.renderPending();
+    const reel = (await db.select().from(schema.socialPosts)).find(
+      (p) => p.format === "reel",
+    )!;
+    await social.approve(owner, reel.id, reel.version);
+    await social.connectPage(owner, {
+      pageId: "61595987361563",
+      token: "page-token-0123456789",
+    });
+    clock = new Date("2026-10-27T00:00:00Z");
+    metaReply = (url, init) => {
+      if (url.includes("rupload")) return json({ success: true });
+      if (String(init?.body).includes("upload_phase=start"))
+        return json({ video_id: "v42" });
+      if (init?.method === "POST")
+        return new Response("bad gateway", { status: 502 });
+      return json({
+        status: {
+          video_status: "ready",
+          publishing_phase: { status: "complete" },
+        },
+      });
+    };
+    expect(await social.publishDue()).toMatchObject({ uncertain: 1 });
+    let [row] = await db
+      .select()
+      .from(schema.socialPosts)
+      .where(eq(schema.socialPosts.id, reel.id));
+    expect(row).toMatchObject({ status: "publishing", metaUploadId: "v42" });
+    clock = new Date("2026-10-27T00:30:00Z");
+    expect(await social.reconcileStale()).toMatchObject({ recovered: 1 });
+    [row] = await db
+      .select()
+      .from(schema.socialPosts)
+      .where(eq(schema.socialPosts.id, reel.id));
+    expect(row).toMatchObject({ status: "published", metaObjectId: "v42" });
+    // One upload session only, and the answer came from asking about that video.
+    expect(posted("/video_reels")).toBe(2);
+    expect(
+      metaCalls.some(
+        (call) =>
+          call.startsWith("GET ") && call.includes("/v42?fields=status"),
+      ),
+    ).toBe(true);
+  });
+
+  it("a manual retry finds a post that already went out instead of sending it again", async () => {
+    const post = await readyDraft();
+    await social.approve(owner, post.id, post.version);
+    await social.connectPage(owner, {
+      pageId: "61595987361563",
+      token: "page-token-0123456789",
+    });
+    await db
+      .update(schema.socialPosts)
+      .set({ status: "failed", attempts: 4, lastErrorCode: "META_TRANSIENT" })
+      .where(eq(schema.socialPosts.id, post.id));
+    const [failed] = await db
+      .select()
+      .from(schema.socialPosts)
+      .where(eq(schema.socialPosts.id, post.id));
+    metaReply = () => json({ data: [{ id: "page_3", message: post.caption }] });
+    await expect(
+      social.retryFailed(owner, post.id, failed!.version),
+    ).rejects.toMatchObject({
+      code: "already_published",
+    });
+    const [row] = await db
+      .select()
+      .from(schema.socialPosts)
+      .where(eq(schema.socialPosts.id, post.id));
+    expect(row).toMatchObject({ status: "published", metaObjectId: "page_3" });
+    expect(posted("/photos")).toBe(0);
+  });
+
+  it("sends a held reply once even when the button is pressed twice", async () => {
+    const post = await readyDraft();
+    await social.approve(owner, post.id, post.version);
+    await social.connectPage(owner, {
+      pageId: "61595987361563",
+      token: "page-token-0123456789",
+    });
+    await db.insert(schema.socialComments).values({
+      id: "c9",
+      postId: post.id,
+      message: "قديش التوصيل؟",
+      commentedAt: clock,
+      decision: "reply",
+      reason: "delivery_fee",
+      replyText: "5 ₪",
+      replyStatus: "held",
+    });
+    metaReply = () => json({ id: "r1" });
+    const results = await Promise.allSettled([
+      social.sendHeldReply(owner, "c9"),
+      social.sendHeldReply(owner, "c9"),
+    ]);
+    expect(
+      results.filter((result) => result.status === "fulfilled"),
+    ).toHaveLength(1);
+    expect(posted("c9/comments")).toBe(1);
+  });
+
+  it("refuses a Page token issued for another Page or app", async () => {
+    const checked = new SocialService({
+      ...(
+        social as unknown as {
+          deps: ConstructorParameters<typeof SocialService>[0];
+        }
+      ).deps,
+      metaApp: { appId: "app-1", appSecret: "secret" },
+    });
+    const inspect = (data: Record<string, unknown>) => () =>
+      json({
+        data: {
+          is_valid: true,
+          app_id: "app-1",
+          profile_id: "61595987361563",
+          scopes: [...requiredPageScopes],
+          ...data,
+        },
+      });
+    const connect = () =>
+      checked.connectPage(owner, {
+        pageId: "61595987361563",
+        token: "page-token-0123456789",
+      });
+    metaReply = inspect({ profile_id: "999" });
+    await expect(connect()).rejects.toMatchObject({ code: "token_wrong_page" });
+    metaReply = inspect({ app_id: "app-2" });
+    await expect(connect()).rejects.toMatchObject({ code: "token_wrong_app" });
+    metaReply = inspect({ scopes: ["pages_manage_posts"] });
+    await expect(connect()).rejects.toMatchObject({
+      code: "token_missing_scopes",
+    });
+    expect(await social.connection()).toBeNull();
+    metaReply = inspect({});
+    await connect();
+    expect((await social.connection())!.status).toBe("connected");
+  });
+
+  it("publish-one sends exactly the chosen approved post, even in manual mode", async () => {
+    await social.draftPlan(owner, { startDate: "2026-10-25", days: 5 });
+    await social.renderPending();
+    const posts = await db.select().from(schema.socialPosts);
+    const [chosen, other, draft] = posts.filter(
+      (post) => post.format === "image",
+    );
+    await social.approve(owner, chosen!.id, chosen!.version);
+    await social.approve(owner, other!.id, other!.version);
+    await social.updateSettings(owner, {
+      autoPublishApproved: false,
+      autoReplyFaq: false,
+      paused: false,
+    });
+    await social.connectPage(owner, {
+      pageId: "61595987361563",
+      token: "page-token-0123456789",
+    });
+    clock = new Date("2026-11-30T00:00:00Z");
+    // The schedule publishes nothing in manual mode.
+    expect(await social.publishDue()).toMatchObject({ skipped: "manual_mode" });
+    expect(posted("/photos")).toBe(0);
+    // A draft or an unknown id is refused without any call to Facebook.
+    expect(
+      (
+        await social.publishDue(1, {
+          onlyPostId:
+            draft!.status === "draft"
+              ? draft!.id
+              : "00000000-0000-4000-8000-000000000000",
+        })
+      ).published,
+    ).toBe(0);
+    await expect(
+      social.publishDue(1, { onlyPostId: "x; drop table" }),
+    ).rejects.toMatchObject({ code: "invalid" });
+    expect(
+      (await social.publishDue(1, { onlyPostId: chosen!.id })).published,
+    ).toBe(1);
+    expect(posted("/photos")).toBe(1);
+    const rows = await db.select().from(schema.socialPosts);
+    expect(rows.find((row) => row.id === chosen!.id)!.status).toBe("published");
+    expect(rows.find((row) => row.id === other!.id)!.status).toBe("approved");
+    expect(rows.filter((row) => row.status === "published")).toHaveLength(1);
   });
 
   it("triages comments: holds verified answers, escalates the rest, never replies when off", async () => {
@@ -390,7 +647,7 @@ describe("social manager (database)", () => {
       decision: "escalate",
       reason: "refund",
     });
-    expect(metaCalls.some((url) => url.includes("c1/comments"))).toBe(false);
+    expect(posted("c1/comments")).toBe(0);
   });
 
   it("logs job runs and produces one weekly report", async () => {

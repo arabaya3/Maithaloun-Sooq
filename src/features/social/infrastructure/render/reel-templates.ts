@@ -465,7 +465,7 @@ export function ffmpegArgs(
     "-t",
     String(reelDurationSeconds(scenes)),
     "-i",
-    "anullsrc=channel_layout=stereo:sample_rate=44100",
+    "anullsrc=channel_layout=stereo:sample_rate=48000",
   );
   const filters: string[] = [];
   scenes.forEach((scene, index) => {
@@ -501,6 +501,13 @@ export function ffmpegArgs(
     "medium",
     "-crf",
     "20",
+    // Meta's Reels spec: fixed frame rate, closed GOP of 2-5 s, AAC-LC 48 kHz at 128 kbps or more.
+    "-g",
+    String(FPS * 2),
+    "-keyint_min",
+    String(FPS * 2),
+    "-sc_threshold",
+    "0",
     "-pix_fmt",
     "yuv420p",
     "-r",
@@ -509,6 +516,8 @@ export function ffmpegArgs(
     "aac",
     "-b:a",
     "128k",
+    "-ar",
+    "48000",
     "-shortest",
     "-movflags",
     "+faststart",

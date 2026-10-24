@@ -93,11 +93,14 @@ function shortDescription(product: SocialProduct): string | null {
 }
 
 function join(parts: Array<string | null | undefined | false>): string {
-  return parts
-    .filter((part): part is string => Boolean(part))
-    .join("\n")
-    .replace(/\n{3,}/g, "\n\n")
-    .trim();
+  return (
+    parts
+      // "" is a deliberate blank line between paragraphs; only missing parts are dropped.
+      .filter((part): part is string => typeof part === "string")
+      .join("\n")
+      .replace(/\n{3,}/g, "\n\n")
+      .trim()
+  );
 }
 
 export function productCaption(

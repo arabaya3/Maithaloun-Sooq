@@ -71,6 +71,8 @@ import {
 import {
   inspectToken,
   MetaGraphClient,
+  sameCaption,
+  tokenProblems,
   type FetchLike,
 } from "@/features/social/infrastructure/meta-graph-client";
 import {
@@ -91,7 +93,13 @@ export type SocialErrorCode =
   | "invalid"
   | "not_connected"
   | "token_invalid"
-  | "vault_missing";
+  | "vault_missing"
+  | "meta_app_missing"
+  | "token_wrong_app"
+  | "token_wrong_page"
+  | "token_missing_scopes"
+  | "already_published"
+  | "still_processing";
 
 export class SocialError extends Error {
   constructor(
@@ -143,6 +151,8 @@ export interface SocialDependencies {
   loadImage: (url: string) => Promise<Buffer>;
   videoRenderingAvailable: () => Promise<boolean>;
   metaApp?: { appId: string; appSecret: string } | null;
+  /** Refuse to store a Page token that could not be checked with debug_token (production). */
+  requireTokenCheck?: boolean;
   graphVersion?: string;
   fetch?: FetchLike;
   captionWriter?: CaptionWriter | null;
@@ -181,7 +191,12 @@ export class SocialService {
   private async record(
     postId: string,
     event:
-      PostEvent | "created" | "media_ready" | "media_failed" | "reconciled",
+      | PostEvent
+      | "created"
+      | "media_ready"
+      | "media_failed"
+      | "reconciled"
+      | "uncertain",
     actor: AdminActor | null,
     from: PostStatus | null,
     to: PostStatus | null,
@@ -279,9 +294,24 @@ export class SocialService {
         graphVersion: this.deps.graphVersion,
         fetch: this.deps.fetch,
       });
-      if (!inspection.valid) throw new SocialError("token_invalid");
+      // The token must be ours: issued to our app, for this Page, with every permission we use.
+      const problems = tokenProblems(inspection, {
+        appId: this.deps.metaApp.appId,
+        pageId,
+      });
+      if (problems.includes("invalid")) throw new SocialError("token_invalid");
+      if (problems.includes("wrong_app"))
+        throw new SocialError("token_wrong_app");
+      if (problems.includes("wrong_page"))
+        throw new SocialError("token_wrong_page");
+      if (problems.includes("missing_scopes")) {
+        throw new SocialError("token_missing_scopes");
+      }
       expiresAt = inspection.expiresAt;
       scopes = inspection.scopes;
+    } else if (this.deps.requireTokenCheck) {
+      // In production an unchecked token is never stored.
+      throw new SocialError("meta_app_missing");
     }
     let sealed: string;
     try {
@@ -357,6 +387,7 @@ export class SocialService {
     return new MetaGraphClient({
       pageId: connection.pageId,
       pageToken,
+      appSecret: this.deps.metaApp?.appSecret,
       graphVersion: this.deps.graphVersion,
       fetch: this.deps.fetch,
     });
@@ -389,8 +420,14 @@ export class SocialService {
       graphVersion: this.deps.graphVersion,
       fetch: this.deps.fetch,
     });
+    const problems = tokenProblems(inspection, {
+      appId: this.deps.metaApp.appId,
+      pageId: connection.pageId,
+    });
     if (
-      !inspection.valid ||
+      problems.includes("invalid") ||
+      problems.includes("wrong_app") ||
+      problems.includes("wrong_page") ||
       (inspection.expiresAt && inspection.expiresAt <= this.now())
     ) {
       await this.markConnection("expired");
@@ -693,6 +730,8 @@ export class SocialService {
             tipId: post.tipId as ShoppingTipId | null,
             categoryName,
           });
+          // Meta accepts page photos up to 4 MB.
+          if (image.byteLength > 4_000_000) throw new Error("IMAGE_TOO_LARGE");
           const mediaUrl = await this.deps.media.put(image, "jpg");
           await this.setMedia(post, "ready", { mediaUrl, posterUrl: mediaUrl });
         }
@@ -894,6 +933,19 @@ export class SocialService {
     assertPermission(actor, "social.approve");
     const post = await this.load(id);
     if (post.metaObjectId) throw new SocialError("invalid");
+    if (post.version !== version) throw new SocialError("stale");
+    // An earlier attempt may have reached Facebook without us hearing back: look before sending again.
+    if (post.attempts > 0 || post.metaUploadId) {
+      const client = await this.metaClient();
+      if (!client) throw new SocialError("not_connected");
+      const found = await this.findOnPage(client, post);
+      if (found.state === "published") {
+        await this.markReconciled(post, found.id, actor);
+        throw new SocialError("already_published");
+      }
+      if (found.state === "processing")
+        throw new SocialError("still_processing");
+    }
     await this.transition(actor, post, "retry_manually", version, {
       attempts: 0,
       nextAttemptAt: null,
@@ -1009,7 +1061,7 @@ export class SocialService {
     detail?: string,
   ) {
     const to = nextStatus("publishing", event);
-    await this.db
+    const updated = await this.db
       .update(schema.socialPosts)
       .set({
         ...set,
@@ -1023,8 +1075,73 @@ export class SocialService {
           eq(schema.socialPosts.id, post.id),
           eq(schema.socialPosts.claimToken, token),
         ),
-      );
-    await this.record(post.id, event, null, "publishing", to, detail);
+      )
+      .returning({ id: schema.socialPosts.id });
+    // The history only records what actually changed; a lost claim leaves no false entry.
+    if (updated.length) {
+      await this.record(post.id, event, null, "publishing", to, detail);
+    }
+  }
+
+  /**
+   * Whether this post is already on the Page. A Reel is asked about by its own video id; a photo is
+   * found among the Page's posts and photos since the first attempt, by its caption.
+   */
+  private async findOnPage(
+    client: MetaGraphClient,
+    post: SocialPostRow,
+  ): Promise<
+    | { state: "published"; id: string }
+    | { state: "processing" | "failed" | "absent" }
+  > {
+    if (post.metaUploadId) {
+      const state = await client.reelState(post.metaUploadId);
+      if (state === "published") return { state, id: post.metaUploadId };
+      if (state === "processing") return { state };
+      if (state === "failed") return { state };
+      return { state: "absent" };
+    }
+    const since = new Date(
+      (post.approvedAt ?? post.claimedAt ?? this.now()).getTime() - 5 * 60_000,
+    );
+    const found = (await client.recentContent(since)).find((candidate) =>
+      sameCaption(candidate.message, post.caption),
+    );
+    return found ? { state: "published", id: found.id } : { state: "absent" };
+  }
+
+  /** Records a post that turned out to be on the Page already; never sends anything. */
+  private async markReconciled(
+    post: SocialPostRow,
+    id: string,
+    actor: AdminActor | null,
+  ) {
+    const from = post.status as PostStatus;
+    const to = nextStatus(from, "reconcile");
+    const updated = await this.db
+      .update(schema.socialPosts)
+      .set({
+        status: to,
+        claimToken: null,
+        metaObjectId: id,
+        metaPostId: post.metaPostId ?? id,
+        publishedAt: post.claimedAt ?? this.now(),
+        lastErrorCode: null,
+        nextAttemptAt: null,
+        updatedAt: this.now(),
+        version: sql`${schema.socialPosts.version} + 1`,
+      })
+      .where(
+        and(
+          eq(schema.socialPosts.id, post.id),
+          eq(schema.socialPosts.status, from),
+          isNull(schema.socialPosts.metaObjectId),
+        ),
+      )
+      .returning({ id: schema.socialPosts.id });
+    if (updated.length) {
+      await this.record(post.id, "reconcile", actor, from, to, id);
+    }
   }
 
   private async failClaim(
@@ -1067,35 +1184,51 @@ export class SocialService {
     );
   }
 
-  async publishDue(limit = 5): Promise<{
+  /**
+   * Publishes approved posts that are due. With `onlyPostId` it publishes that one approved post and
+   * nothing else, even when automatic publishing is off: the owner's controlled live test.
+   */
+  async publishDue(
+    limit = 5,
+    options: { onlyPostId?: string } = {},
+  ): Promise<{
     published: number;
     failed: number;
     retrying: number;
+    uncertain?: number;
     skipped?: string;
   }> {
     const settings = await this.settings();
     if (settings.paused)
       return { published: 0, failed: 0, retrying: 0, skipped: "paused" };
-    if (!settings.autoPublishApproved)
+    if (!settings.autoPublishApproved && !options.onlyPostId)
       return { published: 0, failed: 0, retrying: 0, skipped: "manual_mode" };
+    if (options.onlyPostId && !/^[0-9a-f-]{36}$/.test(options.onlyPostId)) {
+      throw new SocialError("invalid");
+    }
     const now = this.now();
     const due = await this.db
       .select()
       .from(schema.socialPosts)
       .where(
-        or(
-          and(
-            eq(schema.socialPosts.status, "approved"),
-            lte(schema.socialPosts.scheduledFor, now),
-          ),
-          and(
-            eq(schema.socialPosts.status, "retry_wait"),
-            lte(schema.socialPosts.nextAttemptAt, now),
-          ),
-        ),
+        options.onlyPostId
+          ? and(
+              eq(schema.socialPosts.id, options.onlyPostId),
+              inArray(schema.socialPosts.status, ["approved", "retry_wait"]),
+            )
+          : or(
+              and(
+                eq(schema.socialPosts.status, "approved"),
+                lte(schema.socialPosts.scheduledFor, now),
+              ),
+              and(
+                eq(schema.socialPosts.status, "retry_wait"),
+                lte(schema.socialPosts.nextAttemptAt, now),
+              ),
+            ),
       )
       .orderBy(asc(schema.socialPosts.scheduledFor))
-      .limit(limit);
+      .limit(options.onlyPostId ? 1 : limit);
     if (!due.length) return { published: 0, failed: 0, retrying: 0 };
     const client = await this.metaClient();
     if (!client)
@@ -1105,6 +1238,7 @@ export class SocialService {
     let published = 0;
     let failed = 0;
     let retrying = 0;
+    let uncertain = 0;
     for (const post of due) {
       const token = await this.claim(post);
       if (!token) continue;
@@ -1132,11 +1266,40 @@ export class SocialService {
         continue;
       }
       try {
+        // A retry first asks Facebook whether an earlier attempt went through after all.
+        if (post.attempts > 0 || post.metaUploadId) {
+          const found = await this.findOnPage(client, post);
+          if (found.state === "published") {
+            await this.markReconciled(
+              { ...post, status: "publishing", claimedAt: post.claimedAt },
+              found.id,
+              null,
+            );
+            published += 1;
+            continue;
+          }
+          if (found.state === "processing") {
+            // Facebook is still handling the earlier upload; the reconciler finishes it.
+            uncertain += 1;
+            continue;
+          }
+        }
         const ref =
           post.format === "reel"
             ? await client.publishReel({
                 videoUrl: post.mediaUrl,
                 caption: post.caption,
+                onUploadStarted: async (videoId) => {
+                  await this.db
+                    .update(schema.socialPosts)
+                    .set({ metaUploadId: videoId, updatedAt: this.now() })
+                    .where(
+                      and(
+                        eq(schema.socialPosts.id, post.id),
+                        eq(schema.socialPosts.claimToken, token),
+                      ),
+                    );
+                },
               })
             : await client.publishPhoto({
                 imageUrl: post.mediaUrl,
@@ -1160,7 +1323,32 @@ export class SocialService {
         const failure: MetaFailure =
           error instanceof MetaApiError
             ? error.failure
-            : { kind: "transient", code: null, subcode: null };
+            : { kind: "unknown_outcome", code: null, subcode: null };
+        if (failure.kind === "unknown_outcome") {
+          // Facebook may have published it. The claim is kept, so nothing re-sends it; the
+          // reconciler checks the Page once the claim is stale and only then decides.
+          await this.db
+            .update(schema.socialPosts)
+            .set({
+              lastErrorCode: "META_UNKNOWN_OUTCOME",
+              updatedAt: this.now(),
+            })
+            .where(
+              and(
+                eq(schema.socialPosts.id, post.id),
+                eq(schema.socialPosts.claimToken, token),
+              ),
+            );
+          await this.record(
+            post.id,
+            "uncertain",
+            null,
+            "publishing",
+            "publishing",
+          );
+          uncertain += 1;
+          continue;
+        }
         await this.failClaim(post, token, failure);
         if (isRetryable(failure) && post.attempts + 1 < MAX_PUBLISH_ATTEMPTS)
           retrying += 1;
@@ -1169,14 +1357,19 @@ export class SocialService {
         if (failure.kind === "rate_limit" || failure.kind === "auth") break;
       }
     }
-    return { published, failed, retrying };
+    return { published, failed, retrying, uncertain };
   }
 
   /**
-   * A claim that never finished (crash, timeout) may or may not have reached Facebook. We look at the
-   * Page's recent posts first; only when the caption is not there is the post queued again.
+   * A claim that never finished (crash, timeout, lost answer) may or may not have reached Facebook.
+   * Each one is looked up on the Page first; only a post that is certainly absent is queued again.
+   * A lookup that fails leaves the post as it is, to be checked on the next run.
    */
-  async reconcileStale(): Promise<{ recovered: number; requeued: number }> {
+  async reconcileStale(): Promise<{
+    recovered: number;
+    requeued: number;
+    waiting: number;
+  }> {
     const cutoff = new Date(this.now().getTime() - STALE_CLAIM_MS);
     const stale = await this.db
       .select()
@@ -1187,39 +1380,40 @@ export class SocialService {
           lte(schema.socialPosts.claimedAt, cutoff),
         ),
       );
-    if (!stale.length) return { recovered: 0, requeued: 0 };
+    const result = { recovered: 0, requeued: 0, waiting: 0 };
+    if (!stale.length) return result;
     const client = await this.metaClient();
-    if (!client) return { recovered: 0, requeued: 0 };
-    let recovered = 0;
-    let requeued = 0;
+    if (!client) return { ...result, waiting: stale.length };
     for (const post of stale) {
-      const since = new Date((post.claimedAt ?? cutoff).getTime() - 2 * 60_000);
-      const found = (await client.recentPosts(since)).find(
-        (candidate) => candidate.message.trim() === post.caption.trim(),
-      );
-      if (found) {
-        await this.finishClaim(
-          post,
-          post.claimToken!,
-          "succeed",
-          {
-            metaObjectId: found.id,
-            metaPostId: found.id,
-            publishedAt: post.claimedAt ?? this.now(),
-          },
-          "reconciled",
-        );
-        recovered += 1;
-      } else {
-        await this.failClaim(post, post.claimToken!, {
-          kind: "transient",
-          code: null,
-          subcode: null,
-        });
-        requeued += 1;
+      try {
+        const found = await this.findOnPage(client, post);
+        if (found.state === "published") {
+          await this.markReconciled(post, found.id, null);
+          result.recovered += 1;
+        } else if (found.state === "processing") {
+          result.waiting += 1;
+        } else if (found.state === "failed") {
+          await this.finishClaim(
+            post,
+            post.claimToken!,
+            "fail_permanent",
+            { lastErrorCode: "REEL_PROCESSING_FAILED", nextAttemptAt: null },
+            "REEL_PROCESSING_FAILED",
+          );
+          result.requeued += 1;
+        } else {
+          await this.failClaim(post, post.claimToken!, {
+            kind: "transient",
+            code: null,
+            subcode: null,
+          });
+          result.requeued += 1;
+        }
+      } catch {
+        result.waiting += 1;
       }
     }
-    return { recovered, requeued };
+    return result;
   }
 
   // ---------------------------------------------------------------- engagement & community
@@ -1230,7 +1424,9 @@ export class SocialService {
     const posts = await this.db
       .select({
         id: schema.socialPosts.id,
+        format: schema.socialPosts.format,
         metaPostId: schema.socialPosts.metaPostId,
+        metaObjectId: schema.socialPosts.metaObjectId,
       })
       .from(schema.socialPosts)
       .where(
@@ -1246,7 +1442,10 @@ export class SocialService {
     for (const post of posts) {
       if (!post.metaPostId) continue;
       try {
-        const engagement = await client.engagement(post.metaPostId);
+        const engagement = await client.engagement(
+          post.metaPostId,
+          post.format === "reel" ? post.metaObjectId : null,
+        );
         await this.db
           .insert(schema.socialEngagement)
           .values({ postId: post.id, ...engagement, fetchedAt: this.now() })
@@ -1398,19 +1597,47 @@ export class SocialService {
     }
     const client = await this.metaClient();
     if (!client) throw new SocialError("not_connected");
-    const replyMetaId = await client.replyToComment(
-      comment.id,
-      comment.replyText,
-    );
-    await this.db
+    // Taking the reply first means a second click finds it already being sent.
+    const taken = await this.db
       .update(schema.socialComments)
-      .set({
-        replyStatus: "sent",
-        replyMetaId,
-        resolvedBy: actor.id,
-        resolvedAt: this.now(),
-      })
-      .where(eq(schema.socialComments.id, id));
+      .set({ replyStatus: "sending" })
+      .where(
+        and(
+          eq(schema.socialComments.id, id),
+          inArray(schema.socialComments.replyStatus, [
+            "held",
+            "failed",
+            "pending",
+          ]),
+        ),
+      )
+      .returning({ id: schema.socialComments.id });
+    if (!taken.length) throw new SocialError("invalid");
+    try {
+      const replyMetaId = await client.replyToComment(
+        comment.id,
+        comment.replyText,
+      );
+      await this.db
+        .update(schema.socialComments)
+        .set({
+          replyStatus: "sent",
+          replyMetaId,
+          resolvedBy: actor.id,
+          resolvedAt: this.now(),
+        })
+        .where(eq(schema.socialComments.id, id));
+    } catch (error) {
+      // A lost answer may still have posted the reply; it is not offered again automatically.
+      const unknown =
+        !(error instanceof MetaApiError) ||
+        error.failure.kind === "unknown_outcome";
+      await this.db
+        .update(schema.socialComments)
+        .set({ replyStatus: unknown ? "sending" : "failed" })
+        .where(eq(schema.socialComments.id, id));
+      throw error;
+    }
   }
 
   // ---------------------------------------------------------------- reading for the dashboard

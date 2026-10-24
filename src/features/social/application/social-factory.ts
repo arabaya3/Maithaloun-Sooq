@@ -62,6 +62,7 @@ export function createSocialService(input: {
       input.env.META_APP_ID && input.env.META_APP_SECRET
         ? { appId: input.env.META_APP_ID, appSecret: input.env.META_APP_SECRET }
         : null,
+    requireTokenCheck: input.env.NODE_ENV === "production",
     graphVersion: input.env.META_GRAPH_VERSION || undefined,
     loadImage: fetchImage,
     renderFeed: ({ kind, products, photos, catalog, tipId, categoryName }) =>

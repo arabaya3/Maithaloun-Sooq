@@ -30,7 +30,9 @@ export type PostEvent =
   | "fail_retryable"
   | "fail_permanent"
   | "retry_manually"
-  | "reopen";
+  | "reopen"
+  // Found on the Page after an answer was lost: recorded as published, nothing is sent.
+  | "reconcile";
 
 const transitions: Record<
   PostStatus,
@@ -42,15 +44,18 @@ const transitions: Record<
     succeed: "published",
     fail_retryable: "retry_wait",
     fail_permanent: "failed",
+    reconcile: "published",
   },
   retry_wait: {
     claim: "publishing",
     unapprove: "draft",
     reject: "rejected",
+    reconcile: "published",
   },
   published: {},
   failed: {
     retry_manually: "approved",
+    reconcile: "published",
     reopen: "draft",
     reject: "rejected",
   },

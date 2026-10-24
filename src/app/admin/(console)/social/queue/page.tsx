@@ -56,6 +56,11 @@ function failureText(code: string | null): string | null {
   if (code === "MEDIA_NOT_PUBLIC")
     return "الوسائط ليست على رابط عام (التخزين غير مضبوط).";
   if (code === "CONTENT_CHANGED") return "تغيّر المحتوى بعد الموافقة.";
+  if (code === "IMAGE_TOO_LARGE") return "الصورة أكبر من حد فيسبوك.";
+  if (code === "REEL_PROCESSING_FAILED")
+    return "فيسبوك لم يستطع معالجة الفيديو.";
+  if (code === "META_UNKNOWN_OUTCOME")
+    return "لم يصل رد فيسبوك؛ نتحقق من الصفحة قبل أي إعادة.";
   const kind = /^META_([A-Z_]+?)(?:_\d+)?$/.exec(code)?.[1]?.toLowerCase();
   return (
     (kind && metaFailureLabels[kind as keyof typeof metaFailureLabels]) || code

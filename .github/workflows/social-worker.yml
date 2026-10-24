@@ -1,5 +1,5 @@
 # The Facebook manager's free worker: renders Reels with FFmpeg and publishes approved posts that are due.
-# It does nothing until the repository variable SOCIAL_MANAGER is "on" and the secrets below exist.
+# Inert unless the repository variable SOCIAL_MANAGER is "on" (the job is skipped before any step runs).
 # Nothing is ever published without the owner's approval in /admin/social; that rule lives in the database.
 name: social-worker
 
@@ -9,8 +9,21 @@ on:
   workflow_dispatch:
     inputs:
       command:
-        description: "default | daily | discover | draft | render | publish | reconcile | engagement | comments | connection | report"
+        description: Worker command
+        type: choice
         default: default
+        options:
+          - default
+          - daily
+          - discover
+          - draft
+          - render
+          - publish
+          - reconcile
+          - engagement
+          - comments
+          - connection
+          - report
 
 permissions:
   contents: read
@@ -24,22 +37,33 @@ jobs:
     if: vars.SOCIAL_MANAGER == 'on'
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    env:
-      SOCIAL_MANAGER: "on"
-      DATABASE_URL: ${{ secrets.DATABASE_URL }}
-      SOCIAL_TOKEN_KEY: ${{ secrets.SOCIAL_TOKEN_KEY }}
-      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-      SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
-      META_APP_ID: ${{ secrets.META_APP_ID }}
-      META_APP_SECRET: ${{ secrets.META_APP_SECRET }}
-      SOCIAL_PUBLIC_ORIGIN: ${{ vars.SOCIAL_PUBLIC_ORIGIN }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      # Actions are pinned to commits: this job holds production secrets.
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22
           cache: pnpm
-      - run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg fonts-noto-color-emoji
+      - run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
+      # No secret is present while dependencies install.
       - run: pnpm install --frozen-lockfile
-      - run: pnpm social:worker ${{ github.event.inputs.command || 'default' }}
+      - name: Run worker
+        env:
+          COMMAND: ${{ inputs.command || 'default' }}
+          SOCIAL_MANAGER: "on"
+          DATABASE_URL: ${{ secrets.SOCIAL_WORKER_DATABASE_URL }}
+          SOCIAL_TOKEN_KEY: ${{ secrets.SOCIAL_TOKEN_KEY }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+          META_APP_ID: ${{ secrets.META_APP_ID }}
+          META_APP_SECRET: ${{ secrets.META_APP_SECRET }}
+          SOCIAL_PUBLIC_ORIGIN: ${{ vars.SOCIAL_PUBLIC_ORIGIN }}
+        run: |
+          case "$COMMAND" in
+            default|daily|discover|draft|render|publish|reconcile|engagement|comments|connection|report) ;;
+            *) echo "Unknown command" >&2; exit 1 ;;
+          esac
+          pnpm social:worker "$COMMAND"

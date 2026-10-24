@@ -24,6 +24,8 @@ export interface MetaAppConfig {
   redirectUri: string;
   graphVersion?: string;
   fetch?: FetchLike;
+  /** Facebook Login for Business: the configuration id replaces the scope list. */
+  loginConfigId?: string;
 }
 
 export function loginDialogUrl(config: MetaAppConfig, state: string): string {
@@ -32,7 +34,9 @@ export function loginDialogUrl(config: MetaAppConfig, state: string): string {
     redirect_uri: config.redirectUri,
     state,
     response_type: "code",
-    scope: requiredPageScopes.join(","),
+    ...(config.loginConfigId
+      ? { config_id: config.loginConfigId }
+      : { scope: requiredPageScopes.join(",") }),
   });
   return `https://www.facebook.com/${config.graphVersion ?? DEFAULT_GRAPH_VERSION}/dialog/oauth?${params}`;
 }

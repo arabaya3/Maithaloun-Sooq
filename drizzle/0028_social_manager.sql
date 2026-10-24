@@ -19,7 +19,7 @@ CREATE TABLE "social_comments" (
 	"resolved_at" timestamp with time zone,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	CONSTRAINT "social_comments_decision" CHECK ("social_comments"."decision" IN ('reply','escalate','none')),
-	CONSTRAINT "social_comments_reply_status" CHECK ("social_comments"."reply_status" IN ('pending','sent','failed','skipped','held'))
+	CONSTRAINT "social_comments_reply_status" CHECK ("social_comments"."reply_status" IN ('pending','sending','sent','failed','skipped','held'))
 );
 --> statement-breakpoint
 CREATE TABLE "social_connections" (
@@ -96,6 +96,7 @@ CREATE TABLE "social_posts" (
 	"publish_key" varchar(64),
 	"meta_post_id" varchar(100),
 	"meta_object_id" varchar(100),
+	"meta_upload_id" varchar(100),
 	"published_at" timestamp with time zone,
 	"approved_by" uuid,
 	"approved_at" timestamp with time zone,

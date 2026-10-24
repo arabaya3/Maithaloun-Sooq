@@ -5,6 +5,8 @@
  *   pnpm social:worker            render pending media, then publish what is due
  *   pnpm social:worker daily      the daily jobs (drafts, metrics, comments, token check)
  *   pnpm social:worker <job>      one job: discover|draft|render|publish|reconcile|engagement|comments|connection|report
+ *   pnpm social:worker publish-one <post-id> --confirm
+ *                                 publish exactly this approved post now (controlled live test)
  */
 import { config } from "dotenv";
 
@@ -48,7 +50,22 @@ const jobs = new SocialJobs(connection.db, service);
 
 try {
   let results;
-  if (command === "default")
+  if (command === "publish-one") {
+    const postId = process.argv[3] ?? "";
+    if (!process.argv.includes("--confirm")) {
+      throw new Error(
+        "publish-one publishes to the live Page; add --confirm to proceed.",
+      );
+    }
+    const summary = await service.publishDue(1, { onlyPostId: postId });
+    results = [
+      {
+        job: "publish-one",
+        status: summary.published ? "ok" : "failed",
+        summary,
+      },
+    ];
+  } else if (command === "default")
     results = [await jobs.run("render"), ...(await jobs.tick())];
   else if (command === "daily") results = await jobs.daily();
   else if ((socialJobNames as readonly string[]).includes(command))

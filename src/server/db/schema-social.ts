@@ -63,6 +63,8 @@ export const socialPosts = pgTable(
     publishKey: varchar("publish_key", { length: 64 }).unique(),
     metaPostId: varchar("meta_post_id", { length: 100 }).unique(),
     metaObjectId: varchar("meta_object_id", { length: 100 }),
+    // A Reel's video id, saved before the final publish call so a lost answer can be checked.
+    metaUploadId: varchar("meta_upload_id", { length: 100 }),
     publishedAt: timestamp("published_at", {
       withTimezone: true,
       mode: "date",
@@ -250,7 +252,7 @@ export const socialComments = pgTable(
     ),
     check(
       "social_comments_reply_status",
-      sql`${table.replyStatus} IN ('pending','sent','failed','skipped','held')`,
+      sql`${table.replyStatus} IN ('pending','sending','sent','failed','skipped','held')`,
     ),
   ],
 );

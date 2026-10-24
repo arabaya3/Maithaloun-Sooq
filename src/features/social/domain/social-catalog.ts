@@ -8,7 +8,7 @@ import { formatIls } from "@/shared/lib/format-currency";
  */
 const publicImageSchema = z
   .object({
-    src: z.url(),
+    src: z.string().min(1),
     alt: z.string(),
     width: z.number().int().positive(),
     height: z.number().int().positive(),
@@ -119,7 +119,10 @@ export function toSocialProduct(
   product: PublicProduct,
   categoryName: string,
 ): SocialProduct | null {
-  if (!product.available || !product.image) return null;
+  // Only a public https photo can be rendered and fetched by Meta; placeholders and local files are skipped.
+  if (!product.available || !product.image?.src.startsWith("https://")) {
+    return null;
+  }
   const variants: SocialVariant[] = [];
   for (const variant of product.variants) {
     if (!variant.available) continue;
