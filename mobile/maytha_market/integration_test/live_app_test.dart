@@ -185,11 +185,11 @@ void main() {
     final card = find.byWidgetPredicate((w) => w is ProductCard && w.product.slug == prod['slug']);
     expect(card, findsOneWidget);
     await tester.tap(card);
-    await pumpUntil(tester, find.widgetWithText(ChoiceChip, variant['label'] as String));
-    await scrollTap(tester, find.widgetWithText(ChoiceChip, variant['label'] as String));
+    await pumpUntil(tester, find.byKey(ValueKey('variant-${variant['id']}')));
+    await scrollTap(tester, find.byKey(ValueKey('variant-${variant['id']}')));
     await settle(tester);
     if (units.length > 1) {
-      await scrollTap(tester, find.widgetWithText(ChoiceChip, '${unit['label']} · ${formatAgorot(unit['priceAgorot'] as int)}'));
+      await scrollTap(tester, find.byKey(ValueKey('unit-${unit['id']}')));
       await settle(tester);
     }
     final qty = (unit['maxQuantity'] as int) >= 2 ? 2 : 1;

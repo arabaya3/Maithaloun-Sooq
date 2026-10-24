@@ -392,56 +392,73 @@ class ProductSliverGrid extends StatelessWidget {
   }
 }
 
-/// Compact quantity stepper with 44dp targets. In RTL the row mirrors, so
+/// Compact quantity stepper with 48dp targets. In RTL the row mirrors, so
 /// "decrease" sits at the reading start and "increase" at the reading end.
+///
+/// [tinted] is the product-page style: pill outline, circular light-green
+/// buttons, and "−" always on the left / "+" on the right (as in the
+/// approved product mockup, in both directions).
 class QuantityStepper extends StatelessWidget {
-  const QuantityStepper({super.key, required this.value, required this.max, required this.onChanged, this.min = 1});
+  const QuantityStepper({
+    super.key,
+    required this.value,
+    required this.max,
+    required this.onChanged,
+    this.min = 1,
+    this.tinted = false,
+  });
   final int value;
   final int min;
   final int max;
   final ValueChanged<int> onChanged;
+  final bool tinted;
 
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context);
     const box = BoxConstraints(minWidth: 48, minHeight: 48);
+    Widget button(IconData icon, String tip, VoidCallback? onPressed) => IconButton(
+      constraints: box,
+      iconSize: tinted ? 22 : 20,
+      tooltip: tip,
+      onPressed: onPressed,
+      style: tinted
+          ? IconButton.styleFrom(
+              backgroundColor: BrandColors.sage,
+              foregroundColor: BrandColors.forest,
+              disabledBackgroundColor: BrandColors.sage.withValues(alpha: 0.5),
+              disabledForegroundColor: BrandColors.muted.withValues(alpha: 0.5),
+            )
+          : null,
+      icon: Icon(icon),
+    );
+    final row = Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        button(Icons.remove, l.decrease, value > min ? () => onChanged(value - 1) : null),
+        Semantics(
+          label: l.quantity,
+          value: '$value',
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minWidth: tinted ? 44 : 28),
+            child: Text(
+              '$value',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontWeight: FontWeight.w700, fontSize: tinted ? 17 : 15),
+            ),
+          ),
+        ),
+        button(Icons.add, l.increase, value < max ? () => onChanged(value + 1) : null),
+      ],
+    );
     return Container(
+      padding: tinted ? const EdgeInsets.all(4) : null,
       decoration: BoxDecoration(
         color: Colors.white,
         border: Border.all(color: BrandColors.hairline),
-        borderRadius: BorderRadius.circular(Radii.md),
+        borderRadius: BorderRadius.circular(tinted ? 30 : Radii.md),
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          IconButton(
-            constraints: box,
-            iconSize: 20,
-            tooltip: l.decrease,
-            onPressed: value > min ? () => onChanged(value - 1) : null,
-            icon: const Icon(Icons.remove),
-          ),
-          Semantics(
-            label: l.quantity,
-            value: '$value',
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(minWidth: 28),
-              child: Text(
-                '$value',
-                textAlign: TextAlign.center,
-                style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
-              ),
-            ),
-          ),
-          IconButton(
-            constraints: box,
-            iconSize: 20,
-            tooltip: l.increase,
-            onPressed: value < max ? () => onChanged(value + 1) : null,
-            icon: const Icon(Icons.add),
-          ),
-        ],
-      ),
+      child: tinted ? Directionality(textDirection: TextDirection.ltr, child: row) : row,
     );
   }
 }
