@@ -51,12 +51,18 @@ export class MakePublisher implements Publisher {
     if (!this.supports(request.format) || !contentTypeOf(request)) {
       throw fail("invalid_request");
     }
-    const body = JSON.stringify(
-      buildMakePayload(request, {
-        pageId: this.config.pageId,
-        callbackUrl: this.config.callbackUrl,
-      }),
-    );
+    let body: string;
+    try {
+      body = JSON.stringify(
+        buildMakePayload(request, {
+          pageId: this.config.pageId,
+          callbackUrl: this.config.callbackUrl,
+        }),
+      );
+    } catch {
+      // The payload does not fit the scenario's schema: refused here, nothing was sent.
+      throw fail("invalid_request");
+    }
     let response: Response;
     try {
       response = await this.fetcher(this.config.webhookUrl, {
@@ -103,7 +109,11 @@ export class MakePublisher implements Publisher {
     }
     // Published only with a valid Facebook object id; a 200 without one (Make's plain «Accepted»,
     // an unexpected body) waits for confirmation and is never re-sent automatically.
-    const facebookId = facebookIdFromReply(json);
+    const facebookId = facebookIdFromReply(json, {
+      contentType: contentTypeOf(request)!,
+      postId: request.postId,
+      idempotencyKey: request.idempotencyKey,
+    });
     if (facebookId) {
       return { kind: "published", objectId: facebookId, postId: facebookId };
     }

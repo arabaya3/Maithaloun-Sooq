@@ -1,4 +1,4 @@
-import { MAKE_PAYLOAD_SCHEMA } from "./make-payload";
+import { MAKE_PAYLOAD_SCHEMA, makeContentTypes } from "./make-payload";
 import type { FetchLike } from "./meta-graph-client";
 
 /**
@@ -15,19 +15,34 @@ export interface ContractCheck {
 
 export const INVALID_CONTENT_TYPE = "contract-test-invalid";
 
-export function contractProbe(): Record<string, unknown> {
-  return {
-    schema: MAKE_PAYLOAD_SCHEMA,
+/**
+ * The probes: the scenario's required fields with an unsupported contentType and no media, so the
+ * scenario's fallback route must answer 422 before any Facebook module. «minimal» omits every
+ * optional field; «full» adds the optional non-media fields.
+ */
+export function contractProbe(
+  variant: "minimal" | "full" = "minimal",
+): Record<string, unknown> {
+  const probe: Record<string, unknown> = {
     postId: "00000000-0000-4000-8000-00000000c0de",
     idempotencyKey: "0".repeat(64),
-    attempt: 1,
     contentType: INVALID_CONTENT_TYPE,
     caption: "contract test — must not be published",
-    mediaUrl: null,
-    coverUrl: null,
-    pageId: null,
-    callbackUrl: null,
   };
+  if (variant === "full") {
+    probe.schema = MAKE_PAYLOAD_SCHEMA;
+    probe.attempt = 1;
+  }
+  return probe;
+}
+
+/** A probe can never be publishable: unsupported type and no media of any kind. */
+export function isUnpublishableProbe(probe: Record<string, unknown>): boolean {
+  return (
+    !(makeContentTypes as readonly unknown[]).includes(probe.contentType) &&
+    !("mediaUrl" in probe) &&
+    !("coverUrl" in probe)
+  );
 }
 
 export function webhookHost(url: string): string {
@@ -42,7 +57,9 @@ async function statusOf(
   fetcher: FetchLike,
   url: string,
   headers: Record<string, string>,
+  probe: Record<string, unknown> = contractProbe(),
 ): Promise<number | null> {
+  if (!isUnpublishableProbe(probe)) throw new Error("PROBE_COULD_PUBLISH");
   try {
     const response = await fetcher(url, {
       method: "POST",
@@ -50,7 +67,7 @@ async function statusOf(
         "Content-Type": "application/json; charset=utf-8",
         ...headers,
       },
-      body: JSON.stringify(contractProbe()),
+      body: JSON.stringify(probe),
       signal: AbortSignal.timeout(20_000),
     });
     await response.text().catch(() => "");
@@ -87,15 +104,23 @@ export async function runMakeContract(input: {
     passed: refused(wrongKey),
   });
   if (input.scenarioActive) {
-    const invalid = await statusOf(fetcher, input.webhookUrl, {
-      "x-make-apikey": input.apiKey,
-    });
-    checks.push({
-      name: `authenticated request with contentType «${INVALID_CONTENT_TYPE}»`,
-      expected: "422",
-      status: invalid,
-      passed: invalid === 422,
-    });
+    for (const variant of ["full", "minimal"] as const) {
+      const status = await statusOf(
+        fetcher,
+        input.webhookUrl,
+        { "x-make-apikey": input.apiKey },
+        contractProbe(variant),
+      );
+      checks.push({
+        name:
+          variant === "full"
+            ? `valid key, unsupported contentType «${INVALID_CONTENT_TYPE}»`
+            : "valid key, optional fields omitted, unsupported contentType",
+        expected: "422",
+        status,
+        passed: status === 422,
+      });
+    }
   }
   return checks;
 }

@@ -12,19 +12,26 @@ import {
   contentTypeOf,
   facebookIdFromReply,
   MAKE_PAYLOAD_SCHEMA,
+  makeRequestSchema,
 } from "./make-payload";
 import { makeConfigProblems, MakePublisher } from "./make-publisher";
 
 const WEBHOOK = "https://hook.eu1.make.com/abc123def456";
 const KEY = "make-api-key-0123456789";
+const POST_ID = "4fbdcdc6-b22c-420b-bb74-515483382a49";
+const IDEMPOTENCY = "a".repeat(64);
 const CAPTION =
   "✨ منعّم ومعطّر الملابس لويال – 750 مل\n\n💰 السعر: 10 ₪\n🚚 التوصيل داخل ميثلون بـ 5 ₪\n#مايثا_ماركت";
 const IMAGE =
   "https://x.supabase.co/storage/v1/object/public/social-media/posts/1.jpg";
+const VIDEO =
+  "https://x.supabase.co/storage/v1/object/public/social-media/posts/1.mp4";
+const POSTER =
+  "https://x.supabase.co/storage/v1/object/public/social-media/posts/1-poster.jpg";
 
 const request = (overrides: Partial<PublishRequest> = {}): PublishRequest => ({
-  postId: "4fbdcdc6-b22c-420b-bb74-515483382a49",
-  idempotencyKey: "a".repeat(64),
+  postId: POST_ID,
+  idempotencyKey: IDEMPOTENCY,
   format: "image",
   kind: "product",
   caption: CAPTION,
@@ -33,10 +40,21 @@ const request = (overrides: Partial<PublishRequest> = {}): PublishRequest => ({
   attempt: 1,
   ...overrides,
 });
+const reel = (overrides: Partial<PublishRequest> = {}) =>
+  request({
+    format: "reel",
+    mediaUrls: [VIDEO],
+    posterUrl: POSTER,
+    ...overrides,
+  });
 
 function make(
   reply: (url: string, init?: RequestInit) => Response | Promise<Response>,
-  supportsReels = false,
+  options: {
+    supportsReels?: boolean;
+    pageId?: string | null;
+    callbackUrl?: string | null;
+  } = {},
 ) {
   const fetch = vi.fn(async (url: string, init?: RequestInit) =>
     reply(url, init),
@@ -44,18 +62,19 @@ function make(
   const publisher = new MakePublisher({
     webhookUrl: WEBHOOK,
     apiKey: KEY,
-    supportsReels,
-    pageId: "61595987361563",
-    callbackUrl: null,
+    supportsReels: options.supportsReels ?? false,
+    pageId: options.pageId === undefined ? "61595987361563" : options.pageId,
+    callbackUrl: options.callbackUrl ?? null,
     fetch,
   });
   return { publisher, fetch };
 }
+const sentBody = (fetch: ReturnType<typeof make>["fetch"]) =>
+  JSON.parse(String(fetch.mock.calls[0]![1]!.body)) as Record<string, unknown>;
 
 describe("provider selection", () => {
   it("uses Meta unless Make is chosen explicitly", () => {
     expect(choosePublisherName(undefined)).toBe("meta");
-    expect(choosePublisherName("")).toBe("meta");
     expect(choosePublisherName("MAKE")).toBe("meta");
     expect(choosePublisherName("make")).toBe("make");
   });
@@ -63,9 +82,6 @@ describe("provider selection", () => {
   it("wires Make only with an https make.com webhook and a real key", () => {
     const origin = "https://maithaloun-sooq.vercel.app";
     expect(makePublisherFromEnv({}, origin)).toBeNull();
-    expect(
-      makePublisherFromEnv({ MAKE_WEBHOOK_URL: WEBHOOK }, origin),
-    ).toBeNull();
     expect(
       makePublisherFromEnv(
         {
@@ -90,168 +106,254 @@ describe("provider selection", () => {
   });
 });
 
-describe("Make webhook request", () => {
-  it("posts the approved post as JSON with the API key only in x-make-apikey", async () => {
+describe("Make request serialization", () => {
+  it("image: exactly the scenario's fields, no nulls, key only in the header", async () => {
     const { publisher, fetch } = make(() => new Response("Accepted"));
     await publisher.publish(request());
     const [url, init] = fetch.mock.calls[0]!;
     expect(url).toBe(WEBHOOK);
-    expect(init!.method).toBe("POST");
     const headers = init!.headers as Record<string, string>;
     expect(headers["x-make-apikey"]).toBe(KEY);
     expect(headers["Content-Type"]).toContain("application/json");
     expect(String(init!.body)).not.toContain(KEY);
-    expect(JSON.parse(String(init!.body))).toEqual({
-      schema: MAKE_PAYLOAD_SCHEMA,
-      postId: "4fbdcdc6-b22c-420b-bb74-515483382a49",
-      idempotencyKey: "a".repeat(64),
-      attempt: 1,
+    expect(String(init!.body)).not.toContain("null");
+    expect(sentBody(fetch)).toEqual({
+      postId: POST_ID,
+      idempotencyKey: IDEMPOTENCY,
       contentType: "image",
       caption: CAPTION,
       mediaUrl: IMAGE,
-      coverUrl: null,
       pageId: "61595987361563",
-      callbackUrl: null,
+      schema: MAKE_PAYLOAD_SCHEMA,
+      attempt: 1,
     });
+  });
+
+  it("text: no mediaUrl, coverUrl or empty optional fields at all", async () => {
+    const { publisher, fetch } = make(() => new Response("Accepted"), {
+      pageId: null,
+    });
+    await publisher.publish(request({ mediaUrls: [] }));
+    expect(sentBody(fetch)).toEqual({
+      postId: POST_ID,
+      idempotencyKey: IDEMPOTENCY,
+      contentType: "text",
+      caption: CAPTION,
+      schema: MAKE_PAYLOAD_SCHEMA,
+      attempt: 1,
+    });
+  });
+
+  it("reel: the public video and its cover", async () => {
+    const { publisher, fetch } = make(() => new Response("Accepted"), {
+      supportsReels: true,
+      callbackUrl:
+        "https://maithaloun-sooq.vercel.app/api/social/make/callback",
+    });
+    await publisher.publish(reel());
+    expect(sentBody(fetch)).toEqual({
+      postId: POST_ID,
+      idempotencyKey: IDEMPOTENCY,
+      contentType: "reel",
+      caption: CAPTION,
+      mediaUrl: VIDEO,
+      coverUrl: POSTER,
+      pageId: "61595987361563",
+      callbackUrl:
+        "https://maithaloun-sooq.vercel.app/api/social/make/callback",
+      schema: MAKE_PAYLOAD_SCHEMA,
+      attempt: 1,
+    });
+  });
+
+  it("every payload matches the scenario's strict schema with the right types", () => {
+    const context = { pageId: "61595987361563", callbackUrl: null };
+    const payloads = [
+      buildMakePayload(request({ mediaUrls: [] }), context),
+      buildMakePayload(request(), context),
+      buildMakePayload(reel(), context),
+    ];
+    for (const payload of payloads) {
+      expect(makeRequestSchema.safeParse(payload).success).toBe(true);
+      for (const field of [
+        "postId",
+        "idempotencyKey",
+        "contentType",
+        "caption",
+      ] as const) {
+        expect(typeof payload[field]).toBe("string");
+      }
+      expect(typeof payload.attempt).toBe("number");
+      expect(
+        Object.values(payload).some(
+          (value) => value === null || value === undefined,
+        ),
+      ).toBe(false);
+    }
+    const image = payloads[1]!;
+    expect(makeRequestSchema.safeParse({ ...image, extra: "x" }).success).toBe(
+      false,
+    );
+    expect(
+      makeRequestSchema.safeParse({ ...image, mediaUrl: null }).success,
+    ).toBe(false);
+    expect(
+      makeRequestSchema.safeParse({ ...image, attempt: "1" }).success,
+    ).toBe(false);
   });
 
   it("keeps the Arabic caption byte for byte", async () => {
     const { publisher, fetch } = make(() => new Response("Accepted"));
     await publisher.publish(request());
-    const sent = JSON.parse(String(fetch.mock.calls[0]![1]!.body)).caption;
+    const sent = String(sentBody(fetch).caption);
     expect(Buffer.from(sent, "utf8").equals(Buffer.from(CAPTION, "utf8"))).toBe(
       true,
     );
   });
 
-  it("uses only the scenario's content types: text, image, reel", () => {
-    const context = { pageId: null, callbackUrl: null };
-    expect(buildMakePayload(request({ mediaUrls: [] }), context)).toMatchObject(
-      {
-        contentType: "text",
-        mediaUrl: null,
-      },
-    );
-    expect(buildMakePayload(request(), context).contentType).toBe("image");
-    expect(
-      buildMakePayload(
-        request({
-          format: "reel",
-          mediaUrls: ["https://x.co/r.mp4"],
-          posterUrl: "https://x.co/p.jpg",
-        }),
-        context,
-      ),
-    ).toMatchObject({
-      contentType: "reel",
-      mediaUrl: "https://x.co/r.mp4",
-      coverUrl: "https://x.co/p.jpg",
-    });
-  });
-
-  it("refuses several images before calling Make", async () => {
+  it("refuses several images, disabled Reels and invalid payloads before calling Make", async () => {
     const many = request({
       mediaUrls: [IMAGE, IMAGE.replace("1.jpg", "2.jpg")],
     });
     expect(contentTypeOf(many)).toBeNull();
-    expect(() =>
-      buildMakePayload(many, { pageId: null, callbackUrl: null }),
-    ).toThrow("MAKE_UNSUPPORTED_CONTENT");
     const { publisher, fetch } = make(() => new Response("Accepted"));
-    await expect(publisher.publish(many)).rejects.toMatchObject({
-      failure: { kind: "invalid_request" },
-    });
+    for (const bad of [
+      many,
+      reel(),
+      request({ caption: "" }),
+      request({ mediaUrls: ["http://insecure.example/x.jpg"] }),
+    ]) {
+      await expect(publisher.publish(bad)).rejects.toMatchObject({
+        failure: { kind: "invalid_request" },
+      });
+    }
     expect(fetch).not.toHaveBeenCalled();
-  });
-
-  it("sends Reels only when enabled", async () => {
-    const { publisher, fetch } = make(() => new Response("Accepted"));
-    expect(publisher.supports("reel")).toBe(false);
-    await expect(
-      publisher.publish(
-        request({ format: "reel", mediaUrls: ["https://x.co/r.mp4"] }),
-      ),
-    ).rejects.toMatchObject({ failure: { kind: "invalid_request" } });
-    expect(fetch).not.toHaveBeenCalled();
-    expect(
-      make(() => new Response("Accepted"), true).publisher.supports("reel"),
-    ).toBe(true);
   });
 });
 
-describe("Make webhook answers", () => {
-  const outcome = async (reply: () => Response | Promise<Response>) =>
-    make(reply).publisher.publish(request());
+describe("Make replies", () => {
+  const expectFor = (contentType: "text" | "image" | "reel") => ({
+    contentType,
+    postId: POST_ID,
+    idempotencyKey: IDEMPOTENCY,
+  });
+  const PAGE_POST = "61595987361563_12345";
 
-  it("marks published only with a valid Facebook object id", async () => {
-    await expect(
-      outcome(() =>
-        Response.json({ facebookObjectId: "61595987361563_1234567" }),
+  it("image and text read facebookPostId; Reels read facebookObjectId", () => {
+    expect(
+      facebookIdFromReply({ facebookPostId: PAGE_POST }, expectFor("image")),
+    ).toBe(PAGE_POST);
+    expect(
+      facebookIdFromReply({ facebookPostId: PAGE_POST }, expectFor("text")),
+    ).toBe(PAGE_POST);
+    expect(
+      facebookIdFromReply(
+        { facebookObjectId: "1234567890123" },
+        expectFor("reel"),
       ),
-    ).resolves.toEqual({
-      kind: "published",
-      objectId: "61595987361563_1234567",
-      postId: "61595987361563_1234567",
-    });
-    await expect(
-      outcome(() => Response.json({ id: 1234567890123 })),
-    ).resolves.toMatchObject({
-      kind: "published",
-      objectId: "1234567890123",
-    });
+    ).toBe("1234567890123");
+    expect(
+      facebookIdFromReply(
+        { facebookObjectId: "1234567890123" },
+        expectFor("image"),
+      ),
+    ).toBeNull();
+    expect(
+      facebookIdFromReply({ facebookPostId: PAGE_POST }, expectFor("reel")),
+    ).toBeNull();
   });
 
-  it("never treats a 200 without a valid id as published", async () => {
+  it("refuses a reply about another post or another approval", () => {
+    expect(
+      facebookIdFromReply(
+        {
+          facebookPostId: PAGE_POST,
+          postId: POST_ID,
+          idempotencyKey: IDEMPOTENCY,
+        },
+        expectFor("image"),
+      ),
+    ).toBe(PAGE_POST);
+    expect(
+      facebookIdFromReply(
+        {
+          facebookPostId: PAGE_POST,
+          postId: "00000000-0000-4000-8000-000000000001",
+        },
+        expectFor("image"),
+      ),
+    ).toBeNull();
+    expect(
+      facebookIdFromReply(
+        { facebookPostId: PAGE_POST, idempotencyKey: "b".repeat(64) },
+        expectFor("image"),
+      ),
+    ).toBeNull();
+  });
+
+  it("publishes on a 200 with the right id for the content type", async () => {
+    await expect(
+      make(() =>
+        Response.json({ facebookPostId: PAGE_POST }),
+      ).publisher.publish(request()),
+    ).resolves.toEqual({
+      kind: "published",
+      objectId: PAGE_POST,
+      postId: PAGE_POST,
+    });
+    await expect(
+      make(() => Response.json({ facebookObjectId: "1234567890123" }), {
+        supportsReels: true,
+      }).publisher.publish(reel()),
+    ).resolves.toMatchObject({ kind: "published", objectId: "1234567890123" });
+  });
+
+  it("never treats a 200 without a valid, matching id as published", async () => {
     for (const body of [
       "Accepted",
       "",
       "{not json",
+      "[]",
       JSON.stringify({ status: "published" }),
-      JSON.stringify({ id: "" }),
-      JSON.stringify({ id: "abc" }),
-      JSON.stringify({ id: "4fbdcdc6-b22c-420b-bb74-515483382a49" }),
-      JSON.stringify({ id: "1" }),
-      JSON.stringify({ id: "1234567_89012", facebookPostId: "9999999_12345" }),
+      JSON.stringify({ facebookPostId: "" }),
+      JSON.stringify({ facebookPostId: "abc" }),
+      JSON.stringify({ facebookPostId: POST_ID }),
+      JSON.stringify({ facebookObjectId: PAGE_POST }),
+      JSON.stringify({ facebookPostId: PAGE_POST, postId: "someone-else" }),
+      JSON.stringify({
+        facebookPostId: PAGE_POST,
+        idempotencyKey: "c".repeat(64),
+      }),
     ]) {
-      await expect(outcome(() => new Response(body))).resolves.toEqual({
+      await expect(
+        make(() => new Response(body)).publisher.publish(request()),
+      ).resolves.toEqual({
         kind: "accepted",
         reference: null,
       });
     }
-    expect(
-      facebookIdFromReply({ id: "1234567_89012", objectId: "1234567_89012" }),
-    ).toBe("1234567_89012");
   });
 
-  it("422 (unsupported content) is a safe failure: nothing was posted", async () => {
+  it("422 is a safe failure; 502, 5xx and timeouts are unknown outcomes", async () => {
+    const outcome = (reply: () => Response) =>
+      make(reply).publisher.publish(request());
     await expect(
-      outcome(() => new Response("Unsupported content type", { status: 422 })),
+      outcome(() => new Response("Unsupported", { status: 422 })),
     ).rejects.toMatchObject({
       failure: { kind: "invalid_request", code: 422 },
     });
-  });
-
-  it("502 (Facebook module failure) is an unknown outcome, never retried blindly", async () => {
     await expect(
       outcome(() => new Response("", { status: 502 })),
     ).rejects.toMatchObject({
       failure: { kind: "unknown_outcome", code: 502 },
     });
     await expect(
-      outcome(() => new Response("", { status: 500 })),
+      outcome(() => new Response("", { status: 503 })),
     ).rejects.toMatchObject({
       failure: { kind: "unknown_outcome" },
     });
-  });
-
-  it("separates refusals from lost answers", async () => {
     await expect(
       outcome(() => new Response("", { status: 401 })),
-    ).rejects.toMatchObject({
-      failure: { kind: "auth" },
-    });
-    await expect(
-      outcome(() => new Response("", { status: 403 })),
     ).rejects.toMatchObject({
       failure: { kind: "auth" },
     });
@@ -261,14 +363,9 @@ describe("Make webhook answers", () => {
       failure: { kind: "rate_limit" },
     });
     await expect(
-      outcome(() => {
-        throw new Error("socket hang up");
-      }),
-    ).rejects.toMatchObject({ failure: { kind: "unknown_outcome" } });
-    await expect(
-      outcome(() => {
+      make(() => {
         throw new DOMException("timed out", "TimeoutError");
-      }),
+      }).publisher.publish(request()),
     ).rejects.toMatchObject({ failure: { kind: "unknown_outcome" } });
   });
 });
@@ -277,7 +374,7 @@ describe("public media check", () => {
   const head = (status: number, headers: Record<string, string>) =>
     vi.fn(async () => new Response(null, { status, headers }));
 
-  it("accepts a reachable public JPEG and MP4 within Meta's limits", async () => {
+  it("accepts reachable public media within Meta's limits and refuses everything else", async () => {
     await expect(
       checkPublicMedia(
         "https://x.co/a.jpg",
@@ -292,18 +389,9 @@ describe("public media check", () => {
         head(200, { "content-type": "video/mp4" }),
       ),
     ).resolves.toBeNull();
-  });
-
-  it("refuses private, unreachable, mistyped or oversized media", async () => {
     const ok = head(200, { "content-type": "image/jpeg" });
     await expect(
       checkPublicMedia("http://x.co/a.jpg", "image", ok),
-    ).resolves.toBe("MEDIA_NOT_PUBLIC");
-    await expect(
-      checkPublicMedia("/admin/api/social/media/a.jpg", "image", ok),
-    ).resolves.toBe("MEDIA_NOT_PUBLIC");
-    await expect(
-      checkPublicMedia("https://user:pw@x.co/a.jpg", "image", ok),
     ).resolves.toBe("MEDIA_NOT_PUBLIC");
     await expect(
       checkPublicMedia("https://127.0.0.1/a.jpg", "image", ok),

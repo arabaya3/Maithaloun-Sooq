@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   contractProbe,
   INVALID_CONTENT_TYPE,
+  isUnpublishableProbe,
   runMakeContract,
   webhookHost,
 } from "./make-contract";
@@ -30,10 +31,25 @@ function scenario() {
 
 describe("Make contract test", () => {
   it("can never publish: its only authenticated request has an invalid contentType", async () => {
-    const probe = contractProbe();
-    expect(makeContentTypes).not.toContain(probe.contentType);
-    expect(probe.contentType).toBe(INVALID_CONTENT_TYPE);
-    expect(probe.mediaUrl).toBeNull();
+    for (const variant of ["minimal", "full"] as const) {
+      const probe = contractProbe(variant);
+      expect(makeContentTypes).not.toContain(probe.contentType);
+      expect(probe.contentType).toBe(INVALID_CONTENT_TYPE);
+      expect(probe).not.toHaveProperty("mediaUrl");
+      expect(probe).not.toHaveProperty("coverUrl");
+      expect(isUnpublishableProbe(probe)).toBe(true);
+    }
+    // The minimal probe carries only the scenario's required fields.
+    expect(Object.keys(contractProbe("minimal")).sort()).toEqual(
+      ["caption", "contentType", "idempotencyKey", "postId"].sort(),
+    );
+    // A probe that could publish is never sent.
+    expect(
+      isUnpublishableProbe({ ...contractProbe(), contentType: "text" }),
+    ).toBe(false);
+    expect(
+      isUnpublishableProbe({ ...contractProbe(), mediaUrl: "https://x/y.jpg" }),
+    ).toBe(false);
     const { fetch, seen } = scenario();
     const checks = await runMakeContract({
       webhookUrl: URL_,
@@ -44,6 +60,7 @@ describe("Make contract test", () => {
     expect(checks.map((check) => [check.status, check.passed])).toEqual([
       [401, true],
       [401, true],
+      [422, true],
       [422, true],
     ]);
     expect(

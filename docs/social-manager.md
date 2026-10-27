@@ -215,28 +215,27 @@ Confirmed on the scenario: API-key protected custom webhook (`x-make-apikey`); `
 unsupported content is **HTTP 422**; a Facebook module failure is **HTTP 502**. Not yet live-tested.
 
 Request sent by the app (`POST MAKE_WEBHOOK_URL`, `Content-Type: application/json; charset=utf-8`,
-`x-make-apikey: <key>`):
+`x-make-apikey: <key>`). It matches the scenario's data structure exactly: required strings
+`postId`, `idempotencyKey`, `contentType`, `caption`; optional strings `mediaUrl`, `coverUrl`,
+`pageId`, `callbackUrl`, `schema`; optional number `attempt`. Optional fields are **omitted** when
+absent, never sent as null; no other property is ever sent (validated before sending).
 
 ```json
 {
-  "schema": "maytha.social-post.v1",
   "postId": "uuid of our post",
   "idempotencyKey": "sha256 of the approved post (64 hex)",
-  "attempt": 1,
-  "contentType": "text | image | reel",
+  "contentType": "image",
   "caption": "the approved Arabic caption, exactly",
-  "mediaUrl": "https://… (one image, or the reel's MP4; null for text)",
-  "coverUrl": null,
+  "mediaUrl": "https://…/post.jpg",
   "pageId": "61595987361563",
-  "callbackUrl": null
+  "schema": "maytha.social-post.v1",
+  "attempt": 1
 }
 ```
 
-**To confirm against the scenario** (only `contentType` was confirmed by name): the names of the other
-fields and of the id field in the 200 reply. The app accepts the id from `facebookObjectId`,
-`facebookPostId`, `facebook_post_id`, `objectId` or `id`, and only when exactly one valid Facebook id
-(`digits` or `pageid_postid`) is present. All of this lives in `make-payload.ts`.
-
+`text` has no `mediaUrl`; `reel` has the public MP4 as `mediaUrl` and its poster as `coverUrl`.
+Facebook's id is read from `facebookPostId` for text and image and from `facebookObjectId` for a Reel,
+only when it is a valid Facebook id; if the reply echoes `postId` or `idempotencyKey`, they must be ours.
 Several images are refused **before** Make is called. Reels are sent only with `MAKE_SUPPORTS_REELS=on`.
 
 ### What the app does with the answer
@@ -260,9 +259,10 @@ post Make may have sent requires the owner to tick «تأكدتُ من صفحة 
 ### Live contract test (cannot publish)
 
 `pnpm social:make-contract --confirm` sends a request **without** the API key and one with a **wrong**
-key; both must be refused (401/403). With `--scenario-active` (only while the scenario is active, since an
-inactive scenario queues requests) it also sends one authenticated request with
-`contentType: "contract-test-invalid"`, which must be answered **422** before the Facebook module. It
+key; both must be refused (401/403). With `--scenario-active` (only while the scenario is active, since an inactive scenario queues requests) it
+also sends two authenticated requests with `contentType: "contract-test-invalid"` and no media — one with
+only the required fields, one with the optional non-media fields — and both must be answered **422** by the
+fallback route, before any Facebook module. A probe that could publish is refused by the tool itself. It
 prints the webhook host only, never the path or key.
 
 ### Merge order

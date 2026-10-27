@@ -304,7 +304,7 @@ describe("social manager through Make (database)", () => {
   it("records Facebook's confirmation when the scenario answers synchronously", async () => {
     const post = await approvedPost();
     webhookReply = () =>
-      Response.json({ facebookObjectId: "61595987361563_77777" });
+      Response.json({ facebookPostId: "61595987361563_77777" });
     expect((await social.publishDue()).published).toBe(1);
     expect(await row(post.id)).toMatchObject({
       status: "published",
