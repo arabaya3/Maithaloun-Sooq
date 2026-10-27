@@ -191,3 +191,88 @@ connected and showing «الصلاحيات: كاملة»; in **الإعدادا�
 
 Rollback at any point: «إيقاف مؤقت لكل شيء» in settings, or remove `SOCIAL_MANAGER`; delete the post
 on Facebook if needed (the system never deletes posts).
+
+## Publishing through Make.com (optional provider)
+
+`SOCIAL_PUBLISHER=make` sends approved posts to a Make.com scenario instead of calling the Graph API
+directly. Everything before the hand-over is unchanged: owner approval, the caption guard, the live
+catalog re-check, the claim lock and the history. Default is `meta`.
+
+| Variable               | Where                       | Purpose                                                                                       |
+| ---------------------- | --------------------------- | --------------------------------------------------------------------------------------------- |
+| `SOCIAL_PUBLISHER`     | Vercel, GitHub var          | `make` to use Make; anything else keeps Meta                                                  |
+| `MAKE_WEBHOOK_URL`     | Vercel, GitHub secret       | the scenario's custom webhook (`https://hook.<zone>.make.com/...`; other hosts are refused)   |
+| `MAKE_WEBHOOK_API_KEY` | Vercel, GitHub secret       | sent only as the `x-make-apikey` header, server-side                                          |
+| `MAKE_SUPPORTS_REELS`  | Vercel, GitHub var          | `on` only once the scenario is confirmed to publish Reels; otherwise approved Reels wait      |
+| `MAKE_CALLBACK_SECRET` | Vercel, GitHub secret, Make | ≥ 32 chars; the scenario sends it as `x-maytha-callback-key` when reporting Facebook's result |
+
+None of these is `NEXT_PUBLIC_*`; they never reach the browser.
+
+### Contract with the «MAYTHA Social Publish» scenario
+
+Confirmed on the scenario: API-key protected custom webhook (`x-make-apikey`); `contentType` is
+`text`, `image` (exactly one image) or `reel`; success is **HTTP 200 with the Facebook object id**;
+unsupported content is **HTTP 422**; a Facebook module failure is **HTTP 502**. Not yet live-tested.
+
+Request sent by the app (`POST MAKE_WEBHOOK_URL`, `Content-Type: application/json; charset=utf-8`,
+`x-make-apikey: <key>`):
+
+```json
+{
+  "schema": "maytha.social-post.v1",
+  "postId": "uuid of our post",
+  "idempotencyKey": "sha256 of the approved post (64 hex)",
+  "attempt": 1,
+  "contentType": "text | image | reel",
+  "caption": "the approved Arabic caption, exactly",
+  "mediaUrl": "https://… (one image, or the reel's MP4; null for text)",
+  "coverUrl": null,
+  "pageId": "61595987361563",
+  "callbackUrl": null
+}
+```
+
+**To confirm against the scenario** (only `contentType` was confirmed by name): the names of the other
+fields and of the id field in the 200 reply. The app accepts the id from `facebookObjectId`,
+`facebookPostId`, `facebook_post_id`, `objectId` or `id`, and only when exactly one valid Facebook id
+(`digits` or `pageid_postid`) is present. All of this lives in `make-payload.ts`.
+
+Several images are refused **before** Make is called. Reels are sent only with `MAKE_SUPPORTS_REELS=on`.
+
+### What the app does with the answer
+
+| Answer                                                 | Meaning                                                                                | State                                                              |
+| ------------------------------------------------------ | -------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| 200 with a valid Facebook object id                    | published                                                                              | `published` with that id                                           |
+| 200 without a valid id (incl. Make's plain `Accepted`) | received, result unknown                                                               | `publishing` / AWAITING_CONFIRMATION — never re-sent automatically |
+| 422                                                    | content refused before the Facebook module                                             | `failed` (nothing posted)                                          |
+| 502                                                    | Facebook module failed — but indistinguishable from a gateway 502 and possibly partial | `publishing` / MAKE_UNKNOWN_OUTCOME — never re-sent automatically  |
+| other 5xx, timeout, dropped connection                 | may or may not have run                                                                | `publishing` / MAKE_UNKNOWN_OUTCOME                                |
+| 401 / 403                                              | wrong key, scenario never ran                                                          | `failed`                                                           |
+| 429                                                    | throttled before the scenario ran                                                      | `retry_wait` (safe to resend)                                      |
+
+Make cannot look at the Page, so an unknown post is settled only by the owner on the post page
+(«نعم، المنشور موجود على الصفحة» / «لا، غير موجود») or by the optional callback
+(`POST /api/social/make/callback`, header `x-maytha-callback-key`, body
+`{"post_id","idempotency_key","status":"published|failed|partial","facebook_post_id?"}`). Retrying a
+post Make may have sent requires the owner to tick «تأكدتُ من صفحة فيسبوك…».
+
+### Live contract test (cannot publish)
+
+`pnpm social:make-contract --confirm` sends a request **without** the API key and one with a **wrong**
+key; both must be refused (401/403). With `--scenario-active` (only while the scenario is active, since an
+inactive scenario queues requests) it also sends one authenticated request with
+`contentType: "contract-test-invalid"`, which must be answered **422** before the Facebook module. It
+prints the webhook host only, never the path or key.
+
+### Merge order
+
+1. PR #95 (Social Manager, feature off). 2. The Make PR (adds migration `0029` after `0028`).
+   The Make PR is branched from #95; merging it alone would also merge #95. Merge #95 first, then the Make
+   PR, then confirm both commits are on `main`.
+
+### Controlled live test through Make
+
+As in «Controlled live test» above, with `SOCIAL_PUBLISHER=make` and Make configured: approve one
+delivery-information post, keep automatic publishing off, run `pnpm social:worker publish-one <id> --confirm`.
+Expect `published: 1` (200 with the Facebook id) or `handedOff: 1` (no id); then check the Page logged out, and settle the post (callback or the owner's buttons).

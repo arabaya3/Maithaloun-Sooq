@@ -57,6 +57,21 @@ function failureText(code: string | null): string | null {
     return "الوسائط ليست على رابط عام (التخزين غير مضبوط).";
   if (code === "CONTENT_CHANGED") return "تغيّر المحتوى بعد الموافقة.";
   if (code === "IMAGE_TOO_LARGE") return "الصورة أكبر من حد فيسبوك.";
+  if (code === "AWAITING_CONFIRMATION")
+    return "سُلّم إلى Make؛ بانتظار تأكيد فيسبوك. لا إعادة تلقائية.";
+  if (code === "MAKE_UNKNOWN_OUTCOME")
+    return "لم يصل رد Make؛ تأكدي من الصفحة ثم احسمي النتيجة.";
+  if (code === "MAKE_PARTIAL") return "أبلغ Make أن جزءاً فقط نُشر.";
+  if (code === "MAKE_REPORTED_FAILURE")
+    return "أبلغ Make أن فيسبوك رفض المنشور.";
+  if (code === "NEEDS_PAGE_CHECK")
+    return "قد يكون نُشر سابقاً؛ تأكدي من الصفحة قبل إعادة المحاولة.";
+  if (code === "OWNER_CONFIRMED_NOT_PUBLISHED") return "أكّدتِ أنه لم يُنشر.";
+  if (code.startsWith("MEDIA_"))
+    return "رابط الصورة أو الفيديو غير متاح للعموم أو غير صالح.";
+  if (code.startsWith("MAKE_AUTH")) return "Make رفض مفتاح الربط (API key).";
+  if (code.startsWith("MAKE_INVALID_REQUEST"))
+    return "Make رفض الطلب (السيناريو متوقف أو الرابط خاطئ).";
   if (code === "REEL_PROCESSING_FAILED")
     return "فيسبوك لم يستطع معالجة الفيديو.";
   if (code === "META_UNKNOWN_OUTCOME")
