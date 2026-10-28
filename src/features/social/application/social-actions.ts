@@ -100,8 +100,31 @@ export async function retryPostAction(form: FormData) {
   const id = field(form, "id");
   return guarded(
     postPath(id),
-    () => socialService.retryFailed(actor, id, version(form)),
+    () =>
+      socialService.retryFailed(actor, id, version(form), {
+        confirmedAbsent: form.get("confirmedAbsent") === "on",
+      }),
     "retrying",
+  );
+}
+
+/** The owner settles a post whose Facebook result is unknown, after checking the Page. */
+export async function resolveUncertainAction(form: FormData) {
+  const actor = await requireTrustedAdminMutation();
+  const id = field(form, "id");
+  const published = field(form, "outcome") === "published";
+  return guarded(
+    postPath(id),
+    () =>
+      socialService.resolveUncertain(
+        actor,
+        id,
+        version(form),
+        published
+          ? { published: true, facebookPostId: field(form, "facebookPostId") }
+          : { published: false },
+      ),
+    published ? "resolved_published" : "resolved_not_published",
   );
 }
 

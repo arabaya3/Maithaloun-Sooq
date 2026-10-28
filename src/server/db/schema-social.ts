@@ -65,6 +65,9 @@ export const socialPosts = pgTable(
     metaObjectId: varchar("meta_object_id", { length: 100 }),
     // A Reel's video id, saved before the final publish call so a lost answer can be checked.
     metaUploadId: varchar("meta_upload_id", { length: 100 }),
+    // Which publisher handled the post (meta | make) and its own reference (e.g. a Make execution).
+    publishProvider: varchar("publish_provider", { length: 10 }),
+    providerRef: varchar("provider_ref", { length: 200 }),
     publishedAt: timestamp("published_at", {
       withTimezone: true,
       mode: "date",
@@ -264,7 +267,7 @@ export const socialSettings = pgTable(
     id: integer("id").primaryKey().default(1),
     autoPublishApproved: boolean("auto_publish_approved")
       .notNull()
-      .default(true),
+      .default(false),
     autoReplyFaq: boolean("auto_reply_faq").notNull().default(false),
     paused: boolean("paused").notNull().default(false),
     updatedBy: uuid("updated_by").references(() => adminUsers.id, {

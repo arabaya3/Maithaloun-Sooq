@@ -71,7 +71,6 @@ import {
 import {
   inspectToken,
   MetaGraphClient,
-  sameCaption,
   tokenProblems,
   type FetchLike,
 } from "@/features/social/infrastructure/meta-graph-client";
@@ -80,6 +79,13 @@ import {
   sealToken,
   tokenHint,
 } from "@/features/social/infrastructure/token-vault";
+import type {
+  PageLookup,
+  Publisher,
+  PublisherName,
+} from "@/features/social/domain/publisher";
+import type { MediaProblem } from "@/features/social/infrastructure/media-check";
+import { MetaPublisher } from "@/features/social/infrastructure/meta-publisher";
 import * as schema from "@/server/db/schema";
 import { addDays } from "@/shared/lib/store-time";
 
@@ -99,7 +105,9 @@ export type SocialErrorCode =
   | "token_wrong_page"
   | "token_missing_scopes"
   | "already_published"
-  | "still_processing";
+  | "still_processing"
+  | "confirm_absent_required"
+  | "not_uncertain";
 
 export class SocialError extends Error {
   constructor(
@@ -157,6 +165,15 @@ export interface SocialDependencies {
   fetch?: FetchLike;
   captionWriter?: CaptionWriter | null;
   now?: () => Date;
+  /** Which publisher sends approved posts: the direct Meta integration (default) or Make. */
+  publisherName?: PublisherName;
+  /** The configured Make publisher, or null when Make is not (fully) configured. */
+  makePublisher?: Publisher | null;
+  /** Checks a media URL is public and valid before it is handed over; omitted in tests. */
+  checkMedia?: (
+    url: string,
+    kind: "image" | "video",
+  ) => Promise<MediaProblem | null>;
 }
 
 export interface PostView extends SocialPostRow {
@@ -196,7 +213,10 @@ export class SocialService {
       | "media_ready"
       | "media_failed"
       | "reconciled"
-      | "uncertain",
+      | "uncertain"
+      | "handed_off"
+      | "owner_resolved"
+      | "provider_confirmed",
     actor: AdminActor | null,
     from: PostStatus | null,
     to: PostStatus | null,
@@ -220,7 +240,8 @@ export class SocialService {
     return (
       row ?? {
         id: 1,
-        autoPublishApproved: true,
+        // Automatic publishing is off until the owner turns it on.
+        autoPublishApproved: false,
         autoReplyFaq: false,
         paused: false,
         updatedBy: null,
@@ -391,6 +412,19 @@ export class SocialService {
       graphVersion: this.deps.graphVersion,
       fetch: this.deps.fetch,
     });
+  }
+
+  /** The configured publisher, or null when it cannot publish right now (not connected/configured). */
+  private async publisher(): Promise<Publisher | null> {
+    if ((this.deps.publisherName ?? "meta") === "make") {
+      return this.deps.makePublisher ?? null;
+    }
+    const client = await this.metaClient();
+    return client ? new MetaPublisher(client) : null;
+  }
+
+  publisherName(): PublisherName {
+    return this.deps.publisherName ?? "meta";
   }
 
   private async markConnection(status: "expired" | "revoked") {
@@ -929,27 +963,43 @@ export class SocialService {
     });
   }
 
-  async retryFailed(actor: AdminActor, id: string, version: number) {
+  /**
+   * The owner's «أعيدي المحاولة». A post that may already be on the Page is looked up first; when the
+   * publisher cannot look (Make), the owner must confirm they checked the Page themselves.
+   */
+  async retryFailed(
+    actor: AdminActor,
+    id: string,
+    version: number,
+    options: { confirmedAbsent?: boolean } = {},
+  ) {
     assertPermission(actor, "social.approve");
     const post = await this.load(id);
     if (post.metaObjectId) throw new SocialError("invalid");
     if (post.version !== version) throw new SocialError("stale");
-    // An earlier attempt may have reached Facebook without us hearing back: look before sending again.
-    if (post.attempts > 0 || post.metaUploadId) {
-      const client = await this.metaClient();
-      if (!client) throw new SocialError("not_connected");
-      const found = await this.findOnPage(client, post);
+    const mayBeOnPage =
+      (post.attempts > 0 || post.metaUploadId !== null) &&
+      post.lastErrorCode !== "OWNER_CONFIRMED_NOT_PUBLISHED";
+    if (mayBeOnPage) {
+      const publisher = await this.publisher();
+      if (!publisher) throw new SocialError("not_connected");
+      const found = await this.findOnPage(publisher, post);
       if (found.state === "published") {
         await this.markReconciled(post, found.id, actor);
         throw new SocialError("already_published");
       }
       if (found.state === "processing")
         throw new SocialError("still_processing");
+      if (found.state === "unknown" && !options.confirmedAbsent) {
+        throw new SocialError("confirm_absent_required");
+      }
     }
     await this.transition(actor, post, "retry_manually", version, {
       attempts: 0,
       nextAttemptAt: null,
       lastErrorCode: null,
+      metaUploadId: null,
+      providerRef: null,
       approvedBy: actor.id,
       approvedAt: this.now(),
       scheduledFor:
@@ -957,6 +1007,131 @@ export class SocialService {
           ? post.scheduledFor
           : this.now(),
     });
+  }
+
+  /**
+   * The owner settles a post whose Facebook result is unknown (handed to Make without confirmation,
+   * or a lost answer), after looking at the Page. Only a post no worker is actively sending.
+   */
+  async resolveUncertain(
+    actor: AdminActor,
+    id: string,
+    version: number,
+    outcome:
+      { published: true; facebookPostId?: string } | { published: false },
+  ) {
+    assertPermission(actor, "social.approve");
+    const post = await this.load(id);
+    if (post.version !== version) throw new SocialError("stale");
+    const settled =
+      post.status === "publishing" &&
+      (post.lastErrorCode !== null ||
+        (post.claimedAt !== null &&
+          post.claimedAt.getTime() <= this.now().getTime() - STALE_CLAIM_MS));
+    if (!settled) throw new SocialError("not_uncertain");
+    if (outcome.published) {
+      const reference = outcome.facebookPostId?.trim();
+      if (reference && !/^[0-9_]{5,60}$/.test(reference)) {
+        throw new SocialError("invalid");
+      }
+      await this.markReconciled(
+        post,
+        reference || `owner-confirmed:${post.id}`,
+        actor,
+        "owner_resolved",
+      );
+      return;
+    }
+    const updated = await this.db
+      .update(schema.socialPosts)
+      .set({
+        status: nextStatus("publishing", "fail_permanent"),
+        claimToken: null,
+        lastErrorCode: "OWNER_CONFIRMED_NOT_PUBLISHED",
+        nextAttemptAt: null,
+        updatedAt: this.now(),
+        version: sql`${schema.socialPosts.version} + 1`,
+      })
+      .where(
+        and(
+          eq(schema.socialPosts.id, post.id),
+          eq(schema.socialPosts.version, version),
+          eq(schema.socialPosts.status, "publishing"),
+        ),
+      )
+      .returning({ id: schema.socialPosts.id });
+    if (!updated.length) throw new SocialError("stale");
+    await this.record(
+      post.id,
+      "owner_resolved",
+      actor,
+      "publishing",
+      "failed",
+      "not_published",
+    );
+  }
+
+  /**
+   * Facebook's result reported by the Make scenario. It must name a post we handed over, with the
+   * same approval key; anything else is ignored. «partial» stays for the owner to settle.
+   */
+  async confirmFromProvider(report: {
+    postId: string;
+    idempotencyKey: string;
+    status: "published" | "failed" | "partial";
+    facebookPostId?: string;
+    error?: string;
+  }): Promise<"applied" | "ignored"> {
+    if (!/^[0-9a-f-]{36}$/.test(report.postId)) return "ignored";
+    const [post] = await this.db
+      .select()
+      .from(schema.socialPosts)
+      .where(eq(schema.socialPosts.id, report.postId));
+    if (
+      !post ||
+      post.status !== "publishing" ||
+      post.publishProvider !== "make" ||
+      post.publishKey !== report.idempotencyKey
+    ) {
+      return "ignored";
+    }
+    if (report.status === "published" && report.facebookPostId) {
+      await this.markReconciled(
+        post,
+        report.facebookPostId,
+        null,
+        "provider_confirmed",
+      );
+      return "applied";
+    }
+    if (report.status === "failed") {
+      await this.finishClaim(
+        post,
+        post.claimToken!,
+        "fail_permanent",
+        { lastErrorCode: "MAKE_REPORTED_FAILURE", nextAttemptAt: null },
+        report.error?.slice(0, 120) ?? "MAKE_REPORTED_FAILURE",
+      );
+      return "applied";
+    }
+    await this.db
+      .update(schema.socialPosts)
+      .set({ lastErrorCode: "MAKE_PARTIAL", updatedAt: this.now() })
+      .where(
+        and(
+          eq(schema.socialPosts.id, post.id),
+          eq(schema.socialPosts.status, "publishing"),
+        ),
+      );
+    await this.record(
+      post.id,
+      "provider_confirmed",
+      null,
+      "publishing",
+      "publishing",
+      "partial",
+    );
+    return "applied";
   }
 
   async editCaption(
@@ -1084,30 +1259,22 @@ export class SocialService {
   }
 
   /**
-   * Whether this post is already on the Page. A Reel is asked about by its own video id; a photo is
-   * found among the Page's posts and photos since the first attempt, by its caption.
+   * Whether this post is already on the Page, asked through the publisher. «unknown» when the
+   * publisher cannot look (Make): the post then waits for a confirmation, never for a blind retry.
    */
   private async findOnPage(
-    client: MetaGraphClient,
+    publisher: Publisher,
     post: SocialPostRow,
-  ): Promise<
-    | { state: "published"; id: string }
-    | { state: "processing" | "failed" | "absent" }
-  > {
-    if (post.metaUploadId) {
-      const state = await client.reelState(post.metaUploadId);
-      if (state === "published") return { state, id: post.metaUploadId };
-      if (state === "processing") return { state };
-      if (state === "failed") return { state };
-      return { state: "absent" };
-    }
-    const since = new Date(
-      (post.approvedAt ?? post.claimedAt ?? this.now()).getTime() - 5 * 60_000,
-    );
-    const found = (await client.recentContent(since)).find((candidate) =>
-      sameCaption(candidate.message, post.caption),
-    );
-    return found ? { state: "published", id: found.id } : { state: "absent" };
+  ): Promise<PageLookup | { state: "unknown" }> {
+    if (!publisher.lookUp) return { state: "unknown" };
+    return publisher.lookUp({
+      caption: post.caption,
+      uploadReference: post.metaUploadId,
+      since: new Date(
+        (post.approvedAt ?? post.claimedAt ?? this.now()).getTime() -
+          5 * 60_000,
+      ),
+    });
   }
 
   /** Records a post that turned out to be on the Page already; never sends anything. */
@@ -1115,6 +1282,7 @@ export class SocialService {
     post: SocialPostRow,
     id: string,
     actor: AdminActor | null,
+    event: "reconcile" | "owner_resolved" | "provider_confirmed" = "reconcile",
   ) {
     const from = post.status as PostStatus;
     const to = nextStatus(from, "reconcile");
@@ -1140,7 +1308,7 @@ export class SocialService {
       )
       .returning({ id: schema.socialPosts.id });
     if (updated.length) {
-      await this.record(post.id, "reconcile", actor, from, to, id);
+      await this.record(post.id, event, actor, from, to, id);
     }
   }
 
@@ -1148,13 +1316,14 @@ export class SocialService {
     post: SocialPostRow,
     token: string,
     failure: MetaFailure | { kind: "local"; code: string },
+    provider: PublisherName = "meta",
   ) {
     const attempts = post.attempts + 1;
     const code =
       failure.kind === "local"
         ? failure.code
-        : `META_${failure.kind.toUpperCase()}${failure.code ? `_${failure.code}` : ""}`;
-    if (failure.kind !== "local" && failure.kind === "auth")
+        : `${provider.toUpperCase()}_${failure.kind.toUpperCase()}${failure.code ? `_${failure.code}` : ""}`;
+    if (provider === "meta" && failure.kind === "auth")
       await this.markConnection("expired");
     if (
       failure.kind !== "local" &&
@@ -1196,6 +1365,7 @@ export class SocialService {
     failed: number;
     retrying: number;
     uncertain?: number;
+    handedOff?: number;
     skipped?: string;
   }> {
     const settings = await this.settings();
@@ -1230,16 +1400,27 @@ export class SocialService {
       .orderBy(asc(schema.socialPosts.scheduledFor))
       .limit(options.onlyPostId ? 1 : limit);
     if (!due.length) return { published: 0, failed: 0, retrying: 0 };
-    const client = await this.metaClient();
-    if (!client)
-      return { published: 0, failed: 0, retrying: 0, skipped: "not_connected" };
+    const publisher = await this.publisher();
+    if (!publisher)
+      return {
+        published: 0,
+        failed: 0,
+        retrying: 0,
+        skipped:
+          this.publisherName() === "make"
+            ? "make_not_configured"
+            : "not_connected",
+      };
     const catalog = await this.deps.catalog();
     const available = new Set(catalog.products.map((product) => product.id));
     let published = 0;
     let failed = 0;
     let retrying = 0;
     let uncertain = 0;
+    let handedOff = 0;
     for (const post of due) {
+      // A format the publisher cannot send (Reels via Make, unless confirmed) stays approved.
+      if (!publisher.supports(post.format as PostFormat)) continue;
       const token = await this.claim(post);
       if (!token) continue;
       // Re-checked at the last moment: a product sold out after approval is never advertised.
@@ -1265,10 +1446,23 @@ export class SocialService {
         failed += 1;
         continue;
       }
+      const mediaProblem = await this.deps.checkMedia?.(
+        post.mediaUrl,
+        post.format === "reel" ? "video" : "image",
+      );
+      if (mediaProblem) {
+        await this.failClaim(post, token, {
+          kind: "local",
+          code: mediaProblem,
+        });
+        failed += 1;
+        continue;
+      }
       try {
-        // A retry first asks Facebook whether an earlier attempt went through after all.
+        // A retry first asks whether an earlier attempt went through after all. A publisher that
+        // cannot look only ever has posts here that it refused outright (throttled), never sent ones.
         if (post.attempts > 0 || post.metaUploadId) {
-          const found = await this.findOnPage(client, post);
+          const found = await this.findOnPage(publisher, post);
           if (found.state === "published") {
             await this.markReconciled(
               { ...post, status: "publishing", claimedAt: post.claimedAt },
@@ -1283,40 +1477,86 @@ export class SocialService {
             uncertain += 1;
             continue;
           }
+          // Without a way to look, a retry is safe only when the last attempt was refused outright.
+          if (
+            found.state === "unknown" &&
+            !post.lastErrorCode?.startsWith(
+              `${publisher.name.toUpperCase()}_RATE_LIMIT`,
+            )
+          ) {
+            await this.failClaim(post, token, {
+              kind: "local",
+              code: "NEEDS_PAGE_CHECK",
+            });
+            failed += 1;
+            continue;
+          }
         }
-        const ref =
-          post.format === "reel"
-            ? await client.publishReel({
-                videoUrl: post.mediaUrl,
-                caption: post.caption,
-                onUploadStarted: async (videoId) => {
-                  await this.db
-                    .update(schema.socialPosts)
-                    .set({ metaUploadId: videoId, updatedAt: this.now() })
-                    .where(
-                      and(
-                        eq(schema.socialPosts.id, post.id),
-                        eq(schema.socialPosts.claimToken, token),
-                      ),
-                    );
-                },
-              })
-            : await client.publishPhoto({
-                imageUrl: post.mediaUrl,
-                caption: post.caption,
-              });
+        const outcome = await publisher.publish(
+          {
+            postId: post.id,
+            idempotencyKey: post.publishKey!,
+            format: post.format as PostFormat,
+            kind: post.kind,
+            caption: post.caption,
+            mediaUrls: [post.mediaUrl],
+            posterUrl: post.posterUrl,
+            attempt: post.attempts + 1,
+          },
+          {
+            onUploadStarted: async (reference) => {
+              await this.db
+                .update(schema.socialPosts)
+                .set({ metaUploadId: reference, updatedAt: this.now() })
+                .where(
+                  and(
+                    eq(schema.socialPosts.id, post.id),
+                    eq(schema.socialPosts.claimToken, token),
+                  ),
+                );
+            },
+          },
+        );
+        if (outcome.kind === "accepted") {
+          // Make took it; Facebook's answer comes from the scenario's callback or the owner.
+          await this.db
+            .update(schema.socialPosts)
+            .set({
+              publishProvider: publisher.name,
+              providerRef: outcome.reference,
+              lastErrorCode: "AWAITING_CONFIRMATION",
+              updatedAt: this.now(),
+            })
+            .where(
+              and(
+                eq(schema.socialPosts.id, post.id),
+                eq(schema.socialPosts.claimToken, token),
+              ),
+            );
+          await this.record(
+            post.id,
+            "handed_off",
+            null,
+            "publishing",
+            "publishing",
+            publisher.name,
+          );
+          handedOff += 1;
+          continue;
+        }
         await this.finishClaim(
           post,
           token,
           "succeed",
           {
-            metaObjectId: ref.objectId,
-            metaPostId: ref.postId ?? ref.objectId,
+            publishProvider: publisher.name,
+            metaObjectId: outcome.objectId,
+            metaPostId: outcome.postId ?? outcome.objectId,
             publishedAt: this.now(),
             lastErrorCode: null,
             nextAttemptAt: null,
           },
-          ref.postId ?? ref.objectId,
+          outcome.postId ?? outcome.objectId,
         );
         published += 1;
       } catch (error) {
@@ -1325,12 +1565,13 @@ export class SocialService {
             ? error.failure
             : { kind: "unknown_outcome", code: null, subcode: null };
         if (failure.kind === "unknown_outcome") {
-          // Facebook may have published it. The claim is kept, so nothing re-sends it; the
-          // reconciler checks the Page once the claim is stale and only then decides.
+          // It may have been published. The claim is kept, so nothing re-sends it; the reconciler
+          // (or, for Make, the callback or the owner) settles it.
           await this.db
             .update(schema.socialPosts)
             .set({
-              lastErrorCode: "META_UNKNOWN_OUTCOME",
+              publishProvider: publisher.name,
+              lastErrorCode: `${publisher.name.toUpperCase()}_UNKNOWN_OUTCOME`,
               updatedAt: this.now(),
             })
             .where(
@@ -1349,7 +1590,7 @@ export class SocialService {
           uncertain += 1;
           continue;
         }
-        await this.failClaim(post, token, failure);
+        await this.failClaim(post, token, failure, publisher.name);
         if (isRetryable(failure) && post.attempts + 1 < MAX_PUBLISH_ATTEMPTS)
           retrying += 1;
         else failed += 1;
@@ -1357,7 +1598,7 @@ export class SocialService {
         if (failure.kind === "rate_limit" || failure.kind === "auth") break;
       }
     }
-    return { published, failed, retrying, uncertain };
+    return { published, failed, retrying, uncertain, handedOff };
   }
 
   /**
@@ -1382,15 +1623,16 @@ export class SocialService {
       );
     const result = { recovered: 0, requeued: 0, waiting: 0 };
     if (!stale.length) return result;
-    const client = await this.metaClient();
-    if (!client) return { ...result, waiting: stale.length };
+    const publisher = await this.publisher();
+    if (!publisher) return { ...result, waiting: stale.length };
     for (const post of stale) {
       try {
-        const found = await this.findOnPage(client, post);
+        const found = await this.findOnPage(publisher, post);
         if (found.state === "published") {
           await this.markReconciled(post, found.id, null);
           result.recovered += 1;
-        } else if (found.state === "processing") {
+        } else if (found.state === "processing" || found.state === "unknown") {
+          // Unknown: this publisher cannot check the Page; only a confirmation settles it.
           result.waiting += 1;
         } else if (found.state === "failed") {
           await this.finishClaim(

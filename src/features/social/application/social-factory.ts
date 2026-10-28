@@ -9,6 +9,13 @@ import {
   renderReel,
 } from "@/features/social/infrastructure/render/reel-templates";
 import { parseVaultKey } from "@/features/social/infrastructure/token-vault";
+import { choosePublisherName } from "@/features/social/domain/publisher";
+import { checkPublicMedia } from "@/features/social/infrastructure/media-check";
+import {
+  makeCallbackSecret,
+  makeConfigProblems,
+  MakePublisher,
+} from "@/features/social/infrastructure/make-publisher";
 import type * as schema from "@/server/db/schema";
 
 import { SocialService, type CaptionWriter } from "./social-service";
@@ -84,6 +91,26 @@ export function createSocialService(input: {
         siteLabel: label,
       }),
     videoRenderingAvailable: isFfmpegAvailable,
+    publisherName: choosePublisherName(input.env.SOCIAL_PUBLISHER),
+    makePublisher: makePublisherFromEnv(input.env, origin),
+    checkMedia: (url, kind) => checkPublicMedia(url, kind),
     captionWriter: input.captionWriter ?? null,
+  });
+}
+
+/** Make is wired only when its webhook URL and API key are valid; the callback only with its secret. */
+export function makePublisherFromEnv(
+  env: SocialEnvironment,
+  origin: string,
+): MakePublisher | null {
+  if (makeConfigProblems(env).length) return null;
+  return new MakePublisher({
+    webhookUrl: env.MAKE_WEBHOOK_URL!,
+    apiKey: env.MAKE_WEBHOOK_API_KEY!,
+    supportsReels: env.MAKE_SUPPORTS_REELS === "on",
+    pageId: env.SOCIAL_PAGE_ID?.trim() || null,
+    callbackUrl: makeCallbackSecret(env)
+      ? `${(env.APP_ORIGIN || origin).replace(/\/$/, "")}/api/social/make/callback`
+      : null,
   });
 }

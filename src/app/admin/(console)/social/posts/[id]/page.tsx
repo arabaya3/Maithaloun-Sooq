@@ -12,6 +12,7 @@ import {
   reopenPostAction,
   reschedulePostAction,
   rerenderPostAction,
+  resolveUncertainAction,
   retryPostAction,
   unapprovePostAction,
 } from "@/features/social/application/social-actions";
@@ -73,6 +74,9 @@ const eventLabels: Record<string, string> = {
   reopen: "إعادة فتح",
   reconcile: "وُجد على صفحة فيسبوك فسُجّل منشوراً",
   uncertain: "لم يصل رد فيسبوك؛ سنتحقق من الصفحة قبل أي إعادة",
+  handed_off: "سُلّم إلى Make بانتظار تأكيد فيسبوك",
+  owner_resolved: "حسمتِ النتيجة بعد مراجعة الصفحة",
+  provider_confirmed: "أكّد Make نتيجة فيسبوك",
 };
 
 function Hidden({ id, version }: { id: string; version: number }) {
@@ -105,6 +109,7 @@ export default async function SocialPostPage({
   const status = post.status as PostStatus;
   const canPrepare = can(actor, "social.prepare");
   const canApprove = can(actor, "social.approve");
+  const publisherName = socialService.publisherName();
   const schedule = scheduleDefaults(post.scheduledFor);
 
   return (
@@ -272,6 +277,53 @@ export default async function SocialPostPage({
             </ul>
           ) : null}
 
+          {status === "publishing" && post.lastErrorCode && canApprove ? (
+            <section
+              className="admin-alert-panel social-settle"
+              aria-labelledby="settle-title"
+            >
+              <h2 id="settle-title">نتيجة النشر غير مؤكدة</h2>
+              <p>
+                {post.lastErrorCode === "AWAITING_CONFIRMATION"
+                  ? "سُلّم المنشور إلى Make ولم يصل تأكيد فيسبوك بعد."
+                  : post.lastErrorCode === "MAKE_PARTIAL"
+                    ? "أبلغ Make أن جزءاً فقط نُشر."
+                    : "لم يصل رد بعد إرسال المنشور."}{" "}
+                لن يُعاد إرساله تلقائياً. افتحي صفحة فيسبوك وتأكدي، ثم اختاري:
+              </p>
+              <div className="social-actions">
+                <form action={resolveUncertainAction} className="admin-form">
+                  <Hidden id={post.id} version={post.version} />
+                  <input type="hidden" name="outcome" value="published" />
+                  <label className="admin-field">
+                    <span>رقم المنشور على فيسبوك (اختياري)</span>
+                    <input
+                      name="facebookPostId"
+                      className="admin-input"
+                      dir="ltr"
+                      inputMode="numeric"
+                      pattern="[0-9_]{5,60}"
+                    />
+                  </label>
+                  <button type="submit" className="admin-btn admin-btn-primary">
+                    <CheckCircle2 size={16} aria-hidden="true" /> نعم، المنشور
+                    موجود على الصفحة
+                  </button>
+                </form>
+                <form action={resolveUncertainAction}>
+                  <Hidden id={post.id} version={post.version} />
+                  <input type="hidden" name="outcome" value="not_published" />
+                  <button
+                    type="submit"
+                    className="admin-btn admin-btn-secondary"
+                  >
+                    <XCircle size={16} aria-hidden="true" /> لا، غير موجود
+                  </button>
+                </form>
+              </div>
+            </section>
+          ) : null}
+
           <div className="social-actions">
             {status === "draft" && canApprove ? (
               <form action={approvePostAction}>
@@ -299,8 +351,18 @@ export default async function SocialPostPage({
               </form>
             ) : null}
             {status === "failed" && canApprove && !post.metaObjectId ? (
-              <form action={retryPostAction}>
+              <form action={retryPostAction} className="admin-form">
                 <Hidden id={post.id} version={post.version} />
+                {publisherName === "make" &&
+                post.attempts > 0 &&
+                post.lastErrorCode !== "OWNER_CONFIRMED_NOT_PUBLISHED" ? (
+                  <label className="social-toggle">
+                    <input type="checkbox" name="confirmedAbsent" required />
+                    <span>
+                      تأكدتُ من صفحة فيسبوك أن هذا المنشور غير موجود عليها.
+                    </span>
+                  </label>
+                ) : null}
                 <button type="submit" className="admin-btn admin-btn-primary">
                   <RotateCcw size={16} aria-hidden="true" /> أعيدي المحاولة
                 </button>

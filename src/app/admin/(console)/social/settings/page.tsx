@@ -12,6 +12,10 @@ import {
 import { socialService } from "@/features/social/application/social-instance";
 import { requiredPageScopes } from "@/features/social/infrastructure/meta-graph-client";
 import {
+  makeCallbackSecret,
+  makeConfigProblems,
+} from "@/features/social/infrastructure/make-publisher";
+import {
   first,
   SocialNav,
   SocialNotice,
@@ -28,6 +32,8 @@ export default async function SocialSettingsPage({
   const actor = await requireAdminSession();
   const params = await searchParams;
   const owner = can(actor, "social.approve");
+  const publisher = socialService.publisherName();
+  const makeProblems = makeConfigProblems(process.env);
   const [connection, settings] = await Promise.all([
     socialService.connection(),
     socialService.settings(),
@@ -211,6 +217,58 @@ export default async function SocialSettingsPage({
         ) : (
           <p className="admin-muted">الربط للمالك فقط.</p>
         )}
+      </section>
+
+      <section className="admin-panel" aria-labelledby="publisher-title">
+        <h2 id="publisher-title">طريقة النشر</h2>
+        <dl className="admin-definition-list">
+          <div>
+            <dt>الناشر</dt>
+            <dd>
+              {publisher === "make"
+                ? "Make.com (سيناريو خارجي)"
+                : "فيسبوك مباشرة (Graph API)"}
+            </dd>
+          </div>
+          {publisher === "make" ? (
+            <>
+              <div>
+                <dt>إعداد Make</dt>
+                <dd>
+                  {makeProblems.length ? (
+                    <span className="admin-form-error">
+                      ناقص: <bdi dir="ltr">{makeProblems.join(", ")}</bdi>
+                    </span>
+                  ) : (
+                    <StatusPill tone="ok" Icon={CheckCircle2}>
+                      مضبوط
+                    </StatusPill>
+                  )}
+                </dd>
+              </div>
+              <div>
+                <dt>الريلز عبر Make</dt>
+                <dd>
+                  {process.env.MAKE_SUPPORTS_REELS === "on"
+                    ? "مفعّل"
+                    : "متوقف (الريلز الموافق عليها تنتظر)"}
+                </dd>
+              </div>
+              <div>
+                <dt>تأكيد فيسبوك من Make</dt>
+                <dd>
+                  {makeCallbackSecret(process.env)
+                    ? "مفعّل: يرسل Make نتيجة فيسبوك تلقائياً"
+                    : "غير مفعّل: تحسمين النتيجة بنفسك بعد مراجعة الصفحة"}
+                </dd>
+              </div>
+            </>
+          ) : null}
+        </dl>
+        <p className="admin-muted">
+          مهما كانت طريقة النشر: لا يُرسل إلا ما وافقتِ عليه، ولا يُعاد إرسال
+          منشور قد يكون نُشر.
+        </p>
       </section>
 
       <section className="admin-panel" aria-labelledby="switches-title">

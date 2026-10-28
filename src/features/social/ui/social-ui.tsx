@@ -187,6 +187,9 @@ const doneMessages: Record<string, string> = {
   settings: "حُفظت الإعدادات.",
   connected: "رُبطت صفحة فيسبوك.",
   disconnected: "فُصلت صفحة فيسبوك.",
+  resolved_published: "سُجّل المنشور منشوراً على فيسبوك.",
+  resolved_not_published:
+    "سُجّل أنه لم يُنشر. يمكنك إعادة المحاولة عندما تريدين.",
 };
 
 const errorMessages: Record<string, string> = {
@@ -205,6 +208,9 @@ const errorMessages: Record<string, string> = {
     "الرمز ينقصه بعض الصلاحيات المطلوبة. أعيدي الربط ووافقي على كل الصلاحيات.",
   already_published:
     "وجدنا هذا المنشور على صفحة فيسبوك فعلاً، فسُجّل منشوراً ولم يُرسل مرة ثانية.",
+  confirm_absent_required:
+    "قبل إعادة الإرسال، تأكدي من صفحة فيسبوك أن المنشور غير موجود وأشّري على التأكيد.",
+  not_uncertain: "هذا المنشور ليس بانتظار تأكيد.",
   still_processing:
     "فيسبوك ما زال يعالج المحاولة السابقة. انتظري قليلاً ثم حدّثي الصفحة.",
   state: "انتهت محاولة الربط. ابدئي من جديد.",
