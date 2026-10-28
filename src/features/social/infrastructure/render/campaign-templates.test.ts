@@ -1,14 +1,17 @@
 import sharp from "sharp";
 import { describe, expect, it } from "vitest";
 
-import type { Bundle } from "@/features/social/domain/bundles";
+import {
+  shortProductName,
+  type Bundle,
+} from "@/features/social/domain/bundles";
 import {
   campaignAngles,
   type CampaignAngle,
 } from "@/features/social/domain/campaigns";
 import type { StoreFacts } from "@/features/social/domain/social-catalog";
 
-import { overlaps, renderCampaignImage, shortName } from "./campaign-templates";
+import { overlaps, renderCampaignImage } from "./campaign-templates";
 
 const store: StoreFacts = {
   name: "MAYTHA MARKET",
@@ -71,11 +74,13 @@ async function render(angle: CampaignAngle, count: number) {
   });
 }
 
-describe("shortName", () => {
+describe("shortProductName", () => {
   it("keeps the core of a product name for a small card", () => {
-    expect(shortName("سائل جلي فيري - بعدة روائح")).toBe("سائل جلي فيري");
-    expect(shortName("شامبو البركان (750 مل)")).toBe("شامبو البركان");
-    expect(shortName("أ".repeat(40))).toHaveLength(28);
+    expect(shortProductName("سائل جلي فيري - بعدة روائح")).toBe(
+      "سائل جلي فيري",
+    );
+    expect(shortProductName("شامبو البركان (750 مل)")).toBe("شامبو البركان");
+    expect(shortProductName("أ".repeat(40))).toHaveLength(28);
   });
 });
 

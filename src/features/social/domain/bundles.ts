@@ -28,7 +28,7 @@ export const bundleThemes: readonly BundleTheme[] = [
     forAr: "مطبخ نظيف وجلي بلا تعب",
     slots: [
       { categories: ["kitchen-dishwashing"], match: /سائل جلي/ },
-      { categories: ["kitchen-dishwashing"], match: /إسفنج|ليف/ },
+      { categories: ["kitchen-dishwashing"], match: /(^|\s)(إسفنج|ليف)/u },
       { categories: ["kitchen-dishwashing"], match: /الدهون|الأفران/ },
       { categories: ["kitchen-dishwashing"], match: /مناديل مبللة/ },
     ],
@@ -76,6 +76,17 @@ export const bundleThemes: readonly BundleTheme[] = [
     ],
   },
 ];
+
+/** The core of a product name: the part before its size or variant details. */
+export function coreProductName(name: string): string {
+  return name.split(/\s[–—-]\s|\s\(|\s\|/u)[0]!.trim();
+}
+
+/** The core name cut to 28 letters, for a small card on an image. */
+export function shortProductName(name: string): string {
+  const core = coreProductName(name);
+  return core.length > 28 ? `${core.slice(0, 27).trim()}…` : core;
+}
 
 export interface BundleItem {
   productId: string;

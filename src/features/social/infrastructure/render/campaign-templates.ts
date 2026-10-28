@@ -1,6 +1,9 @@
 import sharp, { type OverlayOptions } from "sharp";
 
-import type { Bundle } from "@/features/social/domain/bundles";
+import {
+  shortProductName,
+  type Bundle,
+} from "@/features/social/domain/bundles";
 import {
   campaignTypeLabels,
   type CampaignCopy,
@@ -62,12 +65,6 @@ function arabic(text: string, options: TextOptions) {
     ...options,
     align: align === "right" ? "left" : align === "left" ? "right" : align,
   });
-}
-
-/** The core of a product name for a small card: the part before its size or variant details. */
-export function shortName(name: string): string {
-  const core = name.split(/\s[–—-]\s|\s\(|\s\|/u)[0]!.trim();
-  return core.length > 28 ? `${core.slice(0, 27).trim()}…` : core;
 }
 
 /** Where the footer band starts; nothing but the footer is drawn below it. */
@@ -196,7 +193,7 @@ async function productTile(
   width: number,
 ): Promise<{ input: Buffer; height: number }> {
   const tile = await photoTile(photo, width);
-  const name = await arabic(shortName(item.name), {
+  const name = await arabic(shortProductName(item.name), {
     size: 24,
     weight: "semibold",
     color: brand.text,

@@ -1,6 +1,6 @@
 import { formatIls } from "@/shared/lib/format-currency";
 
-import { availableBundles, type Bundle } from "./bundles";
+import { availableBundles, coreProductName, type Bundle } from "./bundles";
 import {
   callToAction,
   deliveryLine,
@@ -138,7 +138,7 @@ const freeFrom = (store: StoreFacts) => formatIls(store.freeDeliveryFromAgorot);
 function bundleLines(bundle: Bundle): string[] {
   return bundle.items.map(
     (item) =>
-      `• ${item.name}${item.variantLabel ? ` (${item.variantLabel})` : ""}: ${formatIls(item.priceAgorot)}`,
+      `• ${coreProductName(item.name)}${item.variantLabel ? ` (${item.variantLabel})` : ""}: ${formatIls(item.priceAgorot)}`,
   );
 }
 
