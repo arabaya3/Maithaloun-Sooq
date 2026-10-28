@@ -267,7 +267,7 @@ export const socialSettings = pgTable(
     id: integer("id").primaryKey().default(1),
     autoPublishApproved: boolean("auto_publish_approved")
       .notNull()
-      .default(true),
+      .default(false),
     autoReplyFaq: boolean("auto_reply_faq").notNull().default(false),
     paused: boolean("paused").notNull().default(false),
     updatedBy: uuid("updated_by").references(() => adminUsers.id, {

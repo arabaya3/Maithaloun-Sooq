@@ -1,0 +1,1 @@
+ALTER TABLE "social_settings" ALTER COLUMN "auto_publish_approved" SET DEFAULT false;

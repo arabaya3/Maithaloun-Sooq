@@ -136,6 +136,10 @@ describe("social manager (database)", () => {
     await db.delete(schema.socialCatalogSeen);
     await db.delete(schema.socialJobRuns);
     await db.delete(schema.socialSettings);
+    // These tests exercise the automatic schedule; a fresh install keeps it off.
+    await db
+      .insert(schema.socialSettings)
+      .values({ id: 1, autoPublishApproved: true });
     clock = new Date("2026-10-24T08:00:00Z");
     catalog = toSocialCatalog(
       publicCatalog({ a: true, b: true, c: true, d: true, e: true }),

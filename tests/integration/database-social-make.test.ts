@@ -137,6 +137,10 @@ describe("social manager through Make (database)", () => {
     await db.delete(schema.socialPostEvents);
     await db.delete(schema.socialPosts);
     await db.delete(schema.socialSettings);
+    // These tests exercise the automatic schedule; a fresh install keeps it off.
+    await db
+      .insert(schema.socialSettings)
+      .values({ id: 1, autoPublishApproved: true });
     clock = new Date("2026-10-24T08:00:00Z");
     webhookCalls = [];
     webhookReply = () => new Response("Accepted");
@@ -163,6 +167,14 @@ describe("social manager through Make (database)", () => {
         .from(schema.socialPosts)
         .where(eq(schema.socialPosts.id, id))
     )[0];
+
+  it("a fresh install publishes nothing automatically, even approved posts", async () => {
+    await db.delete(schema.socialSettings);
+    await approvedPost();
+    expect((await social.settings()).autoPublishApproved).toBe(false);
+    expect(await social.publishDue()).toMatchObject({ skipped: "manual_mode" });
+    expect(webhookCalls).toHaveLength(0);
+  });
 
   it("never sends drafts or anything before approval", async () => {
     await social.draftPlan(owner, { startDate: "2026-10-25", days: 2 });

@@ -240,7 +240,8 @@ export class SocialService {
     return (
       row ?? {
         id: 1,
-        autoPublishApproved: true,
+        // Automatic publishing is off until the owner turns it on.
+        autoPublishApproved: false,
         autoReplyFaq: false,
         paused: false,
         updatedBy: null,
