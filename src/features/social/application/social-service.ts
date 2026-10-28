@@ -107,7 +107,17 @@ export type SocialErrorCode =
   | "already_published"
   | "still_processing"
   | "confirm_absent_required"
-  | "not_uncertain";
+  | "not_uncertain"
+  | "not_approved"
+  | "media_not_ready"
+  | "approval_expired"
+  | "paused"
+  | "publisher_missing"
+  | "format_unsupported";
+
+/** What one owner-started publication ended as; failures are recorded on the post as usual. */
+export type PublishNowOutcome =
+  "published" | "awaiting_confirmation" | "uncertain" | "failed";
 
 export class SocialError extends Error {
   constructor(
@@ -1014,6 +1024,21 @@ export class SocialService {
   }
 
   /**
+   * Whether the owner may settle this post: an answer was recorded but not confirmed, or the claim
+   * has had no answer for longer than any send can take (the request was cut off).
+   */
+  isSettleable(
+    post: Pick<SocialPostRow, "status" | "lastErrorCode" | "claimedAt">,
+  ): boolean {
+    return (
+      post.status === "publishing" &&
+      (post.lastErrorCode !== null ||
+        (post.claimedAt !== null &&
+          post.claimedAt.getTime() <= this.now().getTime() - STALE_CLAIM_MS))
+    );
+  }
+
+  /**
    * The owner settles a post whose Facebook result is unknown (handed to Make without confirmation,
    * or a lost answer), after looking at the Page. Only a post no worker is actively sending.
    */
@@ -1027,12 +1052,7 @@ export class SocialService {
     assertPermission(actor, "social.approve");
     const post = await this.load(id);
     if (post.version !== version) throw new SocialError("stale");
-    const settled =
-      post.status === "publishing" &&
-      (post.lastErrorCode !== null ||
-        (post.claimedAt !== null &&
-          post.claimedAt.getTime() <= this.now().getTime() - STALE_CLAIM_MS));
-    if (!settled) throw new SocialError("not_uncertain");
+    if (!this.isSettleable(post)) throw new SocialError("not_uncertain");
     if (outcome.published) {
       const reference = outcome.facebookPostId?.trim();
       if (reference && !/^[0-9_]{5,60}$/.test(reference)) {
@@ -1200,7 +1220,10 @@ export class SocialService {
    * Claims one due post. The conditional update is the lock: two workers can never both hold it,
    * and a post that is not approved can never be claimed.
    */
-  private async claim(post: SocialPostRow): Promise<string | null> {
+  private async claim(
+    post: SocialPostRow,
+    actor: AdminActor | null = null,
+  ): Promise<string | null> {
     const token = randomUUID();
     const claimed = await this.db
       .update(schema.socialPosts)
@@ -1226,10 +1249,10 @@ export class SocialService {
     await this.record(
       post.id,
       "claim",
-      null,
+      actor,
       post.status as PostStatus,
       "publishing",
-      `attempt ${post.attempts + 1}`,
+      `attempt ${post.attempts + 1}${actor ? " · publish now" : ""}`,
     );
     return token;
   }
@@ -1360,12 +1383,53 @@ export class SocialService {
   }
 
   /**
+   * The owner's «انشر الآن»: this one approved post, at the version the owner confirmed, through the
+   * same claim, idempotency and unknown-outcome handling as every other publication. Automatic
+   * publishing stays off; nothing else is sent, and nothing is retried here.
+   */
+  async publishNow(
+    actor: AdminActor,
+    id: string,
+    version: number,
+  ): Promise<PublishNowOutcome> {
+    assertPermission(actor, "social.publish");
+    const post = await this.load(id);
+    if (post.version !== version) throw new SocialError("stale");
+    if (post.status !== "approved") throw new SocialError("not_approved");
+    if (post.mediaStatus !== "ready") throw new SocialError("media_not_ready");
+    // The approval covers exactly the content that was approved.
+    if (!post.approvedBy || post.publishKey !== publishKey(post)) {
+      throw new SocialError("approval_expired");
+    }
+    const result = await this.publishDue(1, {
+      onlyPostId: post.id,
+      expectedVersion: version,
+      actor,
+    });
+    if (result.skipped === "paused") throw new SocialError("paused");
+    if (result.skipped) throw new SocialError("publisher_missing");
+    if (result.published) return "published";
+    if (result.handedOff) return "awaiting_confirmation";
+    if (result.uncertain) return "uncertain";
+    if (result.failed || result.retrying) return "failed";
+    // Nothing was claimed: another click or worker got there first, or the format cannot be sent.
+    const current = await this.load(post.id);
+    if (current.version !== version) throw new SocialError("stale");
+    throw new SocialError("format_unsupported");
+  }
+
+  /**
    * Publishes approved posts that are due. With `onlyPostId` it publishes that one approved post and
    * nothing else, even when automatic publishing is off: the owner's controlled live test.
    */
   async publishDue(
     limit = 5,
-    options: { onlyPostId?: string } = {},
+    options: {
+      onlyPostId?: string;
+      /** With `onlyPostId`: the exact version the owner confirmed; any change since means no send. */
+      expectedVersion?: number;
+      actor?: AdminActor;
+    } = {},
   ): Promise<{
     published: number;
     failed: number;
@@ -1391,6 +1455,9 @@ export class SocialService {
           ? and(
               eq(schema.socialPosts.id, options.onlyPostId),
               inArray(schema.socialPosts.status, ["approved", "retry_wait"]),
+              options.expectedVersion === undefined
+                ? undefined
+                : eq(schema.socialPosts.version, options.expectedVersion),
             )
           : or(
               and(
@@ -1427,7 +1494,7 @@ export class SocialService {
     for (const post of due) {
       // A format the publisher cannot send (Reels via Make, unless confirmed) stays approved.
       if (!publisher.supports(post.format as PostFormat)) continue;
-      const token = await this.claim(post);
+      const token = await this.claim(post, options.actor ?? null);
       if (!token) continue;
       // Re-checked at the last moment: a product sold out after approval is never advertised.
       if (post.productIds.some((id) => !available.has(id))) {

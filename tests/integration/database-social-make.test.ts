@@ -450,4 +450,234 @@ describe("social manager through Make (database)", () => {
     });
     expect(webhookCalls).toHaveLength(0);
   });
+  describe("«انشر الآن» (publish one post now)", () => {
+    beforeEach(async () => {
+      // The owner action works with automatic publishing off, as in Production.
+      await db.delete(schema.socialSettings);
+    });
+
+    /** Two approved image posts, so a test can prove the other one is never sent. */
+    async function twoApproved(): Promise<[SocialPostRow, SocialPostRow]> {
+      await social.draftPlan(owner, { startDate: "2026-10-25", days: 7 });
+      await social.renderPending();
+      const images = (await db.select().from(schema.socialPosts))
+        .filter((post) => post.format === "image" && post.status === "draft")
+        .slice(0, 2);
+      for (const post of images) {
+        await social.approve(owner, post.id, post.version);
+      }
+      return [(await row(images[0]!.id))!, (await row(images[1]!.id))!];
+    }
+
+    it("publishes only the chosen post and stores Facebook's id", async () => {
+      const [target, other] = await twoApproved();
+      webhookReply = () =>
+        Response.json({ facebookPostId: "61595987361563_12345" });
+      expect(await social.publishNow(owner, target.id, target.version)).toBe(
+        "published",
+      );
+      expect(webhookCalls).toHaveLength(1);
+      expect(webhookCalls[0]!.body.postId).toBe(target.id);
+      expect(await row(target.id)).toMatchObject({
+        status: "published",
+        metaPostId: "61595987361563_12345",
+        attempts: 1,
+      });
+      expect(await row(other.id)).toMatchObject({
+        status: "approved",
+        attempts: 0,
+      });
+      expect((await social.settings()).autoPublishApproved).toBe(false);
+    });
+
+    it("is for the owner only", async () => {
+      const [target] = await twoApproved();
+      await expect(
+        social.publishNow(operator, target.id, target.version),
+      ).rejects.toBeInstanceOf(AuthorizationError);
+      expect(webhookCalls).toHaveLength(0);
+    });
+
+    it("refuses drafts, unknown ids, unready media and changed approvals without sending", async () => {
+      await social.draftPlan(owner, { startDate: "2026-10-25", days: 7 });
+      await social.renderPending();
+      const [draft, other] = (
+        await db.select().from(schema.socialPosts)
+      ).filter((post) => post.format === "image");
+      await expect(
+        social.publishNow(owner, draft!.id, draft!.version),
+      ).rejects.toMatchObject({ code: "not_approved" });
+      await expect(
+        social.publishNow(owner, "00000000-0000-0000-0000-000000000000", 1),
+      ).rejects.toMatchObject({ code: "not_found" });
+      await expect(
+        social.publishNow(owner, "not-an-id", 1),
+      ).rejects.toMatchObject({ code: "not_found" });
+
+      await social.approve(owner, other!.id, other!.version);
+      const target = (await row(other!.id))!;
+      // The media was reset behind the approval.
+      await db
+        .update(schema.socialPosts)
+        .set({ mediaStatus: "pending" })
+        .where(eq(schema.socialPosts.id, target.id));
+      await expect(
+        social.publishNow(owner, target.id, target.version),
+      ).rejects.toMatchObject({ code: "media_not_ready" });
+
+      // The caption changed after approval: the approval no longer covers it.
+      await db
+        .update(schema.socialPosts)
+        .set({ mediaStatus: "ready", caption: "نص آخر لم تتم الموافقة عليه" })
+        .where(eq(schema.socialPosts.id, target.id));
+      await expect(
+        social.publishNow(owner, target.id, target.version),
+      ).rejects.toMatchObject({ code: "approval_expired" });
+
+      // A version the owner never saw.
+      await db
+        .update(schema.socialPosts)
+        .set({ caption: target.caption })
+        .where(eq(schema.socialPosts.id, target.id));
+      await expect(
+        social.publishNow(owner, target.id, target.version - 1),
+      ).rejects.toMatchObject({ code: "stale" });
+      expect(webhookCalls).toHaveLength(0);
+    });
+
+    it("sends once on a double click or concurrent requests", async () => {
+      const [target] = await twoApproved();
+      webhookReply = () =>
+        Response.json({ facebookPostId: "61595987361563_12345" });
+      const results = await Promise.allSettled([
+        social.publishNow(owner, target.id, target.version),
+        social.publishNow(owner, target.id, target.version),
+        social.publishNow(owner, target.id, target.version),
+      ]);
+      expect(webhookCalls).toHaveLength(1);
+      expect(
+        results.filter((result) => result.status === "fulfilled"),
+      ).toHaveLength(1);
+      for (const result of results) {
+        if (result.status === "rejected") {
+          expect(["stale", "not_approved"]).toContain(result.reason.code);
+        }
+      }
+      // A later click from the old page refuses: the version moved on.
+      await expect(
+        social.publishNow(owner, target.id, target.version),
+      ).rejects.toMatchObject({ code: "stale" });
+      expect(webhookCalls).toHaveLength(1);
+    });
+
+    it("a 200 without a valid Facebook id waits for confirmation and is never resent", async () => {
+      const [target] = await twoApproved();
+      webhookReply = () => Response.json({ facebookPostId: "not-an-id" });
+      expect(await social.publishNow(owner, target.id, target.version)).toBe(
+        "awaiting_confirmation",
+      );
+      const after = (await row(target.id))!;
+      expect(after).toMatchObject({
+        status: "publishing",
+        lastErrorCode: "AWAITING_CONFIRMATION",
+        metaPostId: null,
+      });
+      await expect(
+        social.publishNow(owner, target.id, after.version),
+      ).rejects.toMatchObject({ code: "not_approved" });
+      expect(webhookCalls).toHaveLength(1);
+    });
+
+    it("a timeout is uncertain: no retry, and the owner settles it", async () => {
+      const [target] = await twoApproved();
+      webhookReply = () => {
+        throw new DOMException("timed out", "TimeoutError");
+      };
+      expect(await social.publishNow(owner, target.id, target.version)).toBe(
+        "uncertain",
+      );
+      const after = (await row(target.id))!;
+      expect(after).toMatchObject({
+        status: "publishing",
+        lastErrorCode: "MAKE_UNKNOWN_OUTCOME",
+      });
+      expect(await social.publishDue(5)).toMatchObject({ published: 0 });
+      expect(webhookCalls).toHaveLength(1);
+      await social.resolveUncertain(owner, target.id, after.version, {
+        published: true,
+        facebookPostId: "61595987361563_555",
+      });
+      expect(await row(target.id)).toMatchObject({
+        status: "published",
+        metaPostId: "61595987361563_555",
+      });
+    });
+
+    it("a 502 from Make is uncertain, never a failure to retry", async () => {
+      const [target] = await twoApproved();
+      webhookReply = () => new Response("bad gateway", { status: 502 });
+      expect(await social.publishNow(owner, target.id, target.version)).toBe(
+        "uncertain",
+      );
+      expect(await row(target.id)).toMatchObject({ status: "publishing" });
+    });
+
+    it("a 422 refusal fails safely without publishing", async () => {
+      const [target] = await twoApproved();
+      webhookReply = () => new Response("Unsupported", { status: 422 });
+      expect(await social.publishNow(owner, target.id, target.version)).toBe(
+        "failed",
+      );
+      expect(await row(target.id)).toMatchObject({
+        status: "failed",
+        metaPostId: null,
+      });
+    });
+
+    it("a request cut off by the platform stays claimed until the owner checks the Page", async () => {
+      const [target] = await twoApproved();
+      // The function was stopped after the claim and before any answer was stored.
+      await db
+        .update(schema.socialPosts)
+        .set({
+          status: "publishing",
+          claimToken: "00000000-0000-4000-8000-000000000001",
+          claimedAt: clock,
+          attempts: 1,
+          version: target.version + 1,
+        })
+        .where(eq(schema.socialPosts.id, target.id));
+      const version = target.version + 1;
+      await expect(
+        social.publishNow(owner, target.id, version),
+      ).rejects.toMatchObject({ code: "not_approved" });
+      await expect(
+        social.resolveUncertain(owner, target.id, version, {
+          published: false,
+        }),
+      ).rejects.toMatchObject({ code: "not_uncertain" });
+      clock = new Date(clock.getTime() + 16 * 60_000);
+      await social.resolveUncertain(owner, target.id, version, {
+        published: false,
+      });
+      expect(await row(target.id)).toMatchObject({
+        status: "failed",
+        lastErrorCode: "OWNER_CONFIRMED_NOT_PUBLISHED",
+      });
+      expect(webhookCalls).toHaveLength(0);
+    });
+
+    it("sends nothing when Make is not configured on the server", async () => {
+      const [target] = await twoApproved();
+      social = service({ configured: false });
+      await expect(
+        social.publishNow(owner, target.id, target.version),
+      ).rejects.toMatchObject({ code: "publisher_missing" });
+      expect(await row(target.id)).toMatchObject({
+        status: "approved",
+        attempts: 0,
+      });
+      expect(webhookCalls).toHaveLength(0);
+    });
+  });
 });

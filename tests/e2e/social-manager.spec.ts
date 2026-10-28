@@ -73,6 +73,56 @@ test.describe("Facebook manager", () => {
     expect(issues.consoleErrors).toEqual([]);
   });
 
+  test("«انشر الآن» names the exact post, needs a confirmation and sends nothing without a publisher", async ({
+    page,
+  }) => {
+    const issues = trackPageIssues(page);
+    const id = await seedDraft();
+    // A second approved post that must stay untouched.
+    const [other] = await withTestDb(
+      (sql) => sql<{ id: string }[]>`
+        insert into social_posts (format, kind, status, caption, caption_source, media_status, media_url, poster_url, scheduled_for)
+        values ('image', 'delivery_info', 'draft', ${CAPTION}, 'template', 'ready',
+                '/brand/kit/maytha-logo-rounded.png', '/brand/kit/maytha-logo-rounded.png', now() + interval '4 days')
+        returning id`,
+    );
+    await login(page);
+    for (const postId of [other!.id, id]) {
+      await page.goto(`/admin/social/posts/${postId}`);
+      await page.getByRole("button", { name: "موافقة ونشر في الموعد" }).click();
+      await expect(
+        page.getByText("تمت الموافقة. سيُنشر في موعده."),
+      ).toBeVisible();
+    }
+
+    await page.getByRole("button", { name: "انشر الآن" }).click();
+    const confirm = page.getByRole("form", { name: "نشر هذا المنشور الآن؟" });
+    await expect(confirm).toBeVisible();
+    await expect(confirm.getByText(id)).toBeVisible();
+    await expectAccessible(page);
+    await expectNoHorizontalOverflow(page);
+
+    // The confirmation box is required before anything is sent.
+    const send = confirm.getByRole("button", { name: "نعم، انشري الآن" });
+    await send.click();
+    await expect(confirm).toBeVisible();
+    await confirm.getByRole("checkbox").check();
+    await send.click();
+    await expect(
+      page.getByText("طريقة النشر غير مضبوطة على الخادم، فلم يُرسل شيء."),
+    ).toBeVisible();
+
+    const rows = await withTestDb(
+      (sql) => sql<{ id: string; status: string; attempts: number }[]>`
+        select id, status, attempts from social_posts order by scheduled_for`,
+    );
+    expect(rows).toEqual([
+      { id, status: "approved", attempts: 0 },
+      { id: other!.id, status: "approved", attempts: 0 },
+    ]);
+    expect(issues.consoleErrors).toEqual([]);
+  });
+
   test("blocked captions cannot be approved", async ({ page }) => {
     const id = await seedDraft();
     await withTestDb(

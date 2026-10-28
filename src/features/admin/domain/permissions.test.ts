@@ -47,5 +47,8 @@ describe("permission matrix", () => {
     expect(() => assertPermission(operator, "social.approve")).toThrow(
       AuthorizationError,
     );
+    // Publishing a post immediately is the owner's alone.
+    expect(can(owner, "social.publish")).toBe(true);
+    expect(can(operator, "social.publish")).toBe(false);
   });
 });
