@@ -36,7 +36,8 @@
     "test:assistant:model": "vitest run --config vitest.model-eval.config.ts",
     "social:worker": "tsx tools/social-worker.ts",
     "social:batch": "tsx tools/social-first-batch.ts",
-    "social:make-contract": "tsx tools/make-contract-test.ts"
+    "social:make-contract": "tsx tools/make-contract-test.ts",
+    "social:campaigns": "tsx tools/social-campaign-preview.ts"
   },
   "dependencies": {
     "@ai-sdk/openai": "^4.0.82",

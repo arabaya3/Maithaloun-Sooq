@@ -71,11 +71,11 @@ export function deliveryLine(store: StoreFacts): string {
   return `🚚 التوصيل داخل ${store.deliveryAreaAr} بـ ${formatIls(store.deliveryFeeAgorot)}، ومجاني للطلبات من ${formatIls(store.freeDeliveryFromAgorot)} وفوق.`;
 }
 
-function paymentLine(store: StoreFacts): string | null {
+export function paymentLine(store: StoreFacts): string | null {
   return store.cashOnDelivery ? "💵 الدفع نقداً عند الاستلام." : null;
 }
 
-function callToAction(context: CaptionContext, url?: string): string[] {
+export function callToAction(context: CaptionContext, url?: string): string[] {
   return [
     `🛒 اطلبوا من الموقع: ${url ?? context.origin}`,
     whatsAppLine(context.store),
