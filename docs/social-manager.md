@@ -115,7 +115,7 @@ Sources: developers.facebook.com/docs/graph-api/changelog, …/reference/page/ph
 8. Switch the app to **Live** (top bar toggle) only when ready for the live test (step below).
 
 Vercel (Production) environment variables, set by the owner or with their approval:
-`META_APP_ID`, `META_APP_SECRET`, `META_LOGIN_CONFIG_ID`, `SOCIAL_PAGE_ID=61595987361563`,
+`META_APP_ID`, `META_APP_SECRET`, `META_LOGIN_CONFIG_ID`, `SOCIAL_PAGE_ID=1402563419605573`,
 `SOCIAL_TOKEN_KEY` (32 random bytes, base64), `SOCIAL_PUBLIC_ORIGIN=https://maithaloun-sooq.vercel.app`,
 then `SOCIAL_MANAGER=on`. `CRON_SECRET` and the Supabase variables already exist.
 
@@ -124,7 +124,7 @@ then `SOCIAL_MANAGER=on`. `CRON_SECRET` and the Supabase variables already exist
 1. Sign in to `/admin`, open **فيسبوك → الإعدادات**, press «ربط عبر فيسبوك».
 2. Facebook asks you to sign in (on facebook.com — the store never sees your password) and to confirm
    the MAYTHA MARKET Page and the permissions. Approve.
-3. You return to the settings page. It must show: **مربوطة**, the Page id `61595987361563`, a token hint,
+3. You return to the settings page. It must show: **مربوطة**, the Page id `1402563419605573`, a token hint,
    and «الصلاحيات: كاملة». A token for another app or Page, or without every permission, is refused.
 
 Alternative: a **system user** token from Business Settings → Users → System users (assign the app and
@@ -137,8 +137,12 @@ the same way; in production an unchecked token is never stored.
   asks. `/api/cron/social?run=daily` stays available to a caller with `CRON_SECRET`; without
   `SOCIAL_MANAGER=on` it answers `{ ok: true, skipped: "disabled" }` and runs nothing.
 - «انشر الآن» (owner only) publishes one approved post. With Make it requires `SOCIAL_PAGE_ID`
-  (MAYTHA MARKET: `61595987361563`): a post id Make returns must start with `61595987361563_`, or the
+  (MAYTHA MARKET: `1402563419605573`): a post id Make returns must start with `1402563419605573_`, or the
   post is held as «MAKE_PAGE_MISMATCH» for the owner to check instead of being recorded as published.
+- MAYTHA MARKET has two ids. `1402563419605573` is its Graph API Page id: the three Facebook Pages
+  modules in Make post to it, and Page post ids start with it. `61595987361563` is the newer
+  profile-style id in `facebook.com/profile.php?id=…`; both open the same Page. `SOCIAL_PAGE_ID` must
+  be the Graph id. Verified on 28 Oct 2026 in the Make scenario «MAYTHA Social Publish» and on Facebook.
 - GitHub Actions every 15 min (free): renders Reels with FFmpeg, then publishes what is due. The job is
   skipped entirely unless repository variable `SOCIAL_MANAGER` is `on`. Secrets, present only in the
   worker step: `SOCIAL_WORKER_DATABASE_URL`, `SOCIAL_TOKEN_KEY`, `SUPABASE_URL`, `SUPABASE_SECRET_KEY`,
@@ -231,7 +235,7 @@ absent, never sent as null; no other property is ever sent (validated before sen
   "contentType": "image",
   "caption": "the approved Arabic caption, exactly",
   "mediaUrl": "https://…/post.jpg",
-  "pageId": "61595987361563",
+  "pageId": "1402563419605573",
   "schema": "maytha.social-post.v1",
   "attempt": 1
 }
