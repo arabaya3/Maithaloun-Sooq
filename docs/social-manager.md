@@ -133,8 +133,12 @@ the same way; in production an unchecked token is never stored.
 
 ## Running the schedule
 
-- Vercel cron (daily, 04:00 UTC): `/api/cron/social?run=daily`. Without `SOCIAL_MANAGER=on` it answers
-  `{ ok: true, skipped: "disabled" }` and runs nothing.
+- No Vercel cron runs social jobs: drafts and media are prepared from `/admin/social` when the owner
+  asks. `/api/cron/social?run=daily` stays available to a caller with `CRON_SECRET`; without
+  `SOCIAL_MANAGER=on` it answers `{ ok: true, skipped: "disabled" }` and runs nothing.
+- «انشر الآن» (owner only) publishes one approved post. With Make it requires `SOCIAL_PAGE_ID`
+  (MAYTHA MARKET: `61595987361563`): a post id Make returns must start with `61595987361563_`, or the
+  post is held as «MAKE_PAGE_MISMATCH» for the owner to check instead of being recorded as published.
 - GitHub Actions every 15 min (free): renders Reels with FFmpeg, then publishes what is due. The job is
   skipped entirely unless repository variable `SOCIAL_MANAGER` is `on`. Secrets, present only in the
   worker step: `SOCIAL_WORKER_DATABASE_URL`, `SOCIAL_TOKEN_KEY`, `SUPABASE_URL`, `SUPABASE_SECRET_KEY`,

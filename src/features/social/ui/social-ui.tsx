@@ -197,6 +197,8 @@ const doneMessages: Record<string, string> = {
     "سُلّم المنشور إلى Make، وننتظر تأكيد فيسبوك. لن يُرسل مرة ثانية.",
   publish_uncertain:
     "لم يصل رد بعد الإرسال. لن يُعاد إرساله تلقائياً؛ تأكدي من صفحة فيسبوك ثم اختاري النتيجة.",
+  publish_page_mismatch:
+    "أرسل Make رقم منشور على صفحة غير صفحة MAYTHA MARKET، فلم يُسجَّل منشوراً. افحصي الصفحتين وسيناريو Make.",
   publish_failed: "رفض Make أو فيسبوك المنشور ولم يُنشر. السبب في التفاصيل.",
 };
 
@@ -226,6 +228,8 @@ const errorMessages: Record<string, string> = {
   paused: "النشر موقوف من الإعدادات.",
   publisher_missing: "طريقة النشر غير مضبوطة على الخادم، فلم يُرسل شيء.",
   format_unsupported: "طريقة النشر الحالية لا تدعم هذا النوع من المنشورات.",
+  page_not_configured:
+    "رقم صفحة MAYTHA MARKET (SOCIAL_PAGE_ID) غير مضبوط على الخادم، فلا يمكن التأكد أن النشر على صفحتنا. لم يُرسل شيء.",
   confirm_required: "أشّري على التأكيد قبل النشر.",
   still_processing:
     "فيسبوك ما زال يعالج المحاولة السابقة. انتظري قليلاً ثم حدّثي الصفحة.",

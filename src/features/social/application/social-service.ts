@@ -113,11 +113,16 @@ export type SocialErrorCode =
   | "approval_expired"
   | "paused"
   | "publisher_missing"
-  | "format_unsupported";
+  | "format_unsupported"
+  | "page_not_configured";
 
 /** What one owner-started publication ended as; failures are recorded on the post as usual. */
 export type PublishNowOutcome =
-  "published" | "awaiting_confirmation" | "uncertain" | "failed";
+  | "published"
+  | "awaiting_confirmation"
+  | "uncertain"
+  | "page_mismatch"
+  | "failed";
 
 export class SocialError extends Error {
   constructor(
@@ -1120,6 +1125,23 @@ export class SocialService {
       return "ignored";
     }
     if (report.status === "published" && report.facebookPostId) {
+      const pageId = (await this.publisher())?.pageId;
+      if (
+        pageId &&
+        post.format !== "reel" &&
+        !report.facebookPostId.startsWith(`${pageId}_`)
+      ) {
+        await this.db
+          .update(schema.socialPosts)
+          .set({ lastErrorCode: "MAKE_PAGE_MISMATCH", updatedAt: this.now() })
+          .where(
+            and(
+              eq(schema.socialPosts.id, post.id),
+              eq(schema.socialPosts.status, "publishing"),
+            ),
+          );
+        return "applied";
+      }
       await this.markReconciled(
         post,
         report.facebookPostId,
@@ -1401,6 +1423,11 @@ export class SocialService {
     if (!post.approvedBy || post.publishKey !== publishKey(post)) {
       throw new SocialError("approval_expired");
     }
+    // Without the Page id a Make answer cannot be checked against our Page: nothing is sent.
+    const publisher = await this.publisher();
+    if (publisher?.name === "make" && !publisher.pageId) {
+      throw new SocialError("page_not_configured");
+    }
     const result = await this.publishDue(1, {
       onlyPostId: post.id,
       expectedVersion: version,
@@ -1409,7 +1436,12 @@ export class SocialService {
     if (result.skipped === "paused") throw new SocialError("paused");
     if (result.skipped) throw new SocialError("publisher_missing");
     if (result.published) return "published";
-    if (result.handedOff) return "awaiting_confirmation";
+    if (result.handedOff) {
+      const after = await this.load(post.id);
+      return after.lastErrorCode === "MAKE_PAGE_MISMATCH"
+        ? "page_mismatch"
+        : "awaiting_confirmation";
+    }
     if (result.uncertain) return "uncertain";
     if (result.failed || result.retrying) return "failed";
     // Nothing was claimed: another click or worker got there first, or the format cannot be sent.
@@ -1597,7 +1629,10 @@ export class SocialService {
             .set({
               publishProvider: publisher.name,
               providerRef: outcome.reference,
-              lastErrorCode: "AWAITING_CONFIRMATION",
+              lastErrorCode:
+                outcome.problem === "page_mismatch"
+                  ? "MAKE_PAGE_MISMATCH"
+                  : "AWAITING_CONFIRMATION",
               updatedAt: this.now(),
             })
             .where(

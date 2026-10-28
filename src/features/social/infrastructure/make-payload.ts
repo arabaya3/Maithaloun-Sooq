@@ -107,6 +107,20 @@ export function buildMakePayload(
 export const FACEBOOK_ID = /^\d{5,30}(_\d{5,30})?$/;
 
 /**
+ * Whether a Facebook id Make reported belongs to our Page. A text or image post id is
+ * «PAGEID_POSTID», so its prefix names the Page. A Reel's video id carries no Page, so it cannot be
+ * checked here and is accepted as it is.
+ */
+export function isOnPage(
+  id: string,
+  pageId: string,
+  contentType: MakeContentType,
+): boolean {
+  if (contentType === "reel") return true;
+  return id.startsWith(`${pageId}_`) && FACEBOOK_ID.test(id);
+}
+
+/**
  * Facebook's id from the scenario's 200 reply: facebookPostId for text and image, facebookObjectId
  * for a Reel, and only when valid. If the reply names a post or key, it must be ours.
  */

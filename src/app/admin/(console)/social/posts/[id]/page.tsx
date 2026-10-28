@@ -314,11 +314,13 @@ export default async function SocialPostPage({
               <p>
                 {post.lastErrorCode === "AWAITING_CONFIRMATION"
                   ? "سُلّم المنشور إلى Make ولم يصل تأكيد فيسبوك بعد."
-                  : post.lastErrorCode === "MAKE_PARTIAL"
-                    ? "أبلغ Make أن جزءاً فقط نُشر."
-                    : post.lastErrorCode
-                      ? "لم يصل رد بعد إرسال المنشور."
-                      : "انقطع الإرسال قبل أن يصل رد."}{" "}
+                  : post.lastErrorCode === "MAKE_PAGE_MISMATCH"
+                    ? "أرسل Make رقم منشور على صفحة غير صفحة MAYTHA MARKET. افحصي صفحتنا والصفحة الأخرى، واحذفي المنشور من الصفحة الخطأ إن وُجد."
+                    : post.lastErrorCode === "MAKE_PARTIAL"
+                      ? "أبلغ Make أن جزءاً فقط نُشر."
+                      : post.lastErrorCode
+                        ? "لم يصل رد بعد إرسال المنشور."
+                        : "انقطع الإرسال قبل أن يصل رد."}{" "}
                 لن يُعاد إرساله تلقائياً. افتحي صفحة فيسبوك وتأكدي، ثم اختاري:
               </p>
               <div className="social-actions">

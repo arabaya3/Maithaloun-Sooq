@@ -123,6 +123,69 @@ test.describe("Facebook manager", () => {
     expect(issues.consoleErrors).toEqual([]);
   });
 
+  test("«انشر الآن» refuses a request replayed from another site", async ({
+    page,
+  }) => {
+    const id = await seedDraft();
+    await login(page);
+    await page.goto(`/admin/social/posts/${id}`);
+    await page.getByRole("button", { name: "موافقة ونشر في الموعد" }).click();
+    await expect(
+      page.getByText("تمت الموافقة. سيُنشر في موعده."),
+    ).toBeVisible();
+
+    // Capture the real server-action request, without letting it reach the server.
+    let captured: {
+      url: string;
+      headers: Record<string, string>;
+      body: Buffer;
+    } | null = null;
+    await page.route("**/admin/social/posts/**", async (route) => {
+      const request = route.request();
+      if (request.method() === "POST" && request.headers()["next-action"]) {
+        captured = {
+          url: request.url(),
+          headers: request.headers(),
+          body: request.postDataBuffer() ?? Buffer.alloc(0),
+        };
+        await route.abort();
+        return;
+      }
+      await route.continue();
+    });
+    await page.getByRole("button", { name: "انشر الآن" }).click();
+    const confirm = page.getByRole("form", { name: "نشر هذا المنشور الآن؟" });
+    await confirm.getByRole("checkbox").check();
+    await confirm.getByRole("button", { name: "نعم، انشري الآن" }).click();
+    await expect.poll(() => captured !== null).toBe(true);
+    await page.unroute("**/admin/social/posts/**");
+
+    // The same action, with the owner's cookies, sent as if from another website.
+    const replay = captured!;
+    const forged = await page.request.post(replay.url, {
+      headers: {
+        ...replay.headers,
+        origin: "https://evil.example",
+        "sec-fetch-site": "cross-site",
+      },
+      data: replay.body,
+      maxRedirects: 0,
+    });
+    const text = await forged.text();
+    // Never the outcome of a real attempt: the guard stops it before the service runs.
+    expect(text).not.toContain("publisher_missing");
+    expect(
+      forged.status() >= 400 ||
+        (forged.headers()["x-action-redirect"] ?? "").includes("/admin/login"),
+    ).toBe(true);
+
+    const [row] = await withTestDb(
+      (sql) => sql<{ status: string; attempts: number }[]>`
+        select status, attempts from social_posts where id = ${id}`,
+    );
+    expect(row).toEqual({ status: "approved", attempts: 0 });
+  });
+
   test("blocked captions cannot be approved", async ({ page }) => {
     const id = await seedDraft();
     await withTestDb(

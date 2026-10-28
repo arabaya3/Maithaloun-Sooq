@@ -79,7 +79,13 @@ let webhookCalls: Array<{
 let webhookReply: () => Response;
 let mediaProblem: string | null;
 
-function service(options: { configured?: boolean; reels?: boolean } = {}) {
+function service(
+  options: {
+    configured?: boolean;
+    reels?: boolean;
+    pageId?: string | null;
+  } = {},
+) {
   let media = 0;
   return new SocialService({
     database: db,
@@ -107,7 +113,8 @@ function service(options: { configured?: boolean; reels?: boolean } = {}) {
             webhookUrl: WEBHOOK,
             apiKey: KEY,
             supportsReels: options.reels ?? false,
-            pageId: "61595987361563",
+            pageId:
+              options.pageId === undefined ? "61595987361563" : options.pageId,
             callbackUrl:
               "https://maithaloun-sooq.vercel.app/api/social/make/callback",
             fetch: async (_url, init) => {
@@ -665,6 +672,42 @@ describe("social manager through Make (database)", () => {
         lastErrorCode: "OWNER_CONFIRMED_NOT_PUBLISHED",
       });
       expect(webhookCalls).toHaveLength(0);
+    });
+
+    it("sends nothing while the Page id is not configured", async () => {
+      const [target] = await twoApproved();
+      social = service({ pageId: null });
+      await expect(
+        social.publishNow(owner, target.id, target.version),
+      ).rejects.toMatchObject({ code: "page_not_configured" });
+      expect(await row(target.id)).toMatchObject({
+        status: "approved",
+        attempts: 0,
+      });
+      expect(webhookCalls).toHaveLength(0);
+    });
+
+    it("holds a post Make reports on another Page; it is never published or resent", async () => {
+      const [target] = await twoApproved();
+      webhookReply = () =>
+        Response.json({ facebookPostId: "100000000000001_12345" });
+      expect(await social.publishNow(owner, target.id, target.version)).toBe(
+        "page_mismatch",
+      );
+      const after = (await row(target.id))!;
+      expect(after).toMatchObject({
+        status: "publishing",
+        lastErrorCode: "MAKE_PAGE_MISMATCH",
+        metaPostId: null,
+        metaObjectId: null,
+      });
+      await expect(
+        social.publishNow(owner, target.id, after.version),
+      ).rejects.toMatchObject({ code: "not_approved" });
+      expect(await social.publishDue(5)).toMatchObject({ published: 0 });
+      expect(webhookCalls).toHaveLength(1);
+      // The owner settles it after checking the Pages.
+      expect(social.isSettleable(after)).toBe(true);
     });
 
     it("sends nothing when Make is not configured on the server", async () => {

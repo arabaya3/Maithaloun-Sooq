@@ -4,10 +4,6 @@
     {
       "path": "/api/cron/daily",
       "schedule": "0 5 * * *"
-    },
-    {
-      "path": "/api/cron/social?run=daily",
-      "schedule": "0 4 * * *"
     }
   ]
 }
