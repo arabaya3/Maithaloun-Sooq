@@ -39,6 +39,8 @@
                 <category android:name="android.intent.category.DEFAULT"/>
                 <category android:name="android.intent.category.BROWSABLE"/>
                 <data android:scheme="https"/>
+                <!-- www.maytha.app is the official address; the old address stays for links already shared. -->
+                <data android:host="www.maytha.app"/>
                 <data android:host="maithaloun-sooq.vercel.app"/>
                 <data android:pathPattern="/products/.*"/>
                 <data android:pathPattern="/ar/products/.*"/>
