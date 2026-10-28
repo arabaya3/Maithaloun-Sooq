@@ -17,7 +17,7 @@ const withSerwist = withSerwistInit({
 // The social renderer reads its font and logo from disk; nothing imports them, so without this the
 // trace leaves them out of the Vercel function and every image fails to render.
 const socialRenderAssets = [
-  "./src/features/social/assets/Cairo-Variable.ttf",
+  "./src/features/social/assets/*.ttf",
   "./public/brand/kit/maytha-logo-rounded.png",
 ];
 

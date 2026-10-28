@@ -26,6 +26,32 @@ export const fontFile = () =>
 export const logoFile = () =>
   assetPath("public", "brand", "kit", "maytha-logo-rounded.png");
 
+/**
+ * Cairo has no shekel sign (₪). Noto Sans Hebrew (OFL) supplies that glyph only: it is listed after
+ * Cairo, so every other character keeps Cairo. A server without system fonts (Vercel) otherwise
+ * draws a missing-glyph box.
+ */
+export const fallbackFamily = "Noto Sans Hebrew";
+export const fallbackFontFiles = () =>
+  ["NotoSansHebrew-Regular.ttf", "NotoSansHebrew-Bold.ttf"].map((file) =>
+    assetPath("src", "features", "social", "assets", file),
+  );
+export const textFont = (size: number) => `Cairo, ${fallbackFamily} ${size}`;
+
+let fallbackRegistered: Promise<void> | null = null;
+
+/** libvips adds each `fontfile` to the process's fontconfig once; later text can then fall back to it. */
+function registerFallbackFonts(): Promise<void> {
+  fallbackRegistered ??= (async () => {
+    for (const fontfile of fallbackFontFiles()) {
+      await sharp({ text: { text: "₪", font: fallbackFamily, fontfile } })
+        .png()
+        .toBuffer();
+    }
+  })();
+  return fallbackRegistered;
+}
+
 export interface TextBlock {
   input: Buffer;
   width: number;
@@ -62,13 +88,14 @@ export async function renderText(
   text: string,
   options: TextOptions,
 ): Promise<TextBlock> {
+  await registerFallbackFonts();
   let size = options.size;
   for (;;) {
     const markup = `<span foreground="${options.color ?? brand.text}" font_weight="${weights[options.weight ?? "regular"]}">${escapeMarkup(text)}</span>`;
     const { data, info } = await sharp({
       text: {
         text: markup,
-        font: `Cairo ${size}`,
+        font: textFont(size),
         fontfile: fontFile(),
         rgba: true,
         width: options.width,
