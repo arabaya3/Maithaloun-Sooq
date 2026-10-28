@@ -10,6 +10,7 @@ import {
   buildMakePayload,
   contentTypeOf,
   facebookIdFromReply,
+  isOnPage,
 } from "./make-payload";
 import type { FetchLike } from "./meta-graph-client";
 
@@ -36,10 +37,12 @@ const fail = (
  */
 export class MakePublisher implements Publisher {
   readonly name = "make" as const;
+  readonly pageId: string | null;
   private readonly fetcher: FetchLike;
 
   constructor(private readonly config: MakePublisherConfig) {
     this.fetcher = config.fetch ?? ((url, init) => fetch(url, init));
+    this.pageId = config.pageId;
   }
 
   supports(format: PostFormat): boolean {
@@ -114,6 +117,18 @@ export class MakePublisher implements Publisher {
       postId: request.postId,
       idempotencyKey: request.idempotencyKey,
     });
+    if (
+      facebookId &&
+      this.pageId &&
+      !isOnPage(facebookId, this.pageId, contentTypeOf(request)!)
+    ) {
+      // A real post id, but on another Page: never recorded as our publication.
+      return {
+        kind: "accepted",
+        reference: facebookId,
+        problem: "page_mismatch",
+      };
+    }
     if (facebookId) {
       return { kind: "published", objectId: facebookId, postId: facebookId };
     }

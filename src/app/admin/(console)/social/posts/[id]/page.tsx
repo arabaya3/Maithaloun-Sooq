@@ -8,6 +8,7 @@ import { PageHeader } from "@/features/admin/ui/kit";
 import {
   approvePostAction,
   editCaptionAction,
+  publishNowAction,
   rejectPostAction,
   reopenPostAction,
   reschedulePostAction,
@@ -24,6 +25,7 @@ import {
   postStatusLabels,
   type PostStatus,
 } from "@/features/social/domain/post-lifecycle";
+import { PublishNowForm } from "@/features/social/ui/publish-now";
 import {
   first,
   PostPreview,
@@ -36,6 +38,17 @@ import {
 import { STORE_TIME_ZONE } from "@/shared/lib/store-time";
 
 export const metadata: Metadata = { title: "فيسبوك — منشور" };
+
+// «انشر الآن» waits for Make (20 s at most) inside this request. If the function is still stopped,
+// the claim stays and the post becomes settleable by the owner; it is never sent again by itself.
+export const maxDuration = 60;
+
+/** A Facebook post id as Make or the Graph API returns it: digits, or page_post digits. */
+function facebookPostUrl(id: string | null): string | null {
+  return id && /^[0-9]{5,30}(_[0-9]{5,30})?$/.test(id)
+    ? `https://www.facebook.com/${id}`
+    : null;
+}
 
 const localParts = new Intl.DateTimeFormat("en-CA", {
   timeZone: STORE_TIME_ZONE,
@@ -109,6 +122,10 @@ export default async function SocialPostPage({
   const status = post.status as PostStatus;
   const canPrepare = can(actor, "social.prepare");
   const canApprove = can(actor, "social.approve");
+  const canPublish = can(actor, "social.publish");
+  const postUrl = facebookPostUrl(post.metaPostId);
+  // A claim with no answer recorded: still sending, or cut off (a timeout) and settleable now.
+  const unsettled = socialService.isSettleable(post);
   const publisherName = socialService.publisherName();
   const schedule = scheduleDefaults(post.scheduledFor);
 
@@ -156,7 +173,11 @@ export default async function SocialPostPage({
                 <dt>نُشر</dt>
                 <dd>
                   <StoreTime value={post.publishedAt} />{" "}
-                  {post.metaPostId ? (
+                  {postUrl ? (
+                    <a href={postUrl} target="_blank" rel="noreferrer">
+                      <bdi dir="ltr">{post.metaPostId}</bdi>
+                    </a>
+                  ) : post.metaPostId ? (
                     <bdi dir="ltr" className="admin-muted">
                       {post.metaPostId}
                     </bdi>
@@ -277,7 +298,14 @@ export default async function SocialPostPage({
             </ul>
           ) : null}
 
-          {status === "publishing" && post.lastErrorCode && canApprove ? (
+          {status === "publishing" && !unsettled ? (
+            <p className="admin-note" role="status">
+              جارٍ إرسال المنشور. حدّثي الصفحة بعد قليل. إذا لم تصل نتيجة خلال
+              ربع ساعة، ستظهر هنا خيارات التأكد من صفحة فيسبوك.
+            </p>
+          ) : null}
+
+          {unsettled && canApprove ? (
             <section
               className="admin-alert-panel social-settle"
               aria-labelledby="settle-title"
@@ -286,9 +314,13 @@ export default async function SocialPostPage({
               <p>
                 {post.lastErrorCode === "AWAITING_CONFIRMATION"
                   ? "سُلّم المنشور إلى Make ولم يصل تأكيد فيسبوك بعد."
-                  : post.lastErrorCode === "MAKE_PARTIAL"
-                    ? "أبلغ Make أن جزءاً فقط نُشر."
-                    : "لم يصل رد بعد إرسال المنشور."}{" "}
+                  : post.lastErrorCode === "MAKE_PAGE_MISMATCH"
+                    ? "أرسل Make رقم منشور على صفحة غير صفحة MAYTHA MARKET. افحصي صفحتنا والصفحة الأخرى، واحذفي المنشور من الصفحة الخطأ إن وُجد."
+                    : post.lastErrorCode === "MAKE_PARTIAL"
+                      ? "أبلغ Make أن جزءاً فقط نُشر."
+                      : post.lastErrorCode
+                        ? "لم يصل رد بعد إرسال المنشور."
+                        : "انقطع الإرسال قبل أن يصل رد."}{" "}
                 لن يُعاد إرساله تلقائياً. افتحي صفحة فيسبوك وتأكدي، ثم اختاري:
               </p>
               <div className="social-actions">
@@ -340,6 +372,22 @@ export default async function SocialPostPage({
             ) : null}
             {status === "draft" && canPrepare && !canApprove ? (
               <p className="admin-muted">الموافقة على النشر للمالك فقط.</p>
+            ) : null}
+            {status === "approved" &&
+            canPublish &&
+            post.mediaStatus === "ready" &&
+            post.mediaUrl ? (
+              <PublishNowForm
+                action={publishNowAction}
+                id={post.id}
+                version={post.version}
+                title={postTitle(post)}
+                scheduled={new Intl.DateTimeFormat("ar", {
+                  timeZone: STORE_TIME_ZONE,
+                  dateStyle: "medium",
+                  timeStyle: "short",
+                }).format(post.scheduledFor ?? undefined)}
+              />
             ) : null}
             {(status === "approved" || status === "retry_wait") &&
             canApprove ? (

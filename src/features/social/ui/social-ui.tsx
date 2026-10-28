@@ -192,6 +192,14 @@ const doneMessages: Record<string, string> = {
   resolved_published: "سُجّل المنشور منشوراً على فيسبوك.",
   resolved_not_published:
     "سُجّل أنه لم يُنشر. يمكنك إعادة المحاولة عندما تريدين.",
+  publish_published: "نُشر على فيسبوك. رقم المنشور ورابطه في التفاصيل.",
+  publish_awaiting_confirmation:
+    "سُلّم المنشور إلى Make، وننتظر تأكيد فيسبوك. لن يُرسل مرة ثانية.",
+  publish_uncertain:
+    "لم يصل رد بعد الإرسال. لن يُعاد إرساله تلقائياً؛ تأكدي من صفحة فيسبوك ثم اختاري النتيجة.",
+  publish_page_mismatch:
+    "أرسل Make رقم منشور على صفحة غير صفحة MAYTHA MARKET، فلم يُسجَّل منشوراً. افحصي الصفحتين وسيناريو Make.",
+  publish_failed: "رفض Make أو فيسبوك المنشور ولم يُنشر. السبب في التفاصيل.",
 };
 
 const errorMessages: Record<string, string> = {
@@ -213,6 +221,16 @@ const errorMessages: Record<string, string> = {
   confirm_absent_required:
     "قبل إعادة الإرسال، تأكدي من صفحة فيسبوك أن المنشور غير موجود وأشّري على التأكيد.",
   not_uncertain: "هذا المنشور ليس بانتظار تأكيد.",
+  not_approved: "يُنشر الآن فقط منشور موافَق عليه ولم يُرسل بعد.",
+  media_not_ready: "الصورة أو الفيديو غير جاهز بعد.",
+  approval_expired:
+    "تغيّر المنشور بعد الموافقة. ألغي الموافقة ووافقي عليه من جديد.",
+  paused: "النشر موقوف من الإعدادات.",
+  publisher_missing: "طريقة النشر غير مضبوطة على الخادم، فلم يُرسل شيء.",
+  format_unsupported: "طريقة النشر الحالية لا تدعم هذا النوع من المنشورات.",
+  page_not_configured:
+    "رقم صفحة MAYTHA MARKET (SOCIAL_PAGE_ID) غير مضبوط على الخادم، فلا يمكن التأكد أن النشر على صفحتنا. لم يُرسل شيء.",
+  confirm_required: "أشّري على التأكيد قبل النشر.",
   still_processing:
     "فيسبوك ما زال يعالج المحاولة السابقة. انتظري قليلاً ثم حدّثي الصفحة.",
   state: "انتهت محاولة الربط. ابدئي من جديد.",

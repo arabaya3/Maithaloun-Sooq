@@ -24,6 +24,8 @@ export const permissions = [
   "social.view",
   "social.prepare",
   "social.approve",
+  // Sends one approved post to Facebook immediately; owner only, like approval.
+  "social.publish",
 ] as const;
 export type Permission = (typeof permissions)[number];
 
