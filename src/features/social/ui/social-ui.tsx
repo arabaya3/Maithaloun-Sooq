@@ -129,7 +129,9 @@ export function PostPreview({
         <span>
           {post.mediaStatus === "failed"
             ? `تعذّر التجهيز (${post.mediaError ?? "?"})`
-            : "بانتظار التجهيز"}
+            : post.format === "reel"
+              ? "بانتظار عامل الفيديو"
+              : "بانتظار التجهيز"}
         </span>
       </div>
     );
