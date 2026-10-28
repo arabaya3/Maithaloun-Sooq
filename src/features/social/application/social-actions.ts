@@ -206,6 +206,31 @@ export async function draftTwoWeeksAction() {
   );
 }
 
+/** Creative Studio: two weeks of campaigns, each an unapproved draft. */
+export async function draftCampaignsAction() {
+  const actor = await requireTrustedAdminMutation();
+  return guarded(
+    "/admin/social",
+    () =>
+      socialService.draftCampaigns(actor, {
+        startDate: addDays(todayInStoreZone(), 1),
+        days: 14,
+      }),
+    "campaigns_drafted",
+  );
+}
+
+/** «اقتراح حملة أخرى» for one draft campaign, at the version the owner saw. */
+export async function regenerateCampaignAction(form: FormData) {
+  const actor = await requireTrustedAdminMutation();
+  const id = field(form, "id");
+  return guarded(
+    postPath(id),
+    () => socialService.regenerateCampaign(actor, id, version(form)),
+    "campaign_regenerated",
+  );
+}
+
 export async function renderPendingAction() {
   const actor = await requireTrustedAdminMutation();
   return guarded(

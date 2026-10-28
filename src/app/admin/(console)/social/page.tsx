@@ -6,6 +6,7 @@ import {
   Clock,
   Link2Off,
   PenLine,
+  Sparkles,
   XCircle,
 } from "lucide-react";
 
@@ -14,6 +15,7 @@ import { can } from "@/features/admin/domain/permissions";
 import { MetricCard, PageHeader } from "@/features/admin/ui/kit";
 import {
   draftTwoWeeksAction,
+  draftCampaignsAction,
   renderPendingAction,
 } from "@/features/social/application/social-actions";
 import { socialService } from "@/features/social/application/social-instance";
@@ -94,6 +96,11 @@ export default async function SocialCalendarPage({
               <form action={draftTwoWeeksAction}>
                 <button type="submit" className="admin-btn admin-btn-primary">
                   <PenLine size={16} aria-hidden="true" /> جهّزي مسودات أسبوعين
+                </button>
+              </form>
+              <form action={draftCampaignsAction}>
+                <button type="submit" className="admin-btn admin-btn-primary">
+                  <Sparkles size={16} aria-hidden="true" /> جهّزي حملات أسبوعين
                 </button>
               </form>
               <form action={renderPendingAction}>

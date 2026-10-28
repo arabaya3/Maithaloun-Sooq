@@ -53,7 +53,7 @@ config({ path: ".env.local", quiet: true });
 const origin = socialOrigin({
   ...process.env,
   SOCIAL_PUBLIC_ORIGIN:
-    process.env.SOCIAL_PUBLIC_ORIGIN || "https://maithaloun-sooq.vercel.app",
+    process.env.SOCIAL_PUBLIC_ORIGIN || "https://www.maytha.app",
 });
 const label = siteLabel(origin);
 const startDate = process.argv[2] ?? addDays(todayInStoreZone(), 1);
@@ -93,6 +93,9 @@ function captionOf(item: PlannedItem, products: SocialProduct[]): string {
   if (item.format === "reel" && item.reelTemplate)
     return reelCaption(item.reelTemplate, products, context);
   switch (item.kind) {
+    case "campaign":
+      // Campaign posts are captioned by the campaign engine, never by the content plan.
+      throw new Error("CAMPAIGN_NOT_IN_CONTENT_PLAN");
     case "product":
       return productCaption(products[0]!, context);
     case "collection":

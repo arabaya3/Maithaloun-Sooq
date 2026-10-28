@@ -12,13 +12,19 @@ import {
   rejectPostAction,
   reopenPostAction,
   reschedulePostAction,
+  regenerateCampaignAction,
   rerenderPostAction,
   resolveUncertainAction,
   retryPostAction,
   unapprovePostAction,
 } from "@/features/social/application/social-actions";
 import { socialService } from "@/features/social/application/social-instance";
-import { SocialError } from "@/features/social/application/social-service";
+import {
+  campaignOf,
+  SocialError,
+} from "@/features/social/application/social-service";
+import { campaignTypeLabels } from "@/features/social/domain/campaigns";
+import { formatIls } from "@/shared/lib/format-currency";
 import { captionIssueLabels } from "@/features/social/domain/caption-guard";
 import {
   approvalBlockerLabels,
@@ -128,6 +134,7 @@ export default async function SocialPostPage({
   const unsettled = socialService.isSettleable(post);
   const publisherName = socialService.publisherName();
   const schedule = scheduleDefaults(post.scheduledFor);
+  const campaign = campaignOf(post);
 
   return (
     <main className="admin-page">
@@ -224,6 +231,68 @@ export default async function SocialPostPage({
               </div>
             ) : null}
           </dl>
+
+          {campaign ? (
+            <section className="admin-panel" aria-labelledby="campaign-title">
+              <h2 id="campaign-title">
+                الحملة: {campaignTypeLabels[campaign.type]}
+              </h2>
+              <dl className="admin-definition-list">
+                <div>
+                  <dt>الهدف</dt>
+                  <dd>{campaign.objective}</dd>
+                </div>
+                <div>
+                  <dt>لمين</dt>
+                  <dd>{campaign.audience}</dd>
+                </div>
+                <div>
+                  <dt>الفكرة</dt>
+                  <dd>{campaign.concept}</dd>
+                </div>
+                {campaign.bundle ? (
+                  <div>
+                    <dt>{campaign.bundle.nameAr}</dt>
+                    <dd>
+                      <ul className="social-issues">
+                        {campaign.bundle.items.map((item) => (
+                          <li key={item.variantId}>
+                            {item.name}
+                            {item.variantLabel ? ` (${item.variantLabel})` : ""}
+                            : <bdi>{formatIls(item.priceAgorot)}</bdi>
+                          </li>
+                        ))}
+                      </ul>
+                      <strong>
+                        المجموع{" "}
+                        <bdi>{formatIls(campaign.bundle.totalAgorot)}</bdi>
+                      </strong>
+                      {campaign.bundle.freeDelivery
+                        ? " · التوصيل مجاني"
+                        : ` · ناقصها ${formatIls(campaign.bundle.missingAgorot)} للتوصيل المجاني`}
+                    </dd>
+                  </div>
+                ) : null}
+              </dl>
+              {!post.campaignCurrent ? (
+                <p className="admin-form-error" role="alert">
+                  تغيّرت الأسعار أو قاعدة التوصيل منذ تجهيز هذه الحملة، فلا يمكن
+                  الموافقة عليها. اقترحي حملة أخرى.
+                </p>
+              ) : null}
+              {status === "draft" && canPrepare ? (
+                <form action={regenerateCampaignAction}>
+                  <Hidden id={post.id} version={post.version} />
+                  <button
+                    type="submit"
+                    className="admin-btn admin-btn-secondary"
+                  >
+                    <RotateCcw size={16} aria-hidden="true" /> اقتراح حملة أخرى
+                  </button>
+                </form>
+              ) : null}
+            </section>
+          ) : null}
 
           {!post.captionCheck.ok ? (
             <div className="admin-alert-panel" role="alert">

@@ -1,6 +1,12 @@
 import { formatIls } from "@/shared/lib/format-currency";
 
-import { availableBundles, coreProductName, type Bundle } from "./bundles";
+import {
+  availableBundles,
+  coreProductName,
+  shortProductName,
+  type Bundle,
+} from "./bundles";
+import { isNeutralSentence } from "./caption-guard";
 import {
   callToAction,
   deliveryLine,
@@ -17,7 +23,12 @@ import {
   type WeeklySlot,
 } from "./content-plan";
 import type { PostFormat } from "./post-lifecycle";
-import type { SocialProduct, StoreFacts } from "./social-catalog";
+import {
+  formatSocialPrice,
+  productUrl,
+  type SocialProduct,
+  type StoreFacts,
+} from "./social-catalog";
 import { addDays } from "@/shared/lib/store-time";
 
 /**
@@ -59,6 +70,7 @@ export const campaignTypeLabels: Record<CampaignType, string> = {
  * store offers, seasonal campaigns an owner-set occasion, savings comparisons verified evidence.
  */
 export const plannableTypes: readonly CampaignType[] = [
+  "product_discovery",
   "bundle",
   "free_delivery",
   "mascot_story",
@@ -70,6 +82,7 @@ export const plannableTypes: readonly CampaignType[] = [
 ];
 
 export const campaignLayouts = [
+  "product_spotlight",
   "bundle_board",
   "free_delivery_meter",
   "mascot_hero",
@@ -114,7 +127,7 @@ export interface CampaignAngle {
   audience: string;
   concept: string;
   /** What the angle needs from the plan. */
-  needs: "bundle" | "free_delivery_bundle" | "tip" | "nothing";
+  needs: "product" | "bundle" | "free_delivery_bundle" | "tip" | "nothing";
   copy: (context: CampaignContext) => CampaignCopy;
 }
 
@@ -152,15 +165,54 @@ function footer(context: CampaignContext, tags: readonly SocialProduct[] = []) {
   return ["", ...callToAction(context), "", hashtags(tags).join(" ")];
 }
 
+/** The first sentence of the owner's own description, when the caption guard finds nothing in it. */
+function descriptionLine(product: SocialProduct): string | null {
+  const sentence = product.description?.split(/\n|[.!؟]\s/u)[0]?.trim();
+  return sentence && sentence.length <= 160 && isNeutralSentence(sentence)
+    ? sentence
+    : null;
+}
+
 export const campaignAngles: readonly CampaignAngle[] = [
+  {
+    id: "product-discovery",
+    type: "product_discovery",
+    layout: "product_spotlight",
+    pose: null,
+    objective: "تعريف الناس بمنتج حقيقي ممكن ما يعرفوا إنه عنا",
+    audience: "اللي بشتروا هالنوع من المنتجات من محلات ثانية",
+    concept: "منتج واحد بصورة كبيرة وواضحة، بسعره الحقيقي ورابط مباشر",
+    needs: "product",
+    copy: ({ products, store, origin }) => {
+      const product = products[0]!;
+      return {
+        headline: shortProductName(product.name),
+        subline: product.categoryName
+          ? `من قسم ${product.categoryName}`
+          : "من مايثا ماركت",
+        cta: "اطلبوه من الموقع",
+        caption: join([
+          `✨ تعرّفوا على ${coreProductName(product.name)}`,
+          descriptionLine(product),
+          "",
+          `💰 السعر: ${formatSocialPrice(product)}`,
+          deliveryLine(store),
+          "",
+          ...callToAction({ store, origin }, productUrl(origin, product)),
+          "",
+          hashtags([product]).join(" "),
+        ]),
+      };
+    },
+  },
   {
     id: "bundle-room-ready",
     type: "bundle",
     layout: "bundle_board",
     pose: null,
-    objective: "Raise basket size with a complete set for one room",
-    audience: "Families doing their weekly cleaning shop",
-    concept: "Everything one room needs, picked for you, at real store prices",
+    objective: "تكبير السلة بمجموعة كاملة لغرفة وحدة",
+    audience: "العائلات اللي بتشتري أغراض التنظيف كل أسبوع",
+    concept: "كل اللي بتحتاجه الغرفة، مختار إلكم، بأسعار المتجر الحقيقية",
     needs: "bundle",
     copy: ({ bundle, store, ...context }) => ({
       headline: bundle!.nameAr,
@@ -183,9 +235,9 @@ export const campaignAngles: readonly CampaignAngle[] = [
     type: "bundle",
     layout: "bundle_board",
     pose: "shopping",
-    objective: "Turn single-item buyers into one complete order",
-    audience: "Shoppers who usually buy one product at a time",
-    concept: "Mascot carries the set: one order, everything for the job",
+    objective: "تحويل اللي بشتروا غرض واحد لطلب كامل",
+    audience: "اللي عادة بطلبوا منتج واحد كل مرة",
+    concept: "ميثو حامل المجموعة: طلب واحد وكل الأغراض",
     needs: "bundle",
     copy: ({ bundle, store, ...context }) => ({
       headline: `${itemCount(bundle!.items.length)} بطلب واحد`,
@@ -206,10 +258,9 @@ export const campaignAngles: readonly CampaignAngle[] = [
     type: "free_delivery",
     layout: "free_delivery_meter",
     pose: null,
-    objective:
-      "Teach the free-delivery threshold with a basket that already reaches it",
-    audience: "Customers in Maythaloun who order small amounts",
-    concept: "A ready basket that crosses the threshold, with the meter full",
+    objective: "توضيح حد التوصيل المجاني بسلة واصلة له",
+    audience: "زباين ميثلون اللي بطلبوا مبالغ صغيرة",
+    concept: "سلة جاهزة فوق حد التوصيل المجاني، والمؤشر مليان",
     needs: "free_delivery_bundle",
     copy: ({ bundle, store, ...context }) => ({
       headline: `من ${freeFrom(store)} التوصيل علينا`,
@@ -231,9 +282,9 @@ export const campaignAngles: readonly CampaignAngle[] = [
     type: "free_delivery",
     layout: "free_delivery_meter",
     pose: "delivery",
-    objective: "Nudge customers to combine needs into one order",
-    audience: "Customers about to place a small order",
-    concept: "«شو ناقص بالبيت؟» with Meetho carrying the delivery box",
+    objective: "تشجيع الزباين يجمعوا احتياجاتهم بطلب واحد",
+    audience: "زباين على وشك يطلبوا طلب صغير",
+    concept: "«شو ناقص بالبيت؟» وميثو حامل صندوق التوصيل",
     needs: "free_delivery_bundle",
     copy: ({ bundle, store, ...context }) => ({
       headline: "شو ناقص بالبيت؟",
@@ -255,9 +306,9 @@ export const campaignAngles: readonly CampaignAngle[] = [
     type: "mascot_story",
     layout: "mascot_hero",
     pose: "presenting",
-    objective: "Introduce Meetho and make the store memorable",
-    audience: "People in Maythaloun who don't know the store yet",
-    concept: "Meetho introduces himself and the three things that matter",
+    objective: "تعريف الناس على ميثو وتثبيت اسم المتجر",
+    audience: "أهل ميثلون اللي لسا ما بعرفوا المتجر",
+    concept: "ميثو بعرّف عن حاله وعن أهم ثلاث أشياء",
     needs: "nothing",
     copy: ({ store, ...context }) => ({
       headline: "مرحبا، أنا ميثو!",
@@ -278,9 +329,9 @@ export const campaignAngles: readonly CampaignAngle[] = [
     type: "mascot_story",
     layout: "mascot_hero",
     pose: "delivery",
-    objective: "Make home delivery the reason to order",
-    audience: "Busy households in Maythaloun",
-    concept: "Meetho brings the order to the door; pay when it arrives",
+    objective: "التوصيل للبيت سبب للطلب",
+    audience: "البيوت المشغولة في ميثلون",
+    concept: "ميثو بجيب الطلب للباب، والدفع عند الاستلام",
     needs: "nothing",
     copy: ({ store, ...context }) => ({
       headline: "طلبكم بيوصل لباب البيت",
@@ -302,9 +353,9 @@ export const campaignAngles: readonly CampaignAngle[] = [
     type: "store_awareness",
     layout: "mascot_hero",
     pose: "wave",
-    objective: "Brand awareness: an online store from the village",
-    audience: "Smartphone users in Maythaloun",
-    concept: "Shop from the sofa: website or WhatsApp, delivered locally",
+    objective: "التعريف بالمتجر: متجر أونلاين من البلد",
+    audience: "مستخدمي الموبايل في ميثلون",
+    concept: "تسوّق من البيت: من الموقع أو الواتساب، والتوصيل داخل البلد",
     needs: "nothing",
     copy: ({ store, ...context }) => ({
       headline: "تسوّقوا من البيت بسهولة",
@@ -326,9 +377,9 @@ export const campaignAngles: readonly CampaignAngle[] = [
     type: "cleaning_tip",
     layout: "mascot_tip",
     pose: "tip",
-    objective: "Useful content that earns saves and shares",
-    audience: "Home makers looking for practical advice",
-    concept: "Meetho's lightbulb: one real shopping or usage tip",
+    objective: "محتوى مفيد بنحفظ وبنشارك",
+    audience: "اللي بدوروا على نصايح عملية للبيت",
+    concept: "لمبة ميثو: نصيحة حقيقية للتسوق أو الاستعمال",
     needs: "tip",
     copy: ({ store, tipId, ...context }) => {
       const tip =
@@ -352,9 +403,9 @@ export const campaignAngles: readonly CampaignAngle[] = [
     type: "shopping_tutorial",
     layout: "mascot_tip",
     pose: "shopping",
-    objective: "Remove friction for first-time online buyers",
-    audience: "People who never ordered online",
-    concept: "Three simple steps to order, with Meetho guiding",
+    objective: "تسهيل أول طلب أونلاين",
+    audience: "اللي عمرهم ما طلبوا أونلاين",
+    concept: "ثلاث خطوات سهلة للطلب، وميثو بدلّكم",
     needs: "nothing",
     copy: ({ store, ...context }) => ({
       headline: "كيف تطلبوا بـ ٣ خطوات",
@@ -375,9 +426,9 @@ export const campaignAngles: readonly CampaignAngle[] = [
     type: "engagement",
     layout: "mascot_hero",
     pose: "wink",
-    objective: "Start a conversation in the comments",
-    audience: "Existing followers",
-    concept: "A light question about cleaning habits",
+    objective: "فتح حديث بالتعليقات",
+    audience: "متابعين الصفحة",
+    concept: "سؤال خفيف عن عادات التنظيف",
     needs: "nothing",
     copy: ({ store, ...context }) => ({
       headline: "سؤال ميثو لإلكم",
@@ -425,7 +476,8 @@ export interface CampaignPlanInput {
  */
 const typeWeights: Partial<Record<CampaignType, number>> = {
   bundle: 2,
-  free_delivery: 2,
+  free_delivery: 1,
+  product_discovery: 1,
   mascot_story: 1,
   store_awareness: 1,
   cleaning_tip: 1,
@@ -480,6 +532,7 @@ export function planCampaigns(input: CampaignPlanInput): PlannedCampaign[] {
         blockedProducts,
         tipsLeft,
         themeUses,
+        productCursor: day + plan.length,
       };
       // The soft rules (mascot share, no repeat of the last type or layout) give way before a
       // slot is left empty.
@@ -493,7 +546,7 @@ export function planCampaigns(input: CampaignPlanInput): PlannedCampaign[] {
           previousLayout: null,
         });
       if (!choice) continue;
-      const { angle, bundle, tipId } = choice;
+      const { angle, bundle, tipId, productId } = choice;
       usedAngles.add(angle.id);
       remaining.set(angle.type, (remaining.get(angle.type) ?? 0) - 1);
       // Once every type is spent, the next round of the calendar starts.
@@ -505,7 +558,9 @@ export function planCampaigns(input: CampaignPlanInput): PlannedCampaign[] {
       }
       if (angle.pose) mascotCount += 1;
       if (bundle) themeUses.set(bundle.themeId, plan.length);
-      const productIds = bundle?.items.map((item) => item.productId) ?? [];
+      const productIds =
+        bundle?.items.map((item) => item.productId) ??
+        (productId ? [productId] : []);
       for (const id of productIds) lastShown.set(id, day);
       previous = angle.type;
       previousLayout = angle.layout;
@@ -542,10 +597,15 @@ function pickAngle(state: {
   tipsLeft: ShoppingTipId[];
   /** When each bundle theme was last used, as a plan index. */
   themeUses: ReadonlyMap<string, number>;
+  /** Where the rotation through the catalog starts, so plans do not all open with one product. */
+  productCursor?: number;
+  /** An angle that must not be picked again (its content would be identical). */
+  excludeAngleId?: string;
 }): {
   angle: CampaignAngle;
   bundle: Bundle | null;
   tipId: ShoppingTipId | null;
+  productId?: string;
 } | null {
   const types = [...state.remaining]
     .filter(([type, left]) => left > 0 && type !== state.previous)
@@ -556,6 +616,7 @@ function pickAngle(state: {
       .filter(
         (angle) =>
           angle.type === type &&
+          angle.id !== state.excludeAngleId &&
           (state.mascotAllowed || !angle.pose) &&
           angle.layout !== state.previousLayout,
       )
@@ -565,6 +626,20 @@ function pickAngle(state: {
           Number(state.usedAngles.has(b.id)),
       );
     for (const angle of angles) {
+      if (angle.needs === "product") {
+        // Products with the owner's own description first, then a rotation through the catalog.
+        const candidates = state.products
+          .filter((product) => !state.blockedProducts.has(product.id))
+          .sort(
+            (a, b) =>
+              Number(!descriptionLine(a)) - Number(!descriptionLine(b)) ||
+              a.id.localeCompare(b.id),
+          );
+        if (!candidates.length) continue;
+        const product =
+          candidates[(state.productCursor ?? 0) % candidates.length]!;
+        return { angle, bundle: null, tipId: null, productId: product.id };
+      }
       if (angle.needs === "bundle" || angle.needs === "free_delivery_bundle") {
         const bundles = availableBundles(
           state.products.filter(
@@ -596,6 +671,130 @@ function pickAngle(state: {
   return null;
 }
 
+/**
+ * Another campaign for the same slot, for «اقتراح حملة أخرى». The same type with a different
+ * angle comes first, then another bundle theme or product; any other type only when nothing else
+ * fits. The products it showed are kept out, so the new suggestion differs.
+ */
+export function replanCampaign(
+  current: PlannedCampaign,
+  input: {
+    products: readonly SocialProduct[];
+    store: StoreFacts;
+    recentProductIds?: ReadonlySet<string>;
+  },
+): PlannedCampaign | null {
+  const blockedProducts = new Set([
+    ...(input.recentProductIds ?? []),
+    ...current.productIds,
+  ]);
+  const base = {
+    previous: null,
+    previousLayout: null,
+    usedAngles: new Set([current.angleId]),
+    mascotAllowed: true,
+    products: input.products,
+    store: input.store,
+    blockedProducts,
+    tipsLeft: shoppingTips
+      .map((tip) => tip.id)
+      .filter((id) => id !== current.tipId),
+    themeUses: new Map(
+      current.bundle ? [[current.bundle.themeId, Number.MAX_SAFE_INTEGER]] : [],
+    ),
+    productCursor: 1,
+    // An angle with fixed wording would come back identical: only one with a bundle, product or
+    // tip may repeat, because its content changes.
+    excludeAngleId:
+      angleById(current.angleId)?.needs === "nothing"
+        ? current.angleId
+        : undefined,
+  };
+  const choice =
+    pickAngle({ ...base, remaining: new Map([[current.type, 1]]) }) ??
+    pickAngle({
+      ...base,
+      remaining: new Map(
+        plannableTypes
+          .filter((type) => type !== current.type)
+          .map((type) => [type, typeWeights[type] ?? 1]),
+      ),
+    });
+  if (!choice) return null;
+  const { angle, bundle, tipId, productId } = choice;
+  return {
+    ...current,
+    type: angle.type,
+    angleId: angle.id,
+    layout: angle.layout,
+    pose: angle.pose,
+    objective: angle.objective,
+    audience: angle.audience,
+    concept: angle.concept,
+    bundle,
+    tipId,
+    productIds:
+      bundle?.items.map((item) => item.productId) ??
+      (productId ? [productId] : []),
+  };
+}
+
+/** What a campaign post stores in social_posts.campaign: everything but its slot and products. */
+export type StoredCampaign = Omit<
+  PlannedCampaign,
+  "date" | "time" | "scheduledFor" | "format" | "productIds"
+>;
+
+export function toStoredCampaign(campaign: PlannedCampaign): StoredCampaign {
+  const {
+    type,
+    angleId,
+    layout,
+    pose,
+    objective,
+    audience,
+    concept,
+    bundle,
+    tipId,
+  } = campaign;
+  return {
+    type,
+    angleId,
+    layout,
+    pose,
+    objective,
+    audience,
+    concept,
+    bundle,
+    tipId,
+  };
+}
+
+/** A stored campaign back in planner form, for its post's slot and products. */
+export function fromStoredCampaign(
+  stored: StoredCampaign,
+  post: { scheduledFor: Date; productIds: readonly string[] },
+): PlannedCampaign {
+  return {
+    ...stored,
+    date: post.scheduledFor.toISOString().slice(0, 10),
+    time: post.scheduledFor.toISOString().slice(11, 16),
+    scheduledFor: post.scheduledFor,
+    format: "image",
+    productIds: [...post.productIds],
+  };
+}
+
+/** Prices a bundle's caption may print: each item, the total and what is missing. */
+export function bundlePrices(bundle: Bundle | null): string[] {
+  if (!bundle) return [];
+  return [
+    formatIls(bundle.totalAgorot),
+    formatIls(bundle.missingAgorot),
+    ...bundle.items.map((item) => formatIls(item.priceAgorot)),
+  ];
+}
+
 export function angleById(id: string): CampaignAngle | undefined {
   return campaignAngles.find((angle) => angle.id === id);
 }
@@ -618,10 +817,5 @@ export function campaignCopy(
 
 /** Prices a campaign's caption may print: the catalog's, plus a bundle's real total and gap. */
 export function campaignPrices(campaign: PlannedCampaign): string[] {
-  if (!campaign.bundle) return [];
-  return [
-    formatIls(campaign.bundle.totalAgorot),
-    formatIls(campaign.bundle.missingAgorot),
-    ...campaign.bundle.items.map((item) => formatIls(item.priceAgorot)),
-  ];
+  return bundlePrices(campaign.bundle);
 }

@@ -2,7 +2,13 @@ import { describe, expect, it } from "vitest";
 
 import { formatIls } from "@/shared/lib/format-currency";
 
-import { availableBundles, bundleThemes, buildBundle } from "./bundles";
+import {
+  availableBundles,
+  bundleIsCurrent,
+  bundleThemes,
+  buildBundle,
+  refreshBundle,
+} from "./bundles";
 import { checkCaption } from "./caption-guard";
 import {
   campaignAngles,
@@ -11,6 +17,7 @@ import {
   itemCount,
   planCampaigns,
   plannableTypes,
+  replanCampaign,
 } from "./campaigns";
 import {
   allowedPrices,
@@ -168,7 +175,8 @@ describe("campaign planner", () => {
       expect(plan[i]!.type).not.toBe(plan[i - 1]!.type);
     }
     expect(new Set(plan.map((c) => c.type)).size).toBeGreaterThanOrEqual(6);
-    expect(new Set(plan.map((c) => c.layout)).size).toBe(4);
+    expect(new Set(plan.map((c) => c.layout)).size).toBeGreaterThanOrEqual(4);
+    expect(plan.map((c) => c.type)).toContain("product_discovery");
     expect(plan.every((c) => plannableTypes.includes(c.type))).toBe(true);
   });
 
@@ -208,7 +216,7 @@ describe("campaign planner", () => {
       const copy = campaignCopy(
         campaign,
         { store, origin: "https://m.test" },
-        [],
+        products.filter((p) => campaign.productIds.includes(p.id)),
       );
       expect(copy.cta).toBeTruthy();
     }
@@ -266,10 +274,122 @@ describe("campaign planner", () => {
         store,
         origin: "https://m.test",
         bundle,
-        products: [],
+        products: [products[0]!],
         tipId: null,
       });
       expect(copy.caption).not.toMatch(/خصم|عرض خاص|ببلاش|الأرخص|أصلي/u);
+    }
+  });
+});
+
+describe("product discovery", () => {
+  it("shows one real product with its store price and a link to its page", () => {
+    const plan = planCampaigns({
+      startDate: "2026-11-01",
+      days: 14,
+      products,
+      store,
+    });
+    const discovery = plan.find((c) => c.type === "product_discovery")!;
+    expect(discovery.productIds).toHaveLength(1);
+    expect(discovery.pose).toBeNull();
+    const product = products.find((p) => p.id === discovery.productIds[0])!;
+    const copy = campaignCopy(
+      discovery,
+      { store, origin: "https://www.maytha.app" },
+      [product],
+    );
+    expect(copy.caption).toContain(
+      `https://www.maytha.app/products/${product.slug}`,
+    );
+    expect(
+      checkCaption(
+        copy.caption,
+        allowedPrices([product], store),
+        catalogText([product]),
+      ).issues,
+    ).toEqual([]);
+  });
+});
+
+describe("a stored campaign against today's catalog", () => {
+  const bundle = buildBundle(bundleThemes[0]!, products, store)!;
+
+  it("is current while every item keeps its price and the rule is the same", () => {
+    expect(bundleIsCurrent(bundle, products, store)).toBe(true);
+  });
+
+  it("is stale when an item's price changes, it is no longer sold, or the threshold changes", () => {
+    const repriced = products.map((p) =>
+      p.id === bundle.items[0]!.productId
+        ? {
+            ...p,
+            variants: p.variants.map((v) => ({
+              ...v,
+              priceAgorot: v.priceAgorot + 100,
+            })),
+          }
+        : p,
+    );
+    expect(bundleIsCurrent(bundle, repriced, store)).toBe(false);
+    const gone = products.filter((p) => p.id !== bundle.items[1]!.productId);
+    expect(bundleIsCurrent(bundle, gone, store)).toBe(false);
+    expect(
+      bundleIsCurrent(bundle, products, {
+        ...store,
+        freeDeliveryFromAgorot: 10_000,
+      }),
+    ).toBe(false);
+    expect(refreshBundle(bundle, gone, store)).toBeNull();
+  });
+});
+
+describe("another campaign for the same slot", () => {
+  const plan = planCampaigns({
+    startDate: "2026-11-01",
+    days: 14,
+    products,
+    store,
+  });
+
+  it("changes the angle or the products, keeps the slot, and stays within the rules", () => {
+    for (const current of plan) {
+      const next = replanCampaign(current, { products, store });
+      expect(next, current.angleId).not.toBeNull();
+      expect(next!.scheduledFor).toEqual(current.scheduledFor);
+      const changed =
+        next!.angleId !== current.angleId ||
+        next!.productIds.join() !== current.productIds.join() ||
+        next!.tipId !== current.tipId;
+      expect(changed, current.angleId).toBe(true);
+      // The products it showed are not reused.
+      for (const id of next!.productIds) {
+        expect(current.productIds).not.toContain(id);
+      }
+    }
+  });
+});
+
+describe("the 100 ₪ free-delivery rule", () => {
+  const store100 = { ...store, freeDeliveryFromAgorot: 10_000 };
+
+  it("plans free-delivery baskets that really reach 100 ₪ and says so", () => {
+    const plan = planCampaigns({
+      startDate: "2026-11-01",
+      days: 28,
+      products,
+      store: store100,
+    });
+    for (const campaign of plan.filter((c) => c.type === "free_delivery")) {
+      expect(campaign.bundle!.totalAgorot).toBeGreaterThanOrEqual(10_000);
+      const used = products.filter((p) => campaign.productIds.includes(p.id));
+      const copy = campaignCopy(
+        campaign,
+        { store: store100, origin: "https://www.maytha.app" },
+        used,
+      );
+      expect(copy.caption).toContain("100 ₪");
+      expect(copy.caption).not.toMatch(/50 ₪ وفوق|من 50 ₪/u);
     }
   });
 });

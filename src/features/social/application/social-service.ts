@@ -36,6 +36,18 @@ import {
   type ShoppingTipId,
 } from "@/features/social/domain/captions";
 import { decideComment } from "@/features/social/domain/comment-policy";
+import { bundleIsCurrent } from "@/features/social/domain/bundles";
+import {
+  bundlePrices,
+  campaignCopy,
+  fromStoredCampaign,
+  planCampaigns,
+  replanCampaign,
+  toStoredCampaign,
+  type PlannedCampaign,
+  type StoredCampaign,
+} from "@/features/social/domain/campaigns";
+import type { CampaignRenderInput } from "@/features/social/infrastructure/render/campaign-templates";
 import {
   buildContentPlan,
   type PlannedItem,
@@ -60,6 +72,7 @@ import {
 import {
   allowedPrices,
   catalogText,
+  formatSocialPrice,
   type SocialCatalog,
   type SocialProduct,
 } from "@/features/social/domain/social-catalog";
@@ -114,7 +127,8 @@ export type SocialErrorCode =
   | "paused"
   | "publisher_missing"
   | "format_unsupported"
-  | "page_not_configured";
+  | "page_not_configured"
+  | "no_alternative";
 
 /** What one owner-started publication ended as; failures are recorded on the post as usual. */
 export type PublishNowOutcome =
@@ -171,6 +185,10 @@ export interface SocialDependencies {
   vaultKey: () => Buffer;
   renderFeed: FeedRenderer;
   renderReel: ReelRenderer;
+  /** Creative Studio images; the factory adds the store address shown in the footer. */
+  renderCampaign?: (
+    input: Omit<CampaignRenderInput, "siteLabel">,
+  ) => Promise<Buffer>;
   loadImage: (url: string) => Promise<Buffer>;
   videoRenderingAvailable: () => Promise<boolean>;
   metaApp?: { appId: string; appSecret: string } | null;
@@ -195,6 +213,8 @@ export interface PostView extends SocialPostRow {
   captionCheck: CaptionCheck;
   products: Array<{ id: string; name: string; available: boolean }>;
   blockers: ApprovalBlocker[];
+  /** False when a campaign bundle no longer matches today's prices or delivery rule. */
+  campaignCurrent: boolean;
 }
 
 const DAY = 86_400_000;
@@ -205,6 +225,15 @@ export function publishKey(
   return createHash("sha256")
     .update(`${post.id}\n${post.caption}\n${post.mediaUrl ?? ""}`)
     .digest("hex");
+}
+
+/** The campaign a Creative Studio post was planned with, or null for any other post. */
+export function campaignOf(
+  post: Pick<SocialPostRow, "kind" | "campaign">,
+): StoredCampaign | null {
+  return post.kind === "campaign" && post.campaign
+    ? (post.campaign as unknown as StoredCampaign)
+    : null;
 }
 
 export class SocialService {
@@ -547,6 +576,9 @@ export class SocialService {
       return reelCaption(item.reelTemplate, products, context);
     }
     switch (item.kind) {
+      case "campaign":
+        // Campaign posts are captioned by the campaign engine, never by the content plan.
+        throw new Error("CAMPAIGN_NOT_IN_CONTENT_PLAN");
       case "product":
         return productCaption(products[0]!, context);
       case "collection":
@@ -698,6 +730,168 @@ export class SocialService {
     return { created, skipped };
   }
 
+  // ---------------------------------------------------------------- campaigns
+
+  /** Products shown in posts over the last three weeks; plans show them last. */
+  private async recentProductIds(): Promise<Set<string>> {
+    const rows = await this.db
+      .select({ productIds: schema.socialPosts.productIds })
+      .from(schema.socialPosts)
+      .where(
+        and(
+          ne(schema.socialPosts.status, "rejected"),
+          gte(
+            schema.socialPosts.createdAt,
+            new Date(this.now().getTime() - 21 * DAY),
+          ),
+        ),
+      );
+    return new Set(rows.flatMap((row) => row.productIds));
+  }
+
+  /** The caption a campaign gets from the live catalog, checked like any other caption. */
+  private campaignDraft(
+    campaign: PlannedCampaign,
+    catalog: SocialCatalog,
+  ): { caption: string; products: SocialProduct[] } | null {
+    const byId = new Map(
+      catalog.products.map((product) => [product.id, product]),
+    );
+    const products = campaign.productIds
+      .map((id) => byId.get(id))
+      .filter((product): product is SocialProduct => Boolean(product));
+    if (products.length !== campaign.productIds.length) return null;
+    const { caption } = campaignCopy(
+      campaign,
+      this.captionContext(catalog),
+      products,
+    );
+    const check = checkCaption(
+      caption,
+      new Set([
+        ...allowedPrices(products, catalog.store),
+        ...bundlePrices(campaign.bundle),
+      ]),
+      catalogText(products),
+    );
+    return check.ok ? { caption, products } : null;
+  }
+
+  /**
+   * Creative Studio: a calendar of campaigns from the live catalog. Each one is an unapproved
+   * draft in the usual lifecycle; a slot that already has a post is left alone.
+   */
+  async draftCampaigns(
+    actor: AdminActor,
+    input: { startDate: string; days: number },
+  ): Promise<{ created: number; skipped: number }> {
+    assertPermission(actor, "social.prepare");
+    if (input.days < 1 || input.days > 31) throw new SocialError("invalid");
+    const catalog = await this.deps.catalog();
+    const plan = planCampaigns({
+      startDate: input.startDate,
+      days: input.days,
+      products: catalog.products,
+      store: catalog.store,
+      recentProductIds: await this.recentProductIds(),
+    }).filter((campaign) => campaign.scheduledFor > this.now());
+    if (!plan.length) return { created: 0, skipped: 0 };
+    const existing = await this.db
+      .select({ scheduledFor: schema.socialPosts.scheduledFor })
+      .from(schema.socialPosts)
+      .where(
+        and(
+          ne(schema.socialPosts.status, "rejected"),
+          gte(schema.socialPosts.scheduledFor, plan[0]!.scheduledFor),
+          lte(schema.socialPosts.scheduledFor, plan.at(-1)!.scheduledFor),
+        ),
+      );
+    const taken = new Set(
+      existing.map((row) => row.scheduledFor?.toISOString()),
+    );
+    let created = 0;
+    let skipped = 0;
+    for (const campaign of plan) {
+      const draft = taken.has(campaign.scheduledFor.toISOString())
+        ? null
+        : this.campaignDraft(campaign, catalog);
+      if (!draft) {
+        skipped += 1;
+        continue;
+      }
+      const [post] = await this.db
+        .insert(schema.socialPosts)
+        .values({
+          format: "image",
+          kind: "campaign",
+          productIds: campaign.productIds,
+          tipId: campaign.tipId,
+          caption: draft.caption,
+          captionSource: "template",
+          scheduledFor: campaign.scheduledFor,
+          campaign: toStoredCampaign(campaign) as unknown as Record<
+            string,
+            unknown
+          >,
+        })
+        .returning({ id: schema.socialPosts.id });
+      await this.record(
+        post!.id,
+        "created",
+        actor,
+        null,
+        "draft",
+        campaign.angleId,
+      );
+      created += 1;
+    }
+    return { created, skipped };
+  }
+
+  /**
+   * «اقتراح حملة أخرى»: a different campaign for the same slot, from the live catalog. Only a draft,
+   * at the version the owner saw; its media is prepared again and it still needs approval.
+   */
+  async regenerateCampaign(actor: AdminActor, id: string, version: number) {
+    assertPermission(actor, "social.prepare");
+    const post = await this.load(id);
+    const current = campaignOf(post);
+    if (post.kind !== "campaign" || !current) throw new SocialError("invalid");
+    if (post.version !== version) throw new SocialError("stale");
+    const catalog = await this.deps.catalog();
+    const planned = fromStoredCampaign(current, {
+      scheduledFor: post.scheduledFor ?? this.now(),
+      productIds: post.productIds,
+    });
+    const recent = await this.recentProductIds();
+    for (const id of post.productIds) recent.delete(id);
+    const next = replanCampaign(planned, {
+      products: catalog.products,
+      store: catalog.store,
+      recentProductIds: recent,
+    });
+    const draft = next ? this.campaignDraft(next, catalog) : null;
+    if (!next || !draft) throw new SocialError("no_alternative");
+    await this.transition(
+      actor,
+      post,
+      "edit",
+      version,
+      {
+        caption: draft.caption,
+        captionSource: "template",
+        productIds: next.productIds,
+        tipId: next.tipId,
+        campaign: toStoredCampaign(next) as unknown as Record<string, unknown>,
+        mediaStatus: "pending",
+        mediaUrl: null,
+        posterUrl: null,
+        mediaError: null,
+      },
+      `campaign: ${next.angleId}`,
+    );
+  }
+
   // ---------------------------------------------------------------- rendering
 
   async renderPending(
@@ -744,14 +938,71 @@ export class SocialService {
         continue;
       }
       const available = products as SocialProduct[];
+      const campaign = campaignOf(post);
+      if (post.kind === "campaign") {
+        if (
+          !campaign ||
+          !this.deps.renderCampaign ||
+          (campaign.bundle &&
+            !bundleIsCurrent(campaign.bundle, catalog.products, catalog.store))
+        ) {
+          // Never drawn with yesterday's prices: the owner asks for another campaign instead.
+          await this.setMedia(post, "failed", {
+            mediaError: campaign
+              ? "CAMPAIGN_PRICES_CHANGED"
+              : "CAMPAIGN_MISSING",
+          });
+          failed += 1;
+          continue;
+        }
+      }
       try {
         const photos = new Map<string, Buffer>();
         for (const product of available) {
+          // A bundle shows the exact variant it prices, when that variant has its own photo.
+          const url =
+            campaign?.bundle?.items.find(
+              (item) => item.productId === product.id,
+            )?.imageUrl ?? product.imageUrl;
           const cached =
-            photoCache.get(product.imageUrl) ??
-            (await this.deps.loadImage(product.imageUrl));
-          photoCache.set(product.imageUrl, cached);
+            photoCache.get(url) ?? (await this.deps.loadImage(url));
+          photoCache.set(url, cached);
           photos.set(product.id, cached);
+        }
+        if (post.kind === "campaign" && campaign) {
+          const planned = fromStoredCampaign(campaign, {
+            scheduledFor: post.scheduledFor ?? this.now(),
+            productIds: post.productIds,
+          });
+          const copy = campaignCopy(
+            planned,
+            this.captionContext(catalog),
+            available,
+          );
+          const image = await this.deps.renderCampaign!({
+            type: campaign.type,
+            layout: campaign.layout,
+            pose: campaign.pose,
+            copy,
+            bundle: campaign.bundle,
+            tipId: campaign.tipId,
+            photos,
+            product:
+              campaign.layout === "product_spotlight" && available[0]
+                ? {
+                    id: available[0].id,
+                    name: available[0].name,
+                    priceLabel: formatSocialPrice(available[0]),
+                    categoryName: available[0].categoryName || null,
+                  }
+                : null,
+            store: catalog.store,
+          });
+          if (image.byteLength > 4_000_000) throw new Error("IMAGE_TOO_LARGE");
+          const mediaUrl = await this.deps.media.put(image, "jpg");
+          await this.setMedia(post, "ready", { mediaUrl, posterUrl: mediaUrl });
+          rendered += 1;
+          continue;
         }
         const categoryName = post.categoryCode
           ? (available.find(
@@ -858,15 +1109,24 @@ export class SocialService {
     const known = products.filter((product): product is SocialProduct =>
       Boolean(product),
     );
+    const campaign = campaignOf(post);
+    const campaignCurrent =
+      !campaign?.bundle ||
+      bundleIsCurrent(campaign.bundle, catalog.products, catalog.store);
     const captionCheck = checkCaption(
       post.caption,
-      allowedPrices(known, catalog.store),
+      new Set([
+        ...allowedPrices(known, catalog.store),
+        ...(campaignCurrent ? bundlePrices(campaign?.bundle ?? null) : []),
+      ]),
       catalogText(known),
     );
     const productsAvailable = known.length === post.productIds.length;
     return {
       captionCheck,
       productsAvailable,
+      /** False when a campaign's bundle no longer matches today's prices or delivery rule. */
+      campaignCurrent,
       products: post.productIds.map((id) => ({
         id,
         name: byId.get(id)?.name ?? id,

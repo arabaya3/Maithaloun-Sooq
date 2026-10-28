@@ -32,6 +32,80 @@ async function expectAccessible(page: Page) {
   expect(result.violations.map((violation) => violation.id)).toEqual([]);
 }
 
+test.describe("Creative Studio campaigns", () => {
+  test("the owner drafts campaigns, reviews one and asks for another; nothing is approved or sent", async ({
+    page,
+  }) => {
+    const issues = trackPageIssues(page);
+    await withTestDb((sql) => sql`delete from social_posts`);
+    await login(page);
+    await page.goto("/admin/social");
+    await page.getByRole("button", { name: "جهّزي حملات أسبوعين" }).click();
+    await expect(
+      page.getByText("جُهّزت حملات الأسبوعين كمسودات."),
+    ).toBeVisible();
+
+    const rows = await withTestDb(
+      (sql) => sql<
+        {
+          id: string;
+          status: string;
+          approved_by: string | null;
+          caption: string;
+        }[]
+      >`
+        select id, status, approved_by, caption from social_posts where kind = 'campaign' order by scheduled_for`,
+    );
+    expect(rows.length).toBeGreaterThan(0);
+    for (const row of rows) {
+      expect(row).toMatchObject({ status: "draft", approved_by: null });
+    }
+
+    await page.goto(`/admin/social/posts/${rows[0]!.id}`);
+    const panel = page.getByRole("region", { name: /^الحملة:/ });
+    await expect(panel).toBeVisible();
+    await expect(panel.getByText("الهدف")).toBeVisible();
+    await expectAccessible(page);
+    await expectNoHorizontalOverflow(page);
+
+    await panel.getByRole("button", { name: "اقتراح حملة أخرى" }).click();
+    await expect(
+      page
+        .getByText("اقترحنا حملة أخرى لهذا الموعد.")
+        .or(page.getByText("ما في حملة أخرى مناسبة لهذا الموعد")),
+    ).toBeVisible();
+    const [after] = await withTestDb(
+      (sql) => sql<
+        { status: string; approved_by: string | null; attempts: number }[]
+      >`
+        select status, approved_by, attempts from social_posts where id = ${rows[0]!.id}`,
+    );
+    expect(after).toEqual({ status: "draft", approved_by: null, attempts: 0 });
+    expect(issues.consoleErrors).toEqual([]);
+  });
+
+  test("the campaign page fits a phone", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await withTestDb((sql) => sql`delete from social_posts`);
+    await login(page);
+    await page.goto("/admin/social");
+    await page.getByRole("button", { name: "جهّزي حملات أسبوعين" }).click();
+    await expect(
+      page.getByText("جُهّزت حملات الأسبوعين كمسودات."),
+    ).toBeVisible();
+    await expectNoHorizontalOverflow(page);
+    const [first] = await withTestDb(
+      (sql) =>
+        sql<
+          { id: string }[]
+        >`select id from social_posts where kind = 'campaign' order by scheduled_for limit 1`,
+    );
+    await page.goto(`/admin/social/posts/${first!.id}`);
+    await expect(page.getByRole("region", { name: /^الحملة:/ })).toBeVisible();
+    await expectNoHorizontalOverflow(page);
+  });
+});
+
 test.describe("Facebook manager", () => {
   test("owner reviews and approves one draft; nothing is published without a connection", async ({
     page,

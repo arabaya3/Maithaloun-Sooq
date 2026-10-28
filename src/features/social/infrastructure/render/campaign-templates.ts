@@ -79,6 +79,13 @@ export interface CampaignRenderInput {
   tipId: ShoppingTipId | null;
   /** Product photos by product id. */
   photos: ReadonlyMap<string, Buffer>;
+  /** The one product a product-discovery campaign shows, with its price as the store states it. */
+  product?: {
+    id: string;
+    name: string;
+    priceLabel: string;
+    categoryName: string | null;
+  } | null;
   store: StoreFacts;
   siteLabel: string;
 }
@@ -504,6 +511,115 @@ async function freeDeliveryMeter(
   };
 }
 
+/** One product, large: a tinted photo stage, its category, its name and its real price. */
+async function productSpotlight(
+  input: CampaignRenderInput,
+): Promise<LayoutResult> {
+  const product = input.product;
+  if (!product) throw new Error("PRODUCT_MISSING");
+  const layers: Layer[] = [];
+  const protectedBoxes: Box[] = [];
+  const stage = { left: 70, top: 190, width: 940, height: 620 };
+  const photoSize = 520;
+  const photo = await sharp(photoOf(input, product.id))
+    .resize(photoSize, photoSize, { fit: "contain", background: brand.surface })
+    .flatten({ background: brand.surface })
+    .png()
+    .toBuffer();
+  const card = await sharp(
+    roundedRect(photoSize + 60, photoSize + 60, 36, brand.surface),
+  )
+    .composite([{ input: photo, left: 30, top: 30 }])
+    .png()
+    .toBuffer();
+  layers.push({
+    input: roundedRect(stage.width, stage.height, 48, brand.greenTint),
+    left: stage.left,
+    top: stage.top,
+  });
+  const cardLeft =
+    stage.left + Math.round((stage.width - (photoSize + 60)) / 2);
+  const cardTop = stage.top + Math.round((stage.height - (photoSize + 60)) / 2);
+  layers.push({ input: card, left: cardLeft, top: cardTop });
+  protectedBoxes.push({
+    left: cardLeft,
+    top: cardTop,
+    width: photoSize + 60,
+    height: photoSize + 60,
+  });
+  if (product.categoryName) {
+    const chip = await arabic(product.categoryName, {
+      size: 28,
+      weight: "bold",
+      color: brand.surface,
+      width: 420,
+    });
+    const chipWidth = chip.width + 48;
+    const chipLeft = stage.left + stage.width - 28 - chipWidth;
+    layers.push({
+      input: pill(chipWidth, 56, brand.green),
+      left: chipLeft,
+      top: stage.top + 28,
+    });
+    layers.push({
+      input: chip.input,
+      left: chipLeft + 24,
+      top: stage.top + 28 + Math.round((56 - chip.height) / 2),
+    });
+  }
+
+  const name = await arabic(input.copy.headline, {
+    size: 60,
+    weight: "heavy",
+    color: brand.text,
+    width: 940,
+    align: "center",
+    maxHeight: 170,
+  });
+  const nameTop = stage.top + stage.height + 30;
+  layers.push(
+    placeText(name, { left: 70, top: nameTop, width: 940 }, "center"),
+  );
+  protectedBoxes.push({
+    left: 70,
+    top: nameTop,
+    width: 940,
+    height: name.height,
+  });
+
+  // The price and the call to action share one row: price on the right, button on the left.
+  const rowTop = nameTop + name.height + 26;
+  const price = await arabic(product.priceLabel, {
+    size: 52,
+    weight: "heavy",
+    color: brand.surface,
+    width: 600,
+  });
+  const priceWidth = price.width + 80;
+  const priceLeft = FEED_WIDTH - 70 - priceWidth;
+  layers.push({
+    input: pill(priceWidth, 96, brand.green),
+    left: priceLeft,
+    top: rowTop,
+  });
+  layers.push({
+    input: price.input,
+    left: priceLeft + 40,
+    top: rowTop + Math.round((96 - price.height) / 2),
+  });
+  protectedBoxes.push({
+    left: priceLeft,
+    top: rowTop,
+    width: priceWidth,
+    height: 96,
+  });
+  const cta = await ctaPill(input.copy.cta, 70 + 230, rowTop + 6);
+  layers.push(...cta.layers);
+  protectedBoxes.push(cta.box);
+  settle(layers, protectedBoxes, rowTop + 96);
+  return { layers, mascotBox: null, protectedBoxes };
+}
+
 const benefitIcons: IconName[] = ["mapPin", "banknote", "cart"];
 
 async function mascotHero(input: CampaignRenderInput): Promise<LayoutResult> {
@@ -703,6 +819,7 @@ const layouts: Record<
   CampaignLayout,
   (input: CampaignRenderInput) => Promise<LayoutResult>
 > = {
+  product_spotlight: productSpotlight,
   bundle_board: bundleBoard,
   free_delivery_meter: freeDeliveryMeter,
   mascot_hero: mascotHero,

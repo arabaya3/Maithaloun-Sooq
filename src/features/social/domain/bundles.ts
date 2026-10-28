@@ -232,6 +232,57 @@ export function buildBundle(
   return summarize(theme, items, store);
 }
 
+/**
+ * The same bundle priced from today's catalog: each item's exact variant, its current price and
+ * the current free-delivery threshold. Null when any item is no longer on sale.
+ */
+export function refreshBundle(
+  bundle: Bundle,
+  products: readonly SocialProduct[],
+  store: StoreFacts,
+): Bundle | null {
+  const byId = new Map(products.map((product) => [product.id, product]));
+  const items: BundleItem[] = [];
+  for (const item of bundle.items) {
+    const variant = byId
+      .get(item.productId)
+      ?.variants.find((candidate) => candidate.id === item.variantId);
+    if (!variant) return null;
+    items.push({ ...item, priceAgorot: variant.priceAgorot });
+  }
+  const theme = bundleThemes.find(
+    (candidate) => candidate.id === bundle.themeId,
+  );
+  return summarize(
+    theme ?? {
+      id: bundle.themeId,
+      nameAr: bundle.nameAr,
+      forAr: bundle.forAr,
+      slots: [],
+    },
+    items,
+    store,
+  );
+}
+
+/** Whether a stored bundle still says exactly what today's catalog would. */
+export function bundleIsCurrent(
+  bundle: Bundle,
+  products: readonly SocialProduct[],
+  store: StoreFacts,
+): boolean {
+  const live = refreshBundle(bundle, products, store);
+  return (
+    live !== null &&
+    live.totalAgorot === bundle.totalAgorot &&
+    live.missingAgorot === bundle.missingAgorot &&
+    live.freeDelivery === bundle.freeDelivery &&
+    live.items.every(
+      (item, i) => item.priceAgorot === bundle.items[i]!.priceAgorot,
+    )
+  );
+}
+
 /** Every theme that can be filled from today's catalog. */
 export function availableBundles(
   products: readonly SocialProduct[],

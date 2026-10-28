@@ -23,6 +23,7 @@ import {
 import {
   allowedPrices,
   catalogText,
+  formatSocialPrice,
 } from "../src/features/social/domain/social-catalog";
 import { httpCatalogSource } from "../src/features/social/infrastructure/catalog-source";
 import { fetchImage } from "../src/features/social/infrastructure/render/brand";
@@ -33,7 +34,7 @@ config({ path: ".env.local", quiet: true });
 
 const origin = socialOrigin({
   SOCIAL_PUBLIC_ORIGIN:
-    process.env.SOCIAL_PUBLIC_ORIGIN || "https://maithaloun-sooq.vercel.app",
+    process.env.SOCIAL_PUBLIC_ORIGIN || "https://www.maytha.app",
 });
 const startDate = process.argv[2] ?? addDays(todayInStoreZone(), 1);
 const outDir = path.resolve(
@@ -60,13 +61,23 @@ for (const [index, campaign] of plan.entries()) {
   for (const product of products) {
     const item = campaign.bundle?.items.find((i) => i.productId === product.id);
     if (!photos.has(product.id)) {
-      photos.set(product.id, await fetchImage(item?.imageUrl ?? product.imageUrl));
+      photos.set(
+        product.id,
+        await fetchImage(item?.imageUrl ?? product.imageUrl),
+      );
     }
   }
-  const copy = campaignCopy(campaign, { store: catalog.store, origin }, products);
+  const copy = campaignCopy(
+    campaign,
+    { store: catalog.store, origin },
+    products,
+  );
   const check = checkCaption(
     copy.caption,
-    new Set([...allowedPrices(products, catalog.store), ...campaignPrices(campaign)]),
+    new Set([
+      ...allowedPrices(products, catalog.store),
+      ...campaignPrices(campaign),
+    ]),
     catalogText(products),
   );
   if (!check.ok) failures += 1;
@@ -78,6 +89,15 @@ for (const [index, campaign] of plan.entries()) {
     bundle: campaign.bundle,
     tipId: campaign.tipId,
     photos,
+    product:
+      campaign.layout === "product_spotlight" && products[0]
+        ? {
+            id: products[0].id,
+            name: products[0].name,
+            priceLabel: formatSocialPrice(products[0]),
+            categoryName: products[0].categoryName || null,
+          }
+        : null,
     store: catalog.store,
     siteLabel: siteLabel(origin),
   });
@@ -100,5 +120,7 @@ for (const [index, campaign] of plan.entries()) {
   );
 }
 await writeFile(path.join(outDir, "calendar.md"), report.join("\n"));
-console.log(`${plan.length} campaigns in ${outDir}; caption check failures: ${failures}`);
+console.log(
+  `${plan.length} campaigns in ${outDir}; caption check failures: ${failures}`,
+);
 process.exitCode = failures ? 1 : 0;

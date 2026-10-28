@@ -30,6 +30,10 @@ import {
   metaFailureLabels,
   type MetaFailureKind,
 } from "@/features/social/domain/meta-errors";
+import {
+  campaignTypeLabels,
+  type CampaignType,
+} from "@/features/social/domain/campaigns";
 import { STORE_TIME_ZONE } from "@/shared/lib/store-time";
 
 import type { SocialPostRow } from "../application/social-service";
@@ -98,8 +102,14 @@ export function StoreTime({ value }: { value: Date | null }) {
 }
 
 export function postTitle(
-  post: Pick<SocialPostRow, "format" | "kind" | "reelTemplate">,
+  post: Pick<SocialPostRow, "format" | "kind" | "reelTemplate"> & {
+    campaign?: SocialPostRow["campaign"];
+  },
 ): string {
+  if (post.kind === "campaign") {
+    const type = (post.campaign as { type?: CampaignType } | null)?.type;
+    return type ? `حملة: ${campaignTypeLabels[type]}` : "حملة";
+  }
   if (post.format === "reel" && post.reelTemplate) {
     return reelTemplateLabels[post.reelTemplate as ReelTemplate] ?? "ريل";
   }
@@ -184,6 +194,10 @@ const doneMessages: Record<string, string> = {
   scheduled: "تغيّر الموعد.",
   drafted: "جُهّزت المسودات للأسبوعين القادمين.",
   rendered: "جُهّزت الصور المعلّقة.",
+  campaigns_drafted:
+    "جُهّزت حملات الأسبوعين كمسودات. جهّزي صورها ثم راجعي كل حملة ووافقي عليها.",
+  campaign_regenerated:
+    "اقترحنا حملة أخرى لهذا الموعد. جهّزي صورتها وراجعيها قبل الموافقة.",
   resolved: "أُغلق التعليق.",
   replied: "أُرسل الرد.",
   settings: "حُفظت الإعدادات.",
@@ -230,6 +244,8 @@ const errorMessages: Record<string, string> = {
   format_unsupported: "طريقة النشر الحالية لا تدعم هذا النوع من المنشورات.",
   page_not_configured:
     "رقم صفحة MAYTHA MARKET (SOCIAL_PAGE_ID) غير مضبوط على الخادم، فلا يمكن التأكد أن النشر على صفحتنا. لم يُرسل شيء.",
+  no_alternative:
+    "ما في حملة أخرى مناسبة لهذا الموعد من المنتجات المتوفرة الآن.",
   confirm_required: "أشّري على التأكيد قبل النشر.",
   still_processing:
     "فيسبوك ما زال يعالج المحاولة السابقة. انتظري قليلاً ثم حدّثي الصفحة.",

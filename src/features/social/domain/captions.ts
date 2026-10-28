@@ -15,6 +15,7 @@ export const postKinds = [
   "weekly_highlights",
   "shopping_tip",
   "delivery_info",
+  "campaign",
 ] as const;
 export type PostKind = (typeof postKinds)[number];
 
@@ -22,6 +23,7 @@ export const reelTemplates = ["spotlight", "collection", "delivery"] as const;
 export type ReelTemplate = (typeof reelTemplates)[number];
 
 export const postKindLabels: Record<PostKind, string> = {
+  campaign: "حملة",
   product: "منتج واحد",
   collection: "مجموعة منتجات",
   new_arrivals: "وصل حديثاً",

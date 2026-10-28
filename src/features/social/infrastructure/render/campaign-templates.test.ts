@@ -54,7 +54,26 @@ async function photos(count: number) {
 
 async function render(angle: CampaignAngle, count: number) {
   const bundle =
-    angle.needs === "nothing" || angle.needs === "tip" ? null : bundleOf(count);
+    angle.needs === "nothing" ||
+    angle.needs === "tip" ||
+    angle.needs === "product"
+      ? null
+      : bundleOf(count);
+  // A long real-style name, so wrapping and the price row are exercised.
+  const product = {
+    id: "p0",
+    slug: "p0",
+    name: "منظف ومعطر البلاط ليلاك 4 في 1 – 1 لتر روايح متعددة",
+    brand: null,
+    categoryCode: "home-cleaners",
+    categoryName: "منظفات المنزل",
+    priceAgorot: 1000,
+    priceVaries: true,
+    imageUrl: "https://cdn.test/p0.webp",
+    description: null,
+    usageNotes: null,
+    variants: [],
+  };
   return renderCampaignImage({
     type: angle.type,
     layout: angle.layout,
@@ -63,14 +82,23 @@ async function render(angle: CampaignAngle, count: number) {
       store,
       origin: "https://m.test",
       bundle,
-      products: [],
+      products: angle.needs === "product" ? [product] : [],
       tipId: "combine-order",
     }),
     bundle,
     tipId: "combine-order",
-    photos: await photos(count),
+    photos: await photos(Math.max(count, 1)),
+    product:
+      angle.needs === "product"
+        ? {
+            id: "p0",
+            name: product.name,
+            priceLabel: "ابتداءً من 10 ₪",
+            categoryName: product.categoryName,
+          }
+        : null,
     store,
-    siteLabel: "maithaloun-sooq.vercel.app",
+    siteLabel: "www.maytha.app",
   });
 }
 
@@ -87,7 +115,9 @@ describe("shortProductName", () => {
 // Arabic text goes through Pango, which needs the Linux build of libvips (Vercel's platform).
 describe.skipIf(process.platform === "win32")("campaign images", () => {
   for (const angle of campaignAngles) {
-    for (const count of angle.needs === "nothing" || angle.needs === "tip"
+    for (const count of angle.needs === "nothing" ||
+    angle.needs === "tip" ||
+    angle.needs === "product"
       ? [0]
       : [3, 4, 5]) {
       it(`${angle.id} (${count} products): 1080×1350, and the mascot never covers products, prices, logo or footer`, async () => {

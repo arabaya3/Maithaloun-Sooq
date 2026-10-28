@@ -39,6 +39,8 @@ export const socialPosts = pgTable(
       .default(sql`'[]'::jsonb`),
     tipId: varchar("tip_id", { length: 40 }),
     categoryCode: varchar("category_code", { length: 40 }),
+    /** A Creative Studio campaign: its angle, objective and the exact bundle it was planned with. */
+    campaign: jsonb("campaign").$type<Record<string, unknown> | null>(),
     caption: text("caption").notNull(),
     captionSource: varchar("caption_source", { length: 12 }).notNull(),
     mediaStatus: varchar("media_status", { length: 12 })
