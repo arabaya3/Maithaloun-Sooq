@@ -10,7 +10,7 @@ import {
 
 // The e2e server runs with SOCIAL_MANAGER=on and no Facebook connection: nothing can reach Meta.
 const CAPTION =
-  "🚚 التوصيل من مايثا ماركت\n\nالتوصيل داخل ميثلون بـ 5 ₪، ومجاني للطلبات من 50 ₪ وفوق.\n#مايثا_ماركت";
+  "🚚 التوصيل من مايثا ماركت\n\nالتوصيل داخل ميثلون بـ 5 ₪، ومجاني للطلبات من 100 ₪ وفوق.\n#مايثا_ماركت";
 
 async function seedDraft(): Promise<string> {
   return withTestDb(async (sql) => {
@@ -71,6 +71,119 @@ test.describe("Facebook manager", () => {
     expect(row[0]).toMatchObject({ status: "approved", meta_post_id: null });
     expect(row[0]!.approved_by).not.toBeNull();
     expect(issues.consoleErrors).toEqual([]);
+  });
+
+  test("«انشر الآن» names the exact post, needs a confirmation and sends nothing without a publisher", async ({
+    page,
+  }) => {
+    const issues = trackPageIssues(page);
+    const id = await seedDraft();
+    // A second approved post that must stay untouched.
+    const [other] = await withTestDb(
+      (sql) => sql<{ id: string }[]>`
+        insert into social_posts (format, kind, status, caption, caption_source, media_status, media_url, poster_url, scheduled_for)
+        values ('image', 'delivery_info', 'draft', ${CAPTION}, 'template', 'ready',
+                '/brand/kit/maytha-logo-rounded.png', '/brand/kit/maytha-logo-rounded.png', now() + interval '4 days')
+        returning id`,
+    );
+    await login(page);
+    for (const postId of [other!.id, id]) {
+      await page.goto(`/admin/social/posts/${postId}`);
+      await page.getByRole("button", { name: "موافقة ونشر في الموعد" }).click();
+      await expect(
+        page.getByText("تمت الموافقة. سيُنشر في موعده."),
+      ).toBeVisible();
+    }
+
+    await page.getByRole("button", { name: "انشر الآن" }).click();
+    const confirm = page.getByRole("form", { name: "نشر هذا المنشور الآن؟" });
+    await expect(confirm).toBeVisible();
+    await expect(confirm.getByText(id)).toBeVisible();
+    await expectAccessible(page);
+    await expectNoHorizontalOverflow(page);
+
+    // The confirmation box is required before anything is sent.
+    const send = confirm.getByRole("button", { name: "نعم، انشري الآن" });
+    await send.click();
+    await expect(confirm).toBeVisible();
+    await confirm.getByRole("checkbox").check();
+    await send.click();
+    await expect(
+      page.getByText("طريقة النشر غير مضبوطة على الخادم، فلم يُرسل شيء."),
+    ).toBeVisible();
+
+    const rows = await withTestDb(
+      (sql) => sql<{ id: string; status: string; attempts: number }[]>`
+        select id, status, attempts from social_posts order by scheduled_for`,
+    );
+    expect(rows).toEqual([
+      { id, status: "approved", attempts: 0 },
+      { id: other!.id, status: "approved", attempts: 0 },
+    ]);
+    expect(issues.consoleErrors).toEqual([]);
+  });
+
+  test("«انشر الآن» refuses a request replayed from another site", async ({
+    page,
+  }) => {
+    const id = await seedDraft();
+    await login(page);
+    await page.goto(`/admin/social/posts/${id}`);
+    await page.getByRole("button", { name: "موافقة ونشر في الموعد" }).click();
+    await expect(
+      page.getByText("تمت الموافقة. سيُنشر في موعده."),
+    ).toBeVisible();
+
+    // Capture the real server-action request, without letting it reach the server.
+    let captured: {
+      url: string;
+      headers: Record<string, string>;
+      body: Buffer;
+    } | null = null;
+    await page.route("**/admin/social/posts/**", async (route) => {
+      const request = route.request();
+      if (request.method() === "POST" && request.headers()["next-action"]) {
+        captured = {
+          url: request.url(),
+          headers: request.headers(),
+          body: request.postDataBuffer() ?? Buffer.alloc(0),
+        };
+        await route.abort();
+        return;
+      }
+      await route.continue();
+    });
+    await page.getByRole("button", { name: "انشر الآن" }).click();
+    const confirm = page.getByRole("form", { name: "نشر هذا المنشور الآن؟" });
+    await confirm.getByRole("checkbox").check();
+    await confirm.getByRole("button", { name: "نعم، انشري الآن" }).click();
+    await expect.poll(() => captured !== null).toBe(true);
+    await page.unroute("**/admin/social/posts/**");
+
+    // The same action, with the owner's cookies, sent as if from another website.
+    const replay = captured!;
+    const forged = await page.request.post(replay.url, {
+      headers: {
+        ...replay.headers,
+        origin: "https://evil.example",
+        "sec-fetch-site": "cross-site",
+      },
+      data: replay.body,
+      maxRedirects: 0,
+    });
+    const text = await forged.text();
+    // Never the outcome of a real attempt: the guard stops it before the service runs.
+    expect(text).not.toContain("publisher_missing");
+    expect(
+      forged.status() >= 400 ||
+        (forged.headers()["x-action-redirect"] ?? "").includes("/admin/login"),
+    ).toBe(true);
+
+    const [row] = await withTestDb(
+      (sql) => sql<{ status: string; attempts: number }[]>`
+        select status, attempts from social_posts where id = ${id}`,
+    );
+    expect(row).toEqual({ status: "approved", attempts: 0 });
   });
 
   test("blocked captions cannot be approved", async ({ page }) => {

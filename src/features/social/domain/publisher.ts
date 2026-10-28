@@ -24,7 +24,12 @@ export type PublishOutcome =
   /** Facebook confirmed the post. */
   | { kind: "published"; objectId: string; postId: string | null }
   /** Handed over (Make took the request); whether Facebook published it is not known yet. */
-  | { kind: "accepted"; reference: string | null };
+  | {
+      kind: "accepted";
+      reference: string | null;
+      /** Make named a post on another Page: it may be live, but not on ours. */
+      problem?: "page_mismatch";
+    };
 
 export type PageLookup =
   | { state: "published"; id: string }
@@ -37,6 +42,8 @@ export interface PublishHooks {
 
 export interface Publisher {
   readonly name: PublisherName;
+  /** The Page this publisher must post to, when it is configured. */
+  readonly pageId?: string | null;
   supports(format: PostFormat): boolean;
   /**
    * Throws a MetaApiError-style failure. «unknown_outcome» means the request may have taken effect

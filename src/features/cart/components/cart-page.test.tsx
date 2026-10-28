@@ -74,7 +74,7 @@ describe("cart page", () => {
       screen.queryByRole("link", { name: "الطلب عبر واتساب" }),
     ).not.toBeInTheDocument();
     expect(
-      screen.getByText("أضف 36 ₪ لتحصل على توصيل مجاني"),
+      screen.getByText("أضف 86 ₪ لتحصل على توصيل مجاني"),
     ).toBeInTheDocument();
 
     await user.click(
@@ -377,7 +377,7 @@ describe("cart page in English", () => {
     expect(screen.getByLabelText("Delivery 5 ₪")).toBeInTheDocument();
     expect(screen.getByLabelText("Total 19 ₪")).toBeInTheDocument();
     expect(
-      screen.getByText("Add 36 ₪ more for free delivery"),
+      screen.getByText("Add 86 ₪ more for free delivery"),
     ).toBeInTheDocument();
     expect(
       screen.getByRole("link", { name: "Order on the website" }),

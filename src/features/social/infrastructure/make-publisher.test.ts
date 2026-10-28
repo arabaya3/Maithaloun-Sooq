@@ -308,6 +308,31 @@ describe("Make replies", () => {
     ).resolves.toMatchObject({ kind: "published", objectId: "1234567890123" });
   });
 
+  it("never records a post on another Page as published", async () => {
+    // A valid Facebook post id, but its Page prefix is not MAYTHA MARKET's.
+    await expect(
+      make(() =>
+        Response.json({ facebookPostId: "100000000000001_12345" }),
+      ).publisher.publish(request()),
+    ).resolves.toEqual({
+      kind: "accepted",
+      reference: "100000000000001_12345",
+      problem: "page_mismatch",
+    });
+    // A bare object id cannot be tied to our Page either.
+    await expect(
+      make(() =>
+        Response.json({ facebookPostId: "1234567890123" }),
+      ).publisher.publish(request()),
+    ).resolves.toMatchObject({ kind: "accepted", problem: "page_mismatch" });
+    // A Reel's video id carries no Page, so it is accepted as Facebook reported it.
+    await expect(
+      make(() => Response.json({ facebookObjectId: "1234567890123" }), {
+        supportsReels: true,
+      }).publisher.publish(reel()),
+    ).resolves.toMatchObject({ kind: "published" });
+  });
+
   it("never treats a 200 without a valid, matching id as published", async () => {
     for (const body of [
       "Accepted",

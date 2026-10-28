@@ -36,15 +36,16 @@ function failureCode(error: unknown): string {
   throw error;
 }
 
-async function guarded(
+async function guarded<T>(
   target: string,
-  run: () => Promise<unknown>,
-  done: string,
+  run: () => Promise<T>,
+  done: string | ((value: T) => string),
 ): Promise<never> {
   if (!socialEnabled()) notFound();
-  let result = `done=${done}`;
+  let result: string;
   try {
-    await run();
+    const value = await run();
+    result = `done=${typeof done === "string" ? done : done(value)}`;
   } catch (error) {
     result = `error=${encodeURIComponent(failureCode(error))}`;
   }
@@ -125,6 +126,23 @@ export async function resolveUncertainAction(form: FormData) {
           : { published: false },
       ),
     published ? "resolved_published" : "resolved_not_published",
+  );
+}
+
+/**
+ * «انشر الآن»: the owner sends this one approved post at the version they confirmed. The outcome is
+ * shown as it is; an uncertain one waits for the owner to check the Page, never for a retry.
+ */
+export async function publishNowAction(form: FormData) {
+  const actor = await requireTrustedAdminMutation();
+  const id = field(form, "id");
+  if (field(form, "confirm") !== id) {
+    redirect(`${postPath(id)}?error=confirm_required`);
+  }
+  return guarded(
+    postPath(id),
+    () => socialService.publishNow(actor, id, version(form)),
+    (outcome) => `publish_${outcome}`,
   );
 }
 

@@ -6,8 +6,7 @@ import type { Locale } from "@/i18n/config";
 import { messagesFor } from "@/i18n/messages";
 import { formatIls } from "@/shared/lib/format-currency";
 
-export const FREE_DELIVERY_BANNER =
-  "توصيل مجاني للطلبات بقيمة 50 ₪ أو أكثر" as const;
+export const FREE_DELIVERY_BANNER = `توصيل مجاني للطلبات بقيمة ${formatIls(FREE_DELIVERY_THRESHOLD_AGOROT)} أو أكثر`;
 
 export function getFreeDeliveryBanner(locale: Locale = "ar"): string {
   return messagesFor(locale).cart.freeDeliveryBanner;

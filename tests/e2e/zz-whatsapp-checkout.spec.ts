@@ -126,7 +126,7 @@ test("phone: the owner sets the number, the cart opens WhatsApp with the order a
   expect(text.split("\n")[0]).toBe("مرحباً MAYTHA MARKET 🌿");
   expect(text).toContain("بدي أطلب المنتجات التالية:");
   expect(text).toContain("الكمية: 1");
-  // Server prices: one general cleaner is 7 ₪, plus 5 ₪ delivery below 50 ₪.
+  // Server prices: one general cleaner is 7 ₪, plus 5 ₪ delivery below 100 ₪.
   expect(text).toContain("المجموع: 7 ₪");
   expect(text).toContain("التوصيل: 5 ₪");
   expect(text).toContain("الإجمالي: 12 ₪");
