@@ -1,6 +1,6 @@
 export const ACTIVE_SERVICE_AREA_CODE = "maythalun" as const;
 export const ACTIVE_SERVICE_AREA_NAME_AR = "ميثلون" as const;
-export const FREE_DELIVERY_THRESHOLD_AGOROT = 5000;
+export const FREE_DELIVERY_THRESHOLD_AGOROT = 10000;
 export const STANDARD_DELIVERY_FEE_AGOROT = 500;
 
 export function calculateDeliveryFeeAgorot(

@@ -53,15 +53,15 @@ describe("shared cart pricing", () => {
     const stockBefore = await db.select().from(inventoryItems);
 
     const small = await priceCart(db, [item("general-cleaner", 1)]);
-    expect(small.itemsSubtotalAgorot).toBeLessThan(5000);
+    expect(small.itemsSubtotalAgorot).toBeLessThan(10_000);
     expect(small.deliveryFeeAgorot).toBe(500);
     expect(small.finalTotalAgorot).toBe(small.itemsSubtotalAgorot + 500);
 
     const large = await priceCart(db, [
       item("general-cleaner", 5),
-      item("arar-dish-liquid", 4),
+      item("arar-dish-liquid", 6),
     ]);
-    expect(large.itemsSubtotalAgorot).toBeGreaterThanOrEqual(5000);
+    expect(large.itemsSubtotalAgorot).toBeGreaterThanOrEqual(10_000);
     expect(large.deliveryFeeAgorot).toBe(0);
 
     const quote = publicQuote(small, "ar");
@@ -114,11 +114,13 @@ describe("shared cart pricing", () => {
   });
 
   it.each([
-    [4999, 500],
-    [5000, 0],
-    [5001, 0],
+    [9999, 500],
+    [10_000, 0],
+    [10_001, 0],
+    // The old 50 ₪ threshold now pays the fee.
+    [5000, 500],
   ])(
-    "at the 50 ₪ boundary a %i agorot cart pays %i agorot delivery in the quote and the order",
+    "at the 100 ₪ boundary a %i agorot cart pays %i agorot delivery in the quote and the order",
     async (priceAgorot, deliveryFeeAgorot) => {
       const [variant] = await db
         .update(productVariants)

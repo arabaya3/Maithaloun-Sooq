@@ -45,7 +45,7 @@ test("the pages state the approved policies and the same amounts checkout charge
 }) => {
   await page.goto("/delivery");
   const main = page.locator("main");
-  await expect(main).toContainText("50 ₪");
+  await expect(main).toContainText("100 ₪");
   await expect(main).toContainText("5 ₪");
   await expect(main).toContainText("داخل ميثلون فقط");
   await expect(main).toContainText("طوال أيام الأسبوع");
