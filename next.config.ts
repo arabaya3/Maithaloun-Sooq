@@ -14,10 +14,22 @@ const withSerwist = withSerwistInit({
   disable: process.env.NODE_ENV !== "production",
 });
 
+// The social renderer reads its font and logo from disk; nothing imports them, so without this the
+// trace leaves them out of the Vercel function and every image fails to render.
+const socialRenderAssets = [
+  "./src/features/social/assets/Cairo-Variable.ttf",
+  "./public/brand/kit/maytha-logo-rounded.png",
+];
+
 const nextConfig: NextConfig = {
   poweredByHeader: false,
   reactStrictMode: true,
   devIndicators: false,
+  outputFileTracingIncludes: {
+    "/admin/social": socialRenderAssets,
+    "/admin/social/**": socialRenderAssets,
+    "/api/cron/social": socialRenderAssets,
+  },
   images: {
     remotePatterns: [
       {

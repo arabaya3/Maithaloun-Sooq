@@ -409,6 +409,25 @@ describe("social manager (database)", () => {
     expect(posted("/photos")).toBe(1);
   });
 
+  it("prepares a post's media again at once when the owner asks, touching no other post", async () => {
+    await social.draftPlan(owner, { startDate: "2026-10-25", days: 2 });
+    const [target, ...others] = (await db.select().from(schema.socialPosts))
+      .filter((p) => p.format === "image")
+      .sort((a, b) => a.id.localeCompare(b.id));
+    expect(await social.rerender(owner, target!.id, target!.version)).toEqual({
+      rendered: 1,
+      failed: 0,
+      waiting: 0,
+    });
+    const rows = await db.select().from(schema.socialPosts);
+    expect(rows.find((p) => p.id === target!.id)).toMatchObject({
+      mediaStatus: "ready",
+    });
+    for (const other of others) {
+      expect(rows.find((p) => p.id === other.id)!.mediaStatus).toBe("pending");
+    }
+  });
+
   it("resolves a Reel with a lost final answer by its own video id", async () => {
     await social.draftPlan(owner, { startDate: "2026-10-25", days: 2 });
     await social.renderPending();

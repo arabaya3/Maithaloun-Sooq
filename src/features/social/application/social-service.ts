@@ -687,6 +687,7 @@ export class SocialService {
 
   async renderPending(
     limit = 10,
+    options: { onlyPostId?: string } = {},
   ): Promise<{ rendered: number; failed: number; waiting: number }> {
     const pending = await this.db
       .select()
@@ -695,6 +696,9 @@ export class SocialService {
         and(
           eq(schema.socialPosts.mediaStatus, "pending"),
           eq(schema.socialPosts.status, "draft"),
+          options.onlyPostId
+            ? eq(schema.socialPosts.id, options.onlyPostId)
+            : undefined,
         ),
       )
       .orderBy(asc(schema.socialPosts.scheduledFor))
@@ -1186,6 +1190,8 @@ export class SocialService {
       },
       "rerender",
     );
+    // Prepared now rather than left for a worker that may be off; a Reel waits for FFmpeg.
+    return this.renderPending(1, { onlyPostId: post.id });
   }
 
   // ---------------------------------------------------------------- publishing
