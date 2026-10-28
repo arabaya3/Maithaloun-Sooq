@@ -10,7 +10,7 @@ import {
 
 // The e2e server runs with SOCIAL_MANAGER=on and no Facebook connection: nothing can reach Meta.
 const CAPTION =
-  "🚚 التوصيل من مايثا ماركت\n\nالتوصيل داخل ميثلون بـ 5 ₪، ومجاني للطلبات من 50 ₪ وفوق.\n#مايثا_ماركت";
+  "🚚 التوصيل من مايثا ماركت\n\nالتوصيل داخل ميثلون بـ 5 ₪، ومجاني للطلبات من 100 ₪ وفوق.\n#مايثا_ماركت";
 
 async function seedDraft(): Promise<string> {
   return withTestDb(async (sql) => {

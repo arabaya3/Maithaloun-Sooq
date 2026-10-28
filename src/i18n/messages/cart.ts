@@ -1,3 +1,9 @@
+import { FREE_DELIVERY_THRESHOLD_AGOROT } from "@/features/delivery/delivery-policy";
+import { formatIls } from "@/shared/lib/format-currency";
+
+// The banner reads the checkout threshold, so the advertised rule is always the one charged.
+const freeFrom = formatIls(FREE_DELIVERY_THRESHOLD_AGOROT);
+
 const ar = {
   loading: "جارٍ تحميل السلة…",
   emptyTitle: "سلتك فارغة",
@@ -46,7 +52,7 @@ const ar = {
     "تغيّر توفر أو سعر منتج في سلتك. راجع السلة ثم حاول مرة أخرى.",
   whatsAppFailed: "تعذّر تجهيز رسالة الطلب الآن. حاول مرة أخرى بعد قليل.",
   webNote: "يصل طلبك إلى المتجر وسنتواصل معك عبر واتساب.",
-  freeDeliveryBanner: "توصيل مجاني للطلبات بقيمة 50 ₪ أو أكثر",
+  freeDeliveryBanner: `توصيل مجاني للطلبات بقيمة ${freeFrom} أو أكثر`,
   freeDeliveryReached: "مبروك، حصلت على توصيل مجاني",
   freeDeliveryRemaining: (amount: string) =>
     `أضف ${amount} لتحصل على توصيل مجاني`,
@@ -102,7 +108,7 @@ const en: typeof ar = {
   whatsAppFailed:
     "We couldn’t prepare your order message right now. Please try again shortly.",
   webNote: "Your order goes to the store and we’ll contact you on WhatsApp.",
-  freeDeliveryBanner: "Free delivery on orders of ₪50 or more",
+  freeDeliveryBanner: `Free delivery on orders of ${freeFrom} or more`,
   freeDeliveryReached: "You’ve unlocked free delivery",
   freeDeliveryRemaining: (amount) => `Add ${amount} more for free delivery`,
 };

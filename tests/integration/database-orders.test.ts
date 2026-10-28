@@ -137,7 +137,7 @@ describe("database foundation", () => {
     });
   });
 
-  it("applies free delivery at 50 ₪ and charges 5 ₪ below", async () => {
+  it("applies free delivery at 100 ₪ and charges 5 ₪ below", async () => {
     const below = await orderService.create(
       createRequest({
         items: [{ productId: "general-cleaner", quantity: 2 }],
@@ -147,14 +147,27 @@ describe("database foundation", () => {
     expect(below.deliveryFeeAgorot).toBe(500);
     expect(below.finalTotalAgorot).toBe(1900);
 
-    const atThreshold = await orderService.create(
+    // 60 ₪ was free under the old 50 ₪ rule; it now pays the fee.
+    const sixty = await orderService.create(
       createRequest({
         items: [{ productId: "arar-dish-liquid", quantity: 5 }],
       }),
     );
-    expect(atThreshold.itemsSubtotalAgorot).toBe(6000);
+    expect(sixty.itemsSubtotalAgorot).toBe(6000);
+    expect(sixty.deliveryFeeAgorot).toBe(500);
+    expect(sixty.finalTotalAgorot).toBe(6500);
+
+    const atThreshold = await orderService.create(
+      createRequest({
+        items: [
+          { productId: "general-cleaner", quantity: 4 },
+          { productId: "arar-dish-liquid", quantity: 6 },
+        ],
+      }),
+    );
+    expect(atThreshold.itemsSubtotalAgorot).toBe(10_000);
     expect(atThreshold.deliveryFeeAgorot).toBe(0);
-    expect(atThreshold.finalTotalAgorot).toBe(6000);
+    expect(atThreshold.finalTotalAgorot).toBe(10_000);
   });
 });
 
