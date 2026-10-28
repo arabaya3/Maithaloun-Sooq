@@ -37,7 +37,8 @@
     "social:worker": "tsx tools/social-worker.ts",
     "social:batch": "tsx tools/social-first-batch.ts",
     "social:make-contract": "tsx tools/make-contract-test.ts",
-    "social:campaigns": "tsx tools/social-campaign-preview.ts"
+    "social:campaigns": "tsx tools/social-campaign-preview.ts",
+    "social:reels": "tsx tools/social-reel-preview.ts"
   },
   "dependencies": {
     "@ai-sdk/openai": "^4.0.82",

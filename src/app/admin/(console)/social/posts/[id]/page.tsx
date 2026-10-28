@@ -12,6 +12,7 @@ import {
   rejectPostAction,
   reopenPostAction,
   reschedulePostAction,
+  chooseCampaignHookAction,
   regenerateCampaignAction,
   rerenderPostAction,
   resolveUncertainAction,
@@ -237,6 +238,14 @@ export default async function SocialPostPage({
               <h2 id="campaign-title">
                 الحملة: {campaignTypeLabels[campaign.type]}
               </h2>
+              {post.campaignDetails ? (
+                <p>
+                  <strong>{post.campaignDetails.nameAr}</strong>
+                  {post.campaignDetails.problemAr
+                    ? ` · المشكلة: ${post.campaignDetails.problemAr}`
+                    : ""}
+                </p>
+              ) : null}
               <dl className="admin-definition-list">
                 <div>
                   <dt>الهدف</dt>
@@ -279,6 +288,51 @@ export default async function SocialPostPage({
                   تغيّرت الأسعار أو قاعدة التوصيل منذ تجهيز هذه الحملة، فلا يمكن
                   الموافقة عليها. اقترحي حملة أخرى.
                 </p>
+              ) : null}
+              {post.campaignDetails &&
+              post.campaignDetails.hooks.length === 3 &&
+              status === "draft" &&
+              canPrepare ? (
+                <form action={chooseCampaignHookAction} className="admin-form">
+                  <Hidden id={post.id} version={post.version} />
+                  <fieldset className="social-hooks">
+                    <legend>
+                      الافتتاحية (السطر الأول والعنوان على الصورة)
+                    </legend>
+                    {post.campaignDetails.hooks.map((hook, index) => (
+                      <label key={index}>
+                        <input
+                          type="radio"
+                          name="hook"
+                          value={index}
+                          defaultChecked={
+                            index === post.campaignDetails!.hookIndex
+                          }
+                        />
+                        <span>{hook}</span>
+                      </label>
+                    ))}
+                  </fieldset>
+                  <button
+                    type="submit"
+                    className="admin-btn admin-btn-secondary"
+                  >
+                    اعتمدي هذه الافتتاحية
+                  </button>
+                </form>
+              ) : null}
+              {post.campaignDetails ? (
+                <label className="admin-field">
+                  <span>
+                    رابط متتبَّع (للمنشورات بالرابط أو الإعلانات لاحقاً)
+                  </span>
+                  <input
+                    className="admin-input social-link-field"
+                    dir="ltr"
+                    readOnly
+                    value={post.campaignDetails.destination}
+                  />
+                </label>
               ) : null}
               {status === "draft" && canPrepare ? (
                 <form action={regenerateCampaignAction}>

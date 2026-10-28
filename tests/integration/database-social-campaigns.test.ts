@@ -313,4 +313,78 @@ describe("Creative Studio campaigns (database)", () => {
     const times = all.map((row) => row.scheduledFor?.toISOString());
     expect(new Set(times).size).toBe(times.length);
   });
+  it("creates one campaign for an objective in the next free slot, as an unapproved draft", async () => {
+    const id = await social.createCampaign(operator, {
+      objective: "discovery",
+    });
+    const [row] = await db
+      .select()
+      .from(schema.socialPosts)
+      .where(eq(schema.socialPosts.id, id));
+    expect(row).toMatchObject({
+      kind: "campaign",
+      status: "draft",
+      approvedBy: null,
+    });
+    expect(campaignOf(row!)!.type).toBe("product_discovery");
+    expect(row!.scheduledFor!.getTime()).toBeGreaterThan(clock.getTime());
+    // The next one goes to another slot, never the same one.
+    const second = await social.createCampaign(owner, { objective: "trust" });
+    const [other] = await db
+      .select()
+      .from(schema.socialPosts)
+      .where(eq(schema.socialPosts.id, second));
+    expect(other!.scheduledFor).not.toEqual(row!.scheduledFor);
+    expect(campaignOf(other!)!.type).toBe("customer_trust");
+    const view = await social.view(owner, id);
+    expect(view.campaignDetails!.hooks).toHaveLength(3);
+    expect(view.campaignDetails!.destination).toContain(
+      "utm_campaign=product-discovery-",
+    );
+    await expect(
+      social.createCampaign(owner, { objective: "nonsense" as never }),
+    ).rejects.toMatchObject({ code: "invalid" });
+  });
+
+  it("lets the owner choose another hook; the image is prepared again and approval still needed", async () => {
+    const id = await social.createCampaign(owner, { objective: "awareness" });
+    await social.renderPending(20);
+    const [before] = await db
+      .select()
+      .from(schema.socialPosts)
+      .where(eq(schema.socialPosts.id, id));
+    expect(before!.mediaStatus).toBe("ready");
+    const hooks = (await social.view(owner, id)).campaignDetails!.hooks;
+    await social.chooseCampaignHook(owner, id, before!.version, 2);
+    const [after] = await db
+      .select()
+      .from(schema.socialPosts)
+      .where(eq(schema.socialPosts.id, id));
+    expect(after).toMatchObject({
+      status: "draft",
+      mediaStatus: "pending",
+      version: before!.version + 1,
+    });
+    expect(after!.caption.split("\n")[0]).toContain(hooks[2]!);
+    expect(campaignOf(after!)!.hookIndex).toBe(2);
+    await expect(
+      social.chooseCampaignHook(owner, id, before!.version, 1),
+    ).rejects.toMatchObject({ code: "stale" });
+    await expect(
+      social.chooseCampaignHook(owner, id, after!.version, 7),
+    ).rejects.toMatchObject({ code: "invalid" });
+  });
+
+  it("counts each step for the overview, from real rows only", async () => {
+    await social.draftCampaigns(owner, { startDate: "2026-11-01", days: 14 });
+    await social.renderPending(3);
+    const overview = await social.overview(owner);
+    expect(overview).toEqual({
+      drafts: 8,
+      readyForReview: 3,
+      approved: 0,
+      published: 0,
+      reelsInProgress: 0,
+    });
+  });
 });

@@ -11,6 +11,7 @@ import {
   type CampaignType,
   type MascotPose,
 } from "@/features/social/domain/campaigns";
+import { maxPoseHeight, poseIsUsable } from "@/features/social/domain/mascot";
 import {
   shoppingTips,
   type ShoppingTipId,
@@ -36,16 +37,7 @@ type Layer = OverlayOptions;
 export const mascotFile = (pose: MascotPose) =>
   assetPath("src", "features", "social", "assets", "mascot", `${pose}.png`);
 
-/** Poses that exist only as small art; they are shown small so they stay sharp. */
-const smallPoses: ReadonlySet<MascotPose> = new Set([
-  "wave",
-  "wink",
-  "delivery",
-  "tip",
-  "shopping",
-  "love",
-]);
-/** Largest height a small pose is drawn at (about 1.6× its source). */
+/** Largest height the corner mascot takes; small artwork is held lower by its own limit. */
 export const SMALL_POSE_MAX_HEIGHT = 270;
 
 export interface Box {
@@ -109,9 +101,9 @@ export async function mascot(
   maxHeight: number,
   maxWidth = 1080,
 ): Promise<{ input: Buffer; width: number; height: number }> {
-  const height = smallPoses.has(pose)
-    ? Math.min(maxHeight, SMALL_POSE_MAX_HEIGHT)
-    : maxHeight;
+  // Only approved artwork is drawn, and small crops are never enlarged past what they carry.
+  if (!poseIsUsable(pose)) throw new Error("MASCOT_POSE_UNAVAILABLE");
+  const height = maxPoseHeight(pose, maxHeight);
   const { data, info } = await sharp(mascotFile(pose))
     .resize({ height, width: maxWidth, fit: "inside" })
     .png()
@@ -313,6 +305,10 @@ async function bundleBoard(input: CampaignRenderInput): Promise<LayoutResult> {
  * Moves a layout down into the free space above the footer, so short content does not leave an
  * empty band at the bottom. Called before the mascot is placed; he stays anchored to the footer.
  */
+function settleShift(_boxes: Box[], bottom: number): number {
+  return Math.max(0, Math.min(110, Math.floor((FOOTER_TOP - 40 - bottom) / 2)));
+}
+
 function settle(layers: Layer[], boxes: Box[], bottom: number) {
   const shift = Math.max(
     0,
@@ -537,8 +533,10 @@ async function productSpotlight(
     left: stage.left,
     top: stage.top,
   });
-  const cardLeft =
-    stage.left + Math.round((stage.width - (photoSize + 60)) / 2);
+  const withMascot = poseIsUsable(input.pose);
+  const cardLeft = withMascot
+    ? stage.left + stage.width - (photoSize + 60) - 30
+    : stage.left + Math.round((stage.width - (photoSize + 60)) / 2);
   const cardTop = stage.top + Math.round((stage.height - (photoSize + 60)) / 2);
   layers.push({ input: card, left: cardLeft, top: cardTop });
   protectedBoxes.push({
@@ -616,8 +614,22 @@ async function productSpotlight(
   const cta = await ctaPill(input.copy.cta, 70 + 230, rowTop + 6);
   layers.push(...cta.layers);
   protectedBoxes.push(cta.box);
-  settle(layers, protectedBoxes, rowTop + 96);
-  return { layers, mascotBox: null, protectedBoxes };
+  let mascotBox: Box | null = null;
+  if (withMascot) {
+    const art = await mascot(input.pose!, 420, cardLeft - stage.left - 20);
+    mascotBox = {
+      left: stage.left + 10,
+      top: stage.top + stage.height - art.height,
+      width: art.width,
+      height: art.height,
+    };
+    layers.push({ input: art.input, left: mascotBox.left, top: mascotBox.top });
+  }
+  const shift = settleShift(protectedBoxes, rowTop + 96);
+  for (const layer of layers) layer.top = (layer.top ?? 0) + shift;
+  for (const box of protectedBoxes) box.top += shift;
+  if (mascotBox) mascotBox.top += shift;
+  return { layers, mascotBox, protectedBoxes };
 }
 
 const benefitIcons: IconName[] = ["mapPin", "banknote", "cart"];
@@ -837,7 +849,11 @@ export async function renderCampaignImage(
   ) {
     throw new Error("BUNDLE_MISSING");
   }
-  const body = await layouts[input.layout](input);
+  const usable = {
+    ...input,
+    pose: poseIsUsable(input.pose) ? input.pose : null,
+  };
+  const body = await layouts[usable.layout](usable);
   const layers: Layer[] = [
     { input: leafDecoration(FEED_WIDTH, FEED_HEIGHT), left: 0, top: 0 },
     ...(await header(FEED_WIDTH, 40, campaignTypeLabels[input.type])),

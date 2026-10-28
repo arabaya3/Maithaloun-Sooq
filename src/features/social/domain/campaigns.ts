@@ -6,7 +6,9 @@ import {
   shortProductName,
   type Bundle,
 } from "./bundles";
+import { angleCreative } from "./campaign-creative";
 import { isNeutralSentence } from "./caption-guard";
+import type { MascotPose } from "./mascot";
 import {
   callToAction,
   deliveryLine,
@@ -48,6 +50,8 @@ export const campaignTypes = [
   "engagement",
   "promo_reel",
   "mascot_story",
+  "customer_trust",
+  "repeat_purchase",
 ] as const;
 export type CampaignType = (typeof campaignTypes)[number];
 
@@ -63,6 +67,8 @@ export const campaignTypeLabels: Record<CampaignType, string> = {
   engagement: "تفاعل",
   promo_reel: "ريل ترويجي",
   mascot_story: "قصة ميثو",
+  customer_trust: "ثقة",
+  repeat_purchase: "تذكير بالتجديد",
 };
 
 /**
@@ -75,11 +81,37 @@ export const plannableTypes: readonly CampaignType[] = [
   "free_delivery",
   "mascot_story",
   "store_awareness",
-  "product_discovery",
   "cleaning_tip",
   "shopping_tutorial",
   "engagement",
+  "customer_trust",
+  "repeat_purchase",
 ];
+
+/** The owner's marketing objectives, each served by one or more campaign types. */
+export const campaignObjectives = [
+  {
+    id: "awareness",
+    labelAr: "التعريف بمايثا وميثو",
+    types: ["mascot_story", "store_awareness"],
+  },
+  { id: "discovery", labelAr: "اكتشاف منتج", types: ["product_discovery"] },
+  { id: "traffic", labelAr: "زيارة الموقع", types: ["shopping_tutorial"] },
+  { id: "conversion", labelAr: "بيع (باكيج)", types: ["bundle"] },
+  {
+    id: "basket",
+    labelAr: "تكبير السلة للتوصيل المجاني",
+    types: ["free_delivery"],
+  },
+  { id: "trust", labelAr: "بناء الثقة", types: ["customer_trust"] },
+  { id: "engagement", labelAr: "تفاعل", types: ["engagement", "cleaning_tip"] },
+  { id: "repeat", labelAr: "تذكير بالتجديد", types: ["repeat_purchase"] },
+] as const satisfies ReadonlyArray<{
+  id: string;
+  labelAr: string;
+  types: readonly CampaignType[];
+}>;
+export type CampaignObjectiveId = (typeof campaignObjectives)[number]["id"];
 
 export const campaignLayouts = [
   "product_spotlight",
@@ -90,17 +122,7 @@ export const campaignLayouts = [
 ] as const;
 export type CampaignLayout = (typeof campaignLayouts)[number];
 
-/** ميثو's approved poses (src/features/social/assets/mascot). */
-export const mascotPoses = [
-  "presenting",
-  "wave",
-  "wink",
-  "delivery",
-  "tip",
-  "shopping",
-  "love",
-] as const;
-export type MascotPose = (typeof mascotPoses)[number];
+export { mascotPoseIds as mascotPoses, type MascotPose } from "./mascot";
 
 export interface CampaignCopy {
   /** The big line on the image. */
@@ -175,10 +197,64 @@ function descriptionLine(product: SocialProduct): string | null {
 
 export const campaignAngles: readonly CampaignAngle[] = [
   {
+    id: "trust-how-it-works",
+    type: "customer_trust",
+    layout: "mascot_hero",
+    pose: "presenting",
+    objective: "بناء الثقة بشرح كيف بنشتغل، بحقائق المتجر فقط",
+    audience: "اللي مترددين يطلبوا أونلاين أول مرة",
+    concept: "ميثو بشرح: بتطلبوا، منوصّل داخل ميثلون، وبتدفعوا عند الاستلام",
+    needs: "nothing",
+    copy: ({ store, ...context }) => ({
+      headline: "بتطلبوا، ومنوصّل، وبتدفعوا عالباب",
+      subline: `توصيل داخل ${store.deliveryAreaAr}${store.cashOnDelivery ? " والدفع عند الاستلام" : ""}`,
+      cta: "شوفوا كيف بنشتغل",
+      caption: join([
+        "🤝 كيف بنشتغل في مايثا ماركت؟",
+        "",
+        "١. بتختاروا من الموقع أو بتبعتولنا عالواتساب",
+        `٢. منوصّل الطلب لباب البيت داخل ${store.deliveryAreaAr}`,
+        store.cashOnDelivery ? "٣. بتدفعوا نقداً لما يوصلكم الطلب" : null,
+        "",
+        deliveryLine(store),
+        ...footer({ store, ...context }),
+      ]),
+    }),
+  },
+  {
+    id: "repeat-restock",
+    type: "repeat_purchase",
+    layout: "product_spotlight",
+    pose: "presenting",
+    objective: "تذكير عام بتجديد أغراض البيت اللي بتخلص بسرعة",
+    audience: "البيوت اللي بتستعمل هالمنتج بشكل دوري",
+    concept: "ميثو بذكّر: خلّوا منه بالبيت قبل ما يخلص، بسعره الحقيقي",
+    needs: "product",
+    copy: ({ products, store, origin }) => {
+      const product = products[0]!;
+      return {
+        headline: `${shortProductName(product.name)} قرّب يخلص؟`,
+        subline: "زوّدوا البيت قبل ما يخلص",
+        cta: "اطلبوه من الموقع",
+        caption: join([
+          `🔁 ${coreProductName(product.name)} قرّب يخلص بالبيت؟`,
+          "زوّدوا منه قبل ما يخلص، ووفّروا على حالكم المشوار.",
+          "",
+          `💰 السعر: ${formatSocialPrice(product)}`,
+          deliveryLine(store),
+          "",
+          ...callToAction({ store, origin }, productUrl(origin, product)),
+          "",
+          hashtags([product]).join(" "),
+        ]),
+      };
+    },
+  },
+  {
     id: "product-discovery",
     type: "product_discovery",
     layout: "product_spotlight",
-    pose: null,
+    pose: "presenting",
     objective: "تعريف الناس بمنتج حقيقي ممكن ما يعرفوا إنه عنا",
     audience: "اللي بشتروا هالنوع من المنتجات من محلات ثانية",
     concept: "منتج واحد بصورة كبيرة وواضحة، بسعره الحقيقي ورابط مباشر",
@@ -209,7 +285,7 @@ export const campaignAngles: readonly CampaignAngle[] = [
     id: "bundle-room-ready",
     type: "bundle",
     layout: "bundle_board",
-    pose: null,
+    pose: "presenting",
     objective: "تكبير السلة بمجموعة كاملة لغرفة وحدة",
     audience: "العائلات اللي بتشتري أغراض التنظيف كل أسبوع",
     concept: "كل اللي بتحتاجه الغرفة، مختار إلكم، بأسعار المتجر الحقيقية",
@@ -234,7 +310,7 @@ export const campaignAngles: readonly CampaignAngle[] = [
     id: "bundle-one-order",
     type: "bundle",
     layout: "bundle_board",
-    pose: "shopping",
+    pose: "presenting",
     objective: "تحويل اللي بشتروا غرض واحد لطلب كامل",
     audience: "اللي عادة بطلبوا منتج واحد كل مرة",
     concept: "ميثو حامل المجموعة: طلب واحد وكل الأغراض",
@@ -257,7 +333,7 @@ export const campaignAngles: readonly CampaignAngle[] = [
     id: "free-delivery-ready-basket",
     type: "free_delivery",
     layout: "free_delivery_meter",
-    pose: null,
+    pose: "delivery",
     objective: "توضيح حد التوصيل المجاني بسلة واصلة له",
     audience: "زباين ميثلون اللي بطلبوا مبالغ صغيرة",
     concept: "سلة جاهزة فوق حد التوصيل المجاني، والمؤشر مليان",
@@ -402,7 +478,7 @@ export const campaignAngles: readonly CampaignAngle[] = [
     id: "tutorial-three-steps",
     type: "shopping_tutorial",
     layout: "mascot_tip",
-    pose: "shopping",
+    pose: "wave",
     objective: "تسهيل أول طلب أونلاين",
     audience: "اللي عمرهم ما طلبوا أونلاين",
     concept: "ثلاث خطوات سهلة للطلب، وميثو بدلّكم",
@@ -458,6 +534,8 @@ export interface PlannedCampaign {
   bundle: Bundle | null;
   tipId: ShoppingTipId | null;
   productIds: string[];
+  /** Which of the three opening hooks the owner chose; 0 is the angle's own. */
+  hookIndex?: number;
 }
 
 export interface CampaignPlanInput {
@@ -483,10 +561,12 @@ const typeWeights: Partial<Record<CampaignType, number>> = {
   cleaning_tip: 1,
   shopping_tutorial: 1,
   engagement: 1,
+  customer_trust: 1,
+  repeat_purchase: 1,
 };
 
-/** At most this share of posts shows the mascot, so he stays special. */
-export const MAX_MASCOT_SHARE = 0.6;
+/** ميثو appears in every standard campaign family; the share is kept as a single switch. */
+export const MAX_MASCOT_SHARE = 1;
 
 /**
  * A balanced calendar: the type with the most remaining weight goes next unless it ran last time,
@@ -756,6 +836,7 @@ export function toStoredCampaign(campaign: PlannedCampaign): StoredCampaign {
     concept,
     bundle,
     tipId,
+    hookIndex,
   } = campaign;
   return {
     type,
@@ -767,6 +848,7 @@ export function toStoredCampaign(campaign: PlannedCampaign): StoredCampaign {
     concept,
     bundle,
     tipId,
+    hookIndex: hookIndex ?? 0,
   };
 }
 
@@ -799,7 +881,33 @@ export function angleById(id: string): CampaignAngle | undefined {
   return campaignAngles.find((angle) => angle.id === id);
 }
 
-/** The copy of a planned campaign, from the live facts it was planned with. */
+function contextFor(
+  campaign: PlannedCampaign,
+  context: CaptionContext,
+  products: readonly SocialProduct[],
+): CampaignContext {
+  return {
+    ...context,
+    bundle: campaign.bundle,
+    products,
+    tipId: campaign.tipId,
+  };
+}
+
+/** The three opening hooks the owner can choose from; the first is the angle's own headline. */
+export function campaignHooks(
+  campaign: PlannedCampaign,
+  context: CaptionContext,
+  products: readonly SocialProduct[],
+): [string, string, string] {
+  const angle = angleById(campaign.angleId);
+  if (!angle) throw new Error("UNKNOWN_ANGLE");
+  const full = contextFor(campaign, context, products);
+  const [second, third] = angleCreative[angle.id]!.altHooks(full);
+  return [angle.copy(full).headline, second, third];
+}
+
+/** The copy of a planned campaign, from the live facts, with the owner's chosen hook. */
 export function campaignCopy(
   campaign: PlannedCampaign,
   context: CaptionContext,
@@ -807,12 +915,95 @@ export function campaignCopy(
 ): CampaignCopy {
   const angle = angleById(campaign.angleId);
   if (!angle) throw new Error("UNKNOWN_ANGLE");
-  return angle.copy({
-    ...context,
-    bundle: campaign.bundle,
-    products,
-    tipId: campaign.tipId,
+  const base = angle.copy(contextFor(campaign, context, products));
+  const index = campaign.hookIndex ?? 0;
+  if (index === 0) return base;
+  const hook =
+    campaignHooks(campaign, context, products)[index] ?? base.headline;
+  // The hook replaces the image headline and the caption's first line, keeping its emoji.
+  const [first = "", ...rest] = base.caption.split("\n");
+  const emoji = first.match(/^\p{Extended_Pictographic}\uFE0F?\s*/u)?.[0] ?? "";
+  return {
+    ...base,
+    headline: hook,
+    caption: [`${emoji}${hook}`, ...rest].join("\n"),
+  };
+}
+
+/** The angle's creative brief: its name and the customer problem it answers. */
+export function campaignBrief(angleId: string): {
+  nameAr: string;
+  problemAr: string;
+} {
+  const creative = angleCreative[angleId];
+  return {
+    nameAr: creative?.nameAr ?? angleId,
+    problemAr: creative?.problemAr ?? "",
+  };
+}
+
+/**
+ * Where the campaign sends people, tagged so a visit can later be tied to the campaign. Captions
+ * keep the plain address; this link is for link posts and future ads.
+ */
+export function campaignDestination(
+  campaign: Pick<PlannedCampaign, "angleId" | "date" | "type">,
+  origin: string,
+  products: readonly SocialProduct[],
+): string {
+  const product =
+    campaign.type === "product_discovery" || campaign.type === "repeat_purchase"
+      ? products[0]
+      : undefined;
+  const url = new URL(product ? productUrl(origin, product) : origin);
+  url.searchParams.set("utm_source", "facebook");
+  url.searchParams.set("utm_medium", "social");
+  url.searchParams.set("utm_campaign", `${campaign.angleId}-${campaign.date}`);
+  return url.toString();
+}
+
+/** One campaign of the given type for one slot, for «أنشئي حملة». */
+export function campaignForType(
+  type: CampaignType,
+  slot: Pick<PlannedCampaign, "date" | "time" | "scheduledFor">,
+  input: {
+    products: readonly SocialProduct[];
+    store: StoreFacts;
+    recentProductIds?: ReadonlySet<string>;
+  },
+): PlannedCampaign | null {
+  const choice = pickAngle({
+    remaining: new Map([[type, 1]]),
+    previous: null,
+    previousLayout: null,
+    usedAngles: new Set(),
+    mascotAllowed: true,
+    products: input.products,
+    store: input.store,
+    blockedProducts: new Set(input.recentProductIds ?? []),
+    tipsLeft: shoppingTips.map((tip) => tip.id),
+    themeUses: new Map(),
+    productCursor: Number(slot.date.replaceAll("-", "")) % 97,
   });
+  if (!choice) return null;
+  const { angle, bundle, tipId, productId } = choice;
+  return {
+    ...slot,
+    format: "image",
+    type: angle.type,
+    angleId: angle.id,
+    layout: angle.layout,
+    pose: angle.pose,
+    objective: angle.objective,
+    audience: angle.audience,
+    concept: angle.concept,
+    bundle,
+    tipId,
+    productIds:
+      bundle?.items.map((item) => item.productId) ??
+      (productId ? [productId] : []),
+    hookIndex: 0,
+  };
 }
 
 /** Prices a campaign's caption may print: the catalog's, plus a bundle's real total and gap. */

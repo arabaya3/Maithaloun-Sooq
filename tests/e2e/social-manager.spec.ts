@@ -84,6 +84,43 @@ test.describe("Creative Studio campaigns", () => {
     expect(issues.consoleErrors).toEqual([]);
   });
 
+  test("quick create: one campaign for an objective, a chosen hook, and still no approval", async ({
+    page,
+  }) => {
+    const issues = trackPageIssues(page);
+    await withTestDb((sql) => sql`delete from social_posts`);
+    await login(page);
+    await page.goto("/admin/social");
+    await expect(page.getByText("جاهزة للمراجعة")).toBeVisible();
+    await page.getByLabel("أنشئي حملة لهدف").selectOption("trust");
+    await page.getByRole("button", { name: "أنشئي حملة", exact: true }).click();
+    await expect(page.getByText("أنشأنا الحملة كمسودة.")).toBeVisible();
+    const panel = page.getByRole("region", { name: /^الحملة:/ });
+    await expect(panel.getByText("كيف بنشتغل", { exact: true })).toBeVisible();
+    await expect(
+      panel.getByRole("textbox", { name: /رابط متتبَّع/ }),
+    ).toHaveValue(/utm_campaign=trust-how-it-works-/);
+    const hooks = panel.getByRole("radio");
+    await expect(hooks).toHaveCount(3);
+    await hooks.nth(1).check();
+    await panel.getByRole("button", { name: "اعتمدي هذه الافتتاحية" }).click();
+    await expect(page.getByText("تغيّرت الافتتاحية.")).toBeVisible();
+    await expectAccessible(page);
+    await expectNoHorizontalOverflow(page);
+    const [row] = await withTestDb(
+      (sql) => sql<
+        { status: string; approved_by: string | null; kind: string }[]
+      >`
+        select status, approved_by, kind from social_posts`,
+    );
+    expect(row).toEqual({
+      status: "draft",
+      approved_by: null,
+      kind: "campaign",
+    });
+    expect(issues.consoleErrors).toEqual([]);
+  });
+
   test("the campaign page fits a phone", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await withTestDb((sql) => sql`delete from social_posts`);

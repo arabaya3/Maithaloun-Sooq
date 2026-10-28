@@ -292,7 +292,8 @@ describe("product discovery", () => {
     });
     const discovery = plan.find((c) => c.type === "product_discovery")!;
     expect(discovery.productIds).toHaveLength(1);
-    expect(discovery.pose).toBeNull();
+    // ميثو presents the product from the side; the product stays the focus.
+    expect(discovery.pose).toBe("presenting");
     const product = products.find((p) => p.id === discovery.productIds[0])!;
     const copy = campaignCopy(
       discovery,

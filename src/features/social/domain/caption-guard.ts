@@ -11,7 +11,8 @@ export type CaptionIssue =
   | "unverifiable_claim"
   | "delivery_outside_area"
   | "unknown_price"
-  | "percentage";
+  | "percentage"
+  | "needs_evidence";
 
 export interface CaptionCheck {
   ok: boolean;
@@ -51,6 +52,19 @@ const claimPatterns = [
   /يقضي\s*على\s*\d/u,
   /\d+\s*(٪|%)\s*(من\s*)?(الجراثيم|البكتيريا)/u,
   /معتمد\s*من/u,
+];
+
+/**
+ * Claims the store may make only with evidence on file: authenticity, official distribution,
+ * certification, and what a product does to germs. Flagged for the owner, never published as-is.
+ */
+const evidencePatterns = [
+  /(^|[\s«"(])(ال)?أصل(ي|ية|يّة)(?=$|[\s.،!؟»")])/u,
+  /منتجات\s*أصلية|بضاعة\s*أصلية/u,
+  /(وكيل|موزّ?ع)\s*(ال)?(رسمي|معتمد|حصري)/u,
+  /شهادة|مرخّ?ص|ترخيص/u,
+  /(يقتل|يقضي\s*على|يزيل)\s*(\S+\s*)?(الجراثيم|البكتيريا|الفيروسات)/u,
+  /\b(original|authentic|certified|genuine)\b/i,
 ];
 
 const outsideAreaPatterns = [
@@ -99,6 +113,9 @@ export function checkCaption(
     issues.add("delivery_outside_area");
   }
   if (/[٪%]/u.test(text)) issues.add("percentage");
+  if (evidencePatterns.some((pattern) => pattern.test(text))) {
+    issues.add("needs_evidence");
+  }
   const normalizedAllowed = new Set(
     [...allowedPrices].map((price) =>
       normalizePrice(price.replace(/\s*₪/u, "")),
@@ -126,4 +143,6 @@ export const captionIssueLabels: Record<CaptionIssue, string> = {
   delivery_outside_area: "يعد بتوصيل خارج ميثلون.",
   unknown_price: "يذكر سعراً غير موجود في الكتالوج.",
   percentage: "يحتوي نسبة مئوية.",
+  needs_evidence:
+    "فيه ادعاء بحاجة لإثبات (أصلي، وكيل رسمي، شهادة، يقتل الجراثيم…). احذفيه أو أرفقي الدليل قبل النشر.",
 };

@@ -6,6 +6,7 @@ import { notFound, redirect } from "next/navigation";
 import { requireTrustedAdminMutation } from "@/features/admin/auth/admin-session";
 import { AuthorizationError } from "@/features/admin/domain/admin-actor";
 import { assertPermission } from "@/features/admin/domain/permissions";
+import type { CampaignObjectiveId } from "@/features/social/domain/campaigns";
 import { PostTransitionError } from "@/features/social/domain/post-lifecycle";
 import { storeInstant } from "@/features/social/domain/content-plan";
 import { MetaApiError } from "@/features/social/domain/meta-errors";
@@ -217,6 +218,39 @@ export async function draftCampaignsAction() {
         days: 14,
       }),
     "campaigns_drafted",
+  );
+}
+
+/** «أنشئي حملة»: one campaign for the chosen objective; opens its page for review. */
+export async function createCampaignAction(form: FormData) {
+  const actor = await requireTrustedAdminMutation();
+  if (!socialEnabled()) notFound();
+  let id: string;
+  try {
+    id = await socialService.createCampaign(actor, {
+      objective: field(form, "objective") as CampaignObjectiveId,
+    });
+  } catch (error) {
+    redirect(`/admin/social?error=${encodeURIComponent(failureCode(error))}`);
+  }
+  revalidatePath("/admin/social", "layout");
+  redirect(`${postPath(id)}?done=campaign_created`);
+}
+
+/** The owner chooses one of a campaign's three opening hooks. */
+export async function chooseCampaignHookAction(form: FormData) {
+  const actor = await requireTrustedAdminMutation();
+  const id = field(form, "id");
+  return guarded(
+    postPath(id),
+    () =>
+      socialService.chooseCampaignHook(
+        actor,
+        id,
+        version(form),
+        Number(field(form, "hook")),
+      ),
+    "hook_chosen",
   );
 }
 

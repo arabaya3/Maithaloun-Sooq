@@ -39,8 +39,14 @@ import { decideComment } from "@/features/social/domain/comment-policy";
 import { bundleIsCurrent } from "@/features/social/domain/bundles";
 import {
   bundlePrices,
+  campaignBrief,
   campaignCopy,
+  campaignDestination,
+  campaignForType,
+  campaignHooks,
+  campaignObjectives,
   fromStoredCampaign,
+  type CampaignObjectiveId,
   planCampaigns,
   replanCampaign,
   toStoredCampaign,
@@ -50,6 +56,9 @@ import {
 import type { CampaignRenderInput } from "@/features/social/infrastructure/render/campaign-templates";
 import {
   buildContentPlan,
+  defaultWeeklySlots,
+  storeInstant,
+  weekdayOf,
   type PlannedItem,
 } from "@/features/social/domain/content-plan";
 import {
@@ -100,7 +109,7 @@ import type {
 import type { MediaProblem } from "@/features/social/infrastructure/media-check";
 import { MetaPublisher } from "@/features/social/infrastructure/meta-publisher";
 import * as schema from "@/server/db/schema";
-import { addDays } from "@/shared/lib/store-time";
+import { addDays, todayInStoreZone } from "@/shared/lib/store-time";
 
 type Database = PostgresJsDatabase<typeof schema>;
 export type SocialPostRow = typeof schema.socialPosts.$inferSelect;
@@ -215,6 +224,14 @@ export interface PostView extends SocialPostRow {
   blockers: ApprovalBlocker[];
   /** False when a campaign bundle no longer matches today's prices or delivery rule. */
   campaignCurrent: boolean;
+  /** For a campaign: its name, the problem it answers, the three hooks and its tracked link. */
+  campaignDetails: {
+    nameAr: string;
+    problemAr: string;
+    hooks: string[];
+    hookIndex: number;
+    destination: string;
+  } | null;
 }
 
 const DAY = 86_400_000;
@@ -777,6 +794,190 @@ export class SocialService {
     return check.ok ? { caption, products } : null;
   }
 
+  private campaignDetails(
+    post: SocialPostRow,
+    catalog: SocialCatalog,
+  ): PostView["campaignDetails"] {
+    const stored = campaignOf(post);
+    if (!stored) return null;
+    const planned = fromStoredCampaign(stored, {
+      scheduledFor: post.scheduledFor ?? this.now(),
+      productIds: post.productIds,
+    });
+    const byId = new Map(
+      catalog.products.map((product) => [product.id, product]),
+    );
+    const products = post.productIds
+      .map((id) => byId.get(id))
+      .filter((product): product is SocialProduct => Boolean(product));
+    const context = this.captionContext(catalog);
+    let hooks: string[] = [];
+    try {
+      hooks = campaignHooks(planned, context, products);
+    } catch {
+      hooks = [];
+    }
+    return {
+      ...campaignBrief(stored.angleId),
+      hooks,
+      hookIndex: stored.hookIndex ?? 0,
+      destination: campaignDestination(planned, context.origin, products),
+    };
+  }
+
+  /**
+   * «أنشئي حملة»: one campaign for the chosen objective in the next free slot of the coming two
+   * weeks, as an unapproved draft.
+   */
+  async createCampaign(
+    actor: AdminActor,
+    input: { objective: CampaignObjectiveId },
+  ): Promise<string> {
+    assertPermission(actor, "social.prepare");
+    const objective = campaignObjectives.find(
+      (item) => item.id === input.objective,
+    );
+    if (!objective) throw new SocialError("invalid");
+    const catalog = await this.deps.catalog();
+    const start = addDays(todayInStoreZone(this.now()), 1);
+    const taken = new Set(
+      (
+        await this.db
+          .select({ scheduledFor: schema.socialPosts.scheduledFor })
+          .from(schema.socialPosts)
+          .where(
+            and(
+              ne(schema.socialPosts.status, "rejected"),
+              gte(schema.socialPosts.scheduledFor, this.now()),
+            ),
+          )
+      ).map((row) => row.scheduledFor?.toISOString()),
+    );
+    const recent = await this.recentProductIds();
+    for (let day = 0; day < 14; day += 1) {
+      const date = addDays(start, day);
+      for (const slot of defaultWeeklySlots) {
+        if (slot.format !== "image" || slot.weekday !== weekdayOf(date))
+          continue;
+        const scheduledFor = storeInstant(date, slot.time);
+        if (scheduledFor <= this.now() || taken.has(scheduledFor.toISOString()))
+          continue;
+        for (const type of objective.types) {
+          const campaign = campaignForType(
+            type,
+            { date, time: slot.time, scheduledFor },
+            {
+              products: catalog.products,
+              store: catalog.store,
+              recentProductIds: recent,
+            },
+          );
+          const draft = campaign ? this.campaignDraft(campaign, catalog) : null;
+          if (!campaign || !draft) continue;
+          const [post] = await this.db
+            .insert(schema.socialPosts)
+            .values({
+              format: "image",
+              kind: "campaign",
+              productIds: campaign.productIds,
+              tipId: campaign.tipId,
+              caption: draft.caption,
+              captionSource: "template",
+              scheduledFor,
+              campaign: toStoredCampaign(campaign) as unknown as Record<
+                string,
+                unknown
+              >,
+            })
+            .returning({ id: schema.socialPosts.id });
+          await this.record(
+            post!.id,
+            "created",
+            actor,
+            null,
+            "draft",
+            campaign.angleId,
+          );
+          return post!.id;
+        }
+      }
+    }
+    throw new SocialError("no_alternative");
+  }
+
+  /** The workspace summary: how many posts are at each step. Counts only, no estimates. */
+  async overview(actor: AdminActor) {
+    assertPermission(actor, "social.view");
+    const rows = await this.db
+      .select({
+        status: schema.socialPosts.status,
+        format: schema.socialPosts.format,
+        mediaStatus: schema.socialPosts.mediaStatus,
+      })
+      .from(schema.socialPosts);
+    const count = (test: (row: (typeof rows)[number]) => boolean) =>
+      rows.filter(test).length;
+    return {
+      drafts: count((row) => row.status === "draft"),
+      readyForReview: count(
+        (row) => row.status === "draft" && row.mediaStatus === "ready",
+      ),
+      approved: count((row) => row.status === "approved"),
+      published: count((row) => row.status === "published"),
+      reelsInProgress: count(
+        (row) =>
+          row.format === "reel" &&
+          row.status !== "published" &&
+          row.status !== "rejected" &&
+          row.mediaStatus !== "ready",
+      ),
+    };
+  }
+
+  /** The owner picks one of the three opening hooks; the image is prepared again. */
+  async chooseCampaignHook(
+    actor: AdminActor,
+    id: string,
+    version: number,
+    hookIndex: number,
+  ) {
+    assertPermission(actor, "social.prepare");
+    if (![0, 1, 2].includes(hookIndex)) throw new SocialError("invalid");
+    const post = await this.load(id);
+    const stored = campaignOf(post);
+    if (!stored) throw new SocialError("invalid");
+    if (post.version !== version) throw new SocialError("stale");
+    const catalog = await this.deps.catalog();
+    const planned = {
+      ...fromStoredCampaign(stored, {
+        scheduledFor: post.scheduledFor ?? this.now(),
+        productIds: post.productIds,
+      }),
+      hookIndex,
+    };
+    const draft = this.campaignDraft(planned, catalog);
+    if (!draft) throw new SocialError("invalid");
+    await this.transition(
+      actor,
+      post,
+      "edit",
+      version,
+      {
+        caption: draft.caption,
+        captionSource: "template",
+        campaign: toStoredCampaign(planned) as unknown as Record<
+          string,
+          unknown
+        >,
+        mediaStatus: "pending",
+        mediaUrl: null,
+        posterUrl: null,
+        mediaError: null,
+      },
+      `hook ${hookIndex + 1}`,
+    );
+  }
+
   /**
    * Creative Studio: a calendar of campaigns from the live catalog. Each one is an unapproved
    * draft in the usual lifecycle; a slot that already has a post is left alone.
@@ -1146,8 +1347,13 @@ export class SocialService {
   async view(actor: AdminActor, id: string): Promise<PostView> {
     assertPermission(actor, "social.view");
     const post = await this.load(id);
-    const evaluation = this.evaluate(post, await this.deps.catalog());
-    return { ...post, ...evaluation };
+    const catalog = await this.deps.catalog();
+    const evaluation = this.evaluate(post, catalog);
+    return {
+      ...post,
+      ...evaluation,
+      campaignDetails: this.campaignDetails(post, catalog),
+    };
   }
 
   private async transition(
