@@ -31,6 +31,8 @@ describe("permission matrix", () => {
       "payments.record",
       "customers.view",
       "reminders.manage",
+      "social.view",
+      "social.prepare",
     ]);
   });
 
@@ -40,6 +42,9 @@ describe("permission matrix", () => {
       AuthorizationError,
     );
     expect(() => assertPermission(operator, "stock.costs")).toThrow(
+      AuthorizationError,
+    );
+    expect(() => assertPermission(operator, "social.approve")).toThrow(
       AuthorizationError,
     );
   });

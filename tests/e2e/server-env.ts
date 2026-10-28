@@ -20,5 +20,12 @@ export function e2eServerEnvironment(
     CUSTOMER_OTP_DEV_CODE: "246810",
     QA_STOCK_SIMULATION: "on",
     ASSISTANT_SMOKE_TEST: "on",
+    // The Facebook manager runs without a Page connection or Meta app: nothing can be published.
+    SOCIAL_MANAGER: "on",
+    SOCIAL_TOKEN_KEY: "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=",
+    SOCIAL_PUBLIC_ORIGIN: origin,
+    SOCIAL_CATALOG_ORIGIN: "",
+    META_APP_ID: "",
+    META_APP_SECRET: "",
   };
 }
