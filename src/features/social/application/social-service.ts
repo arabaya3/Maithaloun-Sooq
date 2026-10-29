@@ -37,7 +37,8 @@ import {
 } from "@/features/social/domain/captions";
 import { decideComment } from "@/features/social/domain/comment-policy";
 import { bundleIsCurrent } from "@/features/social/domain/bundles";
-import { ReelRenderQueue } from "./reel-render-queue";
+import type { MascotPose } from "@/features/social/domain/mascot";
+import { ReelRenderQueue, type ReelChoices } from "./reel-render-queue";
 import {
   buildStoryboard,
   reelConcepts,
@@ -55,8 +56,10 @@ import {
 import {
   bundlePrices,
   campaignBrief,
+  adCopy,
   campaignCopy,
   campaignDestination,
+  type AdCopy,
   campaignForType,
   campaignHooks,
   campaignObjectives,
@@ -131,6 +134,9 @@ export type SocialPostRow = typeof schema.socialPosts.$inferSelect;
 
 export type SocialErrorCode =
   | "not_found"
+  | "reel_text_rejected"
+  | "prices_changed"
+  | "reel_pose_unavailable"
   | "stale"
   | "blocked"
   | "invalid"
@@ -162,11 +168,26 @@ export type PublishNowOutcome =
   | "page_mismatch"
   | "failed";
 
+export type CampaignExportFormat = "square" | "story" | "carousel";
+
 export interface ReelRequest {
   concept: string;
   seconds: number;
   productIds: string[];
   dropScenes?: number[];
+  pose?: string;
+  hookText?: string;
+  ctaText?: string;
+}
+
+/** The owner's storyboard choices, as the renderer and the worker both rebuild them. */
+export function reelChoices(input: ReelRequest): ReelChoices {
+  return {
+    dropScenes: input.dropScenes ?? [],
+    ...(input.pose ? { pose: input.pose as MascotPose } : {}),
+    ...(input.hookText?.trim() ? { hookText: input.hookText.trim() } : {}),
+    ...(input.ctaText?.trim() ? { ctaText: input.ctaText.trim() } : {}),
+  };
 }
 
 export class SocialError extends Error {
@@ -220,6 +241,11 @@ export interface SocialDependencies {
   renderCampaign?: (
     input: Omit<CampaignRenderInput, "siteLabel">,
   ) => Promise<Buffer>;
+  /** The same campaign as a square, a Story or carousel slides (one buffer per slide). */
+  renderCampaignExport?: (
+    input: Omit<CampaignRenderInput, "siteLabel">,
+    format: CampaignExportFormat,
+  ) => Promise<Buffer[]>;
   loadImage: (url: string) => Promise<Buffer>;
   videoRenderingAvailable: () => Promise<boolean>;
   metaApp?: { appId: string; appSecret: string } | null;
@@ -253,6 +279,8 @@ export interface PostView extends SocialPostRow {
     hooks: string[];
     hookIndex: number;
     destination: string;
+    /** The text a future ad would carry, from the approved copy only. */
+    ad: AdCopy | null;
   } | null;
 }
 
@@ -839,17 +867,91 @@ export class SocialService {
     } catch {
       hooks = [];
     }
+    const destination = campaignDestination(
+      planned,
+      context.origin,
+      products,
+      campaignCode(post.id),
+    );
+    let ad: AdCopy | null = null;
+    try {
+      ad = adCopy(campaignCopy(planned, context, products), destination);
+    } catch {
+      ad = null;
+    }
     return {
       ...campaignBrief(stored.angleId),
       hooks,
       hookIndex: stored.hookIndex ?? 0,
-      destination: campaignDestination(
-        planned,
-        context.origin,
-        products,
-        campaignCode(post.id),
-      ),
+      destination,
+      ad,
     };
+  }
+
+  /**
+   * A campaign in another format (square, Story or carousel slides), drawn now from today's
+   * catalog. Refused when its prices changed since it was planned: never yesterday's prices.
+   * Nothing is stored or published; the owner downloads the files.
+   */
+  async campaignExport(
+    actor: AdminActor,
+    id: string,
+    format: CampaignExportFormat,
+  ): Promise<Buffer[]> {
+    assertPermission(actor, "social.view");
+    const post = await this.load(id);
+    const campaign = campaignOf(post);
+    if (!campaign || !this.deps.renderCampaignExport) {
+      throw new SocialError("invalid");
+    }
+    const catalog = await this.deps.catalog();
+    if (
+      campaign.bundle &&
+      !bundleIsCurrent(campaign.bundle, catalog.products, catalog.store)
+    ) {
+      throw new SocialError("prices_changed");
+    }
+    const byId = new Map(
+      catalog.products.map((product) => [product.id, product]),
+    );
+    const products = post.productIds.map((productId) => byId.get(productId));
+    if (products.some((product) => !product)) {
+      throw new SocialError("prices_changed");
+    }
+    const available = products as SocialProduct[];
+    const photos = new Map<string, Buffer>();
+    for (const product of available) {
+      const url =
+        campaign.bundle?.items.find((item) => item.productId === product.id)
+          ?.imageUrl ?? product.imageUrl;
+      photos.set(product.id, await this.deps.loadImage(url));
+    }
+    const planned = fromStoredCampaign(campaign, {
+      scheduledFor: post.scheduledFor ?? this.now(),
+      productIds: post.productIds,
+    });
+    return this.deps.renderCampaignExport(
+      {
+        type: campaign.type,
+        layout: campaign.layout,
+        pose: campaign.pose,
+        copy: campaignCopy(planned, this.captionContext(catalog), available),
+        bundle: campaign.bundle,
+        tipId: campaign.tipId,
+        photos,
+        product:
+          campaign.layout === "product_spotlight" && available[0]
+            ? {
+                id: available[0].id,
+                name: available[0].name,
+                priceLabel: formatSocialPrice(available[0]),
+                categoryName: available[0].categoryName || null,
+              }
+            : null,
+        store: catalog.store,
+      },
+      format,
+    );
   }
 
   /**
@@ -2615,14 +2717,27 @@ export class SocialService {
     if (products.some((product) => !product)) {
       throw new SocialError("invalid");
     }
-    return buildStoryboard({
-      concept: input.concept as ReelConcept,
-      seconds: input.seconds as ReelLength,
-      products: products as SocialProduct[],
-      store: catalog.store,
-      origin: this.deps.origin,
-      dropScenes: input.dropScenes,
-    });
+    try {
+      return buildStoryboard({
+        concept: input.concept as ReelConcept,
+        seconds: input.seconds as ReelLength,
+        products: products as SocialProduct[],
+        store: catalog.store,
+        origin: this.deps.origin,
+        ...reelChoices(input),
+      });
+    } catch (error) {
+      if (error instanceof Error && error.message === "REEL_TEXT_REJECTED") {
+        throw new SocialError("reel_text_rejected");
+      }
+      if (error instanceof Error && error.message === "REEL_POSE_UNAVAILABLE") {
+        throw new SocialError("reel_pose_unavailable");
+      }
+      if (error instanceof Error && error.message === "REEL_NEEDS_PRODUCT") {
+        throw new SocialError("invalid");
+      }
+      throw error;
+    }
   }
 
   /** Small stills of each scene, rendered here without FFmpeg, as data URLs for the page. */
@@ -2660,7 +2775,7 @@ export class SocialService {
     return new ReelRenderQueue(this.db, this.now).request(
       board,
       actor.id,
-      input.dropScenes ?? [],
+      reelChoices(input),
     );
   }
 
@@ -2680,6 +2795,12 @@ export class SocialService {
       name: product.name,
       categoryName: product.categoryName,
     }));
+  }
+
+  /** The store facts every creative states, for the brand library. */
+  async brandFacts() {
+    const catalog = await this.deps.catalog();
+    return { origin: this.deps.origin, store: catalog.store };
   }
 
   async reelRenders(actor: AdminActor) {

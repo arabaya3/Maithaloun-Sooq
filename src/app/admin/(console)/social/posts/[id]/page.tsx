@@ -345,6 +345,76 @@ export default async function SocialPostPage({
                   </button>
                 </form>
               ) : null}
+              {campaign ? (
+                <details className="social-drawer">
+                  <summary>المقاسات والإعلان</summary>
+                  <p className="admin-muted">
+                    نفس الحملة مركّبة لكل مقاس بأسعار اليوم. للتنزيل فقط؛ لا
+                    يُنشر شيء.
+                  </p>
+                  <ul className="social-exports">
+                    <li>
+                      <a href={post.mediaUrl ?? undefined} download>
+                        منشور طولي 4:5
+                      </a>
+                    </li>
+                    {(
+                      [
+                        ["square", "منشور مربع 1:1"],
+                        ["story", "ستوري 9:16"],
+                      ] as const
+                    ).map(([format, label]) => (
+                      <li key={format}>
+                        <a
+                          href={`/admin/api/social/campaigns/${post.id}/export?format=${format}`}
+                          download
+                        >
+                          {label}
+                        </a>
+                      </li>
+                    ))}
+                    {Array.from(
+                      {
+                        length: campaign.bundle
+                          ? Math.min(campaign.bundle.items.length, 5) + 2
+                          : campaign.layout === "product_spotlight"
+                            ? 3
+                            : 0,
+                      },
+                      (_, index) => (
+                        <li key={`slide-${index}`}>
+                          <a
+                            href={`/admin/api/social/campaigns/${post.id}/export?format=carousel&slide=${index + 1}`}
+                            download
+                          >
+                            كاروسيل: الشريحة {index + 1}
+                          </a>
+                        </li>
+                      ),
+                    )}
+                  </ul>
+                  {post.campaignDetails?.ad ? (
+                    <dl className="social-ad">
+                      <div>
+                        <dt>النص الأساسي</dt>
+                        <dd>{post.campaignDetails.ad.primaryText}</dd>
+                      </div>
+                      <div>
+                        <dt>العنوان</dt>
+                        <dd>{post.campaignDetails.ad.headline}</dd>
+                      </div>
+                      <div>
+                        <dt>الوصف</dt>
+                        <dd>{post.campaignDetails.ad.description}</dd>
+                      </div>
+                      <div>
+                        <dt>الزر</dt>
+                        <dd>تسوّق الآن (SHOP_NOW)</dd>
+                      </div>
+                    </dl>
+                  ) : null}
+                </details>
+              ) : null}
             </section>
           ) : null}
 

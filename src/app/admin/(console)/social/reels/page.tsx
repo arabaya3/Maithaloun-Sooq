@@ -15,8 +15,14 @@ import {
   reelConceptLabels,
   reelConcepts,
   reelLengths,
+  MAX_REEL_TEXT,
   type StoryScene,
 } from "@/features/social/domain/reels";
+import {
+  mascotLibrary,
+  mascotPoseIds,
+  poseIsUsable,
+} from "@/features/social/domain/mascot";
 import { RenderRefresh } from "@/features/social/ui/render-refresh";
 import {
   SocialNav,
@@ -71,6 +77,9 @@ export default async function SocialReelsPage({
     seconds: Number(first(params.seconds) ?? 10),
     productIds: all(params.product).filter(Boolean).slice(0, 3),
     dropScenes: all(params.drop).map(Number).filter(Number.isInteger),
+    pose: first(params.pose) || undefined,
+    hookText: first(params.hookText) || undefined,
+    ctaText: first(params.ctaText) || undefined,
   };
   const [products, renders] = await Promise.all([
     socialService.reelProducts(actor),
@@ -78,18 +87,30 @@ export default async function SocialReelsPage({
   ]);
   let board = null;
   let stills: string[] = [];
-  let boardError = false;
+  let boardError: string | null = null;
   try {
     board = await socialService.reelStoryboard(actor, request);
     stills = await socialService.reelStoryboardStills(board);
   } catch (error) {
     if (!(error instanceof SocialError)) throw error;
-    boardError = true;
+    boardError = error.code;
   }
-  // The full storyboard, before any scene was left out, so dropped scenes can be put back.
-  const fullBoard = board
-    ? await socialService.reelStoryboard(actor, { ...request, dropScenes: [] })
-    : null;
+  // The full storyboard, before any scene was left out or reworded, so edits can be undone.
+  const fullBoard = await socialService
+    .reelStoryboard(actor, {
+      concept: request.concept,
+      seconds: request.seconds,
+      productIds: request.productIds,
+    })
+    .catch(() => null);
+  const defaultHook =
+    fullBoard?.scenes[0]?.layers.find(
+      (layer) => layer.kind === "text" && layer.size === "hook",
+    ) ?? null;
+  const defaultCta =
+    fullBoard?.scenes.at(-1)?.layers.find((layer) => layer.kind === "cta") ??
+    null;
+  const poses = mascotPoseIds.filter((pose) => poseIsUsable(pose));
   const canPrepare = can(actor, "social.prepare");
   const busy = renders.some(
     (render) => render.status === "queued" || render.status === "rendering",
@@ -105,126 +126,205 @@ export default async function SocialReelsPage({
       <SocialNotice done={first(params.done)} error={first(params.error)} />
       <RenderRefresh active={busy} />
 
-      <section className="admin-panel" aria-labelledby="reel-plan-title">
-        <h2 id="reel-plan-title">لوحة الريل</h2>
-        <form method="get" className="admin-form social-create">
-          <label className="admin-field">
-            <span>الفكرة</span>
-            <select
-              name="concept"
-              className="admin-input"
-              defaultValue={request.concept}
-            >
-              {reelConcepts.map((concept) => (
-                <option key={concept} value={concept}>
-                  {reelConceptLabels[concept]}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="admin-field">
-            <span>المدة</span>
-            <select
-              name="seconds"
-              className="admin-input"
-              defaultValue={String(request.seconds)}
-            >
-              {reelLengths.map((seconds) => (
-                <option key={seconds} value={seconds}>
-                  {seconds} ثانية
-                </option>
-              ))}
-            </select>
-          </label>
-          {[0, 1, 2].map((slot) => (
-            <label key={slot} className="admin-field">
-              <span>منتج {slot + 1}</span>
+      <div className="social-studio">
+        <aside
+          className="admin-panel social-side"
+          aria-labelledby="reel-settings-title"
+        >
+          <h2 id="reel-settings-title">إعدادات الريل</h2>
+          <form method="get" className="admin-form social-side-form">
+            <label className="admin-field">
+              <span>الفكرة</span>
               <select
-                name="product"
+                name="concept"
                 className="admin-input"
-                defaultValue={request.productIds[slot] ?? ""}
+                defaultValue={request.concept}
               >
-                <option value="">بدون</option>
-                {products.map((product) => (
-                  <option key={product.id} value={product.id}>
-                    {product.name}
+                {reelConcepts.map((concept) => (
+                  <option key={concept} value={concept}>
+                    {reelConceptLabels[concept]}
                   </option>
                 ))}
               </select>
             </label>
-          ))}
-          {fullBoard && fullBoard.scenes.length > 3 ? (
-            <fieldset className="admin-field social-scenes">
-              <legend>المشاهد الوسطى</legend>
-              {fullBoard.scenes.map((scene, index) =>
-                index === 0 || index === fullBoard.scenes.length - 1 ? null : (
-                  <label key={index}>
+            <label className="admin-field">
+              <span>المدة</span>
+              <select
+                name="seconds"
+                className="admin-input"
+                defaultValue={String(request.seconds)}
+              >
+                {reelLengths.map((seconds) => (
+                  <option key={seconds} value={seconds}>
+                    {seconds} ثانية
+                  </option>
+                ))}
+              </select>
+            </label>
+            {[0, 1, 2].map((slot) => (
+              <label key={slot} className="admin-field">
+                <span>منتج {slot + 1}</span>
+                <select
+                  name="product"
+                  className="admin-input"
+                  defaultValue={request.productIds[slot] ?? ""}
+                >
+                  <option value="">بدون</option>
+                  {products.map((product) => (
+                    <option key={product.id} value={product.id}>
+                      {product.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ))}
+            <label className="admin-field">
+              <span>وضعية ميثو</span>
+              <select
+                name="pose"
+                className="admin-input"
+                defaultValue={request.pose ?? ""}
+              >
+                <option value="">كما في الفكرة</option>
+                {poses.map((pose) => (
+                  <option key={pose} value={pose}>
+                    {mascotLibrary[pose].labelAr}
+                    {mascotLibrary[pose].status === "small_only"
+                      ? " (صغير)"
+                      : ""}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="admin-field">
+              <span>جملة الافتتاح</span>
+              <input
+                name="hookText"
+                className="admin-input"
+                maxLength={MAX_REEL_TEXT}
+                defaultValue={request.hookText ?? ""}
+                placeholder={
+                  defaultHook && defaultHook.kind === "text"
+                    ? defaultHook.text
+                    : ""
+                }
+              />
+            </label>
+            <label className="admin-field">
+              <span>الدعوة للطلب</span>
+              <input
+                name="ctaText"
+                className="admin-input"
+                maxLength={MAX_REEL_TEXT}
+                defaultValue={request.ctaText ?? ""}
+                placeholder={
+                  defaultCta && defaultCta.kind === "cta" ? defaultCta.text : ""
+                }
+              />
+              <small className="admin-muted">
+                بدون أسعار أو أرقام أو عروض؛ الأسعار تأتي من المتجر.
+              </small>
+            </label>
+            {fullBoard && fullBoard.scenes.length > 3 ? (
+              <fieldset className="admin-field social-scenes">
+                <legend>المشاهد الوسطى</legend>
+                {fullBoard.scenes.map((scene, index) =>
+                  index === 0 ||
+                  index === fullBoard.scenes.length - 1 ? null : (
+                    <label key={index}>
+                      <input
+                        type="checkbox"
+                        name="drop"
+                        value={index}
+                        defaultChecked={request.dropScenes.includes(index)}
+                      />{" "}
+                      احذفي المشهد {index + 1} ({roleLabels[scene.role]})
+                    </label>
+                  ),
+                )}
+              </fieldset>
+            ) : null}
+            <button type="submit" className="admin-btn admin-btn-secondary">
+              اعرضي اللوحة
+            </button>
+          </form>
+        </aside>
+
+        <section
+          className="admin-panel social-studio-main"
+          aria-labelledby="reel-plan-title"
+        >
+          <h2 id="reel-plan-title">لوحة الريل</h2>
+
+          {boardError || !board ? (
+            <p className="admin-note" role="status">
+              <AlertTriangle size={16} aria-hidden="true" />{" "}
+              {boardError === "reel_text_rejected"
+                ? "النص المكتوب غير مقبول: بحدود ٦٠ حرفاً، بدون أسعار أو أرقام أو عروض أو ادعاءات."
+                : boardError === "reel_pose_unavailable"
+                  ? "وضعية ميثو هذه غير معتمدة للريل بعد."
+                  : "لا يمكن بناء هذه اللوحة: هذه الفكرة تحتاج منتجاً، أو منتج غير متوفر."}
+            </p>
+          ) : (
+            <>
+              <p className="admin-muted">
+                {board.titleAr} · {board.seconds} ثانية · {board.scenes.length}{" "}
+                مشاهد · 1080×1920 · بدون صوت معلّق
+              </p>
+              <ol className="social-storyboard">
+                {board.scenes.map((scene, index) => (
+                  <li key={index}>
+                    {stills[index] ? (
+                      // eslint-disable-next-line @next/next/no-img-element -- a generated data URL
+                      <img
+                        src={stills[index]}
+                        alt={`المشهد ${index + 1}`}
+                        width={270}
+                        height={480}
+                      />
+                    ) : null}
+                    <span>
+                      {index + 1}. {roleLabels[scene.role]} ·{" "}
+                      {scene.seconds.toFixed(1)} ث
+                    </span>
+                  </li>
+                ))}
+              </ol>
+              {canPrepare ? (
+                <form action={requestReelRenderAction}>
+                  <input type="hidden" name="concept" value={board.concept} />
+                  <input type="hidden" name="seconds" value={board.seconds} />
+                  {request.productIds.map((id) => (
+                    <input key={id} type="hidden" name="product" value={id} />
+                  ))}
+                  {request.dropScenes.map((index) => (
                     <input
-                      type="checkbox"
+                      key={index}
+                      type="hidden"
                       name="drop"
                       value={index}
-                      defaultChecked={request.dropScenes.includes(index)}
-                    />{" "}
-                    احذفي المشهد {index + 1} ({roleLabels[scene.role]})
-                  </label>
-                ),
-              )}
-            </fieldset>
-          ) : null}
-          <button type="submit" className="admin-btn admin-btn-secondary">
-            اعرضي اللوحة
-          </button>
-        </form>
-
-        {boardError || !board ? (
-          <p className="admin-note" role="status">
-            <AlertTriangle size={16} aria-hidden="true" /> لا يمكن بناء هذه
-            اللوحة: منتج غير متوفر أو اختيار غير معروف.
-          </p>
-        ) : (
-          <>
-            <p className="admin-muted">
-              {board.titleAr} · {board.seconds} ثانية · {board.scenes.length}{" "}
-              مشاهد · 1080×1920 · بدون صوت معلّق
-            </p>
-            <ol className="social-storyboard">
-              {board.scenes.map((scene, index) => (
-                <li key={index}>
-                  {stills[index] ? (
-                    // eslint-disable-next-line @next/next/no-img-element -- a generated data URL
-                    <img
-                      src={stills[index]}
-                      alt={`المشهد ${index + 1}`}
-                      width={270}
-                      height={480}
                     />
-                  ) : null}
-                  <span>
-                    {index + 1}. {roleLabels[scene.role]} ·{" "}
-                    {scene.seconds.toFixed(1)} ث
-                  </span>
-                </li>
-              ))}
-            </ol>
-            {canPrepare ? (
-              <form action={requestReelRenderAction}>
-                <input type="hidden" name="concept" value={board.concept} />
-                <input type="hidden" name="seconds" value={board.seconds} />
-                {request.productIds.map((id) => (
-                  <input key={id} type="hidden" name="product" value={id} />
-                ))}
-                {request.dropScenes.map((index) => (
-                  <input key={index} type="hidden" name="drop" value={index} />
-                ))}
-                <button type="submit" className="admin-btn admin-btn-primary">
-                  <Clapperboard size={16} aria-hidden="true" /> اطلبي تجهيز
-                  الفيديو
-                </button>
-              </form>
-            ) : null}
-          </>
-        )}
-      </section>
+                  ))}
+                  {(["pose", "hookText", "ctaText"] as const).map((name) =>
+                    request[name] ? (
+                      <input
+                        key={name}
+                        type="hidden"
+                        name={name}
+                        value={request[name]}
+                      />
+                    ) : null,
+                  )}
+                  <button type="submit" className="admin-btn admin-btn-primary">
+                    <Clapperboard size={16} aria-hidden="true" /> اطلبي تجهيز
+                    الفيديو
+                  </button>
+                </form>
+              ) : null}
+            </>
+          )}
+        </section>
+      </div>
 
       <section className="admin-panel" aria-labelledby="reel-renders-title">
         <h2 id="reel-renders-title">الريلز المطلوبة</h2>

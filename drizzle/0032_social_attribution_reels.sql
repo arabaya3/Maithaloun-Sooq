@@ -41,4 +41,7 @@ ALTER TABLE "social_order_attributions" ADD CONSTRAINT "social_order_attribution
 ALTER TABLE "social_reel_renders" ADD CONSTRAINT "social_reel_renders_requested_by_admin_users_id_fk" FOREIGN KEY ("requested_by") REFERENCES "public"."admin_users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 CREATE INDEX "social_order_attributions_post_idx" ON "social_order_attributions" USING btree ("post_id");--> statement-breakpoint
 CREATE INDEX "social_reel_renders_queue_idx" ON "social_reel_renders" USING btree ("status","created_at");--> statement-breakpoint
-CREATE INDEX "social_reel_renders_requested_by_idx" ON "social_reel_renders" USING btree ("requested_by");
+CREATE INDEX "social_reel_renders_requested_by_idx" ON "social_reel_renders" USING btree ("requested_by");--> statement-breakpoint
+ALTER TABLE "social_campaign_visits" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
+ALTER TABLE "social_order_attributions" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
+ALTER TABLE "social_reel_renders" ENABLE ROW LEVEL SECURITY;

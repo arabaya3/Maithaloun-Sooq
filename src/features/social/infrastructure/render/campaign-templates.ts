@@ -6,6 +6,7 @@ import {
 } from "@/features/social/domain/bundles";
 import {
   campaignTypeLabels,
+  itemCount,
   type CampaignCopy,
   type CampaignLayout,
   type CampaignType,
@@ -938,44 +939,393 @@ export function overlaps(a: Box, b: Box): boolean {
 
 export const STORY_EXPORT_WIDTH = 1080;
 export const STORY_EXPORT_HEIGHT = 1920;
-/** Stories cover the top 14% and bottom 20% with the app's own controls. */
-const STORY_SAFE_TOP = 270;
-const STORY_SAFE_BOTTOM = 380;
+/** Stories cover the top 13% and bottom 17% with the app's own controls. */
+const STORY_SAFE_TOP = 250;
+const STORY_SAFE_BOTTOM = 330;
+
+export type CampaignFormat = "square" | "story";
+
+const formatSizes: Record<
+  CampaignFormat,
+  { height: number; top: number; bottom: number; headline: number }
+> = {
+  // 1:1: the same story in less height, with a smaller headline and one row of products.
+  square: { height: 1080, top: 30, bottom: 0, headline: 60 },
+  // 9:16: everything that matters sits between the Story's safe zones.
+  story: {
+    height: STORY_EXPORT_HEIGHT,
+    top: STORY_SAFE_TOP,
+    bottom: STORY_SAFE_BOTTOM,
+    headline: 84,
+  },
+};
 
 /**
- * A campaign as a 9:16 Story: the whole approved 4:5 design, unchanged and scaled to fit between
- * the Story's safe zones, on the brand canvas. Nothing is cropped, so Meetho, prices and the
- * footer stay exactly as the owner reviewed them.
+ * A campaign composed for another shape, from the same approved copy, products and prices: a 1:1
+ * post or a 9:16 Story. The layout is built for the shape (nothing is stretched or cropped), and
+ * Meetho is always in it; when the layout cannot hold him at a readable size it fails with
+ * MASCOT_ARTWORK_REQUIRED.
  */
-export async function campaignStoryExport(feedImage: Buffer): Promise<Buffer> {
-  const room = STORY_EXPORT_HEIGHT - STORY_SAFE_TOP - STORY_SAFE_BOTTOM;
-  const height = Math.min(
-    room,
-    Math.round((FEED_HEIGHT * STORY_EXPORT_WIDTH) / FEED_WIDTH),
+export async function renderCampaignFormat(
+  input: CampaignRenderInput,
+  format: CampaignFormat,
+): Promise<CampaignRender> {
+  const size = formatSizes[format];
+  const width = FEED_WIDTH;
+  const height = size.height;
+  const footerTop = height - size.bottom - 150;
+  const contentTop = size.top + 150;
+  const pose = poseIsUsable(input.pose) ? input.pose : ("presenting" as const);
+
+  // The content is laid out once at full size, as one block: headline, then Meetho in his own
+  // column beside the products (or large, when the campaign is about him), then the total or
+  // price, then the call to action. The block is then fitted between header and footer.
+  const block: Layer[] = [];
+  const blockBoxes: Box[] = [];
+  const head = await headlineBlock(
+    input.copy,
+    { left: 70, top: 0, width: width - 140 },
+    "center",
+    size.headline,
   );
-  const width = Math.round((height * FEED_WIDTH) / FEED_HEIGHT);
-  const art = await sharp(feedImage).resize(width, height).toBuffer();
-  return sharp({
+  block.push(...head.layers);
+  let top = head.bottom + (format === "story" ? 50 : 30);
+  let mascotBox: Box | null = null;
+
+  const items = input.bundle ? input.bundle.items.slice(0, 3) : [];
+  const column = 260;
+  const visualLeft = 70 + column + 30;
+  const visualWidth = width - 70 - visualLeft;
+  if (items.length || input.product) {
+    let rowHeight = 0;
+    if (items.length) {
+      const gap = 24;
+      const tileWidth = Math.min(
+        format === "story" ? 220 : 190,
+        Math.floor((visualWidth - (items.length - 1) * gap) / items.length),
+      );
+      const rowWidth = items.length * tileWidth + (items.length - 1) * gap;
+      const rowLeft = visualLeft + Math.round((visualWidth - rowWidth) / 2);
+      for (const [index, item] of items.entries()) {
+        const tile = await productTile(
+          item,
+          photoOf(input, item.productId),
+          tileWidth,
+        );
+        // Right-to-left: the first product sits on the right.
+        const left = rowLeft + (items.length - 1 - index) * (tileWidth + gap);
+        block.push({ input: tile.input, left, top });
+        blockBoxes.push({ left, top, width: tileWidth, height: tile.height });
+        rowHeight = Math.max(rowHeight, tile.height);
+      }
+    } else {
+      const photoSize = Math.min(visualWidth, format === "story" ? 600 : 420);
+      const tile = await photoTile(
+        photoOf(input, input.product!.id),
+        photoSize,
+      );
+      const left = visualLeft + Math.round((visualWidth - photoSize) / 2);
+      block.push({ input: tile, left, top });
+      blockBoxes.push({ left, top, width: photoSize, height: photoSize });
+      rowHeight = photoSize;
+    }
+    const art = await mascot(
+      pose,
+      Math.min(rowHeight, format === "story" ? 420 : 340),
+      column,
+    );
+    mascotBox = {
+      left: 70 + Math.round((column - art.width) / 2),
+      top: top + rowHeight - art.height,
+      width: art.width,
+      height: art.height,
+    };
+    block.push({ input: art.input, left: mascotBox.left, top: mascotBox.top });
+    top += rowHeight + 24;
+
+    if (input.bundle) {
+      const hidden = input.bundle.items.length - items.length;
+      if (hidden > 0) {
+        // A count word, not a digit: «و2» would be reordered by the bidi algorithm.
+        const more = await arabic(`و${itemCount(hidden)} كمان بالسلة`, {
+          size: 28,
+          weight: "semibold",
+          color: brand.muted,
+          width: 600,
+          align: "center",
+        });
+        block.push(placeText(more, { left: 240, top, width: 600 }, "center"));
+        top += more.height + 12;
+      }
+      const total = await totalBand(input.bundle, input, top);
+      block.push(...total.layers);
+      blockBoxes.push(total.box);
+      top = total.box.top + total.box.height + 28;
+    } else {
+      const price = await arabic(input.product!.priceLabel, {
+        size: 48,
+        weight: "heavy",
+        color: brand.green,
+        width: 900,
+        align: "center",
+      });
+      const box = { left: 90, top, width: 900, height: price.height };
+      block.push(placeText(price, box, "center"));
+      blockBoxes.push(box);
+      top += price.height + 24;
+    }
+  } else {
+    // A campaign about Meetho or the store: he takes the stage under the headline.
+    const art = await mascot(pose, format === "story" ? 600 : 400, width - 200);
+    mascotBox = {
+      left: Math.round((width - art.width) / 2),
+      top,
+      width: art.width,
+      height: art.height,
+    };
+    block.push({ input: art.input, left: mascotBox.left, top });
+    top += art.height + 28;
+  }
+  const cta = await ctaPill(input.copy.cta, width / 2, top);
+  block.push(...cta.layers);
+  blockBoxes.push(cta.box);
+  const blockHeight = cta.box.top + cta.box.height;
+
+  // Fitted between the header and the footer: shrunk only when it would not fit, never enlarged.
+  const room = footerTop - 20 - contentTop;
+  const scale = Math.min(1, room / blockHeight);
+  if (scale < 0.7) throw new Error("MASCOT_ARTWORK_REQUIRED");
+  const blockImage = await sharp({
     create: {
-      width: STORY_EXPORT_WIDTH,
-      height: STORY_EXPORT_HEIGHT,
+      width,
+      height: blockHeight,
       channels: 4,
-      background: brand.canvas,
+      background: { r: 0, g: 0, b: 0, alpha: 0 },
     },
   })
-    .composite([
-      {
-        input: leafDecoration(STORY_EXPORT_WIDTH, STORY_EXPORT_HEIGHT),
-        left: 0,
-        top: 0,
-      },
-      {
-        input: art,
-        left: Math.round((STORY_EXPORT_WIDTH - width) / 2),
-        top: STORY_SAFE_TOP + Math.round((room - height) / 2),
-      },
-    ])
+    .composite(block)
+    .png()
+    .toBuffer();
+  const scaledWidth = Math.round(width * scale);
+  const scaledHeight = Math.round(blockHeight * scale);
+  const offsetLeft = Math.round((width - scaledWidth) / 2);
+  const offsetTop = contentTop + Math.round((room - scaledHeight) / 2);
+  const place = (box: Box): Box => ({
+    left: offsetLeft + Math.round(box.left * scale),
+    top: offsetTop + Math.round(box.top * scale),
+    width: Math.round(box.width * scale),
+    height: Math.round(box.height * scale),
+  });
+
+  const layers: Layer[] = [
+    { input: leafDecoration(width, height), left: 0, top: 0 },
+    // Under a Story's reply bar: the footer's green continues to the edge.
+    ...(size.bottom
+      ? [
+          {
+            input: roundedRect(
+              width,
+              size.bottom + 10,
+              0,
+              brand.green,
+              brand.green,
+            ),
+            left: 0,
+            top: height - size.bottom - 10,
+          },
+        ]
+      : []),
+    ...(await header(width, size.top, campaignTypeLabels[input.type])),
+    {
+      input:
+        scale < 1
+          ? await sharp(blockImage).resize(scaledWidth, scaledHeight).toBuffer()
+          : blockImage,
+      left: offsetLeft,
+      top: offsetTop,
+    },
+    ...(await footer(
+      width,
+      height - size.bottom,
+      input.store,
+      input.siteLabel,
+      150,
+    )),
+  ];
+  const image = await sharp({
+    create: { width, height, channels: 4, background: brand.canvas },
+  })
+    .composite(layers)
     .flatten({ background: brand.canvas })
     .jpeg({ quality: 88, mozjpeg: true })
     .toBuffer();
+  return {
+    image,
+    mascotBox: place(mascotBox),
+    protectedBoxes: [
+      ...blockBoxes.map(place),
+      { left: 0, top: footerTop, width, height: 150 },
+    ],
+  };
+}
+
+/**
+ * A carousel for a campaign with products: a cover with the hook and Meetho, one slide per
+ * product with its photo and real price, and a closing slide with the total, delivery facts and
+ * the call to action. Every slide is 1080×1350. Campaigns without products have no carousel.
+ */
+export async function renderCampaignCarousel(
+  input: CampaignRenderInput,
+): Promise<Buffer[] | null> {
+  const items: Array<{ id: string; name: string; price: string }> = input.bundle
+    ? input.bundle.items.map((item) => ({
+        id: item.productId,
+        name: item.name,
+        price: formatIls(item.priceAgorot),
+      }))
+    : input.product
+      ? [
+          {
+            id: input.product.id,
+            name: input.product.name,
+            price: input.product.priceLabel,
+          },
+        ]
+      : [];
+  if (!items.length) return null;
+  const pose = poseIsUsable(input.pose) ? input.pose : ("presenting" as const);
+  const shown = items.slice(0, 5);
+  const slide = async (layers: Layer[]) =>
+    sharp({
+      create: {
+        width: FEED_WIDTH,
+        height: FEED_HEIGHT,
+        channels: 4,
+        background: brand.canvas,
+      },
+    })
+      .composite([
+        { input: leafDecoration(FEED_WIDTH, FEED_HEIGHT), left: 0, top: 0 },
+        ...(await header(FEED_WIDTH, 40, campaignTypeLabels[input.type])),
+        ...layers,
+        ...(await footer(
+          FEED_WIDTH,
+          FEED_HEIGHT,
+          input.store,
+          input.siteLabel,
+        )),
+      ])
+      .flatten({ background: brand.canvas })
+      .jpeg({ quality: 88, mozjpeg: true })
+      .toBuffer();
+  const slides: Buffer[] = [];
+
+  // Cover: the hook, Meetho presenting, and a nudge to swipe.
+  const cover: Layer[] = [];
+  const head = await headlineBlock(
+    input.copy,
+    { left: 70, top: 200, width: 940 },
+    "center",
+    80,
+  );
+  cover.push(...head.layers);
+  const art = await mascot(pose, FOOTER_TOP - head.bottom - 130, 700);
+  cover.push({
+    input: art.input,
+    left: Math.round((FEED_WIDTH - art.width) / 2),
+    top: FOOTER_TOP - art.height - 80,
+  });
+  // Words only: the brand font has no arrow glyph.
+  const swipe = await arabic("اسحبوا لتشوفوا كل غرض", {
+    size: 32,
+    weight: "bold",
+    color: brand.green,
+    width: 600,
+    align: "center",
+  });
+  cover.push(
+    placeText(swipe, { left: 240, top: FOOTER_TOP - 64, width: 600 }, "center"),
+  );
+  slides.push(await slide(cover));
+
+  // One slide per product.
+  for (const [index, item] of shown.entries()) {
+    const layers: Layer[] = [];
+    const count = await arabic(`${index + 1} من ${shown.length}`, {
+      size: 28,
+      weight: "semibold",
+      color: brand.muted,
+      width: 300,
+      align: "center",
+    });
+    layers.push(
+      placeText(count, { left: 390, top: 190, width: 300 }, "center"),
+    );
+    const tile = await photoTile(photoOf(input, item.id), 680);
+    layers.push({ input: tile, left: 200, top: 245 });
+    const name = await arabic(shortProductName(item.name), {
+      size: 44,
+      weight: "heavy",
+      color: brand.text,
+      width: 900,
+      align: "center",
+      maxHeight: 120,
+    });
+    layers.push(placeText(name, { left: 90, top: 950, width: 900 }, "center"));
+    const price = await arabic(item.price, {
+      size: 52,
+      weight: "heavy",
+      color: brand.green,
+      width: 900,
+      align: "center",
+    });
+    layers.push(
+      placeText(
+        price,
+        { left: 90, top: 960 + name.height + 10, width: 900 },
+        "center",
+      ),
+    );
+    slides.push(await slide(layers));
+  }
+
+  // Closing: the total (for a bundle) or the delivery facts, the call to action and Meetho.
+  const close: Layer[] = [];
+  let top = 230;
+  if (input.bundle) {
+    const total = await totalBand(input.bundle, input, top);
+    close.push(...total.layers);
+    top = total.box.top + total.box.height + 40;
+  } else {
+    const facts = await arabic(
+      `توصيل داخل ${input.store.deliveryAreaAr} · مجاني من ${formatIls(input.store.freeDeliveryFromAgorot)}${input.store.cashOnDelivery ? " · الدفع عند الاستلام" : ""}`,
+      {
+        size: 38,
+        weight: "bold",
+        color: brand.green,
+        width: 920,
+        align: "center",
+        maxHeight: 200,
+      },
+    );
+    close.push(placeText(facts, { left: 80, top, width: 920 }, "center"));
+    top += facts.height + 40;
+  }
+  const cta = await ctaPill(input.copy.cta, FEED_WIDTH / 2, top);
+  close.push(...cta.layers);
+  top = cta.box.top + cta.box.height + 30;
+  const closing = await mascot(pose, Math.min(FOOTER_TOP - top - 20, 520), 700);
+  close.push({
+    input: closing.input,
+    left: Math.round((FEED_WIDTH - closing.width) / 2),
+    top,
+  });
+  // The group sits in the middle of the free space instead of leaving a gap above Meetho.
+  const shift = Math.max(
+    0,
+    Math.floor((FOOTER_TOP - (top + closing.height) - 20) / 2),
+  );
+  for (const layer of close) layer.top = (layer.top ?? 0) + shift;
+  slides.push(await slide(close));
+  return slides;
 }

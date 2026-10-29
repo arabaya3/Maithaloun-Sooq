@@ -99,7 +99,7 @@ test.describe("Creative Studio campaigns", () => {
     await expect(panel.getByText("كيف بنشتغل", { exact: true })).toBeVisible();
     await expect(
       panel.getByRole("textbox", { name: /رابط متتبَّع/ }),
-    ).toHaveValue(/utm_campaign=trust-how-it-works-/);
+    ).toHaveValue(/utm_campaign=mc-[0-9a-f]{12}$/);
     const hooks = panel.getByRole("radio");
     await expect(hooks).toHaveCount(3);
     await hooks.nth(1).check();
@@ -140,6 +140,95 @@ test.describe("Creative Studio campaigns", () => {
     await page.goto(`/admin/social/posts/${first!.id}`);
     await expect(page.getByRole("region", { name: /^الحملة:/ })).toBeVisible();
     await expectNoHorizontalOverflow(page);
+  });
+});
+
+test.describe("Creative Studio: Reels, gallery, brand and results", () => {
+  test("the owner shapes a Reel and asks for a render once; nothing is posted", async ({
+    page,
+  }) => {
+    const issues = trackPageIssues(page);
+    await withTestDb(async (sql) => {
+      await sql`delete from social_reel_renders`;
+      await sql`delete from social_posts`;
+    });
+    await page.setViewportSize({ width: 390, height: 844 });
+    await login(page);
+    await page.goto("/admin/social/reels");
+    await expect(
+      page.getByRole("heading", { name: "لوحة الريل" }),
+    ).toBeVisible();
+    // The storyboard is drawn before any render: one still per scene.
+    await expect(page.locator(".social-storyboard img").first()).toBeVisible();
+    await expectNoHorizontalOverflow(page);
+    await expectAccessible(page);
+
+    // Prices and offers are refused in the owner's words.
+    const settings = page.getByRole("complementary", { name: "إعدادات الريل" });
+    await settings.getByLabel("جملة الافتتاح").fill("خصم على كل إشي");
+    await settings.getByRole("button", { name: "اعرضي اللوحة" }).click();
+    await expect(page.getByText(/النص المكتوب غير مقبول/)).toBeVisible();
+
+    await settings.getByLabel("جملة الافتتاح").fill("أهلا من ميثو");
+    await settings.getByLabel("وضعية ميثو").selectOption("wave");
+    await settings.getByRole("button", { name: "اعرضي اللوحة" }).click();
+    await page.getByRole("button", { name: "اطلبي تجهيز الفيديو" }).click();
+    await expect(page.getByText(/طُلب تجهيز الريل/)).toBeVisible();
+    await expect(page.getByText("بانتظار عامل الفيديو")).toBeVisible();
+
+    // The same storyboard again: no second render.
+    await settings.getByLabel("جملة الافتتاح").fill("أهلا من ميثو");
+    await settings.getByLabel("وضعية ميثو").selectOption("wave");
+    await settings.getByRole("button", { name: "اعرضي اللوحة" }).click();
+    await page.getByRole("button", { name: "اطلبي تجهيز الفيديو" }).click();
+    await expect(page.getByText(/مطلوب من قبل/)).toBeVisible();
+    const [renders, posts] = await withTestDb(async (sql) => [
+      await sql<
+        { status: string; storyboard: { choices: { pose: string } } }[]
+      >`
+        select status, storyboard from social_reel_renders`,
+      await sql`select id from social_posts`,
+    ]);
+    expect(renders).toHaveLength(1);
+    expect(renders[0]).toMatchObject({
+      status: "queued",
+      storyboard: { choices: { pose: "wave", hookText: "أهلا من ميثو" } },
+    });
+    expect(posts).toHaveLength(0);
+    expect(issues.consoleErrors).toEqual([]);
+  });
+
+  test("gallery, brand library and campaign results read clearly on a phone", async ({
+    page,
+  }) => {
+    const issues = trackPageIssues(page);
+    await page.setViewportSize({ width: 390, height: 844 });
+    await login(page);
+    await page.goto("/admin/social/gallery");
+    await expect(
+      page.getByRole("heading", { name: "معرض التصاميم" }),
+    ).toBeVisible();
+    await expectNoHorizontalOverflow(page);
+    await expectAccessible(page);
+
+    await page.goto("/admin/social/brand");
+    await expect(page.getByRole("heading", { name: "ميثو" })).toBeVisible();
+    await expect(page.getByText("موقوفة للمراجعة")).toBeVisible();
+    await expect(
+      page.getByRole("img", { name: "ميثو يقدّم ويحمل كيس مايثا" }),
+    ).toBeVisible();
+    await expectNoHorizontalOverflow(page);
+    await expectAccessible(page);
+
+    await page.goto("/admin/social/analytics");
+    const results = page.getByRole("region", {
+      name: "نتائج الحملات من الروابط المتتبَّعة",
+    });
+    await expect(results).toBeVisible();
+    // No tracked visits yet: no invented numbers.
+    await expect(results.getByText(/بيانات غير كافية/).first()).toBeVisible();
+    await expectNoHorizontalOverflow(page);
+    expect(issues.consoleErrors).toEqual([]);
   });
 });
 

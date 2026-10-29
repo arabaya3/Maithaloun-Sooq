@@ -27,7 +27,10 @@ export type MascotPoseStatus =
   | "small_only"
   /** Artwork exists but must not be used until the owner reviews it. */
   | "blocked"
-  /** No artwork yet: campaigns that would use it go out without the mascot. */
+  /**
+   * No artwork yet: a campaign planned with it uses the approved presenting pose when that fits,
+   * and is flagged as needing artwork (MASCOT_ARTWORK_REQUIRED) when nothing approved fits.
+   */
   | "artwork_required";
 
 export interface MascotPoseInfo {
@@ -131,6 +134,9 @@ export function poseIsUsable(pose: MascotPose | null): pose is MascotPose {
 /** Largest on-image height a pose may take: small crops at most 1.6× their source, never enlarged further. */
 export function maxPoseHeight(pose: MascotPose, wanted: number): number {
   const info = mascotLibrary[pose];
-  if (info.status === "approved") return wanted;
+  // Approved art is drawn up to its own size, never enlarged past it.
+  if (info.status === "approved") {
+    return Math.min(wanted, info.sourceHeight ?? wanted);
+  }
   return Math.min(wanted, Math.floor((info.sourceHeight ?? 0) * 1.6));
 }

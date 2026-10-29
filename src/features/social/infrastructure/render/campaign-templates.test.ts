@@ -12,9 +12,11 @@ import {
 import type { StoreFacts } from "@/features/social/domain/social-catalog";
 
 import {
-  campaignStoryExport,
   overlaps,
+  renderCampaignCarousel,
+  renderCampaignFormat,
   renderCampaignImage,
+  type CampaignRenderInput,
 } from "./campaign-templates";
 
 const store: StoreFacts = {
@@ -78,7 +80,7 @@ async function render(angle: CampaignAngle, count: number) {
     usageNotes: null,
     variants: [],
   };
-  return renderCampaignImage({
+  const input: CampaignRenderInput = {
     type: angle.type,
     layout: angle.layout,
     pose: angle.pose,
@@ -103,7 +105,8 @@ async function render(angle: CampaignAngle, count: number) {
         : null,
     store,
     siteLabel: "www.maytha.app",
-  });
+  };
+  return { input, ...(await renderCampaignImage(input)) };
 }
 
 describe("shortProductName", () => {
@@ -148,16 +151,42 @@ describe.skipIf(process.platform === "win32")("campaign images", () => {
       }, 30_000);
     }
   }
-  it("exports a campaign as a 9:16 Story without cropping it", async () => {
-    const result = await render(campaignAngles[0]!, 3);
-    const story = await campaignStoryExport(result.image);
-    const meta = await sharp(story).metadata();
-    expect([meta.width, meta.height, meta.format]).toEqual([
-      1080,
-      1920,
-      "jpeg",
-    ]);
-  }, 30_000);
+  for (const angle of campaignAngles) {
+    const count =
+      angle.needs === "nothing" ||
+      angle.needs === "tip" ||
+      angle.needs === "product"
+        ? 0
+        : 5;
+    it(`${angle.id}: square and Story are composed for their shape, with Meetho clear of the content`, async () => {
+      const { input } = await render(angle, count);
+      for (const [format, height] of [
+        ["square", 1080],
+        ["story", 1920],
+      ] as const) {
+        const result = await renderCampaignFormat(input, format);
+        const meta = await sharp(result.image).metadata();
+        expect([meta.width, meta.height], format).toEqual([1080, height]);
+        expect(result.mascotBox, format).not.toBeNull();
+        for (const box of result.protectedBoxes) {
+          expect(
+            overlaps(result.mascotBox!, box),
+            `${format} ${JSON.stringify(box)}`,
+          ).toBe(false);
+          expect(box.top + box.height, format).toBeLessThanOrEqual(height);
+        }
+      }
+      const slides = await renderCampaignCarousel(input);
+      if (input.bundle || input.product) {
+        const products = input.bundle ? input.bundle.items.length : 1;
+        expect(slides).toHaveLength(Math.min(products, 5) + 2);
+        const meta = await sharp(slides![0]!).metadata();
+        expect([meta.width, meta.height]).toEqual([1080, 1350]);
+      } else {
+        expect(slides).toBeNull();
+      }
+    }, 60_000);
+  }
 
   it("falls back to the approved presenting pose when the planned pose is not usable", async () => {
     const angle = campaignAngles.find((a) => a.layout === "mascot_hero")!;

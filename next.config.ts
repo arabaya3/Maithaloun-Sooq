@@ -29,6 +29,7 @@ const nextConfig: NextConfig = {
   outputFileTracingIncludes: {
     "/admin/social": socialRenderAssets,
     "/admin/social/**": socialRenderAssets,
+    "/admin/api/social/**": socialRenderAssets,
     "/api/cron/social": socialRenderAssets,
   },
   images: {

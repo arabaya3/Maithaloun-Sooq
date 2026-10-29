@@ -11,7 +11,11 @@ import type {
   StoryRenderInput,
 } from "@/features/social/infrastructure/render/storyboard-video";
 
-import { ReelRenderQueue, storyboardKey } from "./reel-render-queue";
+import {
+  ReelRenderQueue,
+  storyboardKey,
+  type ReelChoices,
+} from "./reel-render-queue";
 
 /**
  * The render-only worker's job: render what the owner asked for and store the video. It has no
@@ -53,7 +57,7 @@ export async function runReelRenders(
     const { render, token } = claimed;
     try {
       const stored = render.storyboard as unknown as Storyboard & {
-        dropScenes?: number[];
+        choices?: ReelChoices;
       };
       const products = render.productIds.map((id) =>
         catalog.products.find((product) => product.id === id),
@@ -68,7 +72,7 @@ export async function runReelRenders(
         products: products as NonNullable<(typeof products)[number]>[],
         store: catalog.store,
         origin: deps.origin,
-        dropScenes: stored.dropScenes ?? [],
+        ...(stored.choices ?? {}),
       });
       if (storyboardKey(board) !== render.storyboardKey) {
         throw new Error("CATALOG_CHANGED");

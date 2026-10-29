@@ -3,7 +3,16 @@ import { createHash, randomUUID } from "node:crypto";
 import { and, desc, eq, gte, lt, sql } from "drizzle-orm";
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 
-import type { Storyboard } from "@/features/social/domain/reels";
+import type {
+  Storyboard,
+  StoryboardInput,
+} from "@/features/social/domain/reels";
+
+/** What the owner chose beyond concept, length and products; stored so the worker rebuilds it. */
+export type ReelChoices = Pick<
+  StoryboardInput,
+  "dropScenes" | "pose" | "hookText" | "ctaText"
+>;
 import * as schema from "@/server/db/schema";
 
 type Database = PostgresJsDatabase<typeof schema>;
@@ -35,7 +44,7 @@ export class ReelRenderQueue {
   async request(
     board: Storyboard,
     requestedBy: string | null,
-    dropScenes: readonly number[] = [],
+    choices: ReelChoices = {},
   ): Promise<{ id: string; created: boolean }> {
     const key = storyboardKey(board);
     const [inserted] = await this.db
@@ -46,7 +55,7 @@ export class ReelRenderQueue {
         productIds: board.productIds,
         // The scene choice travels with the storyboard, so the worker can rebuild it from the
         // catalog of the day and refuse to render prices that have since changed.
-        storyboard: { ...board, dropScenes: [...dropScenes] },
+        storyboard: { ...board, choices },
         storyboardKey: key,
         requestedBy,
       })

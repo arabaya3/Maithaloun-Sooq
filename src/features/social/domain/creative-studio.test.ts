@@ -12,6 +12,10 @@ import {
   planCampaigns,
   plannableTypes,
   bundlePrices,
+  adCopy,
+  AD_DESCRIPTION_MAX,
+  AD_HEADLINE_MAX,
+  AD_PRIMARY_TEXT_MAX,
 } from "./campaigns";
 import { mascotLibrary, maxPoseHeight, poseIsUsable } from "./mascot";
 import {
@@ -91,7 +95,9 @@ describe("ميثو's pose library", () => {
     expect(poseIsUsable("shopping")).toBe(false);
     expect(poseIsUsable("laundry")).toBe(false);
     expect(poseIsUsable(null)).toBe(false);
-    expect(maxPoseHeight("presenting", 700)).toBe(700);
+    // Approved art is never enlarged past its source either.
+    expect(maxPoseHeight("presenting", 500)).toBe(500);
+    expect(maxPoseHeight("presenting", 700)).toBe(635);
     expect(maxPoseHeight("wave", 700)).toBe(Math.floor(154 * 1.6));
   });
 
@@ -300,5 +306,33 @@ describe("Reels storyboards", () => {
         origin,
       }),
     ).toThrow("REEL_NEEDS_PRODUCT");
+  });
+});
+
+describe("ad-ready copy", () => {
+  it("reuses the approved words within Meta's lengths, never cutting a word", () => {
+    const ad = adCopy(
+      {
+        headline: "كل أغراض التنظيف بطلب واحد لحد باب البيت في ميثلون",
+        subline: "اختاروا من الموقع ومنوصّل",
+        cta: "اطلبوا الآن",
+        caption:
+          "سلة البيت كاملة من مايثا ماركت 🧺\nكل اللي بتحتاجوه للجلي والغسيل والأرضيات بمكان واحد، والتوصيل لحد الباب داخل ميثلون والدفع عند الاستلام.\nhttps://www.maytha.app/?utm_campaign=mc-0123456789ab\n#مايثا_ماركت",
+      },
+      "https://www.maytha.app/?utm_campaign=mc-0123456789ab",
+    );
+    expect(ad.primaryText.length).toBeLessThanOrEqual(AD_PRIMARY_TEXT_MAX);
+    expect(ad.headline.length).toBeLessThanOrEqual(AD_HEADLINE_MAX);
+    expect(ad.description.length).toBeLessThanOrEqual(AD_DESCRIPTION_MAX);
+    expect(ad.primaryText).not.toContain("http");
+    expect(ad.primaryText).not.toContain("#");
+    expect(ad.headline.endsWith("…")).toBe(true);
+    // Every word kept is a whole word of the original.
+    for (const word of ad.headline.replace("…", "").split(" ")) {
+      expect("كل أغراض التنظيف بطلب واحد لحد باب البيت في ميثلون").toContain(
+        word,
+      );
+    }
+    expect(ad.link).toContain("mc-0123456789ab");
   });
 });

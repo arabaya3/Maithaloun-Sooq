@@ -45,8 +45,10 @@ const tabs = [
   { href: "/admin/social/queue?status=published", label: "المنشور" },
   { href: "/admin/social/queue?status=failed", label: "الفاشل" },
   { href: "/admin/social/inbox", label: "التعليقات" },
+  { href: "/admin/social/gallery", label: "المعرض" },
   { href: "/admin/social/reels", label: "الريلز" },
   { href: "/admin/social/analytics", label: "التحليلات" },
+  { href: "/admin/social/brand", label: "الهوية" },
   { href: "/admin/social/settings", label: "الإعدادات" },
 ];
 
@@ -228,6 +230,10 @@ const doneMessages: Record<string, string> = {
 
 const errorMessages: Record<string, string> = {
   not_found: "المنشور غير موجود.",
+  reel_text_rejected:
+    "النص المكتوب غير مقبول: بحدود ٦٠ حرفاً، بدون أسعار أو أرقام (تأتي من المتجر)، وبدون عروض أو خصومات أو ادعاءات تحتاج إثبات.",
+  reel_pose_unavailable:
+    "وضعية ميثو هذه غير معتمدة بعد بحجم يناسب الريل. اختاري وضعية معتمدة.",
   stale: "تغيّر المنشور منذ فتحتِ الصفحة. حدّثيها وأعيدي المحاولة.",
   invalid: "لا يمكن تنفيذ هذا الآن.",
   forbidden: "هذه الخطوة للمالك فقط.",

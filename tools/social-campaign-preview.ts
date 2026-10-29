@@ -28,8 +28,10 @@ import {
 import { httpCatalogSource } from "../src/features/social/infrastructure/catalog-source";
 import { fetchImage } from "../src/features/social/infrastructure/render/brand";
 import {
-  campaignStoryExport,
+  renderCampaignCarousel,
+  renderCampaignFormat,
   renderCampaignImage,
+  type CampaignRenderInput,
 } from "../src/features/social/infrastructure/render/campaign-templates";
 import { addDays, todayInStoreZone } from "../src/shared/lib/store-time";
 
@@ -84,7 +86,7 @@ for (const [index, campaign] of plan.entries()) {
     catalogText(products),
   );
   if (!check.ok) failures += 1;
-  const render = await renderCampaignImage({
+  const input: CampaignRenderInput = {
     type: campaign.type,
     layout: campaign.layout,
     pose: campaign.pose,
@@ -103,14 +105,25 @@ for (const [index, campaign] of plan.entries()) {
         : null,
     store: catalog.store,
     siteLabel: siteLabel(origin),
-  });
+  };
+  const render = await renderCampaignImage(input);
   const file = `${String(index + 1).padStart(2, "0")}-${campaign.angleId}.jpg`;
   await writeFile(path.join(outDir, file), render.image);
-  // The same approved design as a 9:16 Story.
-  await writeFile(
-    path.join(outDir, file.replace(/.jpg$/, "-story.jpg")),
-    await campaignStoryExport(render.image),
-  );
+  // The same campaign composed for the other shapes.
+  const base = file.slice(0, -".jpg".length);
+  for (const format of ["square", "story"] as const) {
+    await writeFile(
+      path.join(outDir, `${base}-${format}.jpg`),
+      (await renderCampaignFormat(input, format)).image,
+    );
+  }
+  const slides = await renderCampaignCarousel(input);
+  for (const [slide, bytes] of (slides ?? []).entries()) {
+    await writeFile(
+      path.join(outDir, `${base}-carousel-${slide + 1}.jpg`),
+      bytes,
+    );
+  }
   report.push(
     `## ${index + 1}. ${campaign.date} ${campaign.time} · ${campaignTypeLabels[campaign.type]} · ${campaign.angleId}`,
     "",

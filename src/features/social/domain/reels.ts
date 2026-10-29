@@ -1,7 +1,8 @@
 import { formatIls } from "@/shared/lib/format-currency";
 
 import { coreProductName, shortProductName } from "./bundles";
-import type { MascotPose } from "./mascot";
+import { isNeutralSentence } from "./caption-guard";
+import { poseIsUsable, type MascotPose } from "./mascot";
 import {
   formatSocialPrice,
   productUrl,
@@ -106,6 +107,29 @@ export interface StoryboardInput {
    * least one middle scene stays, and the Reel keeps its length: the others share the time.
    */
   dropScenes?: readonly number[];
+  /** The owner's Meetho pose for every scene he appears in. Approved artwork only. */
+  pose?: MascotPose;
+  /** The owner's words for the opening line and the call to action. */
+  hookText?: string;
+  ctaText?: string;
+}
+
+/** Longest owner-written line a 1080-wide scene shows without crowding. */
+export const MAX_REEL_TEXT = 60;
+
+/**
+ * Owner-written words on a Reel: short, with no prices (prices come from the catalog only) and
+ * nothing the claims check stops — no offers, discounts, testimonials or unproven claims.
+ */
+export function reelTextProblem(
+  text: string,
+): "too_long" | "not_allowed" | null {
+  const trimmed = text.trim();
+  if (trimmed.length > MAX_REEL_TEXT) return "too_long";
+  if (!trimmed || !isNeutralSentence(trimmed) || /[\d٠-٩]/u.test(trimmed)) {
+    return "not_allowed";
+  }
+  return null;
 }
 
 const site = (origin: string) => origin.replace(/^https?:\/\//, "");
@@ -330,6 +354,35 @@ export function buildStoryboard(input: StoryboardInput): Storyboard {
       { role: "cta", seconds: rest[2]!, background: "green", layers: cta() },
     ];
   }
+  // The owner's edits. Anything the checks refuse stops the storyboard instead of being drawn.
+  if (input.pose !== undefined && !poseIsUsable(input.pose)) {
+    throw new Error("REEL_POSE_UNAVAILABLE");
+  }
+  for (const text of [input.hookText, input.ctaText]) {
+    if (text !== undefined && text.trim() && reelTextProblem(text)) {
+      throw new Error("REEL_TEXT_REJECTED");
+    }
+  }
+  const hookText = input.hookText?.trim();
+  const ctaText = input.ctaText?.trim();
+  scenes = scenes.map((scene, index) => ({
+    ...scene,
+    layers: scene.layers.map((layer) => {
+      if (layer.kind === "mascot" && input.pose) {
+        return { ...layer, pose: input.pose };
+      }
+      if (
+        index === 0 &&
+        hookText &&
+        layer.kind === "text" &&
+        layer.size === "hook"
+      ) {
+        return { ...layer, text: hookText };
+      }
+      if (ctaText && layer.kind === "cta") return { ...layer, text: ctaText };
+      return layer;
+    }),
+  }));
   // A 6-second Reel keeps only the hook and the call to action.
   if (input.seconds <= 6) scenes = [scenes[0]!, scenes.at(-1)!];
   const drop = new Set(input.dropScenes ?? []);

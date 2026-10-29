@@ -3,7 +3,11 @@ import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import type { CatalogSource } from "@/features/social/infrastructure/catalog-source";
 import { mediaStoreFromEnv } from "@/features/social/infrastructure/media-store";
 import { fetchImage } from "@/features/social/infrastructure/render/brand";
-import { renderCampaignImage } from "@/features/social/infrastructure/render/campaign-templates";
+import {
+  renderCampaignCarousel,
+  renderCampaignFormat,
+  renderCampaignImage,
+} from "@/features/social/infrastructure/render/campaign-templates";
 import { renderFeedImage } from "@/features/social/infrastructure/render/image-templates";
 import {
   isFfmpegAvailable,
@@ -93,6 +97,13 @@ export function createSocialService(input: {
       }),
     renderCampaign: async (campaign) =>
       (await renderCampaignImage({ ...campaign, siteLabel: label })).image,
+    renderCampaignExport: async (campaign, format) => {
+      const input = { ...campaign, siteLabel: label };
+      if (format === "carousel") {
+        return (await renderCampaignCarousel(input)) ?? [];
+      }
+      return [(await renderCampaignFormat(input, format)).image];
+    },
     videoRenderingAvailable: isFfmpegAvailable,
     publisherName: choosePublisherName(input.env.SOCIAL_PUBLISHER),
     makePublisher: makePublisherFromEnv(input.env, origin),

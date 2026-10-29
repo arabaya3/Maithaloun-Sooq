@@ -333,6 +333,13 @@ export async function disconnectAction() {
   );
 }
 
+function optionalField(form: FormData, name: string): string | undefined {
+  const value = form.get(name);
+  return typeof value === "string" && value.trim()
+    ? value.slice(0, 200)
+    : undefined;
+}
+
 function reelRequest(form: FormData) {
   return {
     concept: field(form, "concept"),
@@ -344,6 +351,9 @@ function reelRequest(form: FormData) {
       .getAll("drop")
       .map(Number)
       .filter((value) => Number.isInteger(value)),
+    pose: optionalField(form, "pose"),
+    hookText: optionalField(form, "hookText"),
+    ctaText: optionalField(form, "ctaText"),
   };
 }
 

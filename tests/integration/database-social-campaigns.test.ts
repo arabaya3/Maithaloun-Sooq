@@ -127,6 +127,10 @@ function service() {
       rendered.push({ layout: input.layout, footer: input.copy.caption });
       return Buffer.from("campaign-jpg");
     },
+    renderCampaignExport: async (input, format) =>
+      format === "carousel"
+        ? [Buffer.from("cover"), Buffer.from(input.copy.cta)]
+        : [Buffer.from(`${format}:${input.bundle?.totalAgorot ?? ""}`)],
     loadImage: async () => Buffer.from("photo"),
     videoRenderingAvailable: async () => false,
     now: () => clock,
@@ -232,6 +236,37 @@ describe("Creative Studio campaigns (database)", () => {
     const view = await social.view(owner, stale.id);
     expect(view.campaignCurrent).toBe(false);
     expect(view.blockers.length).toBeGreaterThan(0);
+  });
+
+  it("exports square, Story and carousel from today's prices, and refuses changed prices", async () => {
+    await social.draftCampaigns(owner, { startDate: "2026-11-01", days: 14 });
+    const bundled = (await campaigns()).find((row) => campaignOf(row)!.bundle)!;
+    const total = campaignOf(bundled)!.bundle!.totalAgorot;
+    // Viewing is enough: an operator can download, nothing is stored or published.
+    expect(
+      String(await social.campaignExport(operator, bundled.id, "square")),
+    ).toBe(`square:${total}`);
+    expect(
+      await social.campaignExport(owner, bundled.id, "carousel"),
+    ).toHaveLength(2);
+    const view = await social.view(owner, bundled.id);
+    expect(view.campaignDetails!.ad).toMatchObject({
+      callToAction: "SHOP_NOW",
+      link: view.campaignDetails!.destination,
+    });
+    expect(view.campaignDetails!.ad!.primaryText.length).toBeLessThanOrEqual(
+      125,
+    );
+    expect((await campaigns()).find((row) => row.id === bundled.id)).toEqual(
+      bundled,
+    );
+    prices.set(
+      bundled.productIds[0]!,
+      prices.get(bundled.productIds[0]!)! + 100,
+    );
+    await expect(
+      social.campaignExport(owner, bundled.id, "story"),
+    ).rejects.toMatchObject({ code: "prices_changed" });
   });
 
   it("is approved only by the owner, and an approved campaign is frozen", async () => {
@@ -514,6 +549,41 @@ describe("Reels render queue (database)", () => {
     expect(await worker()).toEqual({ rendered: 0, failed: 1 });
     expect(renders).toBe(0);
     expect((await queue().get(id))!.errorCode).toBe("CATALOG_CHANGED");
+  });
+
+  it("renders the owner's pose and words, and refuses prices, offers and unapproved poses", async () => {
+    const edited = {
+      ...request,
+      pose: "wave",
+      hookText: "الغسيل متكوّم؟ ميثو عنده الحل",
+      ctaText: "اطلبوا من الموقع",
+    };
+    const board = await social.reelStoryboard(owner, edited);
+    expect(JSON.stringify(board)).toContain("الغسيل متكوّم؟ ميثو عنده الحل");
+    const poses = board.scenes.flatMap((scene) =>
+      scene.layers.flatMap((layer) =>
+        layer.kind === "mascot" ? [layer.pose] : [],
+      ),
+    );
+    expect(poses.length).toBeGreaterThan(0);
+    expect(new Set(poses)).toEqual(new Set(["wave"]));
+    // The worker rebuilds exactly the same storyboard from the stored choices.
+    const { id } = await social.requestReelRender(owner, edited);
+    expect(await worker()).toEqual({ rendered: 1, failed: 0 });
+    expect((await queue().get(id))!.status).toBe("ready");
+
+    for (const [bad, code] of [
+      [{ hookText: "خصم على كل المنظفات" }, "reel_text_rejected"],
+      [{ hookText: "كل إشي بـ 5 ₪" }, "reel_text_rejected"],
+      [{ ctaText: "الأفضل بفلسطين" }, "reel_text_rejected"],
+      [{ hookText: "أ".repeat(61) }, "reel_text_rejected"],
+      [{ pose: "shopping" }, "reel_pose_unavailable"],
+      [{ pose: "laundry" }, "reel_pose_unavailable"],
+    ] as const) {
+      await expect(
+        social.requestReelRender(owner, { ...request, ...bad }),
+      ).rejects.toMatchObject({ code });
+    }
   });
 
   it("refuses unknown concepts, lengths and products", async () => {

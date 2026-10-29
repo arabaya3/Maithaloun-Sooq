@@ -81,6 +81,24 @@ export const angleCreative: Record<string, AngleCreative> = {
       "تعرّفوا على ميثو من مايثا ماركت",
     ],
   },
+  "bundle-friday-reset": {
+    nameAr: "تنظيفة الجمعة",
+    problemAr: "نقص غرض بنص التنظيفة الكبيرة",
+    altHooks: () => ["قبل ما تبلّشوا التنظيفة", "سلة التنظيفة الكبيرة جاهزة"],
+  },
+  "free-delivery-with-neighbours": {
+    nameAr: "اطلبوا مع الجيران",
+    problemAr: "الطلب الصغير لحاله ما بوصل للتوصيل المجاني",
+    altHooks: ({ store }) => [
+      "طلب واحد للحارة كلها",
+      `سوا بتوصلوا للتوصيل المجاني من ${formatIls(store.freeDeliveryFromAgorot)}`,
+    ],
+  },
+  "product-meetho-pick": {
+    nameAr: "اختيار ميثو",
+    problemAr: "ما بعرفوا شو في جديد بالمتجر",
+    altHooks: () => ["ميثو اختارلكم هالمنتج", "جربتوا هاد قبل؟"],
+  },
   "mascot-door-delivery": {
     nameAr: "ميثو بوصّل",
     problemAr: "ما في وقت للمشوار",

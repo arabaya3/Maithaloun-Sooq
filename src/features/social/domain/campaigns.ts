@@ -282,6 +282,35 @@ export const campaignAngles: readonly CampaignAngle[] = [
     },
   },
   {
+    id: "product-meetho-pick",
+    type: "product_discovery",
+    layout: "product_spotlight",
+    pose: "presenting",
+    objective: "منتج واحد يصير حديث الأسبوع، بصوت ميثو",
+    audience: "متابعين الصفحة اللي بحبوا يجربوا أشياء جديدة للبيت",
+    concept: "«اختيار ميثو لهالأسبوع»: منتج حقيقي بسعره، بدون ادعاءات",
+    needs: "product",
+    copy: ({ products, store, origin }) => {
+      const product = products[0]!;
+      return {
+        headline: "اختيار ميثو لهالأسبوع",
+        subline: shortProductName(product.name),
+        cta: "شوفوه على الموقع",
+        caption: join([
+          `👀 اختيار ميثو لهالأسبوع: ${coreProductName(product.name)}`,
+          descriptionLine(product),
+          "",
+          `💰 السعر: ${formatSocialPrice(product)}`,
+          deliveryLine(store),
+          "",
+          ...callToAction({ store, origin }, productUrl(origin, product)),
+          "",
+          hashtags([product]).join(" "),
+        ]),
+      };
+    },
+  },
+  {
     id: "bundle-room-ready",
     type: "bundle",
     layout: "bundle_board",
@@ -324,6 +353,55 @@ export const campaignAngles: readonly CampaignAngle[] = [
         "",
         ...bundleLines(bundle!),
         "",
+        bundleTotalLine(bundle!, store),
+        ...footer({ bundle, store, ...context }),
+      ]),
+    }),
+  },
+  {
+    id: "bundle-friday-reset",
+    type: "bundle",
+    layout: "bundle_board",
+    pose: "presenting",
+    objective: "ربط السلة بعادة أسبوعية معروفة: تنظيفة يوم الجمعة",
+    audience: "البيوت اللي بتعمل تنظيفة كبيرة آخر الأسبوع",
+    concept: "قبل تنظيفة الجمعة، ميثو جهّز السلة كاملة",
+    needs: "bundle",
+    copy: ({ bundle, store, ...context }) => ({
+      headline: "تنظيفة الجمعة جاهزة؟",
+      subline: `ميثو جهّزلكم ${bundle!.nameAr} قبل ما تبلّشوا`,
+      cta: "جهّزوا سلة الجمعة",
+      caption: join([
+        "🧽 قبل تنظيفة الجمعة، شيكوا إذا في إشي ناقص.",
+        "",
+        `ميثو جهّزلكم ${bundle!.nameAr}، كل غرض بسعره بالمتجر:`,
+        ...bundleLines(bundle!),
+        "",
+        bundleTotalLine(bundle!, store),
+        "اطلبوا من قبل، وخلّوا يوم الجمعة للتنظيف بس.",
+        ...footer({ bundle, store, ...context }),
+      ]),
+    }),
+  },
+  {
+    id: "free-delivery-with-neighbours",
+    type: "free_delivery",
+    layout: "free_delivery_meter",
+    pose: "delivery",
+    objective: "طلبات أكبر عن طريق طلب مشترك مع الجيران أو الأهل",
+    audience: "الجيران والأقارب بنفس الحارة في ميثلون",
+    concept: "«اطلبوا مع الجيران» حتى توصلوا للتوصيل المجاني",
+    needs: "free_delivery_bundle",
+    copy: ({ bundle, store, ...context }) => ({
+      headline: "اطلبوا مع الجيران",
+      subline: `جمّعوا طلبكم مع الأهل أو الجيران، والتوصيل مجاني من ${freeFrom(store)}`,
+      cta: "جمّعوا طلبكم",
+      caption: join([
+        "🏡 جارتكم كمان بدها منظفات؟ اطلبوا سوا!",
+        "",
+        `التوصيل لباب البيت داخل ${store.deliveryAreaAr} مجاني للطلبات من ${freeFrom(store)} وفوق.`,
+        "مثلاً هيك سلة:",
+        ...bundleLines(bundle!),
         bundleTotalLine(bundle!, store),
         ...footer({ bundle, store, ...context }),
       ]),
@@ -1014,4 +1092,49 @@ export function campaignForType(
 /** Prices a campaign's caption may print: the catalog's, plus a bundle's real total and gap. */
 export function campaignPrices(campaign: PlannedCampaign): string[] {
   return bundlePrices(campaign.bundle);
+}
+
+/** Meta's guidance for an ad's text: past these lengths it is cut off on most placements. */
+export const AD_PRIMARY_TEXT_MAX = 125;
+export const AD_HEADLINE_MAX = 40;
+export const AD_DESCRIPTION_MAX = 30;
+
+export interface AdCopy {
+  primaryText: string;
+  headline: string;
+  description: string;
+  /** Meta's button type; "Shop now" fits an online store with delivery. */
+  callToAction: "SHOP_NOW";
+  link: string;
+}
+
+/** Shortens at a word boundary, never mid-word, with an ellipsis when anything was cut. */
+function clip(text: string, max: number): string {
+  const clean = text.replace(/\s+/gu, " ").trim();
+  if (clean.length <= max) return clean;
+  const cut = clean.slice(0, max - 1);
+  const space = cut.lastIndexOf(" ");
+  return `${(space > max / 2 ? cut.slice(0, space) : cut).trim()}…`;
+}
+
+/**
+ * The text a future Facebook or Instagram ad would carry, from the campaign's approved copy only:
+ * nothing new is written, so the claims check that passed the caption covers the ad too. The
+ * primary text is the caption's opening lines, without hashtags or the link.
+ */
+export function adCopy(copy: CampaignCopy, link: string): AdCopy {
+  const opening = copy.caption
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(
+      (line) => line && !line.startsWith("#") && !/https?:\/\//u.test(line),
+    )
+    .join(" ");
+  return {
+    primaryText: clip(opening, AD_PRIMARY_TEXT_MAX),
+    headline: clip(copy.headline, AD_HEADLINE_MAX),
+    description: clip(copy.subline, AD_DESCRIPTION_MAX),
+    callToAction: "SHOP_NOW",
+    link,
+  };
 }
