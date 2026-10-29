@@ -107,3 +107,51 @@ describe("POST /api/orders language", () => {
     expect(create).not.toHaveBeenCalled();
   });
 });
+
+describe("POST /api/orders bot check", () => {
+  beforeEach(() => {
+    create.mockReset();
+    check.mockReset();
+  });
+
+  it("hands the request's honeypot to the server-side guard, unchanged for every client", async () => {
+    check.mockResolvedValue({ allowed: true });
+    create.mockResolvedValue({ duplicate: false, publicReference: "MS-1" });
+    // Android and older web builds send the same JSON field; only the page's input was renamed.
+    await post({ ...validBody, honeypot: "filled-by-a-bot" });
+    expect(check).toHaveBeenCalledWith(
+      expect.objectContaining({
+        honeypot: "filled-by-a-bot",
+        idempotencyKey: validBody.idempotencyKey,
+      }),
+    );
+  });
+
+  it("rejects what the guard rejects, creates nothing, and logs only safe metadata", async () => {
+    check.mockResolvedValue({ allowed: false, reason: "automated" });
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const response = await post({ ...validBody, honeypot: "Acme Ltd" });
+    expect(response.status).toBe(429);
+    expect(create).not.toHaveBeenCalled();
+    expect(warn).toHaveBeenCalledTimes(1);
+    const [event, details] = warn.mock.calls[0]!;
+    expect(event).toBe("order_submission_rejected");
+    expect(Object.keys(details as object).sort()).toEqual([
+      "reason",
+      "requestSize",
+      "status",
+    ]);
+    expect(details).toMatchObject({ reason: "automated", status: 429 });
+    const logged = JSON.stringify(warn.mock.calls);
+    for (const secret of [
+      validBody.customerName,
+      validBody.whatsappNationalNumber,
+      validBody.idempotencyKey,
+      "general-cleaner",
+      "Acme Ltd",
+    ]) {
+      expect(logged).not.toContain(secret);
+    }
+    warn.mockRestore();
+  });
+});

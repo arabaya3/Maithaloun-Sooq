@@ -85,12 +85,14 @@ export async function POST(request: Request) {
     requestSize,
   });
   if (!guardResult.allowed) {
-    // The reason only, never the request: so a rejected checkout can be traced in the logs.
+    const status = guardResult.reason === "too_large" ? 413 : 429;
+    // Metadata only, never the request (no name, phone, cart or key): so a rejected checkout
+    // can be traced in the logs.
     console.warn("order_submission_rejected", {
       reason: guardResult.reason,
+      status,
       requestSize,
     });
-    const status = guardResult.reason === "too_large" ? 413 : 429;
     return safeErrorResponse(errors.tryLater, status);
   }
 
