@@ -129,7 +129,7 @@ export function CheckoutForm({
       whatsappNationalNumber: form.get("whatsappNationalNumber"),
       serviceAreaCode: ACTIVE_SERVICE_AREA_CODE,
       paymentMethod: "cash_on_delivery",
-      honeypot: form.get("companyWebsite"),
+      honeypot: form.get("mx_trap_note"),
       // Only identifiers and counts go to the server; it prices and checks stock itself.
       items: resolvedLines.map(({ line }) => ({
         productId: line.productId,
@@ -300,11 +300,16 @@ export function CheckoutForm({
 
         <label className="checkout-honeypot" aria-hidden="true">
           <span>{m.honeypot}</span>
+          {/* No "company" or "website" in its name or label: browsers autofill those, which
+              made real customers look like bots. Password managers are told to skip it too. */}
           <input
-            name="companyWebsite"
+            name="mx_trap_note"
             type="text"
             tabIndex={-1}
             autoComplete="off"
+            data-1p-ignore="true"
+            data-lpignore="true"
+            data-form-type="other"
           />
         </label>
 
