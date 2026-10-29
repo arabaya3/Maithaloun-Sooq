@@ -56,6 +56,8 @@ function failureText(code: string | null): string | null {
   if (code === "MEDIA_NOT_PUBLIC")
     return "الوسائط ليست على رابط عام (التخزين غير مضبوط).";
   if (code === "CONTENT_CHANGED") return "تغيّر المحتوى بعد الموافقة.";
+  if (code === "MASCOT_ARTWORK_REQUIRED")
+    return "يحتاج رسمة لميثو: لا وضعية معتمدة تناسب هذا التصميم.";
   if (code === "IMAGE_TOO_LARGE") return "الصورة أكبر من حد فيسبوك.";
   if (code === "AWAITING_CONFIRMATION")
     return "سُلّم إلى Make؛ بانتظار تأكيد فيسبوك. لا إعادة تلقائية.";

@@ -101,6 +101,11 @@ export interface StoryboardInput {
   products: readonly SocialProduct[];
   store: StoreFacts;
   origin: string;
+  /**
+   * Middle scenes the owner left out, by index. The hook and the call to action always stay, at
+   * least one middle scene stays, and the Reel keeps its length: the others share the time.
+   */
+  dropScenes?: readonly number[];
 }
 
 const site = (origin: string) => origin.replace(/^https?:\/\//, "");
@@ -327,6 +332,22 @@ export function buildStoryboard(input: StoryboardInput): Storyboard {
   }
   // A 6-second Reel keeps only the hook and the call to action.
   if (input.seconds <= 6) scenes = [scenes[0]!, scenes.at(-1)!];
+  const drop = new Set(input.dropScenes ?? []);
+  const kept = scenes.filter(
+    (_, index) =>
+      index === 0 || index === scenes.length - 1 || !drop.has(index),
+  );
+  if (kept.length > 2 || scenes.length <= 2) {
+    scenes = kept;
+    const shown = new Set(
+      scenes.flatMap((scene) =>
+        scene.layers.flatMap((layer) =>
+          layer.kind === "product" ? [layer.productId] : [],
+        ),
+      ),
+    );
+    productIds = productIds.filter((id) => shown.has(id));
+  }
   const lengths = sceneSeconds(input.seconds, Math.max(0, scenes.length - 2));
   scenes = scenes.map((scene, index) => ({
     ...scene,

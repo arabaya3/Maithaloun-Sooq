@@ -950,6 +950,8 @@ export function campaignDestination(
   campaign: Pick<PlannedCampaign, "angleId" | "date" | "type">,
   origin: string,
   products: readonly SocialProduct[],
+  /** The post's campaign code (mc-…), which attribution resolves; without it, a readable label. */
+  code?: string,
 ): string {
   const product =
     campaign.type === "product_discovery" || campaign.type === "repeat_purchase"
@@ -958,7 +960,10 @@ export function campaignDestination(
   const url = new URL(product ? productUrl(origin, product) : origin);
   url.searchParams.set("utm_source", "facebook");
   url.searchParams.set("utm_medium", "social");
-  url.searchParams.set("utm_campaign", `${campaign.angleId}-${campaign.date}`);
+  url.searchParams.set(
+    "utm_campaign",
+    code ?? `${campaign.angleId}-${campaign.date}`,
+  );
   return url.toString();
 }
 

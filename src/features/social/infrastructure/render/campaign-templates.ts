@@ -264,9 +264,19 @@ async function bundleBoard(input: CampaignRenderInput): Promise<LayoutResult> {
           : 240;
   const gap = items.length === 4 ? 26 : 36;
   let top = head.bottom + 40;
+  const gridWidth = rows[0]!.length * tileWidth + (rows[0]!.length - 1) * gap;
+  const gridLeft = Math.round((FEED_WIDTH - gridWidth) / 2);
+  // Five products leave the last row's left slot free: Meetho stands there.
+  let slot: Box | null = null;
   for (const row of rows) {
     const rowWidth = row.length * tileWidth + (row.length - 1) * gap;
-    const rowLeft = Math.round((FEED_WIDTH - rowWidth) / 2);
+    const rowLeft =
+      items.length === 5
+        ? gridLeft + gridWidth - rowWidth
+        : Math.round((FEED_WIDTH - rowWidth) / 2);
+    if (items.length === 5 && row !== rows[0]) {
+      slot = { left: gridLeft, top, width: tileWidth, height: 0 };
+    }
     let rowHeight = 0;
     for (const [column, item] of row.entries()) {
       const tile = await productTile(
@@ -280,7 +290,27 @@ async function bundleBoard(input: CampaignRenderInput): Promise<LayoutResult> {
       protectedBoxes.push({ left, top, width: tileWidth, height: tile.height });
       rowHeight = Math.max(rowHeight, tile.height);
     }
+    if (slot && slot.top === top) slot.height = rowHeight;
     top += rowHeight + 24;
+  }
+  let slotMascot: Box | null = null;
+  if (slot && input.pose) {
+    const art = await mascot(
+      input.pose,
+      Math.min(slot.height, SMALL_POSE_MAX_HEIGHT),
+      slot.width,
+    );
+    slotMascot = {
+      left: slot.left + Math.round((slot.width - art.width) / 2),
+      top: slot.top + slot.height - art.height,
+      width: art.width,
+      height: art.height,
+    };
+    layers.push({
+      input: art.input,
+      left: slotMascot.left,
+      top: slotMascot.top,
+    });
   }
   const total = await totalBand(bundle, input, top + 10);
   layers.push(...total.layers);
@@ -288,14 +318,19 @@ async function bundleBoard(input: CampaignRenderInput): Promise<LayoutResult> {
   // The call to action moves right when the mascot takes the bottom-left corner.
   const cta = await ctaPill(
     input.copy.cta,
-    input.pose ? FEED_WIDTH - 70 - 260 : FEED_WIDTH / 2,
+    input.pose && !slotMascot ? FEED_WIDTH - 70 - 260 : FEED_WIDTH / 2,
     total.box.top + total.box.height + 36,
   );
   layers.push(...cta.layers);
   protectedBoxes.push(cta.box);
-  settle(layers, protectedBoxes, cta.box.top + cta.box.height);
+  settle(
+    layers,
+    slotMascot ? [...protectedBoxes, slotMascot] : protectedBoxes,
+    cta.box.top + cta.box.height,
+  );
   return {
-    mascotBox: await cornerMascot(input.pose, layers, protectedBoxes),
+    mascotBox:
+      slotMascot ?? (await cornerMascot(input.pose, layers, protectedBoxes)),
     protectedBoxes,
     layers,
   };
@@ -849,11 +884,14 @@ export async function renderCampaignImage(
   ) {
     throw new Error("BUNDLE_MISSING");
   }
+  // Meetho is in every campaign: an unusable pose falls back to the approved presenting pose,
+  // and a layout with no room for him fails visibly instead of quietly leaving him out.
   const usable = {
     ...input,
-    pose: poseIsUsable(input.pose) ? input.pose : null,
+    pose: poseIsUsable(input.pose) ? input.pose : ("presenting" as const),
   };
   const body = await layouts[usable.layout](usable);
+  if (!body.mascotBox) throw new Error("MASCOT_ARTWORK_REQUIRED");
   const layers: Layer[] = [
     { input: leafDecoration(FEED_WIDTH, FEED_HEIGHT), left: 0, top: 0 },
     ...(await header(FEED_WIDTH, 40, campaignTypeLabels[input.type])),
@@ -896,4 +934,48 @@ export function overlaps(a: Box, b: Box): boolean {
     a.top < b.top + b.height &&
     b.top < a.top + a.height
   );
+}
+
+export const STORY_EXPORT_WIDTH = 1080;
+export const STORY_EXPORT_HEIGHT = 1920;
+/** Stories cover the top 14% and bottom 20% with the app's own controls. */
+const STORY_SAFE_TOP = 270;
+const STORY_SAFE_BOTTOM = 380;
+
+/**
+ * A campaign as a 9:16 Story: the whole approved 4:5 design, unchanged and scaled to fit between
+ * the Story's safe zones, on the brand canvas. Nothing is cropped, so Meetho, prices and the
+ * footer stay exactly as the owner reviewed them.
+ */
+export async function campaignStoryExport(feedImage: Buffer): Promise<Buffer> {
+  const room = STORY_EXPORT_HEIGHT - STORY_SAFE_TOP - STORY_SAFE_BOTTOM;
+  const height = Math.min(
+    room,
+    Math.round((FEED_HEIGHT * STORY_EXPORT_WIDTH) / FEED_WIDTH),
+  );
+  const width = Math.round((height * FEED_WIDTH) / FEED_HEIGHT);
+  const art = await sharp(feedImage).resize(width, height).toBuffer();
+  return sharp({
+    create: {
+      width: STORY_EXPORT_WIDTH,
+      height: STORY_EXPORT_HEIGHT,
+      channels: 4,
+      background: brand.canvas,
+    },
+  })
+    .composite([
+      {
+        input: leafDecoration(STORY_EXPORT_WIDTH, STORY_EXPORT_HEIGHT),
+        left: 0,
+        top: 0,
+      },
+      {
+        input: art,
+        left: Math.round((STORY_EXPORT_WIDTH - width) / 2),
+        top: STORY_SAFE_TOP + Math.round((room - height) / 2),
+      },
+    ])
+    .flatten({ background: brand.canvas })
+    .jpeg({ quality: 88, mozjpeg: true })
+    .toBuffer();
 }

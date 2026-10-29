@@ -216,6 +216,43 @@ describe("claims that need evidence", () => {
 });
 
 describe("Reels storyboards", () => {
+  it("leaves out the middle scenes the owner chose, keeping the length, the hook and the call to action", () => {
+    const full = buildStoryboard({
+      concept: "problem-to-product",
+      seconds: 20,
+      products: [products[5]!],
+      store,
+      origin,
+    });
+    expect(full.scenes.length).toBeGreaterThan(3);
+    const shorter = buildStoryboard({
+      concept: "problem-to-product",
+      seconds: 20,
+      products: [products[5]!],
+      store,
+      origin,
+      // The hook and the call to action cannot be dropped.
+      dropScenes: [0, 1, full.scenes.length - 1],
+    });
+    expect(shorter.scenes).toHaveLength(full.scenes.length - 1);
+    expect(shorter.scenes[0]).toEqual({
+      ...full.scenes[0]!,
+      seconds: shorter.scenes[0]!.seconds,
+    });
+    expect(shorter.scenes.at(-1)!.layers).toEqual(full.scenes.at(-1)!.layers);
+    expect(storyboardSeconds(shorter)).toBeCloseTo(20);
+    // At least one middle scene always stays.
+    const all = buildStoryboard({
+      concept: "problem-to-product",
+      seconds: 20,
+      products: [products[5]!],
+      store,
+      origin,
+      dropScenes: full.scenes.map((_, index) => index),
+    });
+    expect(all.scenes).toHaveLength(full.scenes.length);
+  });
+
   it("fits every concept and length exactly, with a hook first and a call to action last", () => {
     for (const concept of reelConcepts) {
       for (const seconds of reelLengths) {

@@ -11,7 +11,11 @@ import {
 } from "@/features/social/domain/campaigns";
 import type { StoreFacts } from "@/features/social/domain/social-catalog";
 
-import { overlaps, renderCampaignImage } from "./campaign-templates";
+import {
+  campaignStoryExport,
+  overlaps,
+  renderCampaignImage,
+} from "./campaign-templates";
 
 const store: StoreFacts = {
   name: "MAYTHA MARKET",
@@ -128,12 +132,12 @@ describe.skipIf(process.platform === "win32")("campaign images", () => {
           1350,
           "jpeg",
         ]);
-        if (result.mascotBox) {
-          for (const box of result.protectedBoxes) {
-            expect(overlaps(result.mascotBox, box), JSON.stringify(box)).toBe(
-              false,
-            );
-          }
+        // Meetho is in every campaign.
+        expect(result.mascotBox).not.toBeNull();
+        for (const box of result.protectedBoxes) {
+          expect(overlaps(result.mascotBox!, box), JSON.stringify(box)).toBe(
+            false,
+          );
         }
         // Every protected area stays on the canvas.
         for (const box of result.protectedBoxes) {
@@ -144,4 +148,20 @@ describe.skipIf(process.platform === "win32")("campaign images", () => {
       }, 30_000);
     }
   }
+  it("exports a campaign as a 9:16 Story without cropping it", async () => {
+    const result = await render(campaignAngles[0]!, 3);
+    const story = await campaignStoryExport(result.image);
+    const meta = await sharp(story).metadata();
+    expect([meta.width, meta.height, meta.format]).toEqual([
+      1080,
+      1920,
+      "jpeg",
+    ]);
+  }, 30_000);
+
+  it("falls back to the approved presenting pose when the planned pose is not usable", async () => {
+    const angle = campaignAngles.find((a) => a.layout === "mascot_hero")!;
+    const result = await render({ ...angle, pose: "shopping" }, 0);
+    expect(result.mascotBox).not.toBeNull();
+  }, 30_000);
 });

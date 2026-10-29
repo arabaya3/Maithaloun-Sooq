@@ -27,7 +27,10 @@ import {
 } from "../src/features/social/domain/social-catalog";
 import { httpCatalogSource } from "../src/features/social/infrastructure/catalog-source";
 import { fetchImage } from "../src/features/social/infrastructure/render/brand";
-import { renderCampaignImage } from "../src/features/social/infrastructure/render/campaign-templates";
+import {
+  campaignStoryExport,
+  renderCampaignImage,
+} from "../src/features/social/infrastructure/render/campaign-templates";
 import { addDays, todayInStoreZone } from "../src/shared/lib/store-time";
 
 config({ path: ".env.local", quiet: true });
@@ -103,6 +106,11 @@ for (const [index, campaign] of plan.entries()) {
   });
   const file = `${String(index + 1).padStart(2, "0")}-${campaign.angleId}.jpg`;
   await writeFile(path.join(outDir, file), render.image);
+  // The same approved design as a 9:16 Story.
+  await writeFile(
+    path.join(outDir, file.replace(/.jpg$/, "-story.jpg")),
+    await campaignStoryExport(render.image),
+  );
   report.push(
     `## ${index + 1}. ${campaign.date} ${campaign.time} · ${campaignTypeLabels[campaign.type]} · ${campaign.angleId}`,
     "",

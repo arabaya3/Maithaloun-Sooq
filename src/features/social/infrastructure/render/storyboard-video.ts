@@ -348,6 +348,48 @@ function run(args: string[]): Promise<void> {
   });
 }
 
+/** A scene after its layers have entered. */
+async function still(
+  back: Buffer,
+  layers: Awaited<ReturnType<typeof placeLayers>>,
+  width = STORY_WIDTH,
+): Promise<Buffer> {
+  const image = sharp(back).composite(
+    layers.map((layer) => ({
+      input: layer.png,
+      left: layer.left,
+      top: layer.top,
+    })),
+  );
+  if (width === STORY_WIDTH) return image.jpeg({ quality: 82 }).toBuffer();
+  // Composite first, then scale: sharp resizes before compositing otherwise.
+  return sharp(await image.png().toBuffer())
+    .resize(width)
+    .jpeg({ quality: 78 })
+    .toBuffer();
+}
+
+/**
+ * The storyboard as stills, one per scene, without FFmpeg: what the owner checks before asking
+ * for a render. Runs wherever campaign images do.
+ */
+export async function renderStoryboardFrames(
+  input: StoryRenderInput,
+  width = STORY_WIDTH,
+): Promise<Buffer[]> {
+  const frames: Buffer[] = [];
+  for (const scene of input.board.scenes) {
+    frames.push(
+      await still(
+        await background(scene),
+        await placeLayers(scene, input),
+        width,
+      ),
+    );
+  }
+  return frames;
+}
+
 export interface RenderedStory {
   mp4: Buffer;
   /** One still per scene, after its layers have entered: the storyboard as pictures. */
@@ -383,18 +425,7 @@ export async function renderStoryboard(
       await run(sceneArgs(backFile, layerFiles, layers, seconds, output));
       sceneFiles.push(output);
       sceneSeconds.push(seconds);
-      frames.push(
-        await sharp(back)
-          .composite(
-            layers.map((layer) => ({
-              input: layer.png,
-              left: layer.left,
-              top: layer.top,
-            })),
-          )
-          .jpeg({ quality: 82 })
-          .toBuffer(),
-      );
+      frames.push(await still(back, layers));
     }
     const output = path.join(workdir, "story.mp4");
     await run(joinArgs(sceneFiles, sceneSeconds, output));

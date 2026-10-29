@@ -17,7 +17,7 @@ import {
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 
 import type { AdminActor } from "@/features/admin/domain/admin-actor";
-import { assertPermission } from "@/features/admin/domain/permissions";
+import { assertPermission, can } from "@/features/admin/domain/permissions";
 import {
   checkCaption,
   type CaptionCheck,
@@ -37,6 +37,21 @@ import {
 } from "@/features/social/domain/captions";
 import { decideComment } from "@/features/social/domain/comment-policy";
 import { bundleIsCurrent } from "@/features/social/domain/bundles";
+import { ReelRenderQueue } from "./reel-render-queue";
+import {
+  buildStoryboard,
+  reelConcepts,
+  reelLengths,
+  type ReelConcept,
+  type ReelLength,
+  type Storyboard,
+} from "@/features/social/domain/reels";
+import { renderStoryboardFrames } from "@/features/social/infrastructure/render/storyboard-video";
+import {
+  CampaignAttribution,
+  campaignCode,
+  type CampaignResult,
+} from "./campaign-attribution";
 import {
   bundlePrices,
   campaignBrief,
@@ -146,6 +161,13 @@ export type PublishNowOutcome =
   | "uncertain"
   | "page_mismatch"
   | "failed";
+
+export interface ReelRequest {
+  concept: string;
+  seconds: number;
+  productIds: string[];
+  dropScenes?: number[];
+}
 
 export class SocialError extends Error {
   constructor(
@@ -821,7 +843,12 @@ export class SocialService {
       ...campaignBrief(stored.angleId),
       hooks,
       hookIndex: stored.hookIndex ?? 0,
-      destination: campaignDestination(planned, context.origin, products),
+      destination: campaignDestination(
+        planned,
+        context.origin,
+        products,
+        campaignCode(post.id),
+      ),
     };
   }
 
@@ -2547,6 +2574,117 @@ export class SocialService {
       )
       .orderBy(desc(schema.socialComments.commentedAt))
       .limit(100);
+  }
+
+  /**
+   * What tracked campaign links led to. Sales are money, so only someone who may see reports
+   * gets them; everyone else sees visits and orders.
+   */
+  async campaignResults(actor: AdminActor): Promise<{
+    rows: CampaignResult[];
+    salesVisible: boolean;
+  }> {
+    assertPermission(actor, "social.view");
+    const salesVisible = can(actor, "reports.view");
+    const rows = await new CampaignAttribution(this.db, this.now).report();
+    return {
+      salesVisible,
+      rows: salesVisible
+        ? rows
+        : rows.map((row) => ({ ...row, verifiedSalesAgorot: 0 })),
+    };
+  }
+
+  /** The storyboard the owner is shaping, from today's catalog. Unknown choices are refused. */
+  async reelStoryboard(
+    actor: AdminActor,
+    input: ReelRequest,
+  ): Promise<Storyboard> {
+    assertPermission(actor, "social.view");
+    if (
+      !reelConcepts.includes(input.concept as ReelConcept) ||
+      !reelLengths.includes(input.seconds as ReelLength) ||
+      input.productIds.length > 3
+    ) {
+      throw new SocialError("invalid");
+    }
+    const catalog = await this.deps.catalog();
+    const products = input.productIds.map((id) =>
+      catalog.products.find((product) => product.id === id),
+    );
+    if (products.some((product) => !product)) {
+      throw new SocialError("invalid");
+    }
+    return buildStoryboard({
+      concept: input.concept as ReelConcept,
+      seconds: input.seconds as ReelLength,
+      products: products as SocialProduct[],
+      store: catalog.store,
+      origin: this.deps.origin,
+      dropScenes: input.dropScenes,
+    });
+  }
+
+  /** Small stills of each scene, rendered here without FFmpeg, as data URLs for the page. */
+  async reelStoryboardStills(board: Storyboard): Promise<string[]> {
+    const catalog = await this.deps.catalog();
+    const photos = new Map<string, Buffer>();
+    for (const id of board.productIds) {
+      const product = catalog.products.find((item) => item.id === id);
+      if (product) photos.set(id, await this.deps.loadImage(product.imageUrl));
+    }
+    const frames = await renderStoryboardFrames(
+      {
+        board,
+        photos,
+        store: catalog.store,
+        siteLabel: this.deps.origin.replace(/^https?:\/\//, ""),
+      },
+      270,
+    );
+    return frames.map(
+      (frame) => `data:image/jpeg;base64,${frame.toString("base64")}`,
+    );
+  }
+
+  /**
+   * The owner asks for a Reel to be rendered. The same storyboard is queued once; asking again
+   * returns the render already there. Rendering happens only in the render-only worker.
+   */
+  async requestReelRender(
+    actor: AdminActor,
+    input: ReelRequest,
+  ): Promise<{ id: string; created: boolean }> {
+    assertPermission(actor, "social.prepare");
+    const board = await this.reelStoryboard(actor, input);
+    return new ReelRenderQueue(this.db, this.now).request(
+      board,
+      actor.id,
+      input.dropScenes ?? [],
+    );
+  }
+
+  async retryReelRender(actor: AdminActor, id: string): Promise<void> {
+    assertPermission(actor, "social.prepare");
+    if (!(await new ReelRenderQueue(this.db, this.now).retry(id))) {
+      throw new SocialError("invalid");
+    }
+  }
+
+  /** Products the owner can put in a Reel: today's catalog, name and category only. */
+  async reelProducts(actor: AdminActor) {
+    assertPermission(actor, "social.view");
+    const catalog = await this.deps.catalog();
+    return catalog.products.map((product) => ({
+      id: product.id,
+      name: product.name,
+      categoryName: product.categoryName,
+    }));
+  }
+
+  async reelRenders(actor: AdminActor) {
+    assertPermission(actor, "social.view");
+    return new ReelRenderQueue(this.db, this.now).list(20);
   }
 
   async jobRuns(actor: AdminActor, limit = 30) {

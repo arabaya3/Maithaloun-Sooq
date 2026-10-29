@@ -2,6 +2,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import {
   Activity,
+  MousePointerClick,
+  ShoppingBag,
+  Wallet,
   Clapperboard,
   Heart,
   Image as ImageIcon,
@@ -17,6 +20,9 @@ import {
   SocialNav,
   StoreTime,
 } from "@/features/social/ui/social-ui";
+import { MIN_VISITS_FOR_RATE } from "@/features/social/application/campaign-attribution";
+import { angleCreative } from "@/features/social/domain/campaign-creative";
+import { formatIls } from "@/shared/lib/format-currency";
 import { todayInStoreZone } from "@/shared/lib/store-time";
 
 export const metadata: Metadata = { title: "فيسبوك — التحليلات" };
@@ -35,11 +41,25 @@ const jobLabels: Record<string, string> = {
 
 export default async function SocialAnalyticsPage() {
   const actor = await requireAdminSession();
-  const [report, rows, runs] = await Promise.all([
+  const [report, rows, runs, results] = await Promise.all([
     socialService.weeklyReport(todayInStoreZone()),
     socialService.listPosts(actor, { statuses: ["published"] }),
     socialService.jobRuns(actor, 30),
+    socialService.campaignResults(actor),
   ]);
+  const campaigns = results.rows;
+  const totals = campaigns.reduce(
+    (sum, row) => ({
+      visits: sum.visits + row.visits,
+      orders: sum.orders + row.orders,
+      sales: sum.sales + row.verifiedSalesAgorot,
+    }),
+    { visits: 0, orders: 0, sales: 0 },
+  );
+  const overallRate =
+    totals.visits >= MIN_VISITS_FOR_RATE ? totals.orders / totals.visits : null;
+  const rateText = (rate: number | null) =>
+    rate === null ? "بيانات غير كافية" : `${(rate * 100).toFixed(1)}٪`;
   const ranked = rows
     .filter((row) => row.engagement)
     .sort(
@@ -97,6 +117,98 @@ export default async function SocialAnalyticsPage() {
           tone={report.openEscalations ? "warning" : "neutral"}
           href="/admin/social/inbox"
         />
+      </section>
+
+      <section className="admin-panel" aria-labelledby="campaigns-title">
+        <h2 id="campaigns-title">نتائج الحملات من الروابط المتتبَّعة</h2>
+        <p className="admin-muted">
+          زيارة واحدة لكل جلسة متصفح من رابط حملة، وطلب يُنسب للحملة إذا وصل
+          الزبون من رابطها خلال ٣٠ يوماً. المبيعات المؤكدة هي الطلبات التي
+          سُلّمت فقط. لا تُخزَّن بيانات شخصية ولا تُستخدم أدوات تتبع خارجية.
+        </p>
+        <div className="admin-metric-grid">
+          <MetricCard
+            label="زيارات متتبَّعة"
+            value={totals.visits}
+            Icon={MousePointerClick}
+          />
+          <MetricCard
+            label="طلبات منسوبة"
+            value={totals.orders}
+            Icon={ShoppingBag}
+          />
+          <MetricCard
+            label="مبيعات مؤكدة"
+            value={
+              results.salesVisible
+                ? totals.sales
+                  ? formatIls(totals.sales)
+                  : "بيانات غير كافية"
+                : "—"
+            }
+            support={results.salesVisible ? "طلبات مسلّمة فقط" : "للمالكة فقط"}
+            Icon={Wallet}
+          />
+          <MetricCard
+            label="نسبة التحويل"
+            value={rateText(overallRate)}
+            support={
+              overallRate === null
+                ? `تظهر بعد ${MIN_VISITS_FOR_RATE} زيارة على الأقل`
+                : undefined
+            }
+          />
+        </div>
+        {campaigns.length ? (
+          <div className="admin-table-wrap">
+            <table className="admin-table">
+              <thead>
+                <tr>
+                  <th scope="col">الحملة</th>
+                  <th scope="col">الرمز</th>
+                  <th scope="col">زيارات</th>
+                  <th scope="col">طلبات</th>
+                  <th scope="col">مسلّمة</th>
+                  {results.salesVisible ? (
+                    <th scope="col">مبيعات مؤكدة</th>
+                  ) : null}
+                  <th scope="col">تحويل</th>
+                </tr>
+              </thead>
+              <tbody>
+                {campaigns.map((row) => (
+                  <tr key={row.postId}>
+                    <td>
+                      <Link
+                        href={`/admin/social/posts/${row.postId}`}
+                        prefetch={false}
+                      >
+                        {(row.angleId && angleCreative[row.angleId]?.nameAr) ||
+                          "حملة"}
+                      </Link>
+                    </td>
+                    <td>
+                      <bdi dir="ltr">{row.code}</bdi>
+                    </td>
+                    <td className="admin-num">{row.visits}</td>
+                    <td className="admin-num">{row.orders}</td>
+                    <td className="admin-num">{row.deliveredOrders}</td>
+                    {results.salesVisible ? (
+                      <td className="admin-num">
+                        {formatIls(row.verifiedSalesAgorot)}
+                      </td>
+                    ) : null}
+                    <td>{rateText(row.conversionRate)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <p className="admin-empty">
+            بيانات غير كافية: لم تصل بعد زيارات أو طلبات من روابط الحملات.
+          </p>
+        )}
       </section>
 
       <section className="admin-panel" aria-labelledby="top-title">

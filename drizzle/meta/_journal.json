@@ -225,6 +225,13 @@
       "when": 1793219951190,
       "tag": "0031_social_campaigns",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1793258138739,
+      "tag": "0032_social_attribution_reels",
+      "breakpoints": true
     }
   ]
 }

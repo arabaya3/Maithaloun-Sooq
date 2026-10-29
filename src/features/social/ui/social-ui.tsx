@@ -45,6 +45,7 @@ const tabs = [
   { href: "/admin/social/queue?status=published", label: "المنشور" },
   { href: "/admin/social/queue?status=failed", label: "الفاشل" },
   { href: "/admin/social/inbox", label: "التعليقات" },
+  { href: "/admin/social/reels", label: "الريلز" },
   { href: "/admin/social/analytics", label: "التحليلات" },
   { href: "/admin/social/settings", label: "الإعدادات" },
 ];
@@ -138,7 +139,9 @@ export function PostPreview({
         )}
         <span>
           {post.mediaStatus === "failed"
-            ? `تعذّر التجهيز (${post.mediaError ?? "?"})`
+            ? post.mediaError === "MASCOT_ARTWORK_REQUIRED"
+              ? "يحتاج رسمة لميثو: لا وضعية معتمدة تناسب هذا التصميم"
+              : `تعذّر التجهيز (${post.mediaError ?? "?"})`
             : post.format === "reel"
               ? "بانتظار عامل الفيديو"
               : "بانتظار التجهيز"}
@@ -201,6 +204,10 @@ const doneMessages: Record<string, string> = {
   hook_chosen: "تغيّرت الافتتاحية. جهّزي الصورة من جديد قبل الموافقة.",
   campaign_regenerated:
     "اقترحنا حملة أخرى لهذا الموعد. جهّزي صورتها وراجعيها قبل الموافقة.",
+  reel_queued:
+    "طُلب تجهيز الريل. يجهّزه عامل الفيديو عند تشغيله، ثم يظهر هنا للمشاهدة والتنزيل. لا يُنشر شيء.",
+  reel_exists: "هذا الريل مطلوب من قبل بنفس المشاهد، فلم يُطلب مرة ثانية.",
+  reel_retry: "عاد الريل إلى قائمة التجهيز.",
   resolved: "أُغلق التعليق.",
   replied: "أُرسل الرد.",
   settings: "حُفظت الإعدادات.",

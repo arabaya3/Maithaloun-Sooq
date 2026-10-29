@@ -9,6 +9,12 @@ import {
   campaignOf,
   SocialService,
 } from "@/features/social/application/social-service";
+import { campaignCode } from "@/features/social/application/campaign-attribution";
+import {
+  MAX_RENDER_ATTEMPTS,
+  ReelRenderQueue,
+} from "@/features/social/application/reel-render-queue";
+import { runReelRenders } from "@/features/social/application/reel-render-worker";
 import { checkCaption } from "@/features/social/domain/caption-guard";
 import { bundlePrices } from "@/features/social/domain/campaigns";
 import {
@@ -338,8 +344,9 @@ describe("Creative Studio campaigns (database)", () => {
     expect(campaignOf(other!)!.type).toBe("customer_trust");
     const view = await social.view(owner, id);
     expect(view.campaignDetails!.hooks).toHaveLength(3);
+    // The tracked link names this campaign by a short code of its own id, nothing about people.
     expect(view.campaignDetails!.destination).toContain(
-      "utm_campaign=product-discovery-",
+      `utm_campaign=${campaignCode(id)}`,
     );
     await expect(
       social.createCampaign(owner, { objective: "nonsense" as never }),
@@ -386,5 +393,139 @@ describe("Creative Studio campaigns (database)", () => {
       published: 0,
       reelsInProgress: 0,
     });
+  });
+});
+
+describe("Reels render queue (database)", () => {
+  let owner: AdminActor;
+  let social: SocialService;
+  const queue = () => new ReelRenderQueue(db, () => clock);
+  const request = {
+    concept: "problem-to-product",
+    seconds: 15,
+    productIds: ["powder"],
+  };
+  let renders = 0;
+  let renderFails = false;
+  const worker = () =>
+    runReelRenders({
+      queue: queue(),
+      catalog: async () => toSocialCatalog(publicCatalog()),
+      origin: "https://www.maytha.app",
+      siteLabel: "www.maytha.app",
+      media: { put: async (_bytes, kind) => `https://cdn.test/reel.${kind}` },
+      loadImage: async () => Buffer.from("photo"),
+      render: async ({ board }) => {
+        renders += 1;
+        if (renderFails) throw new Error("FFMPEG_FAILED");
+        return {
+          mp4: Buffer.from("mp4"),
+          frames: board.scenes.map(() => Buffer.from("jpg")),
+          seconds: board.seconds,
+        };
+      },
+    });
+
+  beforeAll(async () => {
+    owner = await createOwnerActor();
+  });
+
+  beforeEach(async () => {
+    await db.delete(schema.socialReelRenders);
+    await db.delete(schema.socialPosts);
+    clock = new Date("2026-10-29T08:00:00Z");
+    prices = new Map(products.map(([id, , , price]) => [id, price]));
+    renders = 0;
+    renderFails = false;
+    social = service();
+  });
+
+  it("queues a storyboard once, renders it once, and never creates or publishes a post", async () => {
+    const first = await social.requestReelRender(owner, request);
+    const again = await social.requestReelRender(owner, request);
+    expect(first.created).toBe(true);
+    expect(again).toEqual({ id: first.id, created: false });
+    // Leaving a scene out is another storyboard, so another render.
+    const shorter = await social.requestReelRender(owner, {
+      ...request,
+      dropScenes: [2],
+    });
+    expect(shorter.id).not.toBe(first.id);
+
+    expect(await worker()).toEqual({ rendered: 2, failed: 0 });
+    expect(await worker()).toEqual({ rendered: 0, failed: 0 });
+    expect(renders).toBe(2);
+    const row = await queue().get(first.id);
+    expect(row).toMatchObject({
+      status: "ready",
+      videoUrl: "https://cdn.test/reel.mp4",
+      renderedSeconds: 15,
+      attempts: 1,
+      requestedBy: owner.id,
+    });
+    expect(row!.frameUrls.length).toBeGreaterThan(1);
+    expect(await db.select().from(schema.socialPosts)).toEqual([]);
+  });
+
+  it("two workers never take the same render", async () => {
+    await social.requestReelRender(owner, request);
+    const [a, b] = await Promise.all([queue().claim(), queue().claim()]);
+    expect([a, b].filter(Boolean)).toHaveLength(1);
+  });
+
+  it("retries a failing render, stops after the limit, and the owner's retry starts again", async () => {
+    const { id } = await social.requestReelRender(owner, request);
+    renderFails = true;
+    for (let i = 0; i < MAX_RENDER_ATTEMPTS + 1; i += 1) await worker();
+    expect(renders).toBe(MAX_RENDER_ATTEMPTS);
+    expect(await queue().get(id)).toMatchObject({
+      status: "failed",
+      errorCode: "FFMPEG_FAILED",
+      attempts: MAX_RENDER_ATTEMPTS,
+    });
+    renderFails = false;
+    await social.retryReelRender(owner, id);
+    expect(await worker()).toEqual({ rendered: 1, failed: 0 });
+    expect((await queue().get(id))!.status).toBe("ready");
+    // Only a failed render can be retried.
+    await expect(social.retryReelRender(owner, id)).rejects.toMatchObject({
+      code: "invalid",
+    });
+  });
+
+  it("requeues a render whose worker vanished, and a late finish from that worker is ignored", async () => {
+    const { id } = await social.requestReelRender(owner, request);
+    const lost = await queue().claim();
+    clock = new Date(clock.getTime() + 16 * 60_000);
+    expect(await worker()).toEqual({ rendered: 1, failed: 0 });
+    expect(
+      await queue().finish(id, lost!.token, {
+        videoUrl: "https://cdn.test/old.mp4",
+        frameUrls: [],
+        seconds: 1,
+      }),
+    ).toBe(false);
+    expect((await queue().get(id))!.videoUrl).toBe("https://cdn.test/reel.mp4");
+  });
+
+  it("never renders yesterday's prices: a price change fails the render", async () => {
+    const { id } = await social.requestReelRender(owner, request);
+    prices.set("powder", 650);
+    expect(await worker()).toEqual({ rendered: 0, failed: 1 });
+    expect(renders).toBe(0);
+    expect((await queue().get(id))!.errorCode).toBe("CATALOG_CHANGED");
+  });
+
+  it("refuses unknown concepts, lengths and products", async () => {
+    for (const bad of [
+      { ...request, concept: "dance" },
+      { ...request, seconds: 12 },
+      { ...request, productIds: ["nope"] },
+      { ...request, productIds: ["a", "b", "c", "d"] },
+    ]) {
+      await expect(social.requestReelRender(owner, bad)).rejects.toMatchObject({
+        code: "invalid",
+      });
+    }
   });
 });

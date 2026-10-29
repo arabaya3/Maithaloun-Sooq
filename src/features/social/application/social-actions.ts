@@ -332,3 +332,36 @@ export async function disconnectAction() {
     "disconnected",
   );
 }
+
+function reelRequest(form: FormData) {
+  return {
+    concept: field(form, "concept"),
+    seconds: Number(field(form, "seconds")),
+    productIds: form
+      .getAll("product")
+      .filter((value): value is string => typeof value === "string" && !!value),
+    dropScenes: form
+      .getAll("drop")
+      .map(Number)
+      .filter((value) => Number.isInteger(value)),
+  };
+}
+
+/** The owner asks for this storyboard to be rendered. Never publishes anything. */
+export async function requestReelRenderAction(form: FormData) {
+  const actor = await requireTrustedAdminMutation();
+  return guarded(
+    "/admin/social/reels",
+    () => socialService.requestReelRender(actor, reelRequest(form)),
+    (result) => (result.created ? "reel_queued" : "reel_exists"),
+  );
+}
+
+export async function retryReelRenderAction(form: FormData) {
+  const actor = await requireTrustedAdminMutation();
+  return guarded(
+    "/admin/social/reels",
+    () => socialService.retryReelRender(actor, field(form, "id")),
+    "reel_retry",
+  );
+}
