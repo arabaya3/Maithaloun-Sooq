@@ -131,12 +131,10 @@ export function poseIsUsable(pose: MascotPose | null): pose is MascotPose {
   );
 }
 
-/** Largest on-image height a pose may take: small crops at most 1.6× their source, never enlarged further. */
+/**
+ * Largest on-image height a pose may take: its own artwork's height. No pose is ever enlarged, so
+ * a small crop stays small until larger approved artwork replaces it.
+ */
 export function maxPoseHeight(pose: MascotPose, wanted: number): number {
-  const info = mascotLibrary[pose];
-  // Approved art is drawn up to its own size, never enlarged past it.
-  if (info.status === "approved") {
-    return Math.min(wanted, info.sourceHeight ?? wanted);
-  }
-  return Math.min(wanted, Math.floor((info.sourceHeight ?? 0) * 1.6));
+  return Math.min(wanted, mascotLibrary[pose].sourceHeight ?? 0);
 }

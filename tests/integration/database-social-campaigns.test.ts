@@ -442,16 +442,29 @@ describe("Reels render queue (database)", () => {
   };
   let renders = 0;
   let renderFails = false;
+  let stored = 0;
+  let catalogDown = false;
+  /** Runs while FFmpeg would be running: lets a test change the catalog mid-render. */
+  let duringRender: () => void = () => {};
   const worker = () =>
     runReelRenders({
       queue: queue(),
-      catalog: async () => toSocialCatalog(publicCatalog()),
+      catalog: async () => {
+        if (catalogDown) throw new Error("CATALOG_UNAVAILABLE");
+        return toSocialCatalog(publicCatalog());
+      },
       origin: "https://www.maytha.app",
       siteLabel: "www.maytha.app",
-      media: { put: async (_bytes, kind) => `https://cdn.test/reel.${kind}` },
+      media: {
+        put: async (_bytes, kind) => {
+          stored += 1;
+          return `https://cdn.test/reel.${kind}`;
+        },
+      },
       loadImage: async () => Buffer.from("photo"),
       render: async ({ board }) => {
         renders += 1;
+        duringRender();
         if (renderFails) throw new Error("FFMPEG_FAILED");
         return {
           mp4: Buffer.from("mp4"),
@@ -472,6 +485,9 @@ describe("Reels render queue (database)", () => {
     prices = new Map(products.map(([id, , , price]) => [id, price]));
     renders = 0;
     renderFails = false;
+    stored = 0;
+    catalogDown = false;
+    duringRender = () => {};
     social = service();
   });
 
@@ -500,6 +516,18 @@ describe("Reels render queue (database)", () => {
     });
     expect(row!.frameUrls.length).toBeGreaterThan(1);
     expect(await db.select().from(schema.socialPosts)).toEqual([]);
+  });
+
+  it("the same Reel asked for twice at once is queued and rendered once", async () => {
+    const [a, b] = await Promise.all([
+      social.requestReelRender(owner, request),
+      social.requestReelRender(owner, request),
+    ]);
+    expect(a.id).toBe(b.id);
+    expect([a.created, b.created].filter(Boolean)).toHaveLength(1);
+    expect(await db.select().from(schema.socialReelRenders)).toHaveLength(1);
+    await Promise.all([worker(), worker()]);
+    expect(renders).toBe(1);
   });
 
   it("two workers never take the same render", async () => {
@@ -549,6 +577,78 @@ describe("Reels render queue (database)", () => {
     expect(await worker()).toEqual({ rendered: 0, failed: 1 });
     expect(renders).toBe(0);
     expect((await queue().get(id))!.errorCode).toBe("CATALOG_CHANGED");
+  });
+
+  it("throws the video away when a price changes while it renders", async () => {
+    const { id } = await social.requestReelRender(owner, request);
+    duringRender = () => prices.set("powder", 650);
+    expect(await worker()).toEqual({ rendered: 0, failed: 1 });
+    expect(renders).toBe(1);
+    expect(stored).toBe(0);
+    expect(await queue().get(id)).toMatchObject({
+      status: "failed",
+      errorCode: "CATALOG_CHANGED",
+      videoUrl: null,
+    });
+    // Final: another try would draw the same old prices.
+    expect(await worker()).toEqual({ rendered: 0, failed: 0 });
+  });
+
+  it("a finished Reel whose price changes is marked outdated and is no longer handed out", async () => {
+    const { id } = await social.requestReelRender(owner, request);
+    await worker();
+    expect(await social.reelVideo(owner, id)).toBe("https://cdn.test/reel.mp4");
+    expect((await social.reelRenders(owner))[0]).toMatchObject({
+      id,
+      status: "ready",
+      outdated: false,
+    });
+
+    prices.set("powder", 650);
+    expect((await social.reelRenders(owner))[0]).toMatchObject({
+      id,
+      outdated: true,
+    });
+    await expect(social.reelVideo(owner, id)).rejects.toMatchObject({
+      code: "prices_changed",
+    });
+
+    // Back to the price it shows: true again, so it is handed out again.
+    prices.set("powder", products.find(([pid]) => pid === "powder")![3]);
+    expect((await social.reelRenders(owner))[0]!.outdated).toBe(false);
+    await expect(
+      social.reelVideo(owner, "00000000-0000-0000-0000-000000000000"),
+    ).rejects.toMatchObject({ code: "not_found" });
+    await expect(social.reelVideo(owner, "../etc")).rejects.toMatchObject({
+      code: "not_found",
+    });
+  });
+
+  it("an unreachable catalog never spends every try and never stores a video", async () => {
+    const { id } = await social.requestReelRender(owner, request);
+    // Down before the run: nothing is claimed and no try is spent.
+    catalogDown = true;
+    await expect(worker()).rejects.toThrow("CATALOG_UNAVAILABLE");
+    expect(await queue().get(id)).toMatchObject({
+      status: "queued",
+      attempts: 0,
+    });
+    // Down while FFmpeg runs: the video is not kept, one try is spent and the run stops.
+    catalogDown = false;
+    duringRender = () => {
+      catalogDown = true;
+    };
+    expect(await worker()).toEqual({ rendered: 0, failed: 1 });
+    expect(stored).toBe(0);
+    expect(await queue().get(id)).toMatchObject({
+      status: "queued",
+      attempts: 1,
+      errorCode: "CATALOG_UNAVAILABLE",
+    });
+    catalogDown = false;
+    duringRender = () => {};
+    expect(await worker()).toEqual({ rendered: 1, failed: 0 });
+    expect(renders).toBe(2);
   });
 
   it("renders the owner's pose and words, and refuses prices, offers and unapproved poses", async () => {

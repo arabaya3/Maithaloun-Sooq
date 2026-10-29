@@ -9,6 +9,7 @@ import {
   CAMPAIGN_COOKIE,
   CAMPAIGN_COOKIE_MAX_AGE,
   CampaignAttribution,
+  isAutomatedVisit,
   isCampaignCode,
 } from "@/features/social/application/campaign-attribution";
 import { db } from "@/server/db/db";
@@ -27,6 +28,7 @@ export async function POST(request: Request) {
   const body = await readJsonBody(request, 200);
   const code = body.ok ? (body.value as { code?: unknown })?.code : null;
   if (!isCampaignCode(code)) return done;
+  if (isAutomatedVisit(request.headers.get("user-agent"))) return done;
   const postId = await new CampaignAttribution(db).recordVisit(code);
   if (postId) {
     done.cookies.set(CAMPAIGN_COOKIE, code, {

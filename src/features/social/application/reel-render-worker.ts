@@ -4,6 +4,7 @@ import {
   type ReelLength,
   type Storyboard,
 } from "@/features/social/domain/reels";
+import type { SocialCatalog } from "@/features/social/domain/social-catalog";
 import type { CatalogSource } from "@/features/social/infrastructure/catalog-source";
 import type { SocialMediaStore } from "@/features/social/infrastructure/media-store";
 import type {
@@ -15,6 +16,7 @@ import {
   ReelRenderQueue,
   storyboardKey,
   type ReelChoices,
+  type ReelRenderRow,
 } from "./reel-render-queue";
 
 /**
@@ -45,41 +47,62 @@ function failure(error: unknown): string {
     : "RENDER_FAILED";
 }
 
+/**
+ * A requested Reel rebuilt from a given catalog with the owner's choices. Throws
+ * PRODUCT_UNAVAILABLE when a product left the catalog and CATALOG_CHANGED when a price or a
+ * store fact it shows is no longer true: a Reel is never drawn, kept or handed out with old prices.
+ */
+export function currentStoryboard(
+  render: Pick<
+    ReelRenderRow,
+    "concept" | "seconds" | "productIds" | "storyboard" | "storyboardKey"
+  >,
+  catalog: SocialCatalog,
+  origin: string,
+): Storyboard {
+  const stored = render.storyboard as unknown as Storyboard & {
+    choices?: ReelChoices;
+  };
+  const products = render.productIds.map((id) =>
+    catalog.products.find((product) => product.id === id),
+  );
+  if (products.some((product) => !product)) {
+    throw new Error("PRODUCT_UNAVAILABLE");
+  }
+  const board = buildStoryboard({
+    concept: render.concept as ReelConcept,
+    seconds: render.seconds as ReelLength,
+    products: products as NonNullable<(typeof products)[number]>[],
+    store: catalog.store,
+    origin,
+    ...(stored.choices ?? {}),
+  });
+  if (storyboardKey(board) !== render.storyboardKey) {
+    throw new Error("CATALOG_CHANGED");
+  }
+  return board;
+}
+
 export async function runReelRenders(
   deps: ReelRenderDeps,
   limit = 3,
 ): Promise<ReelRenderSummary> {
   const summary: ReelRenderSummary = { rendered: 0, failed: 0 };
-  const catalog = await deps.catalog();
+  // Without the catalog nothing can be checked: nothing is claimed, so no try is spent.
+  await deps.catalog();
   for (let count = 0; count < limit; count += 1) {
     const claimed = await deps.queue.claim();
     if (!claimed) break;
     const { render, token } = claimed;
     try {
-      const stored = render.storyboard as unknown as Storyboard & {
-        choices?: ReelChoices;
-      };
-      const products = render.productIds.map((id) =>
-        catalog.products.find((product) => product.id === id),
-      );
-      if (products.some((product) => !product)) {
-        throw new Error("PRODUCT_UNAVAILABLE");
-      }
-      // Rebuilt from today's catalog: a Reel is never drawn with yesterday's prices.
-      const board = buildStoryboard({
-        concept: render.concept as ReelConcept,
-        seconds: render.seconds as ReelLength,
-        products: products as NonNullable<(typeof products)[number]>[],
-        store: catalog.store,
-        origin: deps.origin,
-        ...(stored.choices ?? {}),
-      });
-      if (storyboardKey(board) !== render.storyboardKey) {
-        throw new Error("CATALOG_CHANGED");
-      }
+      // Checked against the catalog before drawing and again after: a price that changes while
+      // FFmpeg runs throws the video away instead of storing it.
+      const catalog = await deps.catalog();
+      const board = currentStoryboard(render, catalog, deps.origin);
       const photos = new Map<string, Buffer>();
-      for (const product of products) {
-        photos.set(product!.id, await deps.loadImage(product!.imageUrl));
+      for (const id of board.productIds) {
+        const product = catalog.products.find((item) => item.id === id)!;
+        photos.set(id, await deps.loadImage(product.imageUrl));
       }
       const result = await deps.render({
         board,
@@ -87,6 +110,7 @@ export async function runReelRenders(
         store: catalog.store,
         siteLabel: deps.siteLabel,
       });
+      currentStoryboard(render, await deps.catalog(), deps.origin);
       let videoUrl: string;
       const frameUrls: string[] = [];
       try {
@@ -107,6 +131,8 @@ export async function runReelRenders(
       const code = failure(error);
       await deps.queue.fail(render.id, token, code, FINAL.has(code));
       summary.failed += 1;
+      // The catalog went away mid-run: stop, rather than spend every try of the next render.
+      if (code === "CATALOG_UNAVAILABLE") break;
     }
   }
   return summary;

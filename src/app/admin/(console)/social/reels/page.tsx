@@ -47,6 +47,9 @@ const statusText: Record<string, string> = {
   failed: "فشل التجهيز",
 };
 
+/** Another try draws the same old prices; the owner asks for a new Reel instead. */
+const FINAL_ERRORS = new Set(["CATALOG_CHANGED", "PRODUCT_UNAVAILABLE"]);
+
 const errorText: Record<string, string> = {
   WORKER_LOST: "توقف عامل الفيديو أثناء التجهيز.",
   FFMPEG_FAILED: "تعذّر تركيب الفيديو.",
@@ -332,7 +335,9 @@ export default async function SocialReelsPage({
           <ul className="social-renders">
             {renders.map((render) => (
               <li key={render.id} className="social-render">
-                {render.status === "ready" && render.videoUrl ? (
+                {render.status === "ready" &&
+                render.videoUrl &&
+                !render.outdated ? (
                   <video
                     src={render.videoUrl}
                     poster={render.frameUrls[1] ?? render.frameUrls[0]}
@@ -374,16 +379,26 @@ export default async function SocialReelsPage({
                       {errorText[render.errorCode] ?? render.errorCode}
                     </p>
                   ) : null}
-                  {render.status === "ready" && render.videoUrl ? (
+                  {render.outdated ? (
+                    <p className="admin-form-warning" role="status">
+                      تغيّر سعر أو منتج بهالريل بعد ما تجهّز، فوقفناه عشان ما
+                      يطلع بأسعار قديمة. اطلبي ريل جديد من اللوحة.
+                    </p>
+                  ) : null}
+                  {render.status === "ready" &&
+                  render.videoUrl &&
+                  !render.outdated ? (
                     <a
                       className="admin-btn admin-btn-secondary"
-                      href={render.videoUrl}
+                      href={`/admin/api/social/reels/${render.id}/video`}
                       download
                     >
                       <Download size={16} aria-hidden="true" /> نزّلي الفيديو
                     </a>
                   ) : null}
-                  {render.status === "failed" && canPrepare ? (
+                  {render.status === "failed" &&
+                  canPrepare &&
+                  !FINAL_ERRORS.has(render.errorCode ?? "") ? (
                     <form action={retryReelRenderAction}>
                       <input type="hidden" name="id" value={render.id} />
                       <button

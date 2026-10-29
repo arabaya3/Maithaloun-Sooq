@@ -101,3 +101,28 @@ export function mediaStoreFromEnv(env: {
   }
   return localMediaStore();
 }
+
+/**
+ * The bytes of a stored video or image, for an admin download. Only our own media is read: a
+ * local preview file, or an object in this project's public bucket. Any other address is refused.
+ */
+export async function readStoredMedia(
+  url: string,
+  supabaseUrl: string | undefined,
+): Promise<{ bytes: Buffer; contentType: string } | null> {
+  if (url.startsWith(LOCAL_MEDIA_ROUTE)) {
+    return readLocalMedia(url.slice(LOCAL_MEDIA_ROUTE.length));
+  }
+  if (!supabaseUrl) return null;
+  const prefix = `${supabaseUrl.replace(/\/$/, "")}/storage/v1/object/public/${SOCIAL_BUCKET}/posts/`;
+  const match = url.startsWith(prefix)
+    ? LOCAL_FILE.exec(url.slice(prefix.length))
+    : null;
+  if (!match) return null;
+  const response = await fetch(url, { redirect: "error" });
+  if (!response.ok) return null;
+  return {
+    bytes: Buffer.from(await response.arrayBuffer()),
+    contentType: contentTypes[match[1] as "jpg" | "mp4"],
+  };
+}

@@ -38,7 +38,12 @@ import {
 import { decideComment } from "@/features/social/domain/comment-policy";
 import { bundleIsCurrent } from "@/features/social/domain/bundles";
 import type { MascotPose } from "@/features/social/domain/mascot";
-import { ReelRenderQueue, type ReelChoices } from "./reel-render-queue";
+import {
+  ReelRenderQueue,
+  type ReelChoices,
+  type ReelRenderRow,
+} from "./reel-render-queue";
+import { currentStoryboard } from "./reel-render-worker";
 import {
   buildStoryboard,
   reelConcepts,
@@ -2803,9 +2808,45 @@ export class SocialService {
     return { origin: this.deps.origin, store: catalog.store };
   }
 
+  /**
+   * The owner's Reels. A finished Reel whose products or prices changed since it was drawn is
+   * marked outdated and is no longer handed out: it is never kept around silently with old prices.
+   */
   async reelRenders(actor: AdminActor) {
     assertPermission(actor, "social.view");
-    return new ReelRenderQueue(this.db, this.now).list(20);
+    const renders = await new ReelRenderQueue(this.db, this.now).list(20);
+    if (!renders.some((render) => render.status === "ready")) {
+      return renders.map((render) => ({ ...render, outdated: false }));
+    }
+    const catalog = await this.deps.catalog();
+    return renders.map((render) => ({
+      ...render,
+      outdated:
+        render.status === "ready" && !this.reelIsCurrent(render, catalog),
+    }));
+  }
+
+  /** A finished Reel's video for download, only while everything it shows is still true. */
+  async reelVideo(actor: AdminActor, id: string): Promise<string> {
+    assertPermission(actor, "social.view");
+    if (!/^[0-9a-f-]{36}$/.test(id)) throw new SocialError("not_found");
+    const render = await new ReelRenderQueue(this.db, this.now).get(id);
+    if (!render || render.status !== "ready" || !render.videoUrl) {
+      throw new SocialError("not_found");
+    }
+    if (!this.reelIsCurrent(render, await this.deps.catalog())) {
+      throw new SocialError("prices_changed");
+    }
+    return render.videoUrl;
+  }
+
+  private reelIsCurrent(render: ReelRenderRow, catalog: SocialCatalog) {
+    try {
+      currentStoryboard(render, catalog, this.deps.origin);
+      return true;
+    } catch {
+      return false;
+    }
   }
 
   async jobRuns(actor: AdminActor, limit = 30) {

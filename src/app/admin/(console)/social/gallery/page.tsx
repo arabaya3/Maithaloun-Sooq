@@ -8,6 +8,10 @@ import { campaignOf } from "@/features/social/application/social-service";
 import { socialService } from "@/features/social/application/social-instance";
 import { angleCreative } from "@/features/social/domain/campaign-creative";
 import {
+  mascotLibrary,
+  type MascotPose,
+} from "@/features/social/domain/mascot";
+import {
   PostStatusPill,
   postTitle,
   SocialNav,
@@ -15,6 +19,11 @@ import {
 } from "@/features/social/ui/social-ui";
 
 export const metadata: Metadata = { title: "فيسبوك — معرض التصاميم" };
+
+/** Meetho in a pose that only has small artwork: drawn at its own size, never enlarged. */
+function smallArtwork(pose: MascotPose | null | undefined): boolean {
+  return Boolean(pose && mascotLibrary[pose]?.status === "small_only");
+}
 
 /** Every campaign as a picture: what is ready, what still needs work and what needs artwork. */
 export default async function SocialGalleryPage() {
@@ -77,6 +86,11 @@ export default async function SocialGalleryPage() {
                   <span className="social-gallery-meta">
                     <strong>{name}</strong>
                     <PostStatusPill status={post.status} />
+                    {smallArtwork(campaign?.pose) ? (
+                      <small className="social-gallery-flag">
+                        ميثو بحجم رسمته الصغيرة؛ بانتظار رسمة أكبر
+                      </small>
+                    ) : null}
                     <small className="admin-muted">
                       <StoreTime value={post.scheduledFor} />
                     </small>

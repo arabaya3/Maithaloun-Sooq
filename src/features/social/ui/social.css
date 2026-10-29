@@ -558,3 +558,8 @@ video.social-preview--large {
   border: 1px solid var(--admin-border, #e3e9e4);
   flex: none;
 }
+
+.social-gallery-flag {
+  color: var(--admin-warning, #8a5a00);
+  font-weight: 600;
+}

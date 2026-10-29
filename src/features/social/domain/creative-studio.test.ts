@@ -98,7 +98,10 @@ describe("ميثو's pose library", () => {
     // Approved art is never enlarged past its source either.
     expect(maxPoseHeight("presenting", 500)).toBe(500);
     expect(maxPoseHeight("presenting", 700)).toBe(635);
-    expect(maxPoseHeight("wave", 700)).toBe(Math.floor(154 * 1.6));
+    // Small crops are drawn at most at their own size: never enlarged.
+    expect(maxPoseHeight("wave", 700)).toBe(154);
+    expect(maxPoseHeight("wave", 100)).toBe(100);
+    expect(maxPoseHeight("laundry", 700)).toBe(0);
   });
 
   it("every campaign angle asks for a pose that can be drawn", () => {

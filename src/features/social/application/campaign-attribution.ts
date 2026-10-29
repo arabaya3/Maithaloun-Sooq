@@ -22,6 +22,14 @@ export function campaignCode(postId: string): string {
   return `mc-${postId.replace(/-/g, "").slice(0, 12)}`;
 }
 
+/** Crawlers and link previews (Facebook's included) load the page without being a visitor. */
+const AUTOMATED =
+  /bot|crawl|spider|slurp|preview|facebookexternalhit|headless|lighthouse/i;
+
+export function isAutomatedVisit(userAgent: string | null): boolean {
+  return !userAgent || AUTOMATED.test(userAgent);
+}
+
 export function isCampaignCode(value: unknown): value is string {
   return typeof value === "string" && CODE.test(value);
 }
@@ -59,6 +67,9 @@ export class CampaignAttribution {
       .where(
         and(
           eq(schema.socialPosts.kind, "campaign"),
+          // Only a campaign that is out on the Page can bring visitors; a draft's link opened in
+          // review or testing never counts.
+          eq(schema.socialPosts.status, "published"),
           sql`replace(${schema.socialPosts.id}::text, '-', '') like ${`${hex}%`}`,
         ),
       )
@@ -128,7 +139,12 @@ export class CampaignAttribution {
         schema.orders,
         eq(schema.orders.id, schema.socialOrderAttributions.orderId),
       )
-      .where(ne(schema.orders.status, "cancelled"))
+      .where(
+        and(
+          ne(schema.orders.status, "cancelled"),
+          eq(schema.orders.isTest, false),
+        ),
+      )
       .groupBy(schema.socialOrderAttributions.postId);
     const ids = [
       ...new Set([

@@ -13,7 +13,8 @@ export function CampaignLanding() {
     const code = new URLSearchParams(window.location.search).get(
       "utm_campaign",
     );
-    if (!code || !CODE.test(code)) return;
+    // Automated browsers (tests, crawlers) are not visitors.
+    if (!code || !CODE.test(code) || navigator.webdriver) return;
     const key = `maytha-campaign-seen:${code}`;
     try {
       if (window.sessionStorage.getItem(key)) return;

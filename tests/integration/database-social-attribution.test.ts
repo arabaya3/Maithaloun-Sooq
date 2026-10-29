@@ -5,6 +5,7 @@ import { OrderService } from "@/features/orders/application/order-service";
 import {
   CampaignAttribution,
   campaignCode,
+  isAutomatedVisit,
   isCampaignCode,
   MIN_VISITS_FOR_RATE,
 } from "@/features/social/application/campaign-attribution";
@@ -14,7 +15,7 @@ import {
   testDatabaseConnection,
 } from "@/test/test-database";
 
-import { checkoutRequest } from "./support";
+import { checkoutRequest, createOwnerActor } from "./support";
 
 const { db, client } = testDatabaseConnection;
 const orders = new OrderService(db);
@@ -23,12 +24,28 @@ const attribution = new CampaignAttribution(
   () => new Date("2026-11-03T10:00:00Z"),
 );
 
-async function campaignPost(kind = "campaign"): Promise<string> {
+let ownerId: string;
+
+/** A campaign post that is out on the Page, unless another status is asked for. */
+async function campaignPost(
+  kind = "campaign",
+  status: "published" | "draft" = "published",
+): Promise<string> {
   const [row] = await db
     .insert(schema.socialPosts)
     .values({
       format: "image",
       kind,
+      status,
+      ...(status === "published"
+        ? {
+            approvedBy: ownerId,
+            approvedAt: new Date(),
+            publishKey: crypto.randomUUID(),
+            metaObjectId: `page_${crypto.randomUUID()}`,
+            publishedAt: new Date(),
+          }
+        : {}),
       caption: "حملة",
       captionSource: "template",
       campaign:
@@ -65,6 +82,7 @@ async function setStatus(publicReference: string, status: string) {
 
 beforeAll(async () => {
   await resetTestDatabase();
+  ownerId = (await createOwnerActor()).id;
 });
 
 beforeEach(async () => {
@@ -187,5 +205,36 @@ describe("campaign attribution", () => {
     }
     [result] = await attribution.report();
     expect(result!.conversionRate).toBeCloseTo(2 / MIN_VISITS_FOR_RATE);
+  });
+
+  it("never counts a draft's link, an automated visit or a test order as a result", async () => {
+    // A draft's link opened while reviewing it is not a visitor.
+    const draft = await campaignPost("campaign", "draft");
+    expect(await attribution.recordVisit(campaignCode(draft))).toBeNull();
+
+    for (const agent of [
+      null,
+      "facebookexternalhit/1.1",
+      "Mozilla/5.0 (compatible; Googlebot/2.1)",
+      "Mozilla/5.0 HeadlessChrome/120.0",
+    ]) {
+      expect(isAutomatedVisit(agent), String(agent)).toBe(true);
+    }
+    expect(
+      isAutomatedVisit(
+        "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 Chrome/120.0 Mobile Safari/537.36",
+      ),
+    ).toBe(false);
+
+    const id = await campaignPost();
+    const code = campaignCode(id);
+    const qa = await orders.create(
+      checkoutRequest([{ productId: "general-cleaner", quantity: 1 }]),
+      { customerAccountId: null },
+      { test: true },
+    );
+    await attribution.attributeOrder(qa.publicReference, code);
+    // The owner's QA order (never fulfilled, by a database rule) is not counted as an order.
+    expect(await attribution.report()).toEqual([]);
   });
 });
