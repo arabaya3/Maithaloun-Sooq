@@ -38,3 +38,6 @@ next-env.d.ts
 
 # Vercel local link metadata
 /.vercel
+
+# Taste Skill working files
+/.taste-skill/

@@ -12,5 +12,7 @@ export default defineConfig([
     "public/sw.js",
     // The Flutter app has its own tooling; Prettier skips it too.
     "mobile/**",
+    // Vendored third-party skill, kept as upstream wrote it.
+    ".claude/skills/design-taste-frontend/**",
   ]),
 ]);

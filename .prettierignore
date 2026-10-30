@@ -1,2 +1,5 @@
 # The Flutter app has its own formatter (dart format) and generated platform files.
 mobile/
+
+# Vendored third-party skill, kept as upstream wrote it.
+.claude/skills/design-taste-frontend/
