@@ -108,6 +108,8 @@ export interface ApprovalInput {
   mediaStatus: MediaStatus;
   captionOk: boolean;
   productsAvailable: boolean;
+  /** False when a campaign's prices or delivery rule changed after it was drawn. */
+  campaignCurrent: boolean;
   scheduledFor: Date | null;
   now: Date;
 }
@@ -117,6 +119,7 @@ export type ApprovalBlocker =
   | "media_not_ready"
   | "caption_blocked"
   | "product_unavailable"
+  | "campaign_changed"
   | "schedule_in_past";
 
 export function approvalBlockers(input: ApprovalInput): ApprovalBlocker[] {
@@ -125,6 +128,7 @@ export function approvalBlockers(input: ApprovalInput): ApprovalBlocker[] {
   if (input.mediaStatus !== "ready") blockers.push("media_not_ready");
   if (!input.captionOk) blockers.push("caption_blocked");
   if (!input.productsAvailable) blockers.push("product_unavailable");
+  if (!input.campaignCurrent) blockers.push("campaign_changed");
   if (input.scheduledFor && input.scheduledFor < input.now) {
     blockers.push("schedule_in_past");
   }
@@ -136,6 +140,8 @@ export const approvalBlockerLabels: Record<ApprovalBlocker, string> = {
   media_not_ready: "الصورة أو الفيديو لم يجهز بعد.",
   caption_blocked: "النص يحتاج تعديلاً قبل الموافقة.",
   product_unavailable: "أحد المنتجات لم يعد متوفراً.",
+  campaign_changed:
+    "تغيّر سعر أو قاعدة توصيل بعد تجهيز الحملة. جهّزيها من جديد.",
   schedule_in_past: "موعد النشر مضى. اختاري موعداً جديداً.",
 };
 

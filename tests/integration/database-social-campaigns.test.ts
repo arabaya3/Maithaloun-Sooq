@@ -23,6 +23,7 @@ import {
   toSocialCatalog,
   type PublicCatalog,
 } from "@/features/social/domain/social-catalog";
+import { MakePublisher } from "@/features/social/infrastructure/make-publisher";
 import * as schema from "@/server/db/schema";
 import {
   resetTestDatabase,
@@ -107,6 +108,8 @@ function publicCatalog(): PublicCatalog {
 let clock = new Date("2026-10-29T08:00:00Z");
 let rendered: Array<{ layout: string; footer: string }> = [];
 
+let webhookCalls = 0;
+
 function service() {
   let media = 0;
   return new SocialService({
@@ -134,6 +137,19 @@ function service() {
     loadImage: async () => Buffer.from("photo"),
     videoRenderingAvailable: async () => false,
     now: () => clock,
+    publisherName: "make",
+    makePublisher: new MakePublisher({
+      webhookUrl: "https://hook.test/make",
+      apiKey: "test-key",
+      supportsReels: false,
+      pageId: "61595987361563",
+      callbackUrl: "https://www.maytha.app/api/social/make/callback",
+      fetch: async () => {
+        webhookCalls += 1;
+        return Response.json({ accepted: true });
+      },
+    }),
+    checkMedia: async () => null as never,
   });
 }
 
@@ -267,6 +283,43 @@ describe("Creative Studio campaigns (database)", () => {
     await expect(
       social.campaignExport(owner, bundled.id, "story"),
     ).rejects.toMatchObject({ code: "prices_changed" });
+  });
+
+  it("refuses to approve or publish a campaign whose prices changed after it was drawn", async () => {
+    await social.draftCampaigns(owner, { startDate: "2026-11-01", days: 14 });
+    await social.renderPending(20);
+    const ready = (await campaigns()).find(
+      (row) =>
+        row.mediaStatus === "ready" &&
+        (row.campaign as { bundle?: unknown }).bundle,
+    )!;
+    const original = new Map(prices);
+    const raise = () => {
+      for (const [id, price] of original) prices.set(id, price + 50);
+    };
+
+    raise();
+    await expect(
+      social.approve(owner, ready.id, ready.version),
+    ).rejects.toMatchObject({
+      code: "blocked",
+      blockers: expect.arrayContaining(["campaign_changed"]),
+    });
+
+    prices = new Map(original);
+    await social.approve(owner, ready.id, ready.version);
+    raise();
+    webhookCalls = 0;
+    expect((await social.publishDue(1, { onlyPostId: ready.id })).failed).toBe(
+      1,
+    );
+    expect(webhookCalls).toBe(0);
+    const failed = (await campaigns()).find((row) => row.id === ready.id)!;
+    expect(failed).toMatchObject({
+      status: "failed",
+      lastErrorCode: "CAMPAIGN_PRICES_CHANGED",
+      metaObjectId: null,
+    });
   });
 
   it("is approved only by the owner, and an approved campaign is frozen", async () => {

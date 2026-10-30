@@ -1472,6 +1472,7 @@ export class SocialService {
         mediaStatus: post.mediaStatus as MediaStatus,
         captionOk: captionCheck.ok,
         productsAvailable,
+        campaignCurrent,
         scheduledFor: post.scheduledFor,
         now: this.now(),
       }),
@@ -2136,6 +2137,18 @@ export class SocialService {
         });
         failed += 1;
         continue;
+      }
+      // And a campaign's prices: its image and caption were approved with today's only if unchanged.
+      if (post.kind === "campaign") {
+        const { campaignCurrent, captionCheck } = this.evaluate(post, catalog);
+        if (!campaignCurrent || !captionCheck.ok) {
+          await this.failClaim(post, token, {
+            kind: "local",
+            code: "CAMPAIGN_PRICES_CHANGED",
+          });
+          failed += 1;
+          continue;
+        }
       }
       if (
         post.publishKey !== publishKey(post) ||
