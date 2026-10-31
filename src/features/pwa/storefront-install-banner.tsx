@@ -8,6 +8,7 @@ import { splitLocalePath } from "@/i18n/config";
 import { useI18n } from "@/i18n/i18n-provider";
 
 import { appIcons } from "./app-icons";
+import { useOnOldStoreHost } from "./domain-move-notice";
 import { InstallInstructions } from "./install-instructions";
 import { useInstallPrompt } from "./use-install-prompt";
 
@@ -17,9 +18,12 @@ export function StorefrontInstallBanner() {
   const { status, dismissed, promptInstall, dismiss } =
     useInstallPrompt("storefront");
   const [showSteps, setShowSteps] = useState(false);
+  // Installing on the old address would only add an icon people must replace.
+  const onOldHost = useOnOldStoreHost();
 
   // Shopping and checkout stay unobstructed: the banner lives on the home page only.
   const visible =
+    !onOldHost &&
     splitLocalePath(pathname).path === "/" &&
     !dismissed &&
     (status === "available" || status === "ios");

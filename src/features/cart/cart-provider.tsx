@@ -10,6 +10,8 @@ import {
   type ReactNode,
 } from "react";
 
+import { readMovedCart } from "@/features/pwa/domain-move";
+
 import {
   CART_STORAGE_KEY,
   LEGACY_CART_STORAGE_KEY,
@@ -87,7 +89,20 @@ export function CartProvider({
       },
       catalog,
     );
-    dispatch({ type: "restore", lines: saved.lines });
+    const moved = readMovedCart(window.location.hash);
+    if (moved !== null) {
+      window.history.replaceState(
+        null,
+        "",
+        window.location.pathname + window.location.search,
+      );
+    }
+    // A cart brought from the old address never replaces one already here.
+    const lines =
+      moved !== null && saved.lines.length === 0
+        ? parsePersistedCart({ v3: moved }, catalog).lines
+        : saved.lines;
+    dispatch({ type: "restore", lines });
     queueMicrotask(() => setRestored(true));
   }, [catalog]);
 

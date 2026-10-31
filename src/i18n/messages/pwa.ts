@@ -4,6 +4,10 @@ const ar = {
     "أضف المتجر إلى الشاشة الرئيسية للوصول إليه بسرعة. التثبيت اختياري.",
   install: "تثبيت التطبيق",
   later: "لاحقاً",
+  moveTitle: "عنوان المتجر الجديد: maytha.app",
+  moveText:
+    "افتح الموقع الجديد وسلتك معك، ثم ثبّته على الشاشة الرئيسية واحذف الأيقونة القديمة.",
+  moveAction: "افتح الموقع الجديد",
   installed: "التطبيق مثبّت على هذا الجهاز.",
   installOnPhone: "تثبيت التطبيق على الهاتف",
   // Storefront install steps; the admin sheet keeps its own Arabic copy.
@@ -22,6 +26,10 @@ const en: typeof ar = {
     "Add the store to your home screen for quick access. Installing is optional.",
   install: "Install app",
   later: "Later",
+  moveTitle: "Our new address: maytha.app",
+  moveText:
+    "Open the new site and your cart comes with you. Then add it to your home screen and remove the old icon.",
+  moveAction: "Open the new site",
   installed: "The app is installed on this device.",
   installOnPhone: "Install the app on your phone",
   stepsTitle: "Add MAYTHA MARKET to your home screen",
