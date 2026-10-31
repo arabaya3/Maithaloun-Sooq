@@ -21,7 +21,7 @@ const ar = {
   countryCode: "مفتاح الدولة",
   localNumber: "الرقم المحلي",
   whatsappHelp: "يُستخدم رقم الواتساب فقط لتأكيد الطلب وتنفيذ التوصيل.",
-  honeypot: "موقع الشركة",
+  honeypot: "اترك هذا الحقل فارغاً",
   contactNote:
     "بعد استلام الطلب سنتواصل معك عبر واتساب لتأكيد الطلب ومكان التوصيل داخل ميثلون.",
   paymentTitle: "طريقة الدفع",
@@ -65,7 +65,7 @@ const en: typeof ar = {
   localNumber: "Local number",
   whatsappHelp:
     "Your WhatsApp number is used only to confirm and deliver this order.",
-  honeypot: "Company website",
+  honeypot: "Leave this field empty",
   contactNote:
     "Once we receive your order, we’ll contact you on WhatsApp to confirm it and agree on the delivery spot within Maythaloun.",
   paymentTitle: "Payment method",
