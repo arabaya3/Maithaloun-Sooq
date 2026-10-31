@@ -218,6 +218,20 @@
       "when": 1793174288122,
       "tag": "0030_social_auto_publish_off",
       "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1793219951190,
+      "tag": "0031_social_campaigns",
+      "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1793258138739,
+      "tag": "0032_social_attribution_reels",
+      "breakpoints": true
     }
   ]
 }

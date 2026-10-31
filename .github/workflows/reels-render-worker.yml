@@ -1,0 +1,51 @@
+# The render-only Reels worker: renders the Reels the owner asked for in /admin/social/reels and
+# stores the videos. It has no publishing, approval or social-account secrets: no Make webhook, no
+# Facebook token, no token key. It runs only when started by hand (no schedule), and only when the
+# repository variable REELS_RENDER_WORKER is "on", which needs the owner's separate approval.
+name: reels-render-worker
+
+on:
+  workflow_dispatch:
+    inputs:
+      limit:
+        description: Most Reels to render in this run
+        type: choice
+        default: "3"
+        options: ["1", "3", "5", "10"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: reels-render-worker
+  cancel-in-progress: false
+
+jobs:
+  render:
+    if: vars.REELS_RENDER_WORKER == 'on'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      # Actions are pinned to commits: this job holds a database secret.
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
+      # No secret is present while dependencies install.
+      - run: pnpm install --frozen-lockfile
+      - name: Render requested Reels
+        env:
+          LIMIT: ${{ inputs.limit }}
+          REELS_RENDER_WORKER: "on"
+          DATABASE_URL: ${{ secrets.REELS_RENDER_DATABASE_URL }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+          SOCIAL_PUBLIC_ORIGIN: ${{ vars.SOCIAL_PUBLIC_ORIGIN }}
+        run: |
+          case "$LIMIT" in 1|3|5|10) ;; *) echo "Bad limit" >&2; exit 1 ;; esac
+          pnpm social:render-worker "$LIMIT"

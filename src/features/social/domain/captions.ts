@@ -15,6 +15,7 @@ export const postKinds = [
   "weekly_highlights",
   "shopping_tip",
   "delivery_info",
+  "campaign",
 ] as const;
 export type PostKind = (typeof postKinds)[number];
 
@@ -22,6 +23,7 @@ export const reelTemplates = ["spotlight", "collection", "delivery"] as const;
 export type ReelTemplate = (typeof reelTemplates)[number];
 
 export const postKindLabels: Record<PostKind, string> = {
+  campaign: "حملة",
   product: "منتج واحد",
   collection: "مجموعة منتجات",
   new_arrivals: "وصل حديثاً",
@@ -71,11 +73,11 @@ export function deliveryLine(store: StoreFacts): string {
   return `🚚 التوصيل داخل ${store.deliveryAreaAr} بـ ${formatIls(store.deliveryFeeAgorot)}، ومجاني للطلبات من ${formatIls(store.freeDeliveryFromAgorot)} وفوق.`;
 }
 
-function paymentLine(store: StoreFacts): string | null {
+export function paymentLine(store: StoreFacts): string | null {
   return store.cashOnDelivery ? "💵 الدفع نقداً عند الاستلام." : null;
 }
 
-function callToAction(context: CaptionContext, url?: string): string[] {
+export function callToAction(context: CaptionContext, url?: string): string[] {
   return [
     `🛒 اطلبوا من الموقع: ${url ?? context.origin}`,
     whatsAppLine(context.store),

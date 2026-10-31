@@ -35,7 +35,7 @@ export interface FeedRenderInput {
   products: readonly SocialProduct[];
   photos: ReadonlyMap<string, Buffer>;
   store: StoreFacts;
-  /** The storefront address as shown to people, e.g. maithaloun-sooq.vercel.app. */
+  /** The storefront address as shown to people, e.g. www.maytha.app. */
   siteLabel: string;
   tipId?: ShoppingTipId | null;
   /** A single-category collection's title. */

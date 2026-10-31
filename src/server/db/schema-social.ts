@@ -5,6 +5,7 @@ import {
   index,
   integer,
   jsonb,
+  primaryKey,
   pgTable,
   text,
   timestamp,
@@ -12,7 +13,7 @@ import {
   varchar,
 } from "drizzle-orm/pg-core";
 
-import { adminUsers } from "./schema-core";
+import { adminUsers, orders } from "./schema-core";
 
 const createdAt = timestamp("created_at", { withTimezone: true, mode: "date" })
   .notNull()
@@ -39,6 +40,8 @@ export const socialPosts = pgTable(
       .default(sql`'[]'::jsonb`),
     tipId: varchar("tip_id", { length: 40 }),
     categoryCode: varchar("category_code", { length: 40 }),
+    /** A Creative Studio campaign: its angle, objective and the exact bundle it was planned with. */
+    campaign: jsonb("campaign").$type<Record<string, unknown> | null>(),
     caption: text("caption").notNull(),
     captionSource: varchar("caption_source", { length: 12 }).notNull(),
     mediaStatus: varchar("media_status", { length: 12 })
@@ -278,5 +281,86 @@ export const socialSettings = pgTable(
   (table) => [
     index("social_settings_updated_by_idx").on(table.updatedBy),
     check("social_settings_singleton", sql`${table.id} = 1`),
+  ],
+);
+
+/**
+ * Landings from a tracked campaign link, counted per campaign and day. No visitor data is kept:
+ * only the count of first landings per browser session.
+ */
+export const socialCampaignVisits = pgTable(
+  "social_campaign_visits",
+  {
+    postId: uuid("post_id")
+      .notNull()
+      .references(() => socialPosts.id, { onDelete: "cascade" }),
+    day: varchar("day", { length: 10 }).notNull(),
+    visits: integer("visits").notNull().default(0),
+  },
+  (table) => [
+    primaryKey({ columns: [table.postId, table.day] }),
+    check("social_campaign_visits_positive", sql`${table.visits} >= 0`),
+  ],
+);
+
+/**
+ * An order placed after a tracked campaign link. Kept apart from orders so that neither the order
+ * nor its history changes; one campaign at most per order.
+ */
+export const socialOrderAttributions = pgTable(
+  "social_order_attributions",
+  {
+    orderId: uuid("order_id")
+      .primaryKey()
+      .references(() => orders.id, { onDelete: "cascade" }),
+    postId: uuid("post_id")
+      .notNull()
+      .references(() => socialPosts.id, { onDelete: "cascade" }),
+    createdAt,
+  },
+  (table) => [index("social_order_attributions_post_idx").on(table.postId)],
+);
+
+/**
+ * A Reel the owner asked to render. The render-only worker claims a request (claim token), renders
+ * it with FFmpeg and stores the video; it never touches posts, approvals or the Page. The same
+ * storyboard is rendered once: a repeat request returns the existing render.
+ */
+export const socialReelRenders = pgTable(
+  "social_reel_renders",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    concept: varchar("concept", { length: 40 }).notNull(),
+    seconds: integer("seconds").notNull(),
+    productIds: jsonb("product_ids")
+      .$type<string[]>()
+      .notNull()
+      .default(sql`'[]'::jsonb`),
+    storyboard: jsonb("storyboard").$type<Record<string, unknown>>().notNull(),
+    /** sha256 of the storyboard: the same Reel is never queued twice. */
+    storyboardKey: varchar("storyboard_key", { length: 64 }).notNull().unique(),
+    status: varchar("status", { length: 12 }).notNull().default("queued"),
+    attempts: integer("attempts").notNull().default(0),
+    claimToken: uuid("claim_token"),
+    claimedAt: timestamp("claimed_at", { withTimezone: true, mode: "date" }),
+    errorCode: varchar("error_code", { length: 60 }),
+    videoUrl: varchar("video_url", { length: 600 }),
+    frameUrls: jsonb("frame_urls")
+      .$type<string[]>()
+      .notNull()
+      .default(sql`'[]'::jsonb`),
+    renderedSeconds: integer("rendered_seconds"),
+    requestedBy: uuid("requested_by").references(() => adminUsers.id),
+    createdAt,
+    updatedAt,
+  },
+  (table) => [
+    index("social_reel_renders_queue_idx").on(table.status, table.createdAt),
+    index("social_reel_renders_requested_by_idx").on(table.requestedBy),
+    check(
+      "social_reel_renders_status",
+      sql`${table.status} IN ('queued','rendering','ready','failed')`,
+    ),
+    check("social_reel_renders_attempts", sql`${table.attempts} >= 0`),
   ],
 );

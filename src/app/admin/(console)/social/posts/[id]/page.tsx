@@ -12,13 +12,20 @@ import {
   rejectPostAction,
   reopenPostAction,
   reschedulePostAction,
+  chooseCampaignHookAction,
+  regenerateCampaignAction,
   rerenderPostAction,
   resolveUncertainAction,
   retryPostAction,
   unapprovePostAction,
 } from "@/features/social/application/social-actions";
 import { socialService } from "@/features/social/application/social-instance";
-import { SocialError } from "@/features/social/application/social-service";
+import {
+  campaignOf,
+  SocialError,
+} from "@/features/social/application/social-service";
+import { campaignTypeLabels } from "@/features/social/domain/campaigns";
+import { formatIls } from "@/shared/lib/format-currency";
 import { captionIssueLabels } from "@/features/social/domain/caption-guard";
 import {
   approvalBlockerLabels,
@@ -128,6 +135,7 @@ export default async function SocialPostPage({
   const unsettled = socialService.isSettleable(post);
   const publisherName = socialService.publisherName();
   const schedule = scheduleDefaults(post.scheduledFor);
+  const campaign = campaignOf(post);
 
   return (
     <main className="admin-page">
@@ -224,6 +232,191 @@ export default async function SocialPostPage({
               </div>
             ) : null}
           </dl>
+
+          {campaign ? (
+            <section className="admin-panel" aria-labelledby="campaign-title">
+              <h2 id="campaign-title">
+                الحملة: {campaignTypeLabels[campaign.type]}
+              </h2>
+              {post.campaignDetails ? (
+                <p>
+                  <strong>{post.campaignDetails.nameAr}</strong>
+                  {post.campaignDetails.problemAr
+                    ? ` · المشكلة: ${post.campaignDetails.problemAr}`
+                    : ""}
+                </p>
+              ) : null}
+              <dl className="admin-definition-list">
+                <div>
+                  <dt>الهدف</dt>
+                  <dd>{campaign.objective}</dd>
+                </div>
+                <div>
+                  <dt>لمين</dt>
+                  <dd>{campaign.audience}</dd>
+                </div>
+                <div>
+                  <dt>الفكرة</dt>
+                  <dd>{campaign.concept}</dd>
+                </div>
+                {campaign.bundle ? (
+                  <div>
+                    <dt>{campaign.bundle.nameAr}</dt>
+                    <dd>
+                      <ul className="social-issues">
+                        {campaign.bundle.items.map((item) => (
+                          <li key={item.variantId}>
+                            {item.name}
+                            {item.variantLabel ? ` (${item.variantLabel})` : ""}
+                            : <bdi>{formatIls(item.priceAgorot)}</bdi>
+                          </li>
+                        ))}
+                      </ul>
+                      <strong>
+                        المجموع{" "}
+                        <bdi>{formatIls(campaign.bundle.totalAgorot)}</bdi>
+                      </strong>
+                      {campaign.bundle.freeDelivery
+                        ? " · التوصيل مجاني"
+                        : ` · ناقصها ${formatIls(campaign.bundle.missingAgorot)} للتوصيل المجاني`}
+                    </dd>
+                  </div>
+                ) : null}
+              </dl>
+              {!post.campaignCurrent ? (
+                <p className="admin-form-error" role="alert">
+                  تغيّرت الأسعار أو قاعدة التوصيل منذ تجهيز هذه الحملة، فلا يمكن
+                  الموافقة عليها. اقترحي حملة أخرى.
+                </p>
+              ) : null}
+              {post.campaignDetails &&
+              post.campaignDetails.hooks.length === 3 &&
+              status === "draft" &&
+              canPrepare ? (
+                <form action={chooseCampaignHookAction} className="admin-form">
+                  <Hidden id={post.id} version={post.version} />
+                  <fieldset className="social-hooks">
+                    <legend>
+                      الافتتاحية (السطر الأول والعنوان على الصورة)
+                    </legend>
+                    {post.campaignDetails.hooks.map((hook, index) => (
+                      <label key={index}>
+                        <input
+                          type="radio"
+                          name="hook"
+                          value={index}
+                          defaultChecked={
+                            index === post.campaignDetails!.hookIndex
+                          }
+                        />
+                        <span>{hook}</span>
+                      </label>
+                    ))}
+                  </fieldset>
+                  <button
+                    type="submit"
+                    className="admin-btn admin-btn-secondary"
+                  >
+                    اعتمدي هذه الافتتاحية
+                  </button>
+                </form>
+              ) : null}
+              {post.campaignDetails ? (
+                <label className="admin-field">
+                  <span>
+                    رابط متتبَّع (للمنشورات بالرابط أو الإعلانات لاحقاً)
+                  </span>
+                  <input
+                    className="admin-input social-link-field"
+                    dir="ltr"
+                    readOnly
+                    value={post.campaignDetails.destination}
+                  />
+                </label>
+              ) : null}
+              {status === "draft" && canPrepare ? (
+                <form action={regenerateCampaignAction}>
+                  <Hidden id={post.id} version={post.version} />
+                  <button
+                    type="submit"
+                    className="admin-btn admin-btn-secondary"
+                  >
+                    <RotateCcw size={16} aria-hidden="true" /> اقتراح حملة أخرى
+                  </button>
+                </form>
+              ) : null}
+              {campaign ? (
+                <details className="social-drawer">
+                  <summary>المقاسات والإعلان</summary>
+                  <p className="admin-muted">
+                    نفس الحملة مركّبة لكل مقاس بأسعار اليوم. للتنزيل فقط؛ لا
+                    يُنشر شيء.
+                  </p>
+                  <ul className="social-exports">
+                    <li>
+                      <a href={post.mediaUrl ?? undefined} download>
+                        منشور طولي 4:5
+                      </a>
+                    </li>
+                    {(
+                      [
+                        ["square", "منشور مربع 1:1"],
+                        ["story", "ستوري 9:16"],
+                      ] as const
+                    ).map(([format, label]) => (
+                      <li key={format}>
+                        <a
+                          href={`/admin/api/social/campaigns/${post.id}/export?format=${format}`}
+                          download
+                        >
+                          {label}
+                        </a>
+                      </li>
+                    ))}
+                    {Array.from(
+                      {
+                        length: campaign.bundle
+                          ? Math.min(campaign.bundle.items.length, 5) + 2
+                          : campaign.layout === "product_spotlight"
+                            ? 3
+                            : 0,
+                      },
+                      (_, index) => (
+                        <li key={`slide-${index}`}>
+                          <a
+                            href={`/admin/api/social/campaigns/${post.id}/export?format=carousel&slide=${index + 1}`}
+                            download
+                          >
+                            كاروسيل: الشريحة {index + 1}
+                          </a>
+                        </li>
+                      ),
+                    )}
+                  </ul>
+                  {post.campaignDetails?.ad ? (
+                    <dl className="social-ad">
+                      <div>
+                        <dt>النص الأساسي</dt>
+                        <dd>{post.campaignDetails.ad.primaryText}</dd>
+                      </div>
+                      <div>
+                        <dt>العنوان</dt>
+                        <dd>{post.campaignDetails.ad.headline}</dd>
+                      </div>
+                      <div>
+                        <dt>الوصف</dt>
+                        <dd>{post.campaignDetails.ad.description}</dd>
+                      </div>
+                      <div>
+                        <dt>الزر</dt>
+                        <dd>تسوّق الآن (SHOP_NOW)</dd>
+                      </div>
+                    </dl>
+                  ) : null}
+                </details>
+              ) : null}
+            </section>
+          ) : null}
 
           {!post.captionCheck.ok ? (
             <div className="admin-alert-panel" role="alert">

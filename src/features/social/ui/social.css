@@ -249,3 +249,317 @@ video.social-preview--large {
     inline-size: 100%;
   }
 }
+
+/* Creative Studio: the step counts and the quick «أنشئي حملة» form. */
+.social-overview {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 0.75rem;
+  margin-block: 1rem;
+}
+
+.social-overview-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: 0.75rem 1rem;
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  border: 1px solid var(--border);
+}
+
+.social-overview-card strong {
+  font-size: 1.5rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.social-overview-card span {
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+
+.social-create {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.social-create .admin-field {
+  flex: 1 1 14rem;
+  min-width: 0;
+}
+
+.social-hooks {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.social-hooks label {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+
+.social-link-field {
+  width: 100%;
+  font-size: var(--text-sm);
+}
+
+.social-scenes {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  border: 0;
+  padding: 0;
+}
+
+.social-storyboard {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(8.5rem, 1fr));
+  gap: 0.75rem;
+  margin: 0 0 1rem;
+  padding: 0;
+  list-style: none;
+}
+
+.social-storyboard li {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-size: 0.85rem;
+}
+
+.social-storyboard img,
+.social-render video {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 9 / 16;
+  border-radius: 0.5rem;
+  border: 1px solid var(--admin-border, #d9e2d2);
+}
+
+.social-renders {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.social-render {
+  display: grid;
+  grid-template-columns: minmax(0, 10rem) minmax(0, 1fr);
+  gap: 1rem;
+  align-items: start;
+}
+
+.social-render > div {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
+/* Studio pages: settings in a side panel, the work itself beside it. One column on phones. */
+.social-studio {
+  display: grid;
+  grid-template-columns: minmax(16rem, 22rem) minmax(0, 1fr);
+  gap: 1rem;
+  align-items: start;
+}
+
+.social-side {
+  position: sticky;
+  top: 1rem;
+  max-height: calc(100dvh - 2rem);
+  overflow-y: auto;
+}
+
+.social-side-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+/* .admin-field grows to a 10rem basis for row forms; in this column it would be 10rem tall. */
+.social-side-form > .admin-field {
+  flex: none;
+}
+
+.social-studio-main {
+  min-width: 0;
+}
+
+@media (max-width: 900px) {
+  .social-studio {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .social-side {
+    position: static;
+    max-height: none;
+  }
+}
+
+/* A side drawer of details: closed by default so the page stays short. */
+.social-drawer {
+  border: 1px solid var(--admin-border, #e3e9e4);
+  border-radius: 0.75rem;
+  padding: 0.75rem 1rem;
+}
+
+.social-drawer > summary {
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.social-drawer[open] > summary {
+  margin-bottom: 0.5rem;
+}
+
+.social-exports {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+  margin: 0.5rem 0;
+  padding: 0;
+  list-style: none;
+}
+
+.social-ad {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin: 0;
+}
+
+.social-ad dt {
+  font-size: 0.8rem;
+  color: var(--admin-muted, #5a685e);
+}
+
+.social-ad dd {
+  margin: 0;
+}
+
+.social-gallery,
+.social-assets {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 12rem), 1fr));
+  gap: 1rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.social-gallery-card {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  border: 1px solid var(--admin-border, #e3e9e4);
+  border-radius: 0.75rem;
+  overflow: hidden;
+  color: inherit;
+  text-decoration: none;
+  background: var(--admin-surface, #fff);
+}
+
+.social-gallery-card img,
+.social-gallery-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 4 / 5;
+  object-fit: cover;
+  background: var(--admin-border, #e3e9e4);
+  text-align: center;
+  padding: 0.5rem;
+}
+
+.social-gallery-card img {
+  padding: 0;
+}
+
+.social-gallery-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.35rem;
+  padding: 0.75rem;
+}
+
+.social-asset {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.social-asset img,
+.social-asset-missing {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 10rem;
+  object-fit: contain;
+  border: 1px solid var(--admin-border, #e3e9e4);
+  border-radius: 0.75rem;
+  background: #f7f8f3;
+}
+
+.social-asset-status {
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.social-asset-status--approved {
+  color: #0e5a2f;
+}
+
+.social-asset-status--small_only {
+  color: #8a5a1f;
+}
+
+.social-asset-status--blocked,
+.social-asset-status--artwork_required {
+  color: #a3271f;
+}
+
+.social-swatches {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 13rem), 1fr));
+  gap: 0.5rem 1rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.social-swatches li {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.social-swatch {
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 0.4rem;
+  border: 1px solid var(--admin-border, #e3e9e4);
+  flex: none;
+}
+
+.social-gallery-flag {
+  color: var(--admin-warning, #8a5a00);
+  font-weight: 600;
+}

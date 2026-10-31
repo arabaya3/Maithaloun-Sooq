@@ -6,6 +6,7 @@ import {
   Clock,
   Link2Off,
   PenLine,
+  Sparkles,
   XCircle,
 } from "lucide-react";
 
@@ -14,9 +15,12 @@ import { can } from "@/features/admin/domain/permissions";
 import { MetricCard, PageHeader } from "@/features/admin/ui/kit";
 import {
   draftTwoWeeksAction,
+  createCampaignAction,
+  draftCampaignsAction,
   renderPendingAction,
 } from "@/features/social/application/social-actions";
 import { socialService } from "@/features/social/application/social-instance";
+import { campaignObjectives } from "@/features/social/domain/campaigns";
 import {
   FormatIcon,
   first,
@@ -59,7 +63,7 @@ export default async function SocialCalendarPage({
   const actor = await requireAdminSession();
   const params = await searchParams;
   const today = todayInStoreZone();
-  const [counts, rows, connection] = await Promise.all([
+  const [counts, rows, connection, overview] = await Promise.all([
     socialService.statusCounts(actor),
     socialService.listPosts(actor, {
       from: startOfStoreDay(today),
@@ -74,6 +78,7 @@ export default async function SocialCalendarPage({
       ],
     }),
     socialService.connection(),
+    socialService.overview(actor),
   ]);
   const byDay = new Map<string, typeof rows>();
   for (const row of rows) {
@@ -96,6 +101,11 @@ export default async function SocialCalendarPage({
                   <PenLine size={16} aria-hidden="true" /> جهّزي مسودات أسبوعين
                 </button>
               </form>
+              <form action={draftCampaignsAction}>
+                <button type="submit" className="admin-btn admin-btn-primary">
+                  <Sparkles size={16} aria-hidden="true" /> جهّزي حملات أسبوعين
+                </button>
+              </form>
               <form action={renderPendingAction}>
                 <button type="submit" className="admin-btn admin-btn-secondary">
                   جهّزي الصور المعلّقة
@@ -106,6 +116,44 @@ export default async function SocialCalendarPage({
         }
       />
       <SocialNav current="/admin/social" />
+      <section className="social-overview" aria-label="ملخص الحملات">
+        {[
+          ["مسودات", overview.drafts],
+          ["جاهزة للمراجعة", overview.readyForReview],
+          ["موافَق عليها", overview.approved],
+          ["منشورة", overview.published],
+          ["ريلز قيد التجهيز", overview.reelsInProgress],
+        ].map(([label, value]) => (
+          <div key={label} className="social-overview-card">
+            <strong>{value}</strong>
+            <span>{label}</span>
+          </div>
+        ))}
+      </section>
+      {can(actor, "social.prepare") ? (
+        <form
+          action={createCampaignAction}
+          className="admin-form social-create"
+        >
+          <label className="admin-field">
+            <span>أنشئي حملة لهدف</span>
+            <select
+              name="objective"
+              className="admin-input"
+              defaultValue="discovery"
+            >
+              {campaignObjectives.map((objective) => (
+                <option key={objective.id} value={objective.id}>
+                  {objective.labelAr}
+                </option>
+              ))}
+            </select>
+          </label>
+          <button type="submit" className="admin-btn admin-btn-primary">
+            <Sparkles size={16} aria-hidden="true" /> أنشئي حملة
+          </button>
+        </form>
+      ) : null}
       <SocialNotice done={first(params.done)} error={first(params.error)} />
 
       {!connection || connection.status !== "connected" ? (

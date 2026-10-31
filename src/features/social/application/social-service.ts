@@ -17,7 +17,7 @@ import {
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 
 import type { AdminActor } from "@/features/admin/domain/admin-actor";
-import { assertPermission } from "@/features/admin/domain/permissions";
+import { assertPermission, can } from "@/features/admin/domain/permissions";
 import {
   checkCaption,
   type CaptionCheck,
@@ -36,8 +36,52 @@ import {
   type ShoppingTipId,
 } from "@/features/social/domain/captions";
 import { decideComment } from "@/features/social/domain/comment-policy";
+import { bundleIsCurrent } from "@/features/social/domain/bundles";
+import type { MascotPose } from "@/features/social/domain/mascot";
+import {
+  ReelRenderQueue,
+  type ReelChoices,
+  type ReelRenderRow,
+} from "./reel-render-queue";
+import { currentStoryboard } from "./reel-render-worker";
+import {
+  buildStoryboard,
+  reelConcepts,
+  reelLengths,
+  type ReelConcept,
+  type ReelLength,
+  type Storyboard,
+} from "@/features/social/domain/reels";
+import { renderStoryboardFrames } from "@/features/social/infrastructure/render/storyboard-video";
+import {
+  CampaignAttribution,
+  campaignCode,
+  type CampaignResult,
+} from "./campaign-attribution";
+import {
+  bundlePrices,
+  campaignBrief,
+  adCopy,
+  campaignCopy,
+  campaignDestination,
+  type AdCopy,
+  campaignForType,
+  campaignHooks,
+  campaignObjectives,
+  fromStoredCampaign,
+  type CampaignObjectiveId,
+  planCampaigns,
+  replanCampaign,
+  toStoredCampaign,
+  type PlannedCampaign,
+  type StoredCampaign,
+} from "@/features/social/domain/campaigns";
+import type { CampaignRenderInput } from "@/features/social/infrastructure/render/campaign-templates";
 import {
   buildContentPlan,
+  defaultWeeklySlots,
+  storeInstant,
+  weekdayOf,
   type PlannedItem,
 } from "@/features/social/domain/content-plan";
 import {
@@ -60,6 +104,7 @@ import {
 import {
   allowedPrices,
   catalogText,
+  formatSocialPrice,
   type SocialCatalog,
   type SocialProduct,
 } from "@/features/social/domain/social-catalog";
@@ -87,13 +132,16 @@ import type {
 import type { MediaProblem } from "@/features/social/infrastructure/media-check";
 import { MetaPublisher } from "@/features/social/infrastructure/meta-publisher";
 import * as schema from "@/server/db/schema";
-import { addDays } from "@/shared/lib/store-time";
+import { addDays, todayInStoreZone } from "@/shared/lib/store-time";
 
 type Database = PostgresJsDatabase<typeof schema>;
 export type SocialPostRow = typeof schema.socialPosts.$inferSelect;
 
 export type SocialErrorCode =
   | "not_found"
+  | "reel_text_rejected"
+  | "prices_changed"
+  | "reel_pose_unavailable"
   | "stale"
   | "blocked"
   | "invalid"
@@ -114,7 +162,8 @@ export type SocialErrorCode =
   | "paused"
   | "publisher_missing"
   | "format_unsupported"
-  | "page_not_configured";
+  | "page_not_configured"
+  | "no_alternative";
 
 /** What one owner-started publication ended as; failures are recorded on the post as usual. */
 export type PublishNowOutcome =
@@ -123,6 +172,28 @@ export type PublishNowOutcome =
   | "uncertain"
   | "page_mismatch"
   | "failed";
+
+export type CampaignExportFormat = "square" | "story" | "carousel";
+
+export interface ReelRequest {
+  concept: string;
+  seconds: number;
+  productIds: string[];
+  dropScenes?: number[];
+  pose?: string;
+  hookText?: string;
+  ctaText?: string;
+}
+
+/** The owner's storyboard choices, as the renderer and the worker both rebuild them. */
+export function reelChoices(input: ReelRequest): ReelChoices {
+  return {
+    dropScenes: input.dropScenes ?? [],
+    ...(input.pose ? { pose: input.pose as MascotPose } : {}),
+    ...(input.hookText?.trim() ? { hookText: input.hookText.trim() } : {}),
+    ...(input.ctaText?.trim() ? { ctaText: input.ctaText.trim() } : {}),
+  };
+}
 
 export class SocialError extends Error {
   constructor(
@@ -171,6 +242,15 @@ export interface SocialDependencies {
   vaultKey: () => Buffer;
   renderFeed: FeedRenderer;
   renderReel: ReelRenderer;
+  /** Creative Studio images; the factory adds the store address shown in the footer. */
+  renderCampaign?: (
+    input: Omit<CampaignRenderInput, "siteLabel">,
+  ) => Promise<Buffer>;
+  /** The same campaign as a square, a Story or carousel slides (one buffer per slide). */
+  renderCampaignExport?: (
+    input: Omit<CampaignRenderInput, "siteLabel">,
+    format: CampaignExportFormat,
+  ) => Promise<Buffer[]>;
   loadImage: (url: string) => Promise<Buffer>;
   videoRenderingAvailable: () => Promise<boolean>;
   metaApp?: { appId: string; appSecret: string } | null;
@@ -195,6 +275,18 @@ export interface PostView extends SocialPostRow {
   captionCheck: CaptionCheck;
   products: Array<{ id: string; name: string; available: boolean }>;
   blockers: ApprovalBlocker[];
+  /** False when a campaign bundle no longer matches today's prices or delivery rule. */
+  campaignCurrent: boolean;
+  /** For a campaign: its name, the problem it answers, the three hooks and its tracked link. */
+  campaignDetails: {
+    nameAr: string;
+    problemAr: string;
+    hooks: string[];
+    hookIndex: number;
+    destination: string;
+    /** The text a future ad would carry, from the approved copy only. */
+    ad: AdCopy | null;
+  } | null;
 }
 
 const DAY = 86_400_000;
@@ -205,6 +297,15 @@ export function publishKey(
   return createHash("sha256")
     .update(`${post.id}\n${post.caption}\n${post.mediaUrl ?? ""}`)
     .digest("hex");
+}
+
+/** The campaign a Creative Studio post was planned with, or null for any other post. */
+export function campaignOf(
+  post: Pick<SocialPostRow, "kind" | "campaign">,
+): StoredCampaign | null {
+  return post.kind === "campaign" && post.campaign
+    ? (post.campaign as unknown as StoredCampaign)
+    : null;
 }
 
 export class SocialService {
@@ -547,6 +648,9 @@ export class SocialService {
       return reelCaption(item.reelTemplate, products, context);
     }
     switch (item.kind) {
+      case "campaign":
+        // Campaign posts are captioned by the campaign engine, never by the content plan.
+        throw new Error("CAMPAIGN_NOT_IN_CONTENT_PLAN");
       case "product":
         return productCaption(products[0]!, context);
       case "collection":
@@ -698,6 +802,431 @@ export class SocialService {
     return { created, skipped };
   }
 
+  // ---------------------------------------------------------------- campaigns
+
+  /** Products shown in posts over the last three weeks; plans show them last. */
+  private async recentProductIds(): Promise<Set<string>> {
+    const rows = await this.db
+      .select({ productIds: schema.socialPosts.productIds })
+      .from(schema.socialPosts)
+      .where(
+        and(
+          ne(schema.socialPosts.status, "rejected"),
+          gte(
+            schema.socialPosts.createdAt,
+            new Date(this.now().getTime() - 21 * DAY),
+          ),
+        ),
+      );
+    return new Set(rows.flatMap((row) => row.productIds));
+  }
+
+  /** The caption a campaign gets from the live catalog, checked like any other caption. */
+  private campaignDraft(
+    campaign: PlannedCampaign,
+    catalog: SocialCatalog,
+  ): { caption: string; products: SocialProduct[] } | null {
+    const byId = new Map(
+      catalog.products.map((product) => [product.id, product]),
+    );
+    const products = campaign.productIds
+      .map((id) => byId.get(id))
+      .filter((product): product is SocialProduct => Boolean(product));
+    if (products.length !== campaign.productIds.length) return null;
+    const { caption } = campaignCopy(
+      campaign,
+      this.captionContext(catalog),
+      products,
+    );
+    const check = checkCaption(
+      caption,
+      new Set([
+        ...allowedPrices(products, catalog.store),
+        ...bundlePrices(campaign.bundle),
+      ]),
+      catalogText(products),
+    );
+    return check.ok ? { caption, products } : null;
+  }
+
+  private campaignDetails(
+    post: SocialPostRow,
+    catalog: SocialCatalog,
+  ): PostView["campaignDetails"] {
+    const stored = campaignOf(post);
+    if (!stored) return null;
+    const planned = fromStoredCampaign(stored, {
+      scheduledFor: post.scheduledFor ?? this.now(),
+      productIds: post.productIds,
+    });
+    const byId = new Map(
+      catalog.products.map((product) => [product.id, product]),
+    );
+    const products = post.productIds
+      .map((id) => byId.get(id))
+      .filter((product): product is SocialProduct => Boolean(product));
+    const context = this.captionContext(catalog);
+    let hooks: string[] = [];
+    try {
+      hooks = campaignHooks(planned, context, products);
+    } catch {
+      hooks = [];
+    }
+    const destination = campaignDestination(
+      planned,
+      context.origin,
+      products,
+      campaignCode(post.id),
+    );
+    let ad: AdCopy | null = null;
+    try {
+      ad = adCopy(campaignCopy(planned, context, products), destination);
+    } catch {
+      ad = null;
+    }
+    return {
+      ...campaignBrief(stored.angleId),
+      hooks,
+      hookIndex: stored.hookIndex ?? 0,
+      destination,
+      ad,
+    };
+  }
+
+  /**
+   * A campaign in another format (square, Story or carousel slides), drawn now from today's
+   * catalog. Refused when its prices changed since it was planned: never yesterday's prices.
+   * Nothing is stored or published; the owner downloads the files.
+   */
+  async campaignExport(
+    actor: AdminActor,
+    id: string,
+    format: CampaignExportFormat,
+  ): Promise<Buffer[]> {
+    assertPermission(actor, "social.view");
+    const post = await this.load(id);
+    const campaign = campaignOf(post);
+    if (!campaign || !this.deps.renderCampaignExport) {
+      throw new SocialError("invalid");
+    }
+    const catalog = await this.deps.catalog();
+    if (
+      campaign.bundle &&
+      !bundleIsCurrent(campaign.bundle, catalog.products, catalog.store)
+    ) {
+      throw new SocialError("prices_changed");
+    }
+    const byId = new Map(
+      catalog.products.map((product) => [product.id, product]),
+    );
+    const products = post.productIds.map((productId) => byId.get(productId));
+    if (products.some((product) => !product)) {
+      throw new SocialError("prices_changed");
+    }
+    const available = products as SocialProduct[];
+    const photos = new Map<string, Buffer>();
+    for (const product of available) {
+      const url =
+        campaign.bundle?.items.find((item) => item.productId === product.id)
+          ?.imageUrl ?? product.imageUrl;
+      photos.set(product.id, await this.deps.loadImage(url));
+    }
+    const planned = fromStoredCampaign(campaign, {
+      scheduledFor: post.scheduledFor ?? this.now(),
+      productIds: post.productIds,
+    });
+    return this.deps.renderCampaignExport(
+      {
+        type: campaign.type,
+        layout: campaign.layout,
+        pose: campaign.pose,
+        copy: campaignCopy(planned, this.captionContext(catalog), available),
+        bundle: campaign.bundle,
+        tipId: campaign.tipId,
+        photos,
+        product:
+          campaign.layout === "product_spotlight" && available[0]
+            ? {
+                id: available[0].id,
+                name: available[0].name,
+                priceLabel: formatSocialPrice(available[0]),
+                categoryName: available[0].categoryName || null,
+              }
+            : null,
+        store: catalog.store,
+      },
+      format,
+    );
+  }
+
+  /**
+   * «أنشئي حملة»: one campaign for the chosen objective in the next free slot of the coming two
+   * weeks, as an unapproved draft.
+   */
+  async createCampaign(
+    actor: AdminActor,
+    input: { objective: CampaignObjectiveId },
+  ): Promise<string> {
+    assertPermission(actor, "social.prepare");
+    const objective = campaignObjectives.find(
+      (item) => item.id === input.objective,
+    );
+    if (!objective) throw new SocialError("invalid");
+    const catalog = await this.deps.catalog();
+    const start = addDays(todayInStoreZone(this.now()), 1);
+    const taken = new Set(
+      (
+        await this.db
+          .select({ scheduledFor: schema.socialPosts.scheduledFor })
+          .from(schema.socialPosts)
+          .where(
+            and(
+              ne(schema.socialPosts.status, "rejected"),
+              gte(schema.socialPosts.scheduledFor, this.now()),
+            ),
+          )
+      ).map((row) => row.scheduledFor?.toISOString()),
+    );
+    const recent = await this.recentProductIds();
+    for (let day = 0; day < 14; day += 1) {
+      const date = addDays(start, day);
+      for (const slot of defaultWeeklySlots) {
+        if (slot.format !== "image" || slot.weekday !== weekdayOf(date))
+          continue;
+        const scheduledFor = storeInstant(date, slot.time);
+        if (scheduledFor <= this.now() || taken.has(scheduledFor.toISOString()))
+          continue;
+        for (const type of objective.types) {
+          const campaign = campaignForType(
+            type,
+            { date, time: slot.time, scheduledFor },
+            {
+              products: catalog.products,
+              store: catalog.store,
+              recentProductIds: recent,
+            },
+          );
+          const draft = campaign ? this.campaignDraft(campaign, catalog) : null;
+          if (!campaign || !draft) continue;
+          const [post] = await this.db
+            .insert(schema.socialPosts)
+            .values({
+              format: "image",
+              kind: "campaign",
+              productIds: campaign.productIds,
+              tipId: campaign.tipId,
+              caption: draft.caption,
+              captionSource: "template",
+              scheduledFor,
+              campaign: toStoredCampaign(campaign) as unknown as Record<
+                string,
+                unknown
+              >,
+            })
+            .returning({ id: schema.socialPosts.id });
+          await this.record(
+            post!.id,
+            "created",
+            actor,
+            null,
+            "draft",
+            campaign.angleId,
+          );
+          return post!.id;
+        }
+      }
+    }
+    throw new SocialError("no_alternative");
+  }
+
+  /** The workspace summary: how many posts are at each step. Counts only, no estimates. */
+  async overview(actor: AdminActor) {
+    assertPermission(actor, "social.view");
+    const rows = await this.db
+      .select({
+        status: schema.socialPosts.status,
+        format: schema.socialPosts.format,
+        mediaStatus: schema.socialPosts.mediaStatus,
+      })
+      .from(schema.socialPosts);
+    const count = (test: (row: (typeof rows)[number]) => boolean) =>
+      rows.filter(test).length;
+    return {
+      drafts: count((row) => row.status === "draft"),
+      readyForReview: count(
+        (row) => row.status === "draft" && row.mediaStatus === "ready",
+      ),
+      approved: count((row) => row.status === "approved"),
+      published: count((row) => row.status === "published"),
+      reelsInProgress: count(
+        (row) =>
+          row.format === "reel" &&
+          row.status !== "published" &&
+          row.status !== "rejected" &&
+          row.mediaStatus !== "ready",
+      ),
+    };
+  }
+
+  /** The owner picks one of the three opening hooks; the image is prepared again. */
+  async chooseCampaignHook(
+    actor: AdminActor,
+    id: string,
+    version: number,
+    hookIndex: number,
+  ) {
+    assertPermission(actor, "social.prepare");
+    if (![0, 1, 2].includes(hookIndex)) throw new SocialError("invalid");
+    const post = await this.load(id);
+    const stored = campaignOf(post);
+    if (!stored) throw new SocialError("invalid");
+    if (post.version !== version) throw new SocialError("stale");
+    const catalog = await this.deps.catalog();
+    const planned = {
+      ...fromStoredCampaign(stored, {
+        scheduledFor: post.scheduledFor ?? this.now(),
+        productIds: post.productIds,
+      }),
+      hookIndex,
+    };
+    const draft = this.campaignDraft(planned, catalog);
+    if (!draft) throw new SocialError("invalid");
+    await this.transition(
+      actor,
+      post,
+      "edit",
+      version,
+      {
+        caption: draft.caption,
+        captionSource: "template",
+        campaign: toStoredCampaign(planned) as unknown as Record<
+          string,
+          unknown
+        >,
+        mediaStatus: "pending",
+        mediaUrl: null,
+        posterUrl: null,
+        mediaError: null,
+      },
+      `hook ${hookIndex + 1}`,
+    );
+  }
+
+  /**
+   * Creative Studio: a calendar of campaigns from the live catalog. Each one is an unapproved
+   * draft in the usual lifecycle; a slot that already has a post is left alone.
+   */
+  async draftCampaigns(
+    actor: AdminActor,
+    input: { startDate: string; days: number },
+  ): Promise<{ created: number; skipped: number }> {
+    assertPermission(actor, "social.prepare");
+    if (input.days < 1 || input.days > 31) throw new SocialError("invalid");
+    const catalog = await this.deps.catalog();
+    const plan = planCampaigns({
+      startDate: input.startDate,
+      days: input.days,
+      products: catalog.products,
+      store: catalog.store,
+      recentProductIds: await this.recentProductIds(),
+    }).filter((campaign) => campaign.scheduledFor > this.now());
+    if (!plan.length) return { created: 0, skipped: 0 };
+    const existing = await this.db
+      .select({ scheduledFor: schema.socialPosts.scheduledFor })
+      .from(schema.socialPosts)
+      .where(
+        and(
+          ne(schema.socialPosts.status, "rejected"),
+          gte(schema.socialPosts.scheduledFor, plan[0]!.scheduledFor),
+          lte(schema.socialPosts.scheduledFor, plan.at(-1)!.scheduledFor),
+        ),
+      );
+    const taken = new Set(
+      existing.map((row) => row.scheduledFor?.toISOString()),
+    );
+    let created = 0;
+    let skipped = 0;
+    for (const campaign of plan) {
+      const draft = taken.has(campaign.scheduledFor.toISOString())
+        ? null
+        : this.campaignDraft(campaign, catalog);
+      if (!draft) {
+        skipped += 1;
+        continue;
+      }
+      const [post] = await this.db
+        .insert(schema.socialPosts)
+        .values({
+          format: "image",
+          kind: "campaign",
+          productIds: campaign.productIds,
+          tipId: campaign.tipId,
+          caption: draft.caption,
+          captionSource: "template",
+          scheduledFor: campaign.scheduledFor,
+          campaign: toStoredCampaign(campaign) as unknown as Record<
+            string,
+            unknown
+          >,
+        })
+        .returning({ id: schema.socialPosts.id });
+      await this.record(
+        post!.id,
+        "created",
+        actor,
+        null,
+        "draft",
+        campaign.angleId,
+      );
+      created += 1;
+    }
+    return { created, skipped };
+  }
+
+  /**
+   * «اقتراح حملة أخرى»: a different campaign for the same slot, from the live catalog. Only a draft,
+   * at the version the owner saw; its media is prepared again and it still needs approval.
+   */
+  async regenerateCampaign(actor: AdminActor, id: string, version: number) {
+    assertPermission(actor, "social.prepare");
+    const post = await this.load(id);
+    const current = campaignOf(post);
+    if (post.kind !== "campaign" || !current) throw new SocialError("invalid");
+    if (post.version !== version) throw new SocialError("stale");
+    const catalog = await this.deps.catalog();
+    const planned = fromStoredCampaign(current, {
+      scheduledFor: post.scheduledFor ?? this.now(),
+      productIds: post.productIds,
+    });
+    const recent = await this.recentProductIds();
+    for (const id of post.productIds) recent.delete(id);
+    const next = replanCampaign(planned, {
+      products: catalog.products,
+      store: catalog.store,
+      recentProductIds: recent,
+    });
+    const draft = next ? this.campaignDraft(next, catalog) : null;
+    if (!next || !draft) throw new SocialError("no_alternative");
+    await this.transition(
+      actor,
+      post,
+      "edit",
+      version,
+      {
+        caption: draft.caption,
+        captionSource: "template",
+        productIds: next.productIds,
+        tipId: next.tipId,
+        campaign: toStoredCampaign(next) as unknown as Record<string, unknown>,
+        mediaStatus: "pending",
+        mediaUrl: null,
+        posterUrl: null,
+        mediaError: null,
+      },
+      `campaign: ${next.angleId}`,
+    );
+  }
+
   // ---------------------------------------------------------------- rendering
 
   async renderPending(
@@ -744,14 +1273,71 @@ export class SocialService {
         continue;
       }
       const available = products as SocialProduct[];
+      const campaign = campaignOf(post);
+      if (post.kind === "campaign") {
+        if (
+          !campaign ||
+          !this.deps.renderCampaign ||
+          (campaign.bundle &&
+            !bundleIsCurrent(campaign.bundle, catalog.products, catalog.store))
+        ) {
+          // Never drawn with yesterday's prices: the owner asks for another campaign instead.
+          await this.setMedia(post, "failed", {
+            mediaError: campaign
+              ? "CAMPAIGN_PRICES_CHANGED"
+              : "CAMPAIGN_MISSING",
+          });
+          failed += 1;
+          continue;
+        }
+      }
       try {
         const photos = new Map<string, Buffer>();
         for (const product of available) {
+          // A bundle shows the exact variant it prices, when that variant has its own photo.
+          const url =
+            campaign?.bundle?.items.find(
+              (item) => item.productId === product.id,
+            )?.imageUrl ?? product.imageUrl;
           const cached =
-            photoCache.get(product.imageUrl) ??
-            (await this.deps.loadImage(product.imageUrl));
-          photoCache.set(product.imageUrl, cached);
+            photoCache.get(url) ?? (await this.deps.loadImage(url));
+          photoCache.set(url, cached);
           photos.set(product.id, cached);
+        }
+        if (post.kind === "campaign" && campaign) {
+          const planned = fromStoredCampaign(campaign, {
+            scheduledFor: post.scheduledFor ?? this.now(),
+            productIds: post.productIds,
+          });
+          const copy = campaignCopy(
+            planned,
+            this.captionContext(catalog),
+            available,
+          );
+          const image = await this.deps.renderCampaign!({
+            type: campaign.type,
+            layout: campaign.layout,
+            pose: campaign.pose,
+            copy,
+            bundle: campaign.bundle,
+            tipId: campaign.tipId,
+            photos,
+            product:
+              campaign.layout === "product_spotlight" && available[0]
+                ? {
+                    id: available[0].id,
+                    name: available[0].name,
+                    priceLabel: formatSocialPrice(available[0]),
+                    categoryName: available[0].categoryName || null,
+                  }
+                : null,
+            store: catalog.store,
+          });
+          if (image.byteLength > 4_000_000) throw new Error("IMAGE_TOO_LARGE");
+          const mediaUrl = await this.deps.media.put(image, "jpg");
+          await this.setMedia(post, "ready", { mediaUrl, posterUrl: mediaUrl });
+          rendered += 1;
+          continue;
         }
         const categoryName = post.categoryCode
           ? (available.find(
@@ -858,15 +1444,24 @@ export class SocialService {
     const known = products.filter((product): product is SocialProduct =>
       Boolean(product),
     );
+    const campaign = campaignOf(post);
+    const campaignCurrent =
+      !campaign?.bundle ||
+      bundleIsCurrent(campaign.bundle, catalog.products, catalog.store);
     const captionCheck = checkCaption(
       post.caption,
-      allowedPrices(known, catalog.store),
+      new Set([
+        ...allowedPrices(known, catalog.store),
+        ...(campaignCurrent ? bundlePrices(campaign?.bundle ?? null) : []),
+      ]),
       catalogText(known),
     );
     const productsAvailable = known.length === post.productIds.length;
     return {
       captionCheck,
       productsAvailable,
+      /** False when a campaign's bundle no longer matches today's prices or delivery rule. */
+      campaignCurrent,
       products: post.productIds.map((id) => ({
         id,
         name: byId.get(id)?.name ?? id,
@@ -877,6 +1472,7 @@ export class SocialService {
         mediaStatus: post.mediaStatus as MediaStatus,
         captionOk: captionCheck.ok,
         productsAvailable,
+        campaignCurrent,
         scheduledFor: post.scheduledFor,
         now: this.now(),
       }),
@@ -886,8 +1482,13 @@ export class SocialService {
   async view(actor: AdminActor, id: string): Promise<PostView> {
     assertPermission(actor, "social.view");
     const post = await this.load(id);
-    const evaluation = this.evaluate(post, await this.deps.catalog());
-    return { ...post, ...evaluation };
+    const catalog = await this.deps.catalog();
+    const evaluation = this.evaluate(post, catalog);
+    return {
+      ...post,
+      ...evaluation,
+      campaignDetails: this.campaignDetails(post, catalog),
+    };
   }
 
   private async transition(
@@ -1537,6 +2138,18 @@ export class SocialService {
         failed += 1;
         continue;
       }
+      // And a campaign's prices: its image and caption were approved with today's only if unchanged.
+      if (post.kind === "campaign") {
+        const { campaignCurrent, captionCheck } = this.evaluate(post, catalog);
+        if (!campaignCurrent || !captionCheck.ok) {
+          await this.failClaim(post, token, {
+            kind: "local",
+            code: "CAMPAIGN_PRICES_CHANGED",
+          });
+          failed += 1;
+          continue;
+        }
+      }
       if (
         post.publishKey !== publishKey(post) ||
         !isPublishableMediaUrl(post.mediaUrl)
@@ -2081,6 +2694,172 @@ export class SocialService {
       )
       .orderBy(desc(schema.socialComments.commentedAt))
       .limit(100);
+  }
+
+  /**
+   * What tracked campaign links led to. Sales are money, so only someone who may see reports
+   * gets them; everyone else sees visits and orders.
+   */
+  async campaignResults(actor: AdminActor): Promise<{
+    rows: CampaignResult[];
+    salesVisible: boolean;
+  }> {
+    assertPermission(actor, "social.view");
+    const salesVisible = can(actor, "reports.view");
+    const rows = await new CampaignAttribution(this.db, this.now).report();
+    return {
+      salesVisible,
+      rows: salesVisible
+        ? rows
+        : rows.map((row) => ({ ...row, verifiedSalesAgorot: 0 })),
+    };
+  }
+
+  /** The storyboard the owner is shaping, from today's catalog. Unknown choices are refused. */
+  async reelStoryboard(
+    actor: AdminActor,
+    input: ReelRequest,
+  ): Promise<Storyboard> {
+    assertPermission(actor, "social.view");
+    if (
+      !reelConcepts.includes(input.concept as ReelConcept) ||
+      !reelLengths.includes(input.seconds as ReelLength) ||
+      input.productIds.length > 3
+    ) {
+      throw new SocialError("invalid");
+    }
+    const catalog = await this.deps.catalog();
+    const products = input.productIds.map((id) =>
+      catalog.products.find((product) => product.id === id),
+    );
+    if (products.some((product) => !product)) {
+      throw new SocialError("invalid");
+    }
+    try {
+      return buildStoryboard({
+        concept: input.concept as ReelConcept,
+        seconds: input.seconds as ReelLength,
+        products: products as SocialProduct[],
+        store: catalog.store,
+        origin: this.deps.origin,
+        ...reelChoices(input),
+      });
+    } catch (error) {
+      if (error instanceof Error && error.message === "REEL_TEXT_REJECTED") {
+        throw new SocialError("reel_text_rejected");
+      }
+      if (error instanceof Error && error.message === "REEL_POSE_UNAVAILABLE") {
+        throw new SocialError("reel_pose_unavailable");
+      }
+      if (error instanceof Error && error.message === "REEL_NEEDS_PRODUCT") {
+        throw new SocialError("invalid");
+      }
+      throw error;
+    }
+  }
+
+  /** Small stills of each scene, rendered here without FFmpeg, as data URLs for the page. */
+  async reelStoryboardStills(board: Storyboard): Promise<string[]> {
+    const catalog = await this.deps.catalog();
+    const photos = new Map<string, Buffer>();
+    for (const id of board.productIds) {
+      const product = catalog.products.find((item) => item.id === id);
+      if (product) photos.set(id, await this.deps.loadImage(product.imageUrl));
+    }
+    const frames = await renderStoryboardFrames(
+      {
+        board,
+        photos,
+        store: catalog.store,
+        siteLabel: this.deps.origin.replace(/^https?:\/\//, ""),
+      },
+      270,
+    );
+    return frames.map(
+      (frame) => `data:image/jpeg;base64,${frame.toString("base64")}`,
+    );
+  }
+
+  /**
+   * The owner asks for a Reel to be rendered. The same storyboard is queued once; asking again
+   * returns the render already there. Rendering happens only in the render-only worker.
+   */
+  async requestReelRender(
+    actor: AdminActor,
+    input: ReelRequest,
+  ): Promise<{ id: string; created: boolean }> {
+    assertPermission(actor, "social.prepare");
+    const board = await this.reelStoryboard(actor, input);
+    return new ReelRenderQueue(this.db, this.now).request(
+      board,
+      actor.id,
+      reelChoices(input),
+    );
+  }
+
+  async retryReelRender(actor: AdminActor, id: string): Promise<void> {
+    assertPermission(actor, "social.prepare");
+    if (!(await new ReelRenderQueue(this.db, this.now).retry(id))) {
+      throw new SocialError("invalid");
+    }
+  }
+
+  /** Products the owner can put in a Reel: today's catalog, name and category only. */
+  async reelProducts(actor: AdminActor) {
+    assertPermission(actor, "social.view");
+    const catalog = await this.deps.catalog();
+    return catalog.products.map((product) => ({
+      id: product.id,
+      name: product.name,
+      categoryName: product.categoryName,
+    }));
+  }
+
+  /** The store facts every creative states, for the brand library. */
+  async brandFacts() {
+    const catalog = await this.deps.catalog();
+    return { origin: this.deps.origin, store: catalog.store };
+  }
+
+  /**
+   * The owner's Reels. A finished Reel whose products or prices changed since it was drawn is
+   * marked outdated and is no longer handed out: it is never kept around silently with old prices.
+   */
+  async reelRenders(actor: AdminActor) {
+    assertPermission(actor, "social.view");
+    const renders = await new ReelRenderQueue(this.db, this.now).list(20);
+    if (!renders.some((render) => render.status === "ready")) {
+      return renders.map((render) => ({ ...render, outdated: false }));
+    }
+    const catalog = await this.deps.catalog();
+    return renders.map((render) => ({
+      ...render,
+      outdated:
+        render.status === "ready" && !this.reelIsCurrent(render, catalog),
+    }));
+  }
+
+  /** A finished Reel's video for download, only while everything it shows is still true. */
+  async reelVideo(actor: AdminActor, id: string): Promise<string> {
+    assertPermission(actor, "social.view");
+    if (!/^[0-9a-f-]{36}$/.test(id)) throw new SocialError("not_found");
+    const render = await new ReelRenderQueue(this.db, this.now).get(id);
+    if (!render || render.status !== "ready" || !render.videoUrl) {
+      throw new SocialError("not_found");
+    }
+    if (!this.reelIsCurrent(render, await this.deps.catalog())) {
+      throw new SocialError("prices_changed");
+    }
+    return render.videoUrl;
+  }
+
+  private reelIsCurrent(render: ReelRenderRow, catalog: SocialCatalog) {
+    try {
+      currentStoryboard(render, catalog, this.deps.origin);
+      return true;
+    } catch {
+      return false;
+    }
   }
 
   async jobRuns(actor: AdminActor, limit = 30) {

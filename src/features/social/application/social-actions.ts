@@ -6,6 +6,7 @@ import { notFound, redirect } from "next/navigation";
 import { requireTrustedAdminMutation } from "@/features/admin/auth/admin-session";
 import { AuthorizationError } from "@/features/admin/domain/admin-actor";
 import { assertPermission } from "@/features/admin/domain/permissions";
+import type { CampaignObjectiveId } from "@/features/social/domain/campaigns";
 import { PostTransitionError } from "@/features/social/domain/post-lifecycle";
 import { storeInstant } from "@/features/social/domain/content-plan";
 import { MetaApiError } from "@/features/social/domain/meta-errors";
@@ -206,6 +207,64 @@ export async function draftTwoWeeksAction() {
   );
 }
 
+/** Creative Studio: two weeks of campaigns, each an unapproved draft. */
+export async function draftCampaignsAction() {
+  const actor = await requireTrustedAdminMutation();
+  return guarded(
+    "/admin/social",
+    () =>
+      socialService.draftCampaigns(actor, {
+        startDate: addDays(todayInStoreZone(), 1),
+        days: 14,
+      }),
+    "campaigns_drafted",
+  );
+}
+
+/** «أنشئي حملة»: one campaign for the chosen objective; opens its page for review. */
+export async function createCampaignAction(form: FormData) {
+  const actor = await requireTrustedAdminMutation();
+  if (!socialEnabled()) notFound();
+  let id: string;
+  try {
+    id = await socialService.createCampaign(actor, {
+      objective: field(form, "objective") as CampaignObjectiveId,
+    });
+  } catch (error) {
+    redirect(`/admin/social?error=${encodeURIComponent(failureCode(error))}`);
+  }
+  revalidatePath("/admin/social", "layout");
+  redirect(`${postPath(id)}?done=campaign_created`);
+}
+
+/** The owner chooses one of a campaign's three opening hooks. */
+export async function chooseCampaignHookAction(form: FormData) {
+  const actor = await requireTrustedAdminMutation();
+  const id = field(form, "id");
+  return guarded(
+    postPath(id),
+    () =>
+      socialService.chooseCampaignHook(
+        actor,
+        id,
+        version(form),
+        Number(field(form, "hook")),
+      ),
+    "hook_chosen",
+  );
+}
+
+/** «اقتراح حملة أخرى» for one draft campaign, at the version the owner saw. */
+export async function regenerateCampaignAction(form: FormData) {
+  const actor = await requireTrustedAdminMutation();
+  const id = field(form, "id");
+  return guarded(
+    postPath(id),
+    () => socialService.regenerateCampaign(actor, id, version(form)),
+    "campaign_regenerated",
+  );
+}
+
 export async function renderPendingAction() {
   const actor = await requireTrustedAdminMutation();
   return guarded(
@@ -271,5 +330,48 @@ export async function disconnectAction() {
     "/admin/social/settings",
     () => socialService.disconnect(actor),
     "disconnected",
+  );
+}
+
+function optionalField(form: FormData, name: string): string | undefined {
+  const value = form.get(name);
+  return typeof value === "string" && value.trim()
+    ? value.slice(0, 200)
+    : undefined;
+}
+
+function reelRequest(form: FormData) {
+  return {
+    concept: field(form, "concept"),
+    seconds: Number(field(form, "seconds")),
+    productIds: form
+      .getAll("product")
+      .filter((value): value is string => typeof value === "string" && !!value),
+    dropScenes: form
+      .getAll("drop")
+      .map(Number)
+      .filter((value) => Number.isInteger(value)),
+    pose: optionalField(form, "pose"),
+    hookText: optionalField(form, "hookText"),
+    ctaText: optionalField(form, "ctaText"),
+  };
+}
+
+/** The owner asks for this storyboard to be rendered. Never publishes anything. */
+export async function requestReelRenderAction(form: FormData) {
+  const actor = await requireTrustedAdminMutation();
+  return guarded(
+    "/admin/social/reels",
+    () => socialService.requestReelRender(actor, reelRequest(form)),
+    (result) => (result.created ? "reel_queued" : "reel_exists"),
+  );
+}
+
+export async function retryReelRenderAction(form: FormData) {
+  const actor = await requireTrustedAdminMutation();
+  return guarded(
+    "/admin/social/reels",
+    () => socialService.retryReelRender(actor, field(form, "id")),
+    "reel_retry",
   );
 }

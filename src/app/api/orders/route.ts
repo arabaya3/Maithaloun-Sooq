@@ -16,6 +16,10 @@ import { getServerEnv } from "@/server/env/env";
 import { lazyObject } from "@/server/lazy-object";
 import { adminNotificationService } from "@/features/admin/application/admin-services";
 import { getCustomerSession } from "@/features/accounts/application/customer-session";
+import {
+  CAMPAIGN_COOKIE,
+  CampaignAttribution,
+} from "@/features/social/application/campaign-attribution";
 import { isLocale, LOCALE_HEADER, type Locale } from "@/i18n/config";
 
 export const dynamic = "force-dynamic";
@@ -111,6 +115,25 @@ export async function POST(request: Request) {
           // The durable in-app notification remains available if push delivery fails.
         }
       });
+      // After the answer, apart from the order: a tracked campaign link links the order to its
+      // campaign. Nothing about the order changes, and a failure here is invisible to the customer.
+      const campaignCookie = (request.headers.get("cookie") ?? "")
+        .split(";")
+        .map((part) => part.trim())
+        .find((part) => part.startsWith(`${CAMPAIGN_COOKIE}=`))
+        ?.slice(CAMPAIGN_COOKIE.length + 1);
+      if (campaignCookie) {
+        after(async () => {
+          try {
+            await new CampaignAttribution(db).attributeOrder(
+              confirmation.publicReference,
+              decodeURIComponent(campaignCookie),
+            );
+          } catch {
+            // Attribution is best effort; the order stands either way.
+          }
+        });
+      }
     }
     return NextResponse.json(
       { ok: true, confirmation },

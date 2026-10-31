@@ -21,6 +21,18 @@ import {
   SocialNotice,
   StoreTime,
 } from "@/features/social/ui/social-ui";
+import {
+  mascotLibrary,
+  mascotPoseIds,
+  type MascotPoseStatus,
+} from "@/features/social/domain/mascot";
+
+const mascotStatusLabels: Record<MascotPoseStatus, string> = {
+  approved: "معتمدة",
+  small_only: "صغيرة فقط (لا تُكبَّر)",
+  blocked: "موقوفة للمراجعة",
+  artwork_required: "تحتاج رسماً",
+};
 
 export const metadata: Metadata = { title: "فيسبوك — الإعدادات" };
 
@@ -329,6 +341,32 @@ export default async function SocialSettingsPage({
         <p className="admin-muted">
           لا إعلانات مدفوعة: النظام لا يملك أي صلاحية إعلانات.
         </p>
+      </section>
+      <section className="admin-panel" aria-labelledby="mascot-title">
+        <h2 id="mascot-title">ميثو: الوضعيات</h2>
+        <p className="admin-muted">
+          تُستخدم فقط الوضعيات المعتمدة. الصغيرة تظهر صغيرة ولا تُكبَّر،
+          والوضعيات بدون رسم أو الموقوفة تُنشر الحملة بدونها.
+        </p>
+        <ul className="admin-line-list">
+          {mascotPoseIds.map((pose) => {
+            const info = mascotLibrary[pose];
+            return (
+              <li key={pose} className="admin-line">
+                <span className="admin-line-main">
+                  <strong>{info.labelAr}</strong>
+                  {info.note ? (
+                    <small className="admin-muted"> · {info.note}</small>
+                  ) : null}
+                </span>
+                <span className="admin-line-side">
+                  {mascotStatusLabels[info.status]}
+                  {info.sourceHeight ? ` · ${info.sourceHeight}px` : ""}
+                </span>
+              </li>
+            );
+          })}
+        </ul>
       </section>
     </main>
   );

@@ -18,6 +18,7 @@ const withSerwist = withSerwistInit({
 // trace leaves them out of the Vercel function and every image fails to render.
 const socialRenderAssets = [
   "./src/features/social/assets/*.ttf",
+  "./src/features/social/assets/mascot/*.png",
   "./public/brand/kit/maytha-logo-rounded.png",
 ];
 
@@ -28,6 +29,7 @@ const nextConfig: NextConfig = {
   outputFileTracingIncludes: {
     "/admin/social": socialRenderAssets,
     "/admin/social/**": socialRenderAssets,
+    "/admin/api/social/**": socialRenderAssets,
     "/api/cron/social": socialRenderAssets,
   },
   images: {

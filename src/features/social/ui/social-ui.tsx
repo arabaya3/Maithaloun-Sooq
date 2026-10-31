@@ -30,6 +30,10 @@ import {
   metaFailureLabels,
   type MetaFailureKind,
 } from "@/features/social/domain/meta-errors";
+import {
+  campaignTypeLabels,
+  type CampaignType,
+} from "@/features/social/domain/campaigns";
 import { STORE_TIME_ZONE } from "@/shared/lib/store-time";
 
 import type { SocialPostRow } from "../application/social-service";
@@ -41,7 +45,10 @@ const tabs = [
   { href: "/admin/social/queue?status=published", label: "المنشور" },
   { href: "/admin/social/queue?status=failed", label: "الفاشل" },
   { href: "/admin/social/inbox", label: "التعليقات" },
+  { href: "/admin/social/gallery", label: "المعرض" },
+  { href: "/admin/social/reels", label: "الريلز" },
   { href: "/admin/social/analytics", label: "التحليلات" },
+  { href: "/admin/social/brand", label: "الهوية" },
   { href: "/admin/social/settings", label: "الإعدادات" },
 ];
 
@@ -98,8 +105,14 @@ export function StoreTime({ value }: { value: Date | null }) {
 }
 
 export function postTitle(
-  post: Pick<SocialPostRow, "format" | "kind" | "reelTemplate">,
+  post: Pick<SocialPostRow, "format" | "kind" | "reelTemplate"> & {
+    campaign?: SocialPostRow["campaign"];
+  },
 ): string {
+  if (post.kind === "campaign") {
+    const type = (post.campaign as { type?: CampaignType } | null)?.type;
+    return type ? `حملة: ${campaignTypeLabels[type]}` : "حملة";
+  }
   if (post.format === "reel" && post.reelTemplate) {
     return reelTemplateLabels[post.reelTemplate as ReelTemplate] ?? "ريل";
   }
@@ -128,7 +141,9 @@ export function PostPreview({
         )}
         <span>
           {post.mediaStatus === "failed"
-            ? `تعذّر التجهيز (${post.mediaError ?? "?"})`
+            ? post.mediaError === "MASCOT_ARTWORK_REQUIRED"
+              ? "يحتاج رسمة لميثو: لا وضعية معتمدة تناسب هذا التصميم"
+              : `تعذّر التجهيز (${post.mediaError ?? "?"})`
             : post.format === "reel"
               ? "بانتظار عامل الفيديو"
               : "بانتظار التجهيز"}
@@ -184,6 +199,17 @@ const doneMessages: Record<string, string> = {
   scheduled: "تغيّر الموعد.",
   drafted: "جُهّزت المسودات للأسبوعين القادمين.",
   rendered: "جُهّزت الصور المعلّقة.",
+  campaigns_drafted:
+    "جُهّزت حملات الأسبوعين كمسودات. جهّزي صورها ثم راجعي كل حملة ووافقي عليها.",
+  campaign_created:
+    "أنشأنا الحملة كمسودة. جهّزي صورتها، اختاري الافتتاحية، ثم راجعيها ووافقي عليها.",
+  hook_chosen: "تغيّرت الافتتاحية. جهّزي الصورة من جديد قبل الموافقة.",
+  campaign_regenerated:
+    "اقترحنا حملة أخرى لهذا الموعد. جهّزي صورتها وراجعيها قبل الموافقة.",
+  reel_queued:
+    "طُلب تجهيز الريل. يجهّزه عامل الفيديو عند تشغيله، ثم يظهر هنا للمشاهدة والتنزيل. لا يُنشر شيء.",
+  reel_exists: "هذا الريل مطلوب من قبل بنفس المشاهد، فلم يُطلب مرة ثانية.",
+  reel_retry: "عاد الريل إلى قائمة التجهيز.",
   resolved: "أُغلق التعليق.",
   replied: "أُرسل الرد.",
   settings: "حُفظت الإعدادات.",
@@ -204,6 +230,10 @@ const doneMessages: Record<string, string> = {
 
 const errorMessages: Record<string, string> = {
   not_found: "المنشور غير موجود.",
+  reel_text_rejected:
+    "النص المكتوب غير مقبول: بحدود ٦٠ حرفاً، بدون أسعار أو أرقام (تأتي من المتجر)، وبدون عروض أو خصومات أو ادعاءات تحتاج إثبات.",
+  reel_pose_unavailable:
+    "وضعية ميثو هذه غير معتمدة بعد بحجم يناسب الريل. اختاري وضعية معتمدة.",
   stale: "تغيّر المنشور منذ فتحتِ الصفحة. حدّثيها وأعيدي المحاولة.",
   invalid: "لا يمكن تنفيذ هذا الآن.",
   forbidden: "هذه الخطوة للمالك فقط.",
@@ -230,6 +260,8 @@ const errorMessages: Record<string, string> = {
   format_unsupported: "طريقة النشر الحالية لا تدعم هذا النوع من المنشورات.",
   page_not_configured:
     "رقم صفحة MAYTHA MARKET (SOCIAL_PAGE_ID) غير مضبوط على الخادم، فلا يمكن التأكد أن النشر على صفحتنا. لم يُرسل شيء.",
+  no_alternative:
+    "ما في حملة أخرى مناسبة لهذا الموعد من المنتجات المتوفرة الآن.",
   confirm_required: "أشّري على التأكيد قبل النشر.",
   still_processing:
     "فيسبوك ما زال يعالج المحاولة السابقة. انتظري قليلاً ثم حدّثي الصفحة.",
