@@ -8,12 +8,8 @@ import {
   trackPageIssues,
   withTestDb,
 } from "./support";
+import { E2E_OPERATOR as OPERATOR, ensureOperator } from "./fixtures";
 
-// Runs after inventory.spec, which creates this operator account.
-const OPERATOR = {
-  username: "e2e-operator",
-  password: "Operator-e2e-pass-2026",
-};
 const SHOTS = "artifacts/admin-control";
 const WIDTHS = [
   [360, 800],
@@ -41,6 +37,7 @@ test("an operator cannot open accounts or the audit log and never sees summaries
   page,
 }) => {
   const issues = trackPageIssues(page);
+  await ensureOperator();
   await withTestDb(
     (sql) => sql`
       insert into admin_notifications (type, title, body, href, dedupe_key)

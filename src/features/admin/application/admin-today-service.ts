@@ -51,7 +51,12 @@ export type TodayWeek = {
   totalAgorot: number;
   todayAgorot: number;
   yesterdayAgorot: number;
-  top: Array<{ name: string; quantityMilli: number; netSalesAgorot: number }>;
+  top: Array<{
+    productKey: string;
+    name: string;
+    quantityMilli: number;
+    netSalesAgorot: number;
+  }>;
 } | null;
 
 export interface TodayView {
@@ -218,6 +223,7 @@ export class AdminTodayService {
       todayAgorot: days.at(-1)?.netSalesAgorot ?? 0,
       yesterdayAgorot: days.at(-2)?.netSalesAgorot ?? 0,
       top: report.byProduct.slice(0, 5).map((item) => ({
+        productKey: item.productKey,
         name: item.name,
         quantityMilli: item.quantityMilli,
         netSalesAgorot: item.netSalesAgorot,

@@ -134,7 +134,8 @@ test.afterEach(async () => {
 test("admin authentication, operations, and privacy controls", async ({
   page,
 }) => {
-  test.setTimeout(120_000);
+  // A new dev server compiles every admin route this test opens.
+  test.setTimeout(process.env.E2E_EXTERNAL_SERVER === "1" ? 120_000 : 300_000);
   const issues = trackPageIssues(page);
   await page.setViewportSize({ width: 390, height: 844 });
 
@@ -332,7 +333,7 @@ test("admin authentication, operations, and privacy controls", async ({
     .click();
   await expect(
     page.getByRole("heading", { name: new RegExp(reference) }),
-  ).toBeVisible({ timeout: 15_000 });
+  ).toBeVisible();
   await page.screenshot({
     path: "artifacts/admin-screenshots/order-details-mobile.png",
     fullPage: true,

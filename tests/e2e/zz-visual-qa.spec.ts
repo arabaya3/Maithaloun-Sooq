@@ -7,8 +7,9 @@ import {
   trackPageIssues,
   withTestDb,
 } from "./support";
+import { ensureRecordOfEachKind } from "./fixtures";
 
-// Runs last on purpose: the record pages below open what earlier specs created.
+// Runs last on purpose: the record pages below open the newest records, usually from earlier specs.
 const SHOTS = "artifacts/store-ops";
 
 const viewports = [
@@ -59,8 +60,9 @@ const staticPages = [
 
 let pages: Array<{ slug: string; path: string }> = staticPages;
 
-// One record of each kind, read from what earlier specs left in the test database.
+// One record of each kind; any kind no earlier spec left behind is created first.
 test.beforeAll(async () => {
+  await ensureRecordOfEachKind();
   const rows = await withTestDb(
     (sql) => sql<{ slug: string; path: string | null }[]>`
       select 'order' as slug, (select '/admin/orders/' || public_reference from orders order by created_at desc limit 1) as path
@@ -76,7 +78,7 @@ test.beforeAll(async () => {
   const found = rows.flatMap((row) =>
     row.path ? [{ slug: row.slug, path: row.path }] : [],
   );
-  // Every kind must exist; a missing one means an earlier spec stopped early, which is a failure here too.
+  // Every kind must exist, or a record page would go unchecked.
   expect(found.map((row) => row.slug)).toEqual([
     "order",
     "sale",
@@ -122,7 +124,10 @@ for (const viewport of viewports) {
   test(`every admin screen fits ${viewport.name} with 44px targets${AXE_AT.has(viewport.name) ? " and passes axe" : ""}`, async ({
     page,
   }) => {
-    test.setTimeout(300_000);
+    // The first width on a new dev server compiles every admin screen.
+    test.setTimeout(
+      process.env.E2E_EXTERNAL_SERVER === "1" ? 300_000 : 600_000,
+    );
     const issues = trackPageIssues(page);
     await login(page);
     await page.setViewportSize(viewport);

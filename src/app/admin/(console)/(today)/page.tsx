@@ -181,7 +181,7 @@ async function WeekCard({ actor }: { actor: AdminActor }) {
       {week.top.length ? (
         <ol className="admin-week-top">
           {week.top.map((item) => (
-            <li key={item.name}>
+            <li key={item.productKey}>
               <bdi>{item.name}</bdi>
               <span className="admin-muted admin-num">
                 {Math.round(item.quantityMilli / 1000)} قطعة ·{" "}

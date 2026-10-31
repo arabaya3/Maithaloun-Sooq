@@ -54,7 +54,7 @@ npx --yes pnpm@12.5.1 typecheck
 npx --yes pnpm@12.5.1 test
 npx --yes pnpm@12.5.1 db:test:up
 npx --yes pnpm@12.5.1 test:db
-npx --yes pnpm@12.5.1 test:e2e
+npx --yes pnpm@12.5.1 test:e2e:full
 npx --yes pnpm@12.5.1 build
 ```
 
