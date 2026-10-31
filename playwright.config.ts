@@ -21,11 +21,14 @@ export default defineConfig({
   testDir: "./tests/e2e",
   fullyParallel: true,
   forbidOnly: true,
+  // A route's first compile in development can take most of the default 30s by itself.
+  timeout: external ? 30_000 : 120_000,
   retries: 0,
   workers: 1,
   reporter: "list",
-  // The dev server compiles each route on first visit, which can exceed the 5s default.
-  expect: { timeout: 15_000 },
+  // The dev server compiles each route on first visit, which can exceed the 5s default;
+  // the first admin routes on a new server take longest.
+  expect: { timeout: external ? 15_000 : 60_000 },
   use: {
     baseURL: origin,
     // The storefront follows the browser language; the suite is written for Arabic.
@@ -46,9 +49,12 @@ export default defineConfig({
         url: origin,
         reuseExistingServer: false,
         timeout: 180_000,
-        env: e2eServerEnvironment(
-          testEnvironment,
-          process.env.E2E_PORT ? origin : testEnvironment.APP_ORIGIN,
-        ),
+        env: {
+          ...e2eServerEnvironment(
+            testEnvironment,
+            process.env.E2E_PORT ? origin : testEnvironment.APP_ORIGIN,
+          ),
+          E2E_DEV_SERVER: "1",
+        },
       },
 });

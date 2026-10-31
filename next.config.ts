@@ -25,6 +25,11 @@ const nextConfig: NextConfig = {
   poweredByHeader: false,
   reactStrictMode: true,
   devIndicators: false,
+  // The e2e suite opens every route in one long run. Disposing idle routes makes webpack compile them
+  // again and again until the heap fills and the server restarts mid-test, so that run keeps them.
+  ...(process.env.E2E_DEV_SERVER === "1"
+    ? { onDemandEntries: { maxInactiveAge: 3_600_000, pagesBufferLength: 500 } }
+    : {}),
   outputFileTracingIncludes: {
     "/admin/social": socialRenderAssets,
     "/admin/social/**": socialRenderAssets,

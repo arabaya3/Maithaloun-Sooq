@@ -376,7 +376,7 @@ export default async function ReportsPage({
           {report.outOfStock.length + report.lowStock.length ? (
             <ul className="admin-line-list">
               {report.outOfStock.map((item) => (
-                <li key={`out-${item.name}`} className="admin-line">
+                <li key={`out-${item.variantId}`} className="admin-line">
                   <span className="admin-line-main">
                     <strong>{item.name}</strong>
                   </span>
@@ -384,7 +384,7 @@ export default async function ReportsPage({
                 </li>
               ))}
               {report.lowStock.map((item) => (
-                <li key={`low-${item.name}`} className="admin-line">
+                <li key={`low-${item.variantId}`} className="admin-line">
                   <span className="admin-line-main">
                     <strong>{item.name}</strong>
                   </span>
@@ -404,7 +404,7 @@ export default async function ReportsPage({
           {report.slowMoving.length ? (
             <ul className="admin-line-list">
               {report.slowMoving.map((item) => (
-                <li key={item.name} className="admin-line">
+                <li key={item.variantId} className="admin-line">
                   <span className="admin-line-main">
                     <strong>{item.name}</strong>
                     <small>

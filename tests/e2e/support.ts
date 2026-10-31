@@ -69,7 +69,10 @@ export async function loginAs(
   }
   await expect(
     page.getByRole("heading", { name: "اليوم", level: 1 }),
-  ).toBeVisible({ timeout: 20_000 });
+  ).toBeVisible({
+    // A new dev server compiles the whole admin shell for this first page.
+    timeout: process.env.E2E_EXTERNAL_SERVER === "1" ? 20_000 : 60_000,
+  });
 }
 
 /** The product page keeps its older editors folded under «إعدادات متقدمة». */

@@ -72,7 +72,9 @@ test("operator photographs an invoice, reviews the reading and confirms it", asy
   await read.click();
   await expect(
     page.getByRole("heading", { name: "مراجعة قبل الحفظ", level: 1 }),
-  ).toBeVisible({ timeout: 30_000 });
+  ).toBeVisible({
+    timeout: process.env.E2E_EXTERNAL_SERVER === "1" ? 30_000 : 60_000,
+  });
 
   // The original image is shown next to the extracted data and served privately.
   const original = page.getByRole("img", { name: "صفحة الفاتورة 1" });

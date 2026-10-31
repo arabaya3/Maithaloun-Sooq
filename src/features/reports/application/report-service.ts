@@ -29,9 +29,15 @@ export const SLOW_MOVING_DAYS = 30;
 export interface BusinessReport extends ReportResult {
   generatedAt: string;
   deliveryFeesAgorot: number;
-  lowStock: Array<{ name: string; availableMilli: number; unit: StockUnit }>;
-  outOfStock: Array<{ name: string }>;
+  lowStock: Array<{
+    variantId: string;
+    name: string;
+    availableMilli: number;
+    unit: StockUnit;
+  }>;
+  outOfStock: Array<{ variantId: string; name: string }>;
   slowMoving: Array<{
+    variantId: string;
     name: string;
     onHandMilli: number;
     unit: StockUnit;
@@ -266,18 +272,20 @@ export class ReportService {
       lowStock: stock
         .filter((item) => item.status === "low")
         .map((item) => ({
+          variantId: item.variantId,
           name: item.name,
           availableMilli: item.availableMilli,
           unit: item.unit,
         })),
       outOfStock: stock
         .filter((item) => item.status === "out")
-        .map((item) => ({ name: item.name })),
+        .map((item) => ({ variantId: item.variantId, name: item.name })),
       slowMoving: stock
         .filter((item) => item.onHandMilli > 0)
         .map((item) => ({ item, last: lastSales.get(item.variantId) ?? null }))
         .filter(({ last }) => last === null || last < slowCutoff)
         .map(({ item, last }) => ({
+          variantId: item.variantId,
           name: item.name,
           onHandMilli: item.onHandMilli,
           unit: item.unit,
