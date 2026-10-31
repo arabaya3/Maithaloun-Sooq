@@ -148,4 +148,57 @@ describe("CartProvider", () => {
       await screen.findByRole("button", { name: "0" }),
     ).toBeInTheDocument();
   });
+
+  describe("cart brought from the old address", () => {
+    const moved = JSON.stringify({
+      version: 3,
+      lines: [
+        {
+          productId: "general-cleaner",
+          variantId: "general-cleaner--default",
+          sellingUnitId: CLEANER_PACK,
+          unitsPerSale: 3,
+          quantity: 2,
+        },
+      ],
+    });
+
+    function openWithMovedCart() {
+      window.history.replaceState(
+        null,
+        "",
+        `/#moved-cart=${encodeURIComponent(moved)}`,
+      );
+      render(
+        <CartProvider catalog={catalog}>
+          <CartProbe />
+        </CartProvider>,
+      );
+    }
+
+    it("fills an empty cart and clears the address", async () => {
+      window.localStorage.clear();
+      openWithMovedCart();
+      expect(
+        await screen.findByRole("button", { name: "2" }),
+      ).toBeInTheDocument();
+      expect(window.location.hash).toBe("");
+    });
+
+    it("never replaces a cart already here", async () => {
+      window.localStorage.clear();
+      window.localStorage.setItem(
+        LEGACY_CART_STORAGE_KEY,
+        JSON.stringify({
+          version: 1,
+          lines: [{ productId: "dolphin-bleach", quantity: 1 }],
+        }),
+      );
+      openWithMovedCart();
+      expect(
+        await screen.findByRole("button", { name: "1" }),
+      ).toBeInTheDocument();
+      expect(window.location.hash).toBe("");
+    });
+  });
 });

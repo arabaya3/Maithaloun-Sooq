@@ -15,6 +15,7 @@ import { productRepository } from "@/features/catalog/infrastructure/product-rep
 import { DeliveryProvider } from "@/features/delivery/delivery-provider";
 import { serviceAreaRepository } from "@/features/delivery/service-area-repository";
 import { FavoritesProvider } from "@/features/favorites/favorites-provider";
+import { DomainMoveNotice } from "@/features/pwa/domain-move-notice";
 import { StorefrontInstallBanner } from "@/features/pwa/storefront-install-banner";
 import { storeContactService } from "@/features/orders/application/order-service-instance";
 import { StoreFooter } from "@/features/storefront/components/store-footer";
@@ -83,6 +84,7 @@ export default async function StoreLayout({
         </StoreNavigationProvider>
         <StoreFooter storeWhatsApp={storeWhatsApp} />
         <StorefrontInstallBanner />
+        <DomainMoveNotice />
       </FavoritesProvider>
     </DeliveryProvider>
   );
