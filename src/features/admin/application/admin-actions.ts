@@ -39,6 +39,7 @@ import { parseIlsToAgorot } from "@/shared/lib/parse-ils";
 import { db } from "@/server/db/db";
 import type { ProductSaveKind } from "@/features/admin/domain/product-save-feedback";
 import { adminAuditEvents } from "@/server/db/schema";
+import { revalidateStorefront } from "@/features/catalog/application/revalidate-storefront";
 
 export async function loginAction(
   formData: FormData,
@@ -150,6 +151,8 @@ export async function updateOrderStatusAction(
   revalidatePath("/admin");
   revalidatePath("/admin/orders");
   revalidatePath(`/admin/orders/${publicReference}`);
+  // Cancelling or returning an order puts stock back on the shelf.
+  revalidateStorefront();
   redirect(`/admin/orders/${publicReference}`);
 }
 
@@ -163,9 +166,8 @@ export async function updateProductAction(
     return { ok: false, message: "أدخل سعراً صالحاً بالشيكل." };
   }
 
-  let slug: string;
   try {
-    ({ slug } = await adminCatalogService.update(actor, {
+    await adminCatalogService.update(actor, {
       domainId,
       nameAr: String(formData.get("nameAr") ?? ""),
       latinName: optional(formData.get("latinName")),
@@ -184,15 +186,12 @@ export async function updateProductAction(
       placeholderVariant: String(
         formData.get("placeholderVariant") ?? "",
       ) as never,
-    }));
+    });
   } catch (error) {
     return { ok: false, message: mapProductAdminError(error) };
   }
 
-  revalidatePath("/");
-  revalidatePath("/cart");
-  revalidatePath("/checkout");
-  revalidatePath(`/products/${slug}`);
+  revalidateStorefront();
   revalidatePath("/admin/products");
   revalidatePath(`/admin/products/${domainId}`);
   redirect(savedProductPath(domainId, "product"));
@@ -231,7 +230,7 @@ export async function createCapturedProductAction(
     return { ok: false, message: mapProductAdminError(error) };
   }
 
-  revalidatePath("/");
+  revalidateStorefront();
   revalidatePath("/admin/products");
   redirect(savedProductPath(domainId, "created"));
 }
@@ -267,8 +266,7 @@ export async function updateServiceAreaAction(
     };
   }
 
-  revalidatePath("/");
-  revalidatePath("/checkout");
+  revalidateStorefront();
   revalidatePath("/admin/delivery-areas");
   revalidatePath("/admin/settings");
   // Straight to settings with a saved marker, so the owner sees the save completed.
@@ -330,9 +328,7 @@ export async function upsertProductVariantAction(
     return { ok: false, message: mapProductAdminError(error) };
   }
 
-  revalidatePath("/");
-  revalidatePath("/cart");
-  revalidatePath("/checkout");
+  revalidateStorefront();
   revalidatePath("/admin/products");
   revalidatePath(`/admin/products/${productDomainId}`);
   redirect(savedProductPath(productDomainId, "variant"));
@@ -353,9 +349,7 @@ export async function deactivateProductVariantAction(
     return { ok: false, message: mapProductAdminError(error) };
   }
 
-  revalidatePath("/");
-  revalidatePath("/cart");
-  revalidatePath("/checkout");
+  revalidateStorefront();
   revalidatePath("/admin/products");
   revalidatePath(`/admin/products/${productDomainId}`);
   redirect(savedProductPath(productDomainId, "variant_off"));
@@ -380,7 +374,7 @@ export async function upsertProductSpecificationAction(
     return { ok: false, message: mapProductAdminError(error) };
   }
 
-  revalidatePath("/");
+  revalidateStorefront();
   revalidatePath(`/admin/products/${productDomainId}`);
   redirect(savedProductPath(productDomainId, "spec"));
 }
@@ -400,7 +394,7 @@ export async function removeProductSpecificationAction(
     return { ok: false, message: mapProductAdminError(error) };
   }
 
-  revalidatePath("/");
+  revalidateStorefront();
   revalidatePath(`/admin/products/${productDomainId}`);
   redirect(savedProductPath(productDomainId, "spec_removed"));
 }

@@ -174,7 +174,13 @@ test("storefront: choose scent and size, missing combination never reached, exac
   // Choosing values never asks the server; the page already holds every combination.
   const requests: string[] = [];
   page.on("request", (request) => {
-    if (request.resourceType() === "fetch") requests.push(request.url());
+    // Link prefetches of other (static) pages are navigation, not a question about this product.
+    if (
+      request.resourceType() === "fetch" &&
+      !new URL(request.url()).searchParams.has("_rsc")
+    ) {
+      requests.push(request.url());
+    }
   });
   await size.getByRole("radio", { name: "450 مل" }).click();
   await scent.getByRole("radio", { name: /^مسك/ }).click();

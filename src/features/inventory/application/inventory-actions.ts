@@ -33,6 +33,7 @@ import type {
 } from "@/features/purchasing/application/purchase-service";
 import { toLatinDigits } from "@/shared/lib/digits";
 import { parseIlsToAgorot } from "@/shared/lib/parse-ils";
+import { revalidateStorefront } from "@/features/catalog/application/revalidate-storefront";
 
 export type FormState = { ok: boolean; message: string } | null;
 export type ActionResult<T> =
@@ -48,6 +49,8 @@ function money(formData: FormData, name: string): number | null {
 }
 
 function revalidateInventory() {
+  // Stock moves change what the storefront can sell.
+  revalidateStorefront();
   revalidatePath("/admin");
   revalidatePath("/admin/inventory", "layout");
 }
@@ -302,8 +305,7 @@ export async function decidePriceReviewAction(
       newPriceAgorot: newPriceAgorot ?? undefined,
     });
     if (productSlug) {
-      revalidatePath("/");
-      revalidatePath(`/products/${productSlug}`);
+      revalidateStorefront();
       revalidatePath("/admin/products");
     }
   } catch (error) {

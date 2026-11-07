@@ -4,14 +4,10 @@
 # to any store, no orders: only catalog, product and cart-quote requests are made.
 name: store-screenshots
 
+# On demand only: every capture calls the live Production API, which counts against the Vercel Hobby CPU
+# allowance, so it no longer runs on pull requests.
 on:
   workflow_dispatch:
-  pull_request:
-    paths:
-      - "mobile/maytha_market/integration_test/store_screenshots_test.dart"
-      - "mobile/maytha_market/test_driver/**"
-      - "mobile/maytha_market/lib/**"
-      - ".github/workflows/store-screenshots.yml"
 
 permissions:
   contents: read

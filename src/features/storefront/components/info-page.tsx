@@ -1,6 +1,5 @@
 import { MessageCircle } from "lucide-react";
 import type { Metadata } from "next";
-import { connection } from "next/server";
 
 import {
   FREE_DELIVERY_THRESHOLD_AGOROT,
@@ -13,16 +12,19 @@ import { MobileNavigation } from "@/features/storefront/components/mobile-naviga
 import { SiteHeader } from "@/features/storefront/components/site-header";
 import { infoPages, type InfoPageKey } from "@/features/storefront/info-pages";
 import { Link } from "@/i18n/link";
-import { getMessages } from "@/i18n/server";
+import { getMessages, localizedAlternates } from "@/i18n/server";
 import { formatIls } from "@/shared/lib/format-currency";
 
 export async function infoPageMetadata(key: InfoPageKey): Promise<Metadata> {
   const page = (await getMessages()).info[key];
-  return { title: page.title, description: page.description };
+  return {
+    title: page.title,
+    description: page.description,
+    alternates: await localizedAlternates(`/${key}`),
+  };
 }
 
 export async function InfoPage({ pageKey }: { pageKey: InfoPageKey }) {
-  await connection();
   const [m, storeNumber] = await Promise.all([
     getMessages(),
     storeContactService.whatsAppNumber(),

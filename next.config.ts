@@ -23,6 +23,8 @@ const socialRenderAssets = [
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
+  // Storefront pages live under app/[locale]; unmatched addresses get one static page with no layout.
+  experimental: { globalNotFound: true },
   reactStrictMode: true,
   devIndicators: false,
   // The e2e suite opens every route in one long run. Disposing idle routes makes webpack compile them
@@ -36,6 +38,12 @@ const nextConfig: NextConfig = {
     "/api/cron/social": socialRenderAssets,
   },
   images: {
+    // Uploaded product images get a new random name on every upload, so an optimized copy never goes
+    // stale: keep it for 31 days instead of re-transforming it every few hours (Hobby image limits).
+    minimumCacheTTL: 2_678_400,
+    // The storefront is mobile-first and its widest image is under 1920px; 2048/3840 variants only
+    // added transformations nobody needed.
+    deviceSizes: [640, 750, 828, 1080, 1200, 1920],
     remotePatterns: [
       {
         protocol: "https",

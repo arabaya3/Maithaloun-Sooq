@@ -12,6 +12,7 @@ import {
   CUSTOMER_SESSION_ABSOLUTE_MS,
   customerAccountsEnabled,
 } from "@/features/accounts/domain/account-config";
+import { SIGNED_IN_MARKER_COOKIE } from "@/features/accounts/domain/signed-in-marker";
 import { getServerEnv } from "@/server/env/env";
 
 import type { CustomerActor } from "./customer-auth-service";
@@ -34,20 +35,41 @@ function cookieOptions(maxAgeSeconds: number) {
   };
 }
 
+// Readable by the page and carries no secret: it only says "ask the server who is signed in".
+function markerOptions(maxAgeSeconds: number) {
+  return { ...cookieOptions(maxAgeSeconds), httpOnly: false };
+}
+
 export async function readCustomerSessionToken(): Promise<string | null> {
   return (await cookies()).get(customerSessionCookieName())?.value ?? null;
 }
 
 export async function writeCustomerSessionCookie(rawToken: string) {
-  (await cookies()).set(
-    customerSessionCookieName(),
-    rawToken,
-    cookieOptions(Math.floor(CUSTOMER_SESSION_ABSOLUTE_MS / 1_000)),
-  );
+  const maxAge = Math.floor(CUSTOMER_SESSION_ABSOLUTE_MS / 1_000);
+  const store = await cookies();
+  store.set(customerSessionCookieName(), rawToken, cookieOptions(maxAge));
+  store.set(SIGNED_IN_MARKER_COOKIE, "1", markerOptions(maxAge));
 }
 
 export async function clearCustomerSessionCookie() {
-  (await cookies()).set(customerSessionCookieName(), "", cookieOptions(0));
+  const store = await cookies();
+  store.set(customerSessionCookieName(), "", cookieOptions(0));
+  store.set(SIGNED_IN_MARKER_COOKIE, "", markerOptions(0));
+}
+
+/** Keeps the readable marker in step with the session (sessions from before it existed, expiry). */
+export async function syncSignedInMarker(signedIn: boolean) {
+  const store = await cookies();
+  const present = store.get(SIGNED_IN_MARKER_COOKIE)?.value === "1";
+  if (signedIn && !present) {
+    store.set(
+      SIGNED_IN_MARKER_COOKIE,
+      "1",
+      markerOptions(Math.floor(CUSTOMER_SESSION_ABSOLUTE_MS / 1_000)),
+    );
+  } else if (!signedIn && present) {
+    store.set(SIGNED_IN_MARKER_COOKIE, "", markerOptions(0));
+  }
 }
 
 export const getCustomerSession = cache(

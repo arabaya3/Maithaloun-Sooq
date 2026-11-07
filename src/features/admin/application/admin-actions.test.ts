@@ -27,8 +27,12 @@ vi.mock("next/navigation", () => ({
 }));
 
 vi.mock("next/cache", () => ({
-  revalidatePath: (path: string) => revalidatePathMock(path),
+  revalidatePath: (path: string, type?: string) =>
+    revalidatePathMock(path, type),
 }));
+
+// Every storefront page (both languages) is re-rendered on its next visit.
+const STOREFRONT_REVALIDATION = ["/[locale]", "layout"] as const;
 
 vi.mock("next/headers", () => ({
   headers: vi.fn(async () => new Headers()),
@@ -130,6 +134,8 @@ describe("admin mutation actions", () => {
       },
     );
     expect(changeStatusMock).toHaveBeenCalledOnce();
+    // A cancelled or returned order puts stock back, so cached pages must refresh.
+    expect(revalidatePathMock).toHaveBeenCalledWith(...STOREFRONT_REVALIDATION);
   });
 
   it("redirects after a successful product update", async () => {
@@ -158,6 +164,7 @@ describe("admin mutation actions", () => {
       },
     );
     expect(updateProductMock).toHaveBeenCalledOnce();
+    expect(revalidatePathMock).toHaveBeenCalledWith(...STOREFRONT_REVALIDATION);
   });
 
   it("redirects after a successful delivery-area update", async () => {
@@ -179,6 +186,27 @@ describe("admin mutation actions", () => {
       },
     );
     expect(updateServiceAreaMock).toHaveBeenCalledOnce();
+    expect(revalidatePathMock).toHaveBeenCalledWith(...STOREFRONT_REVALIDATION);
+  });
+
+  it("does not refresh the storefront when a change is rejected", async () => {
+    updateProductMock.mockRejectedValue(new AdminCatalogError("not_found"));
+    const formData = new FormData();
+    formData.set("domainId", "missing");
+    formData.set("nameAr", "منظف عام");
+    formData.set("priceIls", "8.50");
+    formData.set("categoryId", "home");
+    formData.set("availability", "available");
+    formData.set("sortOrder", "1");
+    formData.set("detailsStatus", "verified");
+    formData.set("placeholderVariant", "general-cleaner");
+
+    await expect(updateProductAction(formData)).resolves.toMatchObject({
+      ok: false,
+    });
+    expect(revalidatePathMock).not.toHaveBeenCalledWith(
+      ...STOREFRONT_REVALIDATION,
+    );
   });
 
   it("returns Arabic errors for validation and service failures", async () => {

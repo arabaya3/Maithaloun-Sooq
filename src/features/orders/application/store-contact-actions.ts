@@ -9,6 +9,7 @@ import { AuthorizationError } from "@/features/admin/domain/admin-actor";
 import { WHATSAPP_COUNTRY_CODES } from "../domain/phone";
 import { storeContactService } from "./order-service-instance";
 import { StoreContactError } from "./store-contact-service";
+import { revalidateStorefront } from "@/features/catalog/application/revalidate-storefront";
 
 export type StoreWhatsAppResult =
   { ok: true; message: string } | { ok: false; message: string } | null;
@@ -34,7 +35,7 @@ export async function saveStoreWhatsAppAction(
       nationalNumber: nationalNumber.data,
     });
     revalidatePath("/admin/settings");
-    revalidatePath("/checkout");
+    revalidateStorefront();
     return {
       ok: true,
       message: saved

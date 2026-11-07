@@ -2,6 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 
+import { revalidateStorefront } from "@/features/catalog/application/revalidate-storefront";
+
 import { voiceService } from "@/features/admin/application/admin-services";
 import { allowAdminRequest } from "@/features/admin/auth/admin-rate-limit";
 import { requireTrustedAdminMutation } from "@/features/admin/auth/admin-session";
@@ -18,6 +20,7 @@ const RATE_LIMITED: VoiceOutcome = {
 };
 
 function revalidateAll() {
+  revalidateStorefront();
   revalidatePath("/admin", "layout");
 }
 

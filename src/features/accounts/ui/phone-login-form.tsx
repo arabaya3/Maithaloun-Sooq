@@ -7,6 +7,7 @@ import {
   requestLoginCodeAction,
   verifyLoginCodeAction,
 } from "@/features/accounts/application/account-actions";
+import { notifyAccountChanged } from "@/features/accounts/domain/signed-in-marker";
 import {
   WHATSAPP_COUNTRY_CODES,
   formatWhatsAppDisplay,
@@ -57,6 +58,7 @@ export function PhoneLoginForm({ next }: { next: string }) {
       setMessage(result.message);
       return;
     }
+    notifyAccountChanged();
     router.replace(href(next));
     router.refresh();
   }

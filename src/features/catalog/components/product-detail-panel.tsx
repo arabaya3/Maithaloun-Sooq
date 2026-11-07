@@ -70,19 +70,37 @@ function rememberUnit(unit: SellingUnit | null) {
   rememberInAddress("unit", unit && !unit.isDefault ? unit.id : null);
 }
 
-export function ProductDetailPanel({
-  product,
-  categoryLabel,
-  initialVariantId,
-  presentation = emptyPresentation,
-}: {
+type ProductDetailPanelProps = {
   product: Product;
   categoryLabel: string;
   initialVariantId?: string | null;
   presentation?: ProductPresentation;
-}) {
+};
+
+type UrlParams = Pick<URLSearchParams, "get">;
+const NO_URL_PARAMS: UrlParams = { get: () => null };
+
+/** Reads ?variant and ?unit from the address; render it inside Suspense. */
+export function ProductDetailPanel(props: ProductDetailPanelProps) {
+  return <ProductDetailPanelView {...props} searchParams={useSearchParams()} />;
+}
+
+/**
+ * The product page is served from the static cache, so its HTML carries the default choice;
+ * ProductDetailPanel then applies the address once the browser takes over.
+ */
+export function ProductDetailPanelDefault(props: ProductDetailPanelProps) {
+  return <ProductDetailPanelView {...props} searchParams={NO_URL_PARAMS} />;
+}
+
+function ProductDetailPanelView({
+  product,
+  categoryLabel,
+  initialVariantId,
+  presentation = emptyPresentation,
+  searchParams,
+}: ProductDetailPanelProps & { searchParams: UrlParams }) {
   const { m, locale } = useI18n();
-  const searchParams = useSearchParams();
   const initial =
     resolveVariant(
       product.variants,

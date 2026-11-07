@@ -48,6 +48,34 @@ export async function withTestDb<T>(
     return await run(sql);
   } finally {
     await sql.end();
+    await refreshCachedStorefront();
+  }
+}
+
+/**
+ * Storefront pages are served from the ISR cache. Direct database writes skip the admin actions that
+ * refresh it, so the e2e server is asked to do the same. Harmless (404) against a dev server.
+ */
+async function refreshCachedStorefront() {
+  const port = Number(process.env.E2E_PORT ?? 3000);
+  try {
+    const response = await fetch(
+      `http://localhost:${port}/api/test/revalidate-storefront`,
+      { method: "POST" },
+    );
+    if (!response.ok && process.env.E2E_EXTERNAL_SERVER === "1") {
+      throw new Error(
+        `storefront refresh failed: ${response.status} ${port} ${(await response.text()).slice(0, 200)}`,
+      );
+    }
+  } catch (error) {
+    if (
+      error instanceof Error &&
+      error.message.startsWith("storefront refresh")
+    ) {
+      throw error;
+    }
+    // No server yet (global setup) or it is restarting; nothing is cached then.
   }
 }
 

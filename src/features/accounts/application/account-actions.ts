@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { refresh, revalidatePath } from "next/cache";
 import { z } from "zod";
 
 import { customerAccountsEnabled } from "@/features/accounts/domain/account-config";
@@ -10,7 +10,7 @@ import {
   normalizeWhatsAppPhone,
   isSupportedWhatsAppE164,
 } from "@/features/orders/domain/phone";
-import { getMessages } from "@/i18n/server";
+import { getActionMessages as getMessages } from "@/i18n/server";
 
 import {
   CustomerAccountError,
@@ -30,6 +30,7 @@ import {
   getCustomerSession,
   isTrustedCustomerMutation,
   readCustomerSessionToken,
+  syncSignedInMarker,
   writeCustomerSessionCookie,
 } from "./customer-session";
 
@@ -114,7 +115,8 @@ export async function verifyLoginCodeAction(
   });
   if (result.status === "verified") {
     await writeCustomerSessionCookie(result.rawToken);
-    revalidatePath("/", "layout");
+    // Sign-in changes only this browser; the shared page cache stays as it is.
+    refresh();
     return { ok: true, created: result.created };
   }
   const messages = {
@@ -132,7 +134,7 @@ export async function logoutAction(scope: "this" | "all"): Promise<Result> {
   if (scope === "all") await customerAuthService.logoutAll(actor.id);
   else if (token) await customerAuthService.logout(token);
   await clearCustomerSessionCookie();
-  revalidatePath("/", "layout");
+  refresh();
   return { ok: true };
 }
 
@@ -220,8 +222,25 @@ export async function deleteAccountAction(
     return accountError(error);
   }
   await clearCustomerSessionCookie();
-  revalidatePath("/", "layout");
+  refresh();
   return { ok: true };
+}
+
+/**
+ * The signed-in customer's saved favorites, asked for by the browser because storefront pages are
+ * cached for everyone. A read: no origin check, and it never reveals anything about other customers.
+ */
+export async function loadAccountFavoritesAction(): Promise<
+  { signedIn: false } | { signedIn: true; productIds: string[] }
+> {
+  if (!customerAccountsEnabled()) return { signedIn: false };
+  const actor = await getCustomerSession();
+  await syncSignedInMarker(actor !== null);
+  if (!actor) return { signedIn: false };
+  return {
+    signedIn: true,
+    productIds: await customerFavoritesService.list(actor.id),
+  };
 }
 
 export async function setFavoriteAction(

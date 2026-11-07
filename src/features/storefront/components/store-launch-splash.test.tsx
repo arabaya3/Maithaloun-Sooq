@@ -5,7 +5,7 @@ import { render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { messagesFor } from "@/i18n/messages";
-import OfflinePage from "@/app/(store)/~offline/page";
+import OfflinePage from "@/app/[locale]/(store)/~offline/page";
 
 import { LAUNCH_SESSION_KEY, StoreLaunchSplash } from "./store-launch-splash";
 

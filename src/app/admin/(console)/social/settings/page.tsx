@@ -144,6 +144,8 @@ export default async function SocialSettingsPage({
         {owner ? (
           <div className="admin-stack">
             {loginAvailable ? (
+              // A route handler that redirects to Meta: it must be a full page navigation.
+              // eslint-disable-next-line @next/next/no-html-link-for-pages
               <a
                 className="admin-btn admin-btn-primary"
                 href="/admin/api/social/meta/connect"

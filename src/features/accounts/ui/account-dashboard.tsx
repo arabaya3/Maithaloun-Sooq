@@ -10,6 +10,7 @@ import {
   saveAddressAction,
   updateProfileAction,
 } from "@/features/accounts/application/account-actions";
+import { notifyAccountChanged } from "@/features/accounts/domain/signed-in-marker";
 import type { CustomerProfile } from "@/features/accounts/application/customer-account-service";
 import { MAX_SAVED_ADDRESSES } from "@/features/accounts/domain/account-config";
 import {
@@ -111,7 +112,10 @@ export function AccountDashboard({ profile }: { profile: CustomerProfile }) {
       setSessionFeedback,
       t.signedOutDone,
     );
-    if (ok) router.replace(href("/account"));
+    if (ok) {
+      notifyAccountChanged();
+      router.replace(href("/account"));
+    }
   }
 
   async function deleteAccount(event: FormEvent<HTMLFormElement>) {
@@ -122,7 +126,10 @@ export function AccountDashboard({ profile }: { profile: CustomerProfile }) {
       setSessionFeedback,
       t.accountDeleted,
     );
-    if (ok) router.replace(href("/"));
+    if (ok) {
+      notifyAccountChanged();
+      router.replace(href("/"));
+    }
   }
 
   const whatsappCountry = profile.whatsappE164?.startsWith("+972")

@@ -8,7 +8,6 @@ import {
   LOCALE_HEADER,
   localeFromAcceptLanguage,
   localizePath,
-  PATH_HEADER,
   splitLocalePath,
   type Locale,
 } from "@/i18n/config";
@@ -39,18 +38,40 @@ function adminProxy(request: NextRequest, pathname: string) {
   return withAdminPrivacy(NextResponse.redirect(loginUrl));
 }
 
+/**
+ * Every storefront page lives under `app/[locale]`, so the language is part of the route and pages can be
+ * served from the static cache. English keeps its /en address; Arabic addresses have no prefix and are
+ * rewritten to /ar internally. The header is only for Server Actions, which cannot read the route.
+ */
 function forward(request: NextRequest, locale: Locale, path: string) {
   const headers = new Headers(request.headers);
   headers.set(LOCALE_HEADER, locale);
-  headers.set(PATH_HEADER, path);
-  if (locale === "ar") {
-    const response = NextResponse.next({ request: { headers } });
-    response.headers.append("Vary", "Accept-Language, Cookie");
-    return response;
-  }
+  if (locale === "en") return NextResponse.next({ request: { headers } });
   const url = request.nextUrl.clone();
-  url.pathname = path;
-  return NextResponse.rewrite(url, { request: { headers } });
+  url.pathname = path === "/" ? "/ar" : `/ar${path}`;
+  const response = NextResponse.rewrite(url, { request: { headers } });
+  response.headers.append("Vary", "Accept-Language, Cookie");
+  return response;
+}
+
+// Vulnerability scanners probe these by the thousand. None is a store address, so they get a tiny,
+// CDN-cacheable 404 here instead of a rendered page.
+const SCANNER_PATH =
+  /^\/(?:wp-|wp\/|wordpress|xmlrpc|cgi-bin|phpmyadmin|myadmin|pma\/|\.env|\.git|\.svn|\.hg|\.aws|\.ssh|\.vscode|\.ds_store|vendor\/|actuator|server-status|boaform|hnap1|owa\/|autodiscover|telescope|_ignition|administrator)|\.(?:php\d?|aspx?|jsp|cgi|env|ini|sql|bak|swp)$/i;
+
+export function isScannerPath(pathname: string): boolean {
+  return SCANNER_PATH.test(pathname);
+}
+
+function scannerNotFound() {
+  return new NextResponse("Not found", {
+    status: 404,
+    headers: {
+      "Content-Type": "text/plain; charset=utf-8",
+      "Cache-Control": "public, max-age=3600, s-maxage=86400",
+      "X-Robots-Tag": "noindex",
+    },
+  });
 }
 
 /**
@@ -84,6 +105,13 @@ function storefrontProxy(request: NextRequest, pathname: string) {
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   if (pathname.startsWith("/admin")) return adminProxy(request, pathname);
+  if (isScannerPath(pathname)) return scannerNotFound();
+  // The internal Arabic prefix is never a public address.
+  if (pathname === "/ar" || pathname.startsWith("/ar/")) {
+    const url = request.nextUrl.clone();
+    url.pathname = pathname.slice(3) || "/";
+    return NextResponse.redirect(url, 308);
+  }
   return storefrontProxy(request, pathname);
 }
 
