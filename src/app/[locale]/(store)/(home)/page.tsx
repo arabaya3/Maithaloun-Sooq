@@ -1,11 +1,9 @@
 import type { Metadata } from "next";
-import { Suspense } from "react";
 
 import { bestSellerIds } from "@/features/catalog/infrastructure/best-sellers";
 import { storefrontCategories } from "@/features/catalog/infrastructure/category-repository";
 import { productRepository } from "@/features/catalog/infrastructure/product-repository";
 import { Storefront } from "@/features/storefront/components/storefront";
-import { StorefrontFromUrl } from "@/features/storefront/components/storefront-from-url";
 import {
   bestSellers,
   catalogBrands,
@@ -32,9 +30,6 @@ export default async function HomePage() {
       bestSellers: bestSellers(products, rankedIds),
     },
   };
-  return (
-    <Suspense fallback={<Storefront {...props} />}>
-      <StorefrontFromUrl {...props} />
-    </Suspense>
-  );
+  // Cached for everyone; the address filters are applied in the browser.
+  return <Storefront {...props} readFiltersFromUrl />;
 }
