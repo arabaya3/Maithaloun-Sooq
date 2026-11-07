@@ -6,15 +6,18 @@ import { notFound } from "next/navigation";
 import { directionOf, isLocale, locales } from "@/i18n/config";
 import { I18nProvider } from "@/i18n/i18n-provider";
 import { getLocale, getMessages } from "@/i18n/server";
+import { canPrerenderWithData } from "@/server/env/env";
 
 import { baseMetadata } from "../base-metadata";
 
 import "../globals.css";
 
-// Only the two storefront languages exist. Static pages set dynamicParams = false themselves, so any other
-// first segment is a static 404 there; a layout-level setting would also close products/brands/categories.
+// Only the two storefront languages exist: the layout 404s anything else, and the proxy rewrites every
+// Arabic address to /ar, so other first segments only arrive for file-like scanner paths.
+// With server env (Production) both languages are prerendered at build. Without it (Preview builds
+// have no secrets) nothing is prerendered and pages render on first request, then stay cached.
 export function generateStaticParams() {
-  return locales.map((locale) => ({ locale }));
+  return canPrerenderWithData() ? locales.map((locale) => ({ locale })) : [];
 }
 
 export async function generateMetadata(): Promise<Metadata> {

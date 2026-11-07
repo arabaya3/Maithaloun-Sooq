@@ -11,9 +11,6 @@ import {
 import { Link } from "@/i18n/link";
 import { getMessages, localizedAlternates } from "@/i18n/server";
 
-// Unknown languages (scanner paths like /wp-login.php land here) are a static 404, never a render.
-export const dynamicParams = false;
-
 export async function generateMetadata(): Promise<Metadata> {
   const m = await getMessages();
   return {
