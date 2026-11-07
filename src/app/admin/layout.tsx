@@ -3,6 +3,10 @@ import localFont from "next/font/local";
 
 import { ADMIN_MANIFEST_PATH } from "@/features/pwa/admin-manifest";
 
+import { baseMetadata } from "../base-metadata";
+
+import "../globals.css";
+
 import "@/features/admin/ui/admin.css";
 import "@/features/admin/ui/admin-operations.css";
 import "@/features/admin/ui/admin-today.css";
@@ -56,6 +60,7 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
+  ...baseMetadata,
   title: {
     default: "إدارة MAYTHA MARKET",
     template: "%s | إدارة MAYTHA MARKET",
@@ -71,11 +76,21 @@ export default function AdminRootLayout({
 }: {
   children: React.ReactNode;
 }) {
+  // Admin is its own root layout (the storefront root lives under app/[locale]); it is Arabic only.
   return (
-    <div
-      className={`${cairoArabic.variable} ${cairoLatin.variable} ${cairoLatinExt.variable} admin-font-scope font-scope`}
+    <html
+      lang="ar"
+      dir="rtl"
+      data-scroll-behavior="smooth"
+      suppressHydrationWarning
     >
-      {children}
-    </div>
+      <body className="storefront-font-scope">
+        <div
+          className={`${cairoArabic.variable} ${cairoLatin.variable} ${cairoLatinExt.variable} admin-font-scope font-scope`}
+        >
+          {children}
+        </div>
+      </body>
+    </html>
   );
 }

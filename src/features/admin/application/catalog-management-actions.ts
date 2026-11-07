@@ -23,6 +23,7 @@ import {
   authoringMessages,
 } from "./catalog-authoring-errors";
 import { ProductMaintenanceError } from "./product-maintenance-service";
+import { revalidateStorefront } from "@/features/catalog/application/revalidate-storefront";
 
 export type CatalogActionResult = { ok: false; message: string } | null;
 
@@ -31,7 +32,7 @@ const variantId = z.string().regex(/^[a-z0-9-]{1,100}$/);
 const categoryCode = z.string().regex(/^[a-z0-9-]{2,40}$/);
 
 function productSaved(domainId: string, saved: ProductSaveKind): never {
-  revalidatePath("/");
+  revalidateStorefront();
   revalidatePath("/admin/products");
   revalidatePath(`/admin/products/${domainId}`);
   redirect(`/admin/products/${domainId}?saved=${saved}&at=${Date.now()}`);
@@ -202,7 +203,7 @@ export async function bulkDeleteProductsAction(
   }
 
   if (deleted || archived) {
-    revalidatePath("/");
+    revalidateStorefront();
     revalidatePath("/admin/products");
   }
   return { ok: true, deleted, archived, failed };
@@ -249,7 +250,7 @@ export async function bulkPublicationAction(
     }
   }
   if (changed) {
-    revalidatePath("/");
+    revalidateStorefront();
     revalidatePath("/admin/products");
   }
   return { ok: true, changed, failed };
@@ -354,7 +355,7 @@ export async function deleteProductAction(
   } catch (error) {
     return maintenanceFailure(error);
   }
-  revalidatePath("/");
+  revalidateStorefront();
   revalidatePath("/admin/products");
   redirect(`/admin/products?deleted=${encodeURIComponent(name)}`);
 }

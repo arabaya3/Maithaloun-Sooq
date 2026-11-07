@@ -1,11 +1,13 @@
 import { ArrowRight } from "lucide-react";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { connection } from "next/server";
 import { Suspense } from "react";
 
 import { ProductCard } from "@/features/catalog/components/product-card";
-import { ProductDetailPanel } from "@/features/catalog/components/product-detail-panel";
+import {
+  ProductDetailPanel,
+  ProductDetailPanelDefault,
+} from "@/features/catalog/components/product-detail-panel";
 import {
   localizedProductName,
   localizedProductText,
@@ -16,45 +18,43 @@ import { productRepository } from "@/features/catalog/infrastructure/product-rep
 import { MobileNavigation } from "@/features/storefront/components/mobile-navigation";
 import { SiteHeader } from "@/features/storefront/components/site-header";
 import { Link } from "@/i18n/link";
-import { getLocale, getMessages } from "@/i18n/server";
+import { getLocale, getMessages, localizedAlternates } from "@/i18n/server";
 
 interface ProductPageProps {
   params: Promise<{ slug: string }>;
-  searchParams: Promise<{ variant?: string | string[] }>;
+}
+
+// Product pages are rendered on first visit and then served from the cache; admin changes refresh
+// them at once (revalidateStorefront) and the store layout's revalidate window is the safety net.
+export function generateStaticParams() {
+  return [];
 }
 
 export async function generateMetadata({
   params,
 }: ProductPageProps): Promise<Metadata> {
-  await connection();
-  const [product, locale, m] = await Promise.all([
-    params.then(({ slug }) => productRepository.getBySlug(slug)),
+  const { slug } = await params;
+  const [product, locale, m, alternates] = await Promise.all([
+    productRepository.getBySlug(slug),
     getLocale(),
     getMessages(),
+    localizedAlternates(`/products/${slug}`),
   ]);
   if (!product) notFound();
   const name = localizedProductName(product, locale);
 
   return {
     title: name,
+    alternates,
     description:
       localizedProductText(product, locale).description ??
       m.meta.productDescription(name),
   };
 }
 
-export default async function ProductPage({
-  params,
-  searchParams,
-}: ProductPageProps) {
-  await connection();
+export default async function ProductPage({ params }: ProductPageProps) {
   const product = await productRepository.getBySlug((await params).slug);
   if (!product) notFound();
-
-  const variantParam = (await searchParams).variant;
-  const initialVariantId = Array.isArray(variantParam)
-    ? variantParam[0]
-    : variantParam;
 
   const [products, categories, presentation, locale, m] = await Promise.all([
     productRepository.list(),
@@ -75,6 +75,14 @@ export default async function ProductPage({
     (entry) => entry.code === product.categoryId,
   );
 
+  const panel = {
+    product,
+    categoryLabel: category
+      ? localizedCategoryName(category, locale)
+      : product.categoryId,
+    presentation,
+  };
+
   return (
     <>
       <SiteHeader />
@@ -92,17 +100,8 @@ export default async function ProductPage({
           {m.catalog.backToProducts}
         </Link>
 
-        <Suspense fallback={null}>
-          <ProductDetailPanel
-            product={product}
-            categoryLabel={
-              category
-                ? localizedCategoryName(category, locale)
-                : product.categoryId
-            }
-            initialVariantId={initialVariantId}
-            presentation={presentation}
-          />
+        <Suspense fallback={<ProductDetailPanelDefault {...panel} />}>
+          <ProductDetailPanel {...panel} />
         </Suspense>
 
         {relatedProducts.length ? (

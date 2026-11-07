@@ -1,6 +1,5 @@
 import { ChevronLeft } from "lucide-react";
 import type { Metadata } from "next";
-import { connection } from "next/server";
 
 import { categoryIcon } from "@/features/catalog/components/category-icons";
 import { ProductMedia } from "@/features/catalog/components/product-media";
@@ -14,18 +13,18 @@ import { MobileNavigation } from "@/features/storefront/components/mobile-naviga
 import { SiteHeader } from "@/features/storefront/components/site-header";
 import { categoryCovers } from "@/features/storefront/domain/home-merchandising";
 import { Link } from "@/i18n/link";
-import { getLocale, getMessages } from "@/i18n/server";
+import { getLocale, getMessages, localizedAlternates } from "@/i18n/server";
 
 export async function generateMetadata(): Promise<Metadata> {
   const m = await getMessages();
   return {
+    alternates: await localizedAlternates("/categories"),
     title: m.meta.categoriesTitle,
     description: m.meta.categoriesDescription,
   };
 }
 
 export default async function CategoriesPage() {
-  await connection();
   const [categories, products, locale, m] = await Promise.all([
     storefrontCategories(),
     productRepository.list(),

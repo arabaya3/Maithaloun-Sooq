@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 
 import { LOCALE_COOKIE } from "@/i18n/config";
 
-import { proxy } from "./proxy";
+import { isScannerPath, proxy } from "./proxy";
 
 function request(
   path: string,
@@ -65,14 +65,34 @@ describe("storefront language proxy", () => {
     expect(new URL(goEnglish.headers.get("location")!).pathname).toBe("/en");
   });
 
-  it("always shows English on /en and rewrites to the shared page", () => {
+  it("always shows English on /en, served by its own static route", () => {
     const response = proxy(
       request("/en/products/finish", { language: "ar", cookie: "ar" }),
     );
     expect(forwardedLocale(response)).toBe("en");
+    expect(response.headers.get("x-middleware-rewrite")).toBeNull();
+    expect(response.headers.get("location")).toBeNull();
+  });
+
+  it("rewrites Arabic addresses to the internal /ar route without changing the address", () => {
+    const rewritten = (path: string) =>
+      new URL(
+        proxy(request(path, { language: "ar" })).headers.get(
+          "x-middleware-rewrite",
+        )!,
+      );
+    expect(rewritten("/").pathname).toBe("/ar");
+    expect(rewritten("/products/finish").pathname).toBe("/ar/products/finish");
+    expect(rewritten("/?q=soap").search).toBe("?q=soap");
+  });
+
+  it("redirects the internal /ar prefix to the public Arabic address", () => {
+    const response = proxy(request("/ar/offers"));
+    expect(response.status).toBe(308);
+    expect(new URL(response.headers.get("location")!).pathname).toBe("/offers");
     expect(
-      new URL(response.headers.get("x-middleware-rewrite")!).pathname,
-    ).toBe("/products/finish");
+      new URL(proxy(request("/ar")).headers.get("location")!).pathname,
+    ).toBe("/");
   });
 
   it("never redirects form posts or client navigations", () => {
@@ -93,5 +113,50 @@ describe("storefront language proxy", () => {
     expect(new URL(response.headers.get("location")!).pathname).toBe(
       "/admin/login",
     );
+  });
+});
+
+describe("scanner rejection", () => {
+  it("answers common vulnerability probes with a small cacheable 404 and no rendering", async () => {
+    for (const path of [
+      "/wp-admin",
+      "/wp-login.php",
+      "/wordpress/wp-includes/x",
+      "/xmlrpc.php",
+      "/.env",
+      "/.env.production",
+      "/.git/config",
+      "/cgi-bin/luci",
+      "/phpmyadmin/index.php",
+      "/vendor/phpunit/x",
+      "/index.php",
+      "/en/wp-login.php",
+    ]) {
+      const response = proxy(request(path, { language: "en-US" }));
+      expect(response.status, path).toBe(404);
+      expect(response.headers.get("x-middleware-rewrite"), path).toBeNull();
+      expect(response.headers.get("cache-control"), path).toContain("s-maxage");
+      expect(await response.text(), path).toBe("Not found");
+    }
+  });
+
+  it("never touches store addresses", () => {
+    for (const path of [
+      "/",
+      "/en",
+      "/products/wipes-soft",
+      "/products/wp-cleaner",
+      "/categories/env-safe",
+      "/brands/Persil",
+      "/offers",
+      "/cart",
+      "/checkout",
+      "/account/orders",
+      "/en/privacy",
+      "/~offline",
+      "/admin/login",
+    ]) {
+      expect(isScannerPath(path), path).toBe(false);
+    }
   });
 });

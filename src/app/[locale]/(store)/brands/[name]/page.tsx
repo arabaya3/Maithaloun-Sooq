@@ -1,7 +1,6 @@
 import { ArrowRight } from "lucide-react";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { connection } from "next/server";
 
 import { ProductCard } from "@/features/catalog/components/product-card";
 import { productRepository } from "@/features/catalog/infrastructure/product-repository";
@@ -18,6 +17,11 @@ function decode(value: string): string | null {
   } catch {
     return null;
   }
+}
+
+// Rendered on first visit, then served from the cache until the catalog changes.
+export function generateStaticParams() {
+  return [];
 }
 
 export async function generateMetadata({
@@ -37,7 +41,6 @@ export default async function BrandPage({
 }: {
   params: Promise<{ name: string }>;
 }) {
-  await connection();
   const [name, all, m] = await Promise.all([
     params.then((value) => decode(value.name)),
     productRepository.list(),

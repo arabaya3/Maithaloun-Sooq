@@ -1,7 +1,6 @@
 import { ArrowRight } from "lucide-react";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { connection } from "next/server";
 
 import { ProductCard } from "@/features/catalog/components/product-card";
 import {
@@ -29,6 +28,11 @@ async function findCategory(code: string) {
   return categories.find((category) => category.code === code) ?? null;
 }
 
+// Rendered on first visit, then served from the cache until the catalog changes.
+export function generateStaticParams() {
+  return [];
+}
+
 export async function generateMetadata({
   params,
 }: {
@@ -53,7 +57,6 @@ export default async function CategoryPage({
 }: {
   params: Promise<{ code: string }>;
 }) {
-  await connection();
   const code = decode((await params).code);
   const [category, products, locale, m] = await Promise.all([
     findCategory(code),

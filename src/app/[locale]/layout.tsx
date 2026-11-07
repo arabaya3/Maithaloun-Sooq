@@ -1,33 +1,27 @@
 import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
 
-import { directionOf, localizePath } from "@/i18n/config";
+import { directionOf, locales } from "@/i18n/config";
 import { I18nProvider } from "@/i18n/i18n-provider";
-import { getLocale, getMessages, getRequestPath } from "@/i18n/server";
+import { getLocale, getMessages } from "@/i18n/server";
 
-import { baseMetadata } from "./base-metadata";
+import { baseMetadata } from "../base-metadata";
 
-import "./globals.css";
+import "../globals.css";
+
+// Only the two storefront languages exist; any other first segment is a static 404, never a render.
+export const dynamicParams = false;
+
+export function generateStaticParams() {
+  return locales.map((locale) => ({ locale }));
+}
 
 export async function generateMetadata(): Promise<Metadata> {
-  const [locale, m, path] = await Promise.all([
-    getLocale(),
-    getMessages(),
-    getRequestPath(),
-  ]);
+  const [locale, m] = await Promise.all([getLocale(), getMessages()]);
   return {
     ...baseMetadata,
     title: { default: "MAYTHA MARKET", template: "%s | MAYTHA MARKET" },
     description: m.meta.siteDescription,
-    // Each page names both languages; Arabic is the default for everyone else.
-    alternates: {
-      canonical: localizePath(locale, path),
-      languages: {
-        ar: path,
-        en: localizePath("en", path),
-        "x-default": path,
-      },
-    },
     openGraph: {
       siteName: "MAYTHA MARKET",
       locale: locale === "ar" ? "ar_PS" : "en_US",

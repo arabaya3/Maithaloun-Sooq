@@ -89,4 +89,67 @@ describe("FavoritesProvider", () => {
     await act(async () => {});
     expect(screen.getByTestId("ids")).toHaveTextContent("");
   });
+
+  describe("on cached pages, where the browser discovers the account", () => {
+    const actions = (signedIn: boolean) => ({
+      load: vi
+        .fn()
+        .mockResolvedValue(
+          signedIn
+            ? { signedIn: true, productIds: ["carpet-brush"] }
+            : { signedIn: false },
+        ),
+      save: vi.fn().mockResolvedValue({ ok: true }),
+      merge: vi.fn(),
+    });
+    const clearMarker = () => {
+      document.cookie = "maytha_signed_in=; max-age=0; path=/";
+    };
+
+    beforeEach(() => {
+      clearMarker();
+      window.localStorage.removeItem("maytha_account_probed");
+    });
+
+    it("loads account favourites when the signed-in marker is present", async () => {
+      document.cookie = "maytha_signed_in=1; path=/";
+      const accountActions = actions(true);
+      render(
+        <FavoritesProvider
+          productIds={productIds}
+          accountActions={accountActions}
+        >
+          <Probe />
+        </FavoritesProvider>,
+      );
+      await act(async () => {});
+      expect(accountActions.load).toHaveBeenCalledOnce();
+      expect(screen.getByTestId("ids")).toHaveTextContent("carpet-brush");
+      await userEvent.click(screen.getByText("toggle"));
+      expect(accountActions.save).toHaveBeenCalledWith("dolphin-bleach", true);
+      clearMarker();
+    });
+
+    it("asks an anonymous browser once, then never again", async () => {
+      const first = actions(false);
+      const { unmount } = render(
+        <FavoritesProvider productIds={productIds} accountActions={first}>
+          <Probe />
+        </FavoritesProvider>,
+      );
+      await act(async () => {});
+      expect(first.load).toHaveBeenCalledOnce();
+      expect(screen.getByTestId("ids")).toHaveTextContent("general-cleaner");
+      unmount();
+
+      const second = actions(false);
+      render(
+        <FavoritesProvider productIds={productIds} accountActions={second}>
+          <Probe />
+        </FavoritesProvider>,
+      );
+      await act(async () => {});
+      expect(second.load).not.toHaveBeenCalled();
+    });
+  });
 });

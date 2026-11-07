@@ -1,13 +1,12 @@
-import { connection } from "next/server";
 import type { ReactNode } from "react";
 import { preload } from "react-dom";
 
 import {
+  loadAccountFavoritesAction,
   mergeFavoritesAction,
   setFavoriteAction,
 } from "@/features/accounts/application/account-actions";
-import { customerFavoritesService } from "@/features/accounts/application/customer-services";
-import { getCustomerSession } from "@/features/accounts/application/customer-session";
+import { customerAccountsEnabled } from "@/features/accounts/domain/account-config";
 import { CartProvider } from "@/features/cart/cart-provider";
 import { localizedCategoryName } from "@/features/catalog/domain/category";
 import { storefrontCategories } from "@/features/catalog/infrastructure/category-repository";
@@ -25,7 +24,19 @@ import { getLocale } from "@/i18n/server";
 
 import "./storefront.css";
 
-// Catalog-backed providers live here so admin and utility routes never load the catalog.
+// Storefront pages are static: rendered once, served from the cache, refreshed by revalidateStorefront()
+// whenever the owner changes the catalog, and at most every 15 minutes as a safety net (stock moves).
+export const revalidate = 900;
+
+// Catalog-backed providers live here so admin and utility routes never load the catalog. Nothing here
+// reads the request, so every page under it can be served from the static cache; the signed-in
+// customer's favorites are fetched by the browser instead.
+const accountActions = {
+  load: loadAccountFavoritesAction,
+  save: setFavoriteAction,
+  merge: mergeFavoritesAction,
+};
+
 export default async function StoreLayout({
   children,
 }: {
@@ -36,23 +47,14 @@ export default async function StoreLayout({
     type: "font/woff2",
     crossOrigin: "anonymous",
   });
-  await connection();
-  const [products, serviceAreas, customer, categories, locale, storeWhatsApp] =
+  const [products, serviceAreas, categories, locale, storeWhatsApp] =
     await Promise.all([
       productRepository.list(),
       serviceAreaRepository.listEnabled(),
-      getCustomerSession(),
       storefrontCategories(),
       getLocale(),
       storeContactService.whatsAppNumber(),
     ]);
-  const accountFavorites = customer
-    ? {
-        productIds: await customerFavoritesService.list(customer.id),
-        save: setFavoriteAction,
-        merge: mergeFavoritesAction,
-      }
-    : null;
   const productIds = products.map((product) => product.id);
   const catalog = products.map((product) => ({
     productId: product.id,
@@ -73,7 +75,10 @@ export default async function StoreLayout({
   return (
     <DeliveryProvider locations={locations}>
       <StoreLaunchSplash />
-      <FavoritesProvider productIds={productIds} account={accountFavorites}>
+      <FavoritesProvider
+        productIds={productIds}
+        accountActions={customerAccountsEnabled() ? accountActions : null}
+      >
         <StoreNavigationProvider
           categories={categories.map((category) => ({
             code: category.code,

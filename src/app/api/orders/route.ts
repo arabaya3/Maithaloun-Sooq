@@ -15,6 +15,7 @@ import { db } from "@/server/db/db";
 import { getServerEnv } from "@/server/env/env";
 import { lazyObject } from "@/server/lazy-object";
 import { adminNotificationService } from "@/features/admin/application/admin-services";
+import { revalidateStorefront } from "@/features/catalog/application/revalidate-storefront";
 import { getCustomerSession } from "@/features/accounts/application/customer-session";
 import { isLocale, LOCALE_HEADER, type Locale } from "@/i18n/config";
 
@@ -102,6 +103,8 @@ export async function POST(request: Request) {
       customerAccountId: customer?.id ?? null,
     });
     if (!confirmation.duplicate) {
+      // The order took stock; cached storefront pages refresh on their next visit.
+      revalidateStorefront();
       after(async () => {
         try {
           await adminNotificationService.dispatchOrderNotification(

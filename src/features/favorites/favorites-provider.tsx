@@ -10,6 +10,12 @@ import {
 } from "react";
 
 import {
+  ACCOUNT_PROBED_STORAGE_KEY,
+  hasSignedInMarker,
+  onAccountMaybeChanged,
+} from "@/features/accounts/domain/signed-in-marker";
+
+import {
   FAVORITES_STORAGE_KEY,
   initialFavoritesState,
   parsePersistedFavorites,
@@ -24,6 +30,15 @@ export interface AccountFavorites {
   ) => Promise<
     { ok: true; added: number; productIds: string[] } | { ok: false }
   >;
+}
+
+/** Server actions for an account that the browser discovers after the cached page loads. */
+export interface AccountFavoritesActions {
+  load: () => Promise<
+    { signedIn: false } | { signedIn: true; productIds: string[] }
+  >;
+  save: AccountFavorites["save"];
+  merge: AccountFavorites["merge"];
 }
 
 interface FavoritesContextValue {
@@ -42,12 +57,18 @@ const FavoritesContext = createContext<FavoritesContextValue | null>(null);
 export function FavoritesProvider({
   children,
   productIds,
-  account = null,
+  account: givenAccount = null,
+  accountActions = null,
 }: {
   children: ReactNode;
   productIds: readonly string[];
   account?: AccountFavorites | null;
+  accountActions?: AccountFavoritesActions | null;
 }) {
+  const [loadedAccount, setLoadedAccount] = useState<AccountFavorites | null>(
+    null,
+  );
+  const account = givenAccount ?? loadedAccount;
   const [localIds, setLocalIds] = useState<string[]>(
     initialFavoritesState.productIds,
   );
@@ -57,6 +78,50 @@ export function FavoritesProvider({
   const [restored, setRestored] = useState(false);
   const allowedProductIds = useMemo(() => new Set(productIds), [productIds]);
   const signedIn = account !== null;
+
+  // Only browsers that may hold a session ask; anonymous visitors are checked once at most. It is
+  // checked again after signing in or out, so the change shows without a full reload.
+  const [accountCheck, setAccountCheck] = useState(0);
+  useEffect(
+    () => onAccountMaybeChanged(() => setAccountCheck((count) => count + 1)),
+    [],
+  );
+  const hasLoadedAccount = loadedAccount !== null;
+  useEffect(() => {
+    if (!accountActions || givenAccount) return;
+    const marked = hasSignedInMarker(document.cookie);
+    if (hasLoadedAccount) {
+      if (!marked) queueMicrotask(() => setLoadedAccount(null));
+      return;
+    }
+    let probed = false;
+    try {
+      probed = window.localStorage.getItem(ACCOUNT_PROBED_STORAGE_KEY) === "1";
+    } catch {}
+    if (!marked && probed) return;
+    let cancelled = false;
+    void accountActions
+      .load()
+      .then((result) => {
+        if (cancelled) return;
+        if (!result.signedIn) {
+          try {
+            window.localStorage.setItem(ACCOUNT_PROBED_STORAGE_KEY, "1");
+          } catch {}
+          return;
+        }
+        setAccountIds(result.productIds);
+        setLoadedAccount({
+          productIds: result.productIds,
+          save: accountActions.save,
+          merge: accountActions.merge,
+        });
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [accountActions, givenAccount, hasLoadedAccount, accountCheck]);
 
   useEffect(() => {
     const saved = parsePersistedFavorites(

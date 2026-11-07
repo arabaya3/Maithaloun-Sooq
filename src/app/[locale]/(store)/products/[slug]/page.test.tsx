@@ -51,7 +51,6 @@ describe("product details page", () => {
     const user = userEvent.setup();
     const page = await ProductPage({
       params: Promise.resolve({ slug: "general-cleaner-secret" }),
-      searchParams: Promise.resolve({}),
     });
 
     renderWithProviders(page, { products, locale: "en" });
@@ -81,7 +80,6 @@ describe("product details page", () => {
     const user = userEvent.setup();
     const page = await ProductPage({
       params: Promise.resolve({ slug: "general-cleaner-secret" }),
-      searchParams: Promise.resolve({}),
     });
 
     renderWithProviders(page, { products });

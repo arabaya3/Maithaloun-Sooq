@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { connection } from "next/server";
 
 import { productRepository } from "@/features/catalog/infrastructure/product-repository";
 import { BrandMark } from "@/features/storefront/components/brand-mark";
@@ -10,15 +9,18 @@ import {
   catalogBrands,
 } from "@/features/storefront/domain/home-merchandising";
 import { Link } from "@/i18n/link";
-import { getMessages } from "@/i18n/server";
+import { getMessages, localizedAlternates } from "@/i18n/server";
 
 export async function generateMetadata(): Promise<Metadata> {
   const m = await getMessages();
-  return { title: m.meta.brandsTitle, description: m.meta.brandsDescription };
+  return {
+    alternates: await localizedAlternates("/brands"),
+    title: m.meta.brandsTitle,
+    description: m.meta.brandsDescription,
+  };
 }
 
 export default async function BrandsPage() {
-  await connection();
   const [products, m] = await Promise.all([
     productRepository.list(),
     getMessages(),

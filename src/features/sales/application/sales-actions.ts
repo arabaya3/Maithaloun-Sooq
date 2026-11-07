@@ -2,6 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 
+import { revalidateStorefront } from "@/features/catalog/application/revalidate-storefront";
+
 import {
   customerService,
   salesService,
@@ -27,6 +29,8 @@ function text(formData: FormData, name: string): string {
 }
 
 function revalidateSales(customerId?: string | null) {
+  // Shop sales move the same stock the storefront shows.
+  revalidateStorefront();
   revalidatePath("/admin");
   revalidatePath("/admin/sales", "layout");
   revalidatePath("/admin/customers", "layout");

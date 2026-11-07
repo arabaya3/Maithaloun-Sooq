@@ -4,6 +4,7 @@ import { BrandSymbol } from "@/features/storefront/components/brand-logo";
 import { Link } from "@/i18n/link";
 import { getMessages } from "@/i18n/server";
 
+// Rendered when a storefront page calls notFound(). It reads only the route's language: no catalog.
 export async function generateMetadata(): Promise<Metadata> {
   const m = await getMessages();
   return { title: m.meta.notFoundTitle };

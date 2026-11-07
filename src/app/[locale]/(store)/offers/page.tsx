@@ -1,6 +1,5 @@
 import { BadgePercent } from "lucide-react";
 import type { Metadata } from "next";
-import { connection } from "next/server";
 
 import { ProductCard } from "@/features/catalog/components/product-card";
 import { productRepository } from "@/features/catalog/infrastructure/product-repository";
@@ -8,15 +7,18 @@ import { MobileNavigation } from "@/features/storefront/components/mobile-naviga
 import { SiteHeader } from "@/features/storefront/components/site-header";
 import { productsOnOffer } from "@/features/storefront/domain/home-merchandising";
 import { Link } from "@/i18n/link";
-import { getMessages } from "@/i18n/server";
+import { getMessages, localizedAlternates } from "@/i18n/server";
 
 export async function generateMetadata(): Promise<Metadata> {
   const m = await getMessages();
-  return { title: m.meta.offersTitle, description: m.meta.offersDescription };
+  return {
+    alternates: await localizedAlternates("/offers"),
+    title: m.meta.offersTitle,
+    description: m.meta.offersDescription,
+  };
 }
 
 export default async function OffersPage() {
-  await connection();
   const [all, m] = await Promise.all([productRepository.list(), getMessages()]);
   const products = productsOnOffer(all);
 
