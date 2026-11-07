@@ -29,6 +29,9 @@ async function findCategory(code: string) {
 }
 
 // Rendered on first visit, then served from the cache until the catalog changes.
+// The locale layout allows only its two languages; this segment's own values are open (ISR on first visit).
+export const dynamicParams = true;
+
 export function generateStaticParams() {
   return [];
 }

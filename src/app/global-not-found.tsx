@@ -38,8 +38,16 @@ export default function GlobalNotFound() {
               {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
               <a href="/">{ar.misc.backToStore}</a>
               {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
-              <a href="/en" lang="en" dir="ltr" className="status-secondary">
-                {en.misc.backToStore}
+              <a href="/categories" className="status-secondary">
+                {ar.store.browseCategories}
+              </a>
+            </div>
+            <div className="status-actions" lang="en" dir="ltr">
+              {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
+              <a href="/en">{en.misc.backToStore}</a>
+              {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
+              <a href="/en/categories" className="status-secondary">
+                {en.store.browseCategories}
               </a>
             </div>
           </div>

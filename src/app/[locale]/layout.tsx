@@ -1,7 +1,9 @@
 import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
 
-import { directionOf, locales } from "@/i18n/config";
+import { notFound } from "next/navigation";
+
+import { directionOf, isLocale, locales } from "@/i18n/config";
 import { I18nProvider } from "@/i18n/i18n-provider";
 import { getLocale, getMessages } from "@/i18n/server";
 
@@ -9,9 +11,8 @@ import { baseMetadata } from "../base-metadata";
 
 import "../globals.css";
 
-// Only the two storefront languages exist; any other first segment is a static 404, never a render.
-export const dynamicParams = false;
-
+// Only the two storefront languages exist. Static pages set dynamicParams = false themselves, so any other
+// first segment is a static 404 there; a layout-level setting would also close products/brands/categories.
 export function generateStaticParams() {
   return locales.map((locale) => ({ locale }));
 }
@@ -40,9 +41,13 @@ export const viewport: Viewport = {
 
 export default async function RootLayout({
   children,
+  params,
 }: {
   children: ReactNode;
+  params: Promise<{ locale: string }>;
 }) {
+  // Dynamic child segments (products, brands, categories) reopen params, so check the language here.
+  if (!isLocale((await params).locale)) notFound();
   const locale = await getLocale();
   return (
     <html

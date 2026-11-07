@@ -26,6 +26,9 @@ interface ProductPageProps {
 
 // Product pages are rendered on first visit and then served from the cache; admin changes refresh
 // them at once (revalidateStorefront) and the store layout's revalidate window is the safety net.
+// The locale layout allows only its two languages; this segment's own values are open (ISR on first visit).
+export const dynamicParams = true;
+
 export function generateStaticParams() {
   return [];
 }
