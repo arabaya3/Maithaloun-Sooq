@@ -1,4 +1,5 @@
-# Builds and tests the MAYTHA MARKET Flutter app on every change to mobile/.
+# Builds and tests the MAYTHA MARKET Flutter app on every change to mobile/. The integration test
+# against the live Production API runs only weekly and on demand (Vercel Hobby CPU allowance).
 # No signing secrets are used: Android builds are debug-signed and iOS builds are unsigned,
 # so nothing here can be uploaded to a store.
 name: mobile
@@ -10,6 +11,10 @@ on:
     branches: [main]
     paths: ["mobile/**", ".github/workflows/mobile.yml"]
   workflow_dispatch:
+  # The live-API integration test runs weekly and on demand only: every request it makes runs a
+  # Production function, which counts against the Vercel Hobby CPU allowance.
+  schedule:
+    - cron: "0 4 * * 1"
 
 permissions:
   contents: read
@@ -62,6 +67,7 @@ jobs:
       - name: Build the device app without signing
         run: flutter build ios --release --no-codesign
       - name: Boot an iPhone simulator
+        if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'
         id: sim
         working-directory: .
         run: |
@@ -74,11 +80,12 @@ jobs:
       # cut off and retried once on a rebooted simulator.
       - name: Integration test on the simulator against the live API
         id: integration
+        if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'
         timeout-minutes: 12
         continue-on-error: true
         run: flutter test integration_test/live_app_test.dart -d ${{ steps.sim.outputs.udid }}
       - name: Retry the integration test on a rebooted simulator
-        if: steps.integration.outcome != 'success'
+        if: (github.event_name == 'workflow_dispatch' || github.event_name == 'schedule') && steps.integration.outcome != 'success'
         timeout-minutes: 15
         run: |
           xcrun simctl shutdown "${{ steps.sim.outputs.udid }}" || true
