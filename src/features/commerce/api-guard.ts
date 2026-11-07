@@ -9,9 +9,10 @@ import { getServerEnv } from "@/server/env/env";
 import { hitPublicApiBudget } from "./public-api-limit";
 
 export const noStoreHeaders = { "Cache-Control": "no-store, max-age=0" };
-// Catalog reads change rarely and are the same for everyone, so the edge may keep them briefly.
+// Catalog reads change rarely and are the same for everyone, so the edge keeps them for five minutes:
+// repeated app and crawler reads are answered by the CDN without running a function.
 export const catalogCacheHeaders = {
-  "Cache-Control": "public, max-age=0, s-maxage=60, stale-while-revalidate=300",
+  "Cache-Control": "public, max-age=0, s-maxage=300, stale-while-revalidate=600",
 };
 
 export function apiLocale(request: Request): Locale {
