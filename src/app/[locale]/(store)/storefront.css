@@ -1,3 +1,6 @@
+From https://github.com/arabaya3/maithaloun-sooq
+ * branch            main       -> FETCH_HEAD
+   f238a54..3c43b87  main       -> origin/main
 /* MAYTHA storefront design layer. Loaded by the store layout only, so admin keeps its styles. */
 :root {
   --forest: #0e5a2f;
@@ -2279,4 +2282,11 @@ body:has(.store-footer) > main {
 .info-page .info-links a {
   border-radius: var(--radius-sm);
   text-align: center;
+}
+
+@media (max-width: 47.99rem) {
+  .site-header .header-menu,
+  .site-header .cart-button {
+    display: none;
+  }
 }
