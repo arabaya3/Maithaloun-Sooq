@@ -1,6 +1,6 @@
 "use client";
 
-import { Heart, Menu, Search, ShoppingBag, UserRound } from "lucide-react";
+import { Heart, Menu, Search, ShoppingBag } from "lucide-react";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 
@@ -56,16 +56,8 @@ export function SiteHeader({ search }: { search?: ReactNode }) {
         </Link>
         <BrandLogo />
         <div className="header-search">{search ?? <HeaderSearchForm />}</div>
-        <nav className="header-actions" aria-label={m.store.accountAndCart}>
+        <nav className="header-actions" aria-label={m.common.cart}>
           <LanguageSwitcher className="header-language" />
-          <Link
-            href="/account"
-            className="header-action header-action-wide"
-            aria-current={isCurrent("/account") ? "page" : undefined}
-          >
-            <UserRound aria-hidden="true" />
-            <span>{m.common.account}</span>
-          </Link>
           <Link
             href="/favorites"
             className="header-action header-action-wide"
