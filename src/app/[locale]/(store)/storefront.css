@@ -2299,3 +2299,44 @@ body:has(.store-footer) > main {
     display: none;
   }
 }
+
+@media (max-width: 47.99rem) {
+  .cart-lines .cart-title-row .eyebrow,
+  .cart-summary .cart-channel-note {
+    display: none;
+  }
+
+  .cart-lines .cart-title-row h1 {
+    font-size: 1.4rem;
+  }
+
+  .cart-line-list .cart-line {
+    padding: 0.6rem;
+    gap: 0.35rem 0.6rem;
+  }
+
+  .cart-line-list .cart-line h2 {
+    font-size: 0.9rem;
+    line-height: 1.35;
+  }
+
+  .cart-line-list .cart-line-subtotal {
+    grid-column: 1;
+    grid-row: 2;
+    text-align: center;
+  }
+
+  .cart-line-list .cart-line-content {
+    grid-row: span 2;
+  }
+
+  .cart-summary .cart-summary-rows {
+    gap: 0.35rem;
+    padding-block: 0.45rem;
+  }
+
+  .cart-summary .continue-shopping-link {
+    min-height: 2.75rem;
+    border-color: transparent;
+  }
+}
