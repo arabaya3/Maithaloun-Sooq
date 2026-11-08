@@ -48,8 +48,8 @@ describe("product information", () => {
       screen.getByRole("heading", { name: "وصف المنتج" }),
     ).toBeInTheDocument();
     const usage = screen
-      .getByRole("heading", { name: "طريقة الاستعمال" })
-      .closest("section")!;
+      .getByText("طريقة الاستعمال")
+      .closest("details")!;
     expect(usage).toHaveTextContent("تُركّب العصا وتُثبّت جيداً");
     expect(container.querySelector("ol")).toBeNull();
     expect(container.textContent?.match(/تُركّب العصا/g)).toHaveLength(1);
@@ -61,7 +61,7 @@ describe("product information", () => {
       { products: [] },
     );
     expect(
-      screen.getByRole("heading", { name: "طريقة الاستعمال" }),
+      screen.getByText("طريقة الاستعمال"),
     ).toBeInTheDocument();
     expect(screen.getByText("يُرش ثم يُمسح.")).toBeInTheDocument();
   });
