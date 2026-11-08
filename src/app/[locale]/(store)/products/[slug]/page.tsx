@@ -1,8 +1,8 @@
-import { ArrowRight } from "lucide-react";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 
+import { ProductBackLink } from "@/features/catalog/components/product-back-link";
 import { ProductCard } from "@/features/catalog/components/product-card";
 import {
   ProductDetailPanel,
@@ -90,6 +90,7 @@ export default async function ProductPage({ params }: ProductPageProps) {
     <>
       <SiteHeader />
       <main className="page-shell detail-page">
+        <ProductBackLink label={locale === "ar" ? "رجوع" : "Back"} />
         <nav className="breadcrumb" aria-label={m.catalog.breadcrumb}>
           <Link href="/">{m.common.home}</Link>
           <span aria-hidden="true">/</span>
@@ -97,11 +98,6 @@ export default async function ProductPage({ params }: ProductPageProps) {
             <bdi dir="auto">{name}</bdi>
           </span>
         </nav>
-
-        <Link className="back-link" href="/">
-          <ArrowRight className="rtl-flip" aria-hidden="true" />
-          {m.catalog.backToProducts}
-        </Link>
 
         <Suspense fallback={<ProductDetailPanelDefault {...panel} />}>
           <ProductDetailPanel {...panel} />

@@ -564,6 +564,9 @@ select:focus-visible {
   min-height: 2.75rem;
   align-items: center;
   margin-block: 0.35rem 0.75rem;
+  padding-inline: 0.85rem;
+  border: 1px solid currentColor;
+  border-radius: 0.65rem;
   color: var(--green-900);
   font-weight: 700;
   gap: 0.4rem;
