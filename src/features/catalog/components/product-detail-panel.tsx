@@ -297,7 +297,6 @@ function ProductDetailPanelView({
           <bdi dir="auto">{name}</bdi>
         </h1>
         <div className="detail-price-status">
-          <OfferPrice className="product-detail-price" variant={priceShown} />
           <p className="availability-status" data-available={available}>
             {presentation.incomplete
               ? m.catalog.statusIncomplete
@@ -307,6 +306,7 @@ function ProductDetailPanelView({
                   ? m.catalog.statusAvailable
                   : m.catalog.statusUnavailable}
           </p>
+          <OfferPrice className="product-detail-price" variant={priceShown} />
         </div>
         {options.length ? (
           <OptionSelectors
