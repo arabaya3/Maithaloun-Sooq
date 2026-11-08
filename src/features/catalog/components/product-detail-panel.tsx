@@ -339,7 +339,6 @@ function ProductDetailPanelView({
             onSelect={chooseUnit}
           />
         ) : null}
-        {describedBelow ? null : description}
         <ProductDetailActions
           product={product}
           variantId={
@@ -358,6 +357,7 @@ function ProductDetailPanelView({
           <summary>{m.catalog.trustLabel}</summary>
           <ProductTrust />
         </details>
+        {describedBelow ? null : description}
       </div>
       {describedBelow ? (
         <div className="product-detail-below">{description}</div>
