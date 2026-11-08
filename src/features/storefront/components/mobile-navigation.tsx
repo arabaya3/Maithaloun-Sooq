@@ -1,6 +1,6 @@
 "use client";
 
-import { BadgePercent, House, LayoutGrid, UserRound } from "lucide-react";
+import { BadgePercent, Heart, House, LayoutGrid, UserRound } from "lucide-react";
 import { usePathname } from "next/navigation";
 
 import { splitLocalePath } from "@/i18n/config";
@@ -14,6 +14,7 @@ export function MobileNavigation() {
     { href: "/", label: m.common.home, icon: House },
     { href: "/categories", label: m.common.categories, icon: LayoutGrid },
     { href: "/offers", label: m.common.offers, icon: BadgePercent },
+    { href: "/favorites", label: m.common.favorites, icon: Heart },
     { href: "/account", label: m.common.account, icon: UserRound },
   ];
 
