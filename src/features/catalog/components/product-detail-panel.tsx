@@ -13,7 +13,6 @@ import {
 import { ProductMedia } from "@/features/catalog/components/product-media";
 import { ProductInformation } from "@/features/catalog/components/product-information";
 import { ProductSpecifications } from "@/features/catalog/components/product-specifications";
-import { ProductTrust } from "@/features/catalog/components/product-trust";
 import { SellingUnitSelector } from "@/features/catalog/components/selling-unit-selector";
 import { VariantSelector } from "@/features/catalog/components/variant-selector";
 import { offerForSellingUnit } from "@/features/catalog/domain/offer-pricing";
@@ -297,16 +296,18 @@ function ProductDetailPanelView({
         <h1>
           <bdi dir="auto">{name}</bdi>
         </h1>
-        <OfferPrice className="product-detail-price" variant={priceShown} />
-        <p className="availability-status" data-available={available}>
-          {presentation.incomplete
-            ? m.catalog.statusIncomplete
-            : !selectedVariant
-              ? m.catalog.statusChooseOptions
-              : available
-                ? m.catalog.statusAvailable
-                : m.catalog.statusUnavailable}
-        </p>
+        <div className="detail-price-status">
+          <OfferPrice className="product-detail-price" variant={priceShown} />
+          <p className="availability-status" data-available={available}>
+            {presentation.incomplete
+              ? m.catalog.statusIncomplete
+              : !selectedVariant
+                ? m.catalog.statusChooseOptions
+                : available
+                  ? m.catalog.statusAvailable
+                  : m.catalog.statusUnavailable}
+          </p>
+        </div>
         {options.length ? (
           <OptionSelectors
             options={options}
@@ -353,10 +354,6 @@ function ProductDetailPanelView({
               : variantId
           }
         />
-        <details className="detail-delivery">
-          <summary>{m.catalog.trustLabel}</summary>
-          <ProductTrust />
-        </details>
         {describedBelow ? null : description}
       </div>
       {describedBelow ? (

@@ -1,11 +1,12 @@
 "use client";
 
-import { ListChecks } from "lucide-react";
+import { ChevronDown, FileText, ListChecks, Truck } from "lucide-react";
 
 import {
   ProductDescription,
   splitProductText,
 } from "@/features/catalog/components/product-description";
+import { ProductTrust } from "@/features/catalog/components/product-trust";
 import { useI18n } from "@/i18n/i18n-provider";
 
 /** Description and usage as separate, titled sections; the owner's wording is shown as written. */
@@ -25,7 +26,11 @@ export function ProductInformation({
   return (
     <div className="product-info">
       <details className="product-info-section product-info-description">
-        <summary>{m.catalog.descriptionTitle}</summary>
+        <summary>
+          <FileText aria-hidden="true" />
+          {m.catalog.descriptionTitle}
+          <ChevronDown className="detail-section-chevron" aria-hidden="true" />
+        </summary>
         <ProductDescription text={split.description} />
       </details>
       {usage ? (
@@ -33,10 +38,22 @@ export function ProductInformation({
           <summary>
             <ListChecks aria-hidden="true" />
             {m.catalog.usageTitle}
+            <ChevronDown
+              className="detail-section-chevron"
+              aria-hidden="true"
+            />
           </summary>
           <ProductDescription text={usage} />
         </details>
       ) : null}
+      <details className="product-info-section">
+        <summary>
+          <Truck aria-hidden="true" />
+          {m.catalog.trustLabel}
+          <ChevronDown className="detail-section-chevron" aria-hidden="true" />
+        </summary>
+        <ProductTrust />
+      </details>
     </div>
   );
 }
