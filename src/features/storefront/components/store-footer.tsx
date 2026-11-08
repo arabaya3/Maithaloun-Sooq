@@ -19,7 +19,7 @@ export function StoreFooter({
   const { m } = useI18n();
   const chatUrl = storeWhatsApp ? whatsAppChatUrl(storeWhatsApp) : null;
   const links = infoPages.filter(
-    ({ key }) => key !== "about" && (key !== "contact" || !chatUrl),
+    ({ key }) => key !== "about" && key !== "returns" && (key !== "contact" || !chatUrl),
   );
   return (
     <footer className="store-footer">
