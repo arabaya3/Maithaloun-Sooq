@@ -1,5 +1,5 @@
 export function customerAccountsEnabled(): boolean {
-  return process.env.CUSTOMER_ACCOUNTS === "on";
+  return false;
 }
 
 export const OTP_CODE_PATTERN = /^\d{6}$/;
