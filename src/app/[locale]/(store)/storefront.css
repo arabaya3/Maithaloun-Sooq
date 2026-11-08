@@ -2067,3 +2067,23 @@ body:has(.store-footer) > main {
     transform: rotate(6deg);
   }
 }
+
+@media (max-width: 47.99rem) {
+  .cart-line {
+    grid-template-columns: 4rem minmax(0, 1fr);
+    gap: 0.5rem 0.75rem;
+  }
+
+  .cart-line-media {
+    width: 4rem;
+  }
+
+  .cart-line-controls {
+    grid-template-columns: minmax(0, 8rem) 2.75rem;
+    align-items: center;
+  }
+
+  .cart-summary {
+    padding: 0.85rem;
+  }
+}

@@ -234,8 +234,10 @@ describe("cart page", () => {
       <CartPage products={products} storeWhatsApp="+972599105456" />,
       { products },
     );
-    const review = await screen.findByRole("list", { name: "منتجات الطلب" });
-    expect(within(review).getAllByRole("listitem")).toHaveLength(1);
+    expect(
+      await screen.findByLabelText("مجموع ممسحة تنظيف 8 ₪"),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("list", { name: "منتجات الطلب" })).toBeNull();
     // WhatsApp ordering is a button now: it opens the chat directly, with no form.
     expect(
       screen.getByRole("button", { name: "الطلب عبر واتساب" }),
