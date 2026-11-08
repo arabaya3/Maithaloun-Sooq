@@ -18,6 +18,7 @@ export interface FilterChip {
 
 /** Count, sort and active-filter chips above a product grid; phones get the filters in a bottom sheet. */
 export function CatalogToolbar({
+  heading,
   count,
   sort,
   onSort,
@@ -25,6 +26,7 @@ export function CatalogToolbar({
   onClearFilters,
   sheet,
 }: {
+  heading?: ReactNode;
   count: number;
   sort: ProductSort;
   onSort: (sort: ProductSort) => void;
@@ -39,7 +41,7 @@ export function CatalogToolbar({
     onReset: () => void;
   };
 }) {
-  const { m } = useI18n();
+  const { m, locale } = useI18n();
   const sortId = useId();
   const [open, setOpen] = useState(false);
   const sortLabels: Record<ProductSort, string> = {
@@ -50,10 +52,20 @@ export function CatalogToolbar({
 
   return (
     <div className="catalog-toolbar">
+      {heading ? (
+        <div className="home-section-heading catalog-heading">
+          {heading}
+          <span className="results-count" aria-live="polite">
+            {m.common.productCount(count)}
+          </span>
+        </div>
+      ) : null}
       <div className="catalog-toolbar-row">
-        <span className="results-count" aria-live="polite">
-          {m.common.productCount(count)}
-        </span>
+        {!heading ? (
+          <span className="results-count" aria-live="polite">
+            {m.common.productCount(count)}
+          </span>
+        ) : null}
         <div className="catalog-toolbar-actions">
           {sheet ? (
             <button
@@ -82,7 +94,11 @@ export function CatalogToolbar({
             >
               {PRODUCT_SORTS.map((value) => (
                 <option key={value} value={value}>
-                  {sortLabels[value]}
+                  {heading && value === "featured"
+                    ? locale === "ar"
+                      ? "ترتيب"
+                      : "Sort"
+                    : sortLabels[value]}
                 </option>
               ))}
             </select>

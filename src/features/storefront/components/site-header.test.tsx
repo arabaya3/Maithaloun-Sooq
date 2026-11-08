@@ -75,7 +75,7 @@ describe("SiteHeader", () => {
 });
 
 describe("MobileNavigation", () => {
-  it("offers four real destinations and marks the current one without relying on colour", () => {
+  it("offers five real destinations and marks the current one without relying on colour", () => {
     renderWithProviders(<MobileNavigation />, { productIds: [] });
 
     const links = screen.getAllByRole("link");
@@ -83,6 +83,7 @@ describe("MobileNavigation", () => {
       "/",
       "/categories",
       "/offers",
+      "/favorites",
       "/account",
     ]);
     expect(screen.getByRole("link", { name: "العروض" })).toHaveAttribute(

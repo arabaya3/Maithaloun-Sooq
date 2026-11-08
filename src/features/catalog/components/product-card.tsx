@@ -41,10 +41,7 @@ export function ProductCard({ product }: { product: Product }) {
       }
     : null;
   const canAddFromCard = Boolean(
-    cardLine &&
-    variant &&
-    unit &&
-    unit.maxQuantity >= 1,
+    cardLine && variant && unit && unit.maxQuantity >= 1,
   );
   const inCart =
     lines.find(
@@ -99,7 +96,7 @@ export function ProductCard({ product }: { product: Product }) {
           </Link>
         </h3>
         {product.unit || optionCount > 1 ? (
-          <p className="product-meta">
+          <p className="product-meta product-card-options">
             {product.unit ? <span>{product.unit}</span> : null}
             {optionCount > 1 ? (
               <span className="product-options">
@@ -108,19 +105,26 @@ export function ProductCard({ product }: { product: Product }) {
             ) : null}
           </p>
         ) : null}
-        <OfferPrice
-          className="product-price"
-          variant={
-            unit
-              ? {
-                  priceAgorot: unit.priceAgorot,
-                  offer: offerForSellingUnit(unit, variant?.offer),
-                }
-              : (variant ?? product)
-          }
-        />
+        <div className="product-card-pricing">
+          {available ? (
+            <span className="product-card-availability">
+              {m.catalog.statusAvailable}
+            </span>
+          ) : null}
+          <OfferPrice
+            className="product-price"
+            variant={
+              unit
+                ? {
+                    priceAgorot: unit.priceAgorot,
+                    offer: offerForSellingUnit(unit, variant?.offer),
+                  }
+                : (variant ?? product)
+            }
+          />
+        </div>
         {unit && unit.unitsPerSale > 1 ? (
-          <p className="product-meta">
+          <p className="product-meta product-card-unit">
             <bdi dir="auto">{unit.labelAr}</bdi>
           </p>
         ) : null}

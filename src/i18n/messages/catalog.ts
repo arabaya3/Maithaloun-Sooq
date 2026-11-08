@@ -1,7 +1,7 @@
 const ar = {
   addToFavorites: (name: string) => `إضافة ${name} إلى المفضلة`,
   removeFromFavorites: (name: string) => `إزالة ${name} من المفضلة`,
-  optionCount: (count: number) => `${count} خيارات`,
+  optionCount: (count: number) => (count === 2 ? "خياران" : `${count} خيارات`),
   unavailableNow: "غير متوفر حالياً",
   viewOptions: "عرض الخيارات",
   viewOptionsFor: (name: string) => `عرض خيارات ${name}`,
