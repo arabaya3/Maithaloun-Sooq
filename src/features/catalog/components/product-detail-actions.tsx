@@ -141,6 +141,11 @@ export function ProductDetailActions({
         }}
       >
         <ShoppingBasket aria-hidden="true" />
+        {total !== null ? (
+          <bdi className="detail-mobile-total" dir="ltr" aria-hidden="true">
+            {formatIls(total)}
+          </bdi>
+        ) : null}
         {canAdd
           ? m.catalog.addToCart
           : variantId
