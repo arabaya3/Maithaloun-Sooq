@@ -75,7 +75,15 @@ export function BrandLogo() {
   const { m } = useI18n();
   return (
     <Link className="brand" href="/" aria-label={m.store.homeAriaLabel}>
-      <BrandLockup />
+      <Image
+        src="/brand/logo/meetho-header.svg"
+        alt={STORE_NAME}
+        width={320}
+        height={234}
+        style={{ width: "auto", height: "4rem", borderRadius: "0.5rem" }}
+        unoptimized
+        priority
+      />
     </Link>
   );
 }
