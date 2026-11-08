@@ -1884,3 +1884,55 @@ body:has(.store-footer) > main {
     scroll-snap-align: start;
   }
 }
+
+.store-benefits ul {
+  gap: 0.5rem;
+  padding: 0.65rem;
+}
+
+.store-benefits li {
+  align-items: start;
+  gap: 0.5rem;
+  padding: 0.65rem;
+  border-radius: var(--radius-sm);
+  background: var(--surface-warm);
+}
+
+.store-benefits svg {
+  width: 1.125rem;
+  height: 1.125rem;
+}
+
+.store-benefits strong {
+  font-size: var(--text-sm);
+}
+
+.store-benefits small {
+  font-size: var(--text-xs);
+  line-height: 1.4;
+}
+
+@media (max-width: 47.99rem) {
+  .storefront-main .category-item .category-icon {
+    width: 4.75rem;
+    height: 4.75rem;
+  }
+
+  .catalog-toolbar-row {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .catalog-toolbar-actions > * {
+    flex: 1;
+    min-width: 0;
+    justify-content: center;
+    padding-inline: 0.65rem;
+  }
+
+  .sort-control select {
+    min-width: 0;
+    max-width: 100%;
+    text-overflow: ellipsis;
+  }
+}
