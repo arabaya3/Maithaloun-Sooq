@@ -10,11 +10,13 @@ export function Sheet({
   onClose,
   title,
   children,
+  centered = false,
 }: {
   open: boolean;
   onClose: () => void;
   title: string;
   children: ReactNode;
+  centered?: boolean;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
   const titleId = useId();
@@ -35,7 +37,7 @@ export function Sheet({
   return (
     <dialog
       ref={ref}
-      className="sheet"
+      className={centered ? "sheet sheet-centered" : "sheet"}
       aria-labelledby={titleId}
       onClose={onClose}
       onClick={(event) => {
