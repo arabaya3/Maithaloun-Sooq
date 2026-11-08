@@ -467,7 +467,24 @@ body:has(.storefront-font-scope) {
 }
 
 .product-actions {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.45rem;
   padding: 0 var(--space-3) var(--space-3);
+}
+
+.product-actions > select {
+  min-width: 0;
+  max-width: 100%;
+  padding-inline: 0.5rem;
+  text-overflow: ellipsis;
+}
+
+.product-actions > [role="status"],
+.product-actions > a[href$="/cart"] {
+  margin: 0;
+  text-align: center;
+  overflow-wrap: anywhere;
 }
 
 .add-button {
