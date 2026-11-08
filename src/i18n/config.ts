@@ -55,6 +55,11 @@ export function splitLocalePath(pathname: string): {
   if (pathname === "/en" || pathname.startsWith("/en/")) {
     return { locale: "en", path: pathname.slice(3) || "/" };
   }
+  // Arabic pages are served from the internal /ar route (see proxy.ts); a prerendered page can report
+  // that path to the router, so it is never shown or linked as such.
+  if (pathname === "/ar" || pathname.startsWith("/ar/")) {
+    return { locale: "ar", path: pathname.slice(3) || "/" };
+  }
   return { locale: "ar", path: pathname };
 }
 

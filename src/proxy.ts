@@ -118,6 +118,10 @@ export function proxy(request: NextRequest) {
 export const config = {
   matcher: [
     "/admin/:path*",
+    // File-like scanner probes (wp-login.php, .env, …) skip the storefront entry below; catching them here
+    // returns a tiny 404 instead of letting them reach a page render.
+    "/(.*\\.(?:php\\d?|aspx?|jsp|cgi|env|ini|sql|bak|swp))",
+    "/(\\.(?:env|git|svn|hg|aws|ssh).*)",
     // Storefront pages only: no API, Next internals, service worker, manifests or files.
     "/((?!api|_next|admin|\\.well-known|sw\\.js|swe-worker|manifest\\.webmanifest|admin-manifest\\.webmanifest|robots\\.txt|sitemap\\.xml|opengraph-image|favicon\\.ico|.*\\.[a-zA-Z0-9]+$).*)",
   ],

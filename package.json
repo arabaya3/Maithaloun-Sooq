@@ -11,6 +11,7 @@
     "generate:brand": "node tools/brand/render-brand-assets.mjs",
     "dev": "next dev --webpack",
     "build": "tsx tools/check-build-env.ts && tsx tools/migrate-database.ts && tsx tools/ensure-order-contact-columns.ts && next build --webpack",
+    "build:no-env": "tsx tools/build-without-server-env.ts",
     "start": "next start",
     "format": "prettier --write .",
     "format:check": "prettier --check .",

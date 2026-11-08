@@ -1,0 +1,29 @@
+# Builds the web app with no server secrets, exactly like a Vercel Preview deployment. Storefront pages are
+# statically cached in Production; this keeps the build from ever depending on the database or secrets.
+name: preview-build
+
+on:
+  pull_request:
+    paths-ignore: ["mobile/**", "docs/**"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: preview-build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-without-server-env:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build:no-env

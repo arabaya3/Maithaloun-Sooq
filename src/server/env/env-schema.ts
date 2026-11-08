@@ -50,6 +50,11 @@ export function parseServerEnv(input: unknown): ServerEnv {
   return toServerEnv(parsed.data);
 }
 
+/** True when the server environment is complete; never throws (used to decide build-time prerendering). */
+export function isServerEnvConfigured(input: unknown): boolean {
+  return serverEnvSchema.safeParse(input).success;
+}
+
 export function parseTestEnv(input: unknown): TestEnv {
   const parsed = testEnvSchema.safeParse(input);
   if (!parsed.success) throw formatEnvironmentError(parsed.error);

@@ -38,6 +38,16 @@ describe("localized paths", () => {
 
   it("splits a pathname into its locale and shared path", () => {
     expect(splitLocalePath("/en")).toEqual({ locale: "en", path: "/" });
+    // The internal Arabic route (proxy rewrite) maps back to the public address.
+    expect(splitLocalePath("/ar")).toEqual({ locale: "ar", path: "/" });
+    expect(splitLocalePath("/ar/offers")).toEqual({
+      locale: "ar",
+      path: "/offers",
+    });
+    expect(splitLocalePath("/arabic")).toEqual({
+      locale: "ar",
+      path: "/arabic",
+    });
     expect(splitLocalePath("/en/products/x")).toEqual({
       locale: "en",
       path: "/products/x",

@@ -14,6 +14,7 @@ import {
 import type { CategoryId, Product } from "@/features/catalog/domain/product";
 import { filterProducts } from "@/features/catalog/domain/product-search";
 import {
+  parseProductSort,
   sortProducts,
   type ProductSort,
 } from "@/features/catalog/domain/product-sort";
@@ -194,6 +195,7 @@ export function Storefront({
   initialQuery = "",
   initialSort = "featured",
   merchandising = emptyMerchandising,
+  readFiltersFromUrl = false,
 }: {
   products: readonly Product[];
   categories: readonly ProductCategory[];
@@ -201,6 +203,8 @@ export function Storefront({
   initialQuery?: string;
   initialSort?: ProductSort;
   merchandising?: HomeMerchandising;
+  /** The cached home page reads ?category, ?q and ?sort in the browser, in place (no remount). */
+  readFiltersFromUrl?: boolean;
 }) {
   const { m, locale } = useI18n();
   const [query, setQueryState] = useState(initialQuery);
@@ -222,6 +226,24 @@ export function Storefront({
     setSortState(value);
     writeFiltersToUrl(category, query, value);
   };
+  useEffect(() => {
+    if (!readFiltersFromUrl) return;
+    const params = new URLSearchParams(window.location.search);
+    // Unknown, hidden or archived codes fall back to every product.
+    const fromUrl =
+      categories.find((item) => item.code === params.get("category"))?.code ??
+      ALL_CATEGORIES;
+    const queryFromUrl = (params.get("q") ?? "").slice(0, 100);
+    const sortFromUrl = parseProductSort(params.get("sort"));
+    queueMicrotask(() => {
+      setCategoryState(fromUrl);
+      setDraftCategory(fromUrl);
+      setQueryState(queryFromUrl);
+      setSortState(sortFromUrl);
+    });
+    // Once, on arrival: later changes are written to the address by the setters above.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const covers = useMemo(() => categoryCovers(products), [products]);
 
