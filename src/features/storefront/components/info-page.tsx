@@ -49,8 +49,8 @@ export async function InfoPage({ pageKey }: { pageKey: InfoPageKey }) {
       <SiteHeader />
       <main className="page-shell info-page">
         <article className="info-article" aria-labelledby="info-title">
-          <span className="eyebrow">MAYTHA MARKET</span>
           <h1 id="info-title">{page.title}</h1>
+          <p className="info-intro">{page.description}</p>
           {pageKey === "contact" && chatUrl && display ? (
             <section
               className="info-whatsapp"
@@ -73,12 +73,12 @@ export async function InfoPage({ pageKey }: { pageKey: InfoPageKey }) {
             </section>
           ) : null}
           {page.sections.map((section) => (
-            <section key={section.title}>
-              <h2>{section.title}</h2>
+            <details className="info-disclosure" key={section.title}>
+              <summary>{section.title}</summary>
               {section.paragraphs.map((paragraph) => (
                 <p key={paragraph}>{fill(paragraph)}</p>
               ))}
-            </section>
+            </details>
           ))}
           {pageKey === "contact" && !chatUrl ? (
             <p className="info-note">{m.info.whatsappUnavailable}</p>
@@ -86,10 +86,9 @@ export async function InfoPage({ pageKey }: { pageKey: InfoPageKey }) {
         </article>
         <nav className="info-links" aria-label={m.info.pagesLabel}>
           {infoPages.map((item) => (
-            <Link
+            item.key === pageKey ? null : <Link
               key={item.key}
               href={item.href}
-              aria-current={item.key === pageKey ? "page" : undefined}
             >
               {m.info[item.key].title}
             </Link>
