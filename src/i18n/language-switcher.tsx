@@ -34,7 +34,10 @@ export function LanguageSwitcher({ className = "" }: { className?: string }) {
         event.currentTarget.href = `${target}${window.location.search}${window.location.hash}`;
       }}
     >
-      {m.common.languageSwitch}
+      <span className="language-label">{m.common.languageSwitch}</span>
+      <span className="language-short-label" aria-hidden="true">
+        {next === "en" ? "EN" : "ع"}
+      </span>
     </a>
   );
 }

@@ -304,26 +304,28 @@ export function Storefront({
       />
       <main className="page-shell storefront-main">
         <h1 className="sr-only">{m.store.shopHeading}</h1>
-        <CategoryPicker
-          categories={categories}
-          covers={covers}
-          selected={category}
-          onSelect={setCategory}
-        />
-        {hasActiveFilter ? null : (
-          <BestSellers products={merchandising.bestSellers} />
-        )}
+        <div className="catalog-merchandising">
+          <CategoryPicker
+            categories={categories}
+            covers={covers}
+            selected={category}
+            onSelect={setCategory}
+          />
+          {hasActiveFilter ? null : (
+            <BestSellers products={merchandising.bestSellers} />
+          )}
+        </div>
         <section
           id="catalog"
           className="catalog-section"
           aria-labelledby="catalog-title"
         >
-          <div className="home-section-heading catalog-heading">
-            <h2 id="catalog-title">
-              {hasActiveFilter ? m.store.searchResults : m.store.allProducts}
-            </h2>
-          </div>
           <CatalogToolbar
+            heading={
+              <h2 id="catalog-title">
+                {hasActiveFilter ? m.store.searchResults : m.store.allProducts}
+              </h2>
+            }
             count={filteredProducts.length}
             sort={sort}
             onSort={setSort}
