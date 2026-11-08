@@ -354,7 +354,10 @@ function ProductDetailPanelView({
               : variantId
           }
         />
-        <ProductTrust />
+        <details className="detail-delivery">
+          <summary>{m.catalog.trustLabel}</summary>
+          <ProductTrust />
+        </details>
       </div>
       {describedBelow ? (
         <div className="product-detail-below">{description}</div>

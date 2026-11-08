@@ -1819,3 +1819,64 @@ body:has(.store-footer) > main {
     max-width: min(100%, 36svh);
   }
 }
+
+.detail-navigation {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.detail-delivery > summary,
+.product-info-usage > summary {
+  cursor: pointer;
+  padding-block: 0.65rem;
+  font-weight: 700;
+}
+
+.product-info-usage > summary svg {
+  display: inline-block;
+  width: 1rem;
+  vertical-align: middle;
+  margin-inline-end: 0.35rem;
+}
+
+.detail-mobile-total {
+  display: none;
+}
+
+@media (max-width: 47.99rem) {
+  .detail-page > .breadcrumb {
+    display: none;
+  }
+
+  .detail-page .product-gallery-stage {
+    max-width: min(100%, 28svh);
+  }
+
+  .detail-page .product-detail-media {
+    max-height: 28svh;
+  }
+
+  .detail-page .product-detail-content h1 {
+    font-size: 1.25rem;
+    line-height: 1.35;
+  }
+
+  .detail-mobile-total {
+    display: inline;
+    order: 1;
+    margin-inline-start: auto;
+  }
+
+  .related-products .product-grid {
+    grid-template-columns: none;
+    grid-auto-flow: column;
+    grid-auto-columns: min(72%, 15rem);
+    overflow-x: auto;
+    scroll-snap-type: x proximity;
+  }
+
+  .related-products .product-grid > * {
+    scroll-snap-align: start;
+  }
+}
