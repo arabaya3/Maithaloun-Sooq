@@ -36,6 +36,8 @@ export function CatalogToolbar({
   sheet?: {
     content: ReactNode;
     activeCount: number;
+    previewCount: number;
+    canReset: boolean;
     onOpen?: () => void;
     onApply: () => void;
     onReset: () => void;
@@ -136,6 +138,8 @@ export function CatalogToolbar({
       ) : null}
       {sheet && open ? (
         <FilterSheet
+          previewCount={sheet.previewCount}
+          canReset={sheet.canReset}
           onClose={() => setOpen(false)}
           onApply={() => {
             sheet.onApply();
@@ -152,74 +156,76 @@ export function CatalogToolbar({
 
 function FilterSheet({
   children,
+  previewCount,
+  canReset,
   onClose,
   onApply,
   onReset,
 }: {
   children: ReactNode;
+  previewCount: number;
+  canReset: boolean;
   onClose: () => void;
   onApply: () => void;
   onReset: () => void;
 }) {
   const { m } = useI18n();
   const titleId = useId();
-  const panelRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDialogElement>(null);
 
   useEffect(() => {
-    const previous = document.activeElement as HTMLElement | null;
+    const panel = panelRef.current;
+    if (!panel) return;
     const overflow = document.body.style.overflow;
+    panel.showModal();
     document.body.style.overflow = "hidden";
-    panelRef.current?.querySelector<HTMLElement>("button")?.focus();
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", onKey);
     return () => {
+      panel.close();
       document.body.style.overflow = overflow;
-      window.removeEventListener("keydown", onKey);
-      previous?.focus();
     };
-  }, [onClose]);
+  }, []);
 
   return (
-    <div className="filter-sheet-backdrop" onClick={onClose}>
-      <div
-        ref={panelRef}
-        className="filter-sheet"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={titleId}
-        onClick={(event) => event.stopPropagation()}
-      >
-        <div className="filter-sheet-header">
-          <h2 id={titleId}>{m.store.filterTitle}</h2>
-          <button
-            type="button"
-            className="filter-sheet-close"
-            aria-label={m.catalog.close}
-            onClick={onClose}
-          >
-            <X aria-hidden="true" />
-          </button>
-        </div>
-        <div className="filter-sheet-body">{children}</div>
-        <div className="filter-sheet-footer">
-          <button
-            type="button"
-            className="filter-sheet-reset"
-            onClick={onReset}
-          >
-            {m.store.resetFilters}
-          </button>
-          <button
-            type="button"
-            className="filter-sheet-apply"
-            onClick={onApply}
-          >
-            {m.store.applyFilters}
-          </button>
-        </div>
+    <dialog
+      ref={panelRef}
+      className="filter-sheet"
+      aria-labelledby={titleId}
+      onCancel={(event) => {
+        event.preventDefault();
+        onClose();
+      }}
+      onClick={(event) => {
+        if (event.target === event.currentTarget) onClose();
+      }}
+    >
+      <div className="filter-sheet-header">
+        <h2 id={titleId}>{m.store.filterTitle}</h2>
+        <button
+          type="button"
+          className="filter-sheet-close"
+          aria-label={m.catalog.close}
+          onClick={onClose}
+        >
+          <X aria-hidden="true" />
+        </button>
       </div>
-    </div>
+      <div className="filter-sheet-body">{children}</div>
+      <div className="filter-sheet-footer">
+        <button
+          type="button"
+          className="filter-sheet-reset"
+          onClick={onReset}
+          disabled={!canReset}
+        >
+          {m.store.resetFilters}
+        </button>
+        <button type="button" className="filter-sheet-apply" onClick={onApply}>
+          {m.store.applyFilters}
+          <span className="filter-result-count" aria-live="polite">
+            {previewCount}
+          </span>
+        </button>
+      </div>
+    </dialog>
   );
 }

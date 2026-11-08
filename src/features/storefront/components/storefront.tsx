@@ -1,6 +1,6 @@
 "use client";
 
-import { LayoutGrid, PackageSearch, Search, X } from "lucide-react";
+import { Check, LayoutGrid, PackageSearch, Search, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
 
 import { categoryIcons } from "@/features/catalog/components/category-icons";
@@ -272,6 +272,19 @@ export function Storefront({
   const [batch, setBatch] = useState({ key: filterKey, count: CATALOG_BATCH });
   // A new search or category starts again from the first batch.
   const visibleCount = batch.key === filterKey ? batch.count : CATALOG_BATCH;
+  const categoryCounts = useMemo(() => {
+    const matches = filterProducts(products, {
+      query,
+      categoryId: ALL_CATEGORIES,
+    });
+    const counts = new Map<CategoryId, number>([
+      [ALL_CATEGORIES, matches.length],
+    ]);
+    for (const product of matches) {
+      counts.set(product.categoryId, (counts.get(product.categoryId) ?? 0) + 1);
+    }
+    return counts;
+  }, [products, query]);
   const visibleProducts = filteredProducts.slice(0, visibleCount);
   const remaining = filteredProducts.length - visibleProducts.length;
   const selectedCategory = categories.find((item) => item.code === category);
@@ -354,6 +367,8 @@ export function Storefront({
             onClearFilters={resetFilters}
             sheet={{
               activeCount: category === ALL_CATEGORIES ? 0 : 1,
+              previewCount: categoryCounts.get(draftCategory) ?? 0,
+              canReset: draftCategory !== ALL_CATEGORIES,
               onOpen: () => setDraftCategory(category),
               onApply: () => setCategory(draftCategory),
               onReset: () => setDraftCategory(ALL_CATEGORIES),
@@ -362,22 +377,47 @@ export function Storefront({
                   <legend>{m.store.categoryHeading}</legend>
                   <div className="filter-sheet-options">
                     {[
-                      { code: ALL_CATEGORIES, name: m.store.allFilter },
+                      {
+                        code: ALL_CATEGORIES,
+                        name: m.store.allFilter,
+                        icon: LayoutGrid,
+                      },
                       ...categories.map((item) => ({
                         code: item.code,
                         name: localizedCategoryName(item, locale),
+                        icon: categoryIcons[item.icon] ?? LayoutGrid,
                       })),
-                    ].map((option) => (
-                      <button
-                        key={option.code}
-                        type="button"
-                        className="filter-option"
-                        aria-pressed={draftCategory === option.code}
-                        onClick={() => setDraftCategory(option.code)}
-                      >
-                        {option.name}
-                      </button>
-                    ))}
+                    ].map((option) => {
+                      const Icon = option.icon;
+                      return (
+                        <label key={option.code} className="filter-option">
+                          <input
+                            className="sr-only"
+                            type="radio"
+                            name="catalog-category"
+                            checked={draftCategory === option.code}
+                            onChange={() => setDraftCategory(option.code)}
+                          />
+                          <Icon
+                            className="filter-option-icon"
+                            aria-hidden="true"
+                          />
+                          <span>{option.name}</span>
+                          <span
+                            className="filter-option-count"
+                            aria-hidden="true"
+                          >
+                            {categoryCounts.get(option.code) ?? 0}
+                          </span>
+                          <span
+                            className="filter-option-radio"
+                            aria-hidden="true"
+                          >
+                            <Check />
+                          </span>
+                        </label>
+                      );
+                    })}
                   </div>
                 </fieldset>
               ),
