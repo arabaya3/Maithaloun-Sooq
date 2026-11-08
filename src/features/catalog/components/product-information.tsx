@@ -32,16 +32,13 @@ export function ProductInformation({
         <ProductDescription text={split.description} />
       </section>
       {usage ? (
-        <section
-          className="product-info-section product-info-usage"
-          aria-labelledby="usage-title"
-        >
-          <h2 id="usage-title">
+        <details className="product-info-section product-info-usage">
+          <summary>
             <ListChecks aria-hidden="true" />
             {m.catalog.usageTitle}
-          </h2>
+          </summary>
           <ProductDescription text={usage} />
-        </section>
+        </details>
       ) : null}
     </div>
   );
