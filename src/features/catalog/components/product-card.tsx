@@ -8,8 +8,6 @@ import { useCart } from "@/features/cart/cart-provider";
 import { MAX_CART_QUANTITY } from "@/features/cart/cart-store";
 import { OfferPrice } from "@/features/catalog/components/offer-price";
 import { offerForSellingUnit } from "@/features/catalog/domain/offer-pricing";
-import { isVariantAvailable } from "@/features/catalog/domain/product-variant";
-import { formatIls } from "@/shared/lib/format-currency";
 import { defaultSellingUnit } from "@/features/catalog/domain/selling-unit";
 import { ProductMedia } from "@/features/catalog/components/product-media";
 import {
@@ -29,9 +27,7 @@ export function ProductCard({ product }: { product: Product }) {
   const favorite = isFavorite(product.id);
   const optionCount = product.variants.length;
   const [addedVariant, setAddedVariant] = useState<string | null>(null);
-  const [choosing, setChoosing] = useState(false);
-  const [choice, setChoice] = useState("");
-  const variantId = choice || product.defaultVariantId;
+  const variantId = product.defaultVariantId;
   const variant = product.variants.find((row) => row.id === variantId);
   const unit = variant ? defaultSellingUnit(variant.sellingUnits) : null;
   const available = isProductAvailable(product);
@@ -47,7 +43,6 @@ export function ProductCard({ product }: { product: Product }) {
   const canAddFromCard = Boolean(
     cardLine &&
     variant &&
-    isVariantAvailable(variant) &&
     unit &&
     unit.maxQuantity >= 1,
   );
@@ -132,42 +127,9 @@ export function ProductCard({ product }: { product: Product }) {
       </div>
 
       <div className="product-actions">
-        {available && choosing ? (
-          <select
-            className="add-button"
-            aria-label={m.catalog.chooseOptions}
-            value={choice}
-            onChange={(event) => setChoice(event.target.value)}
-          >
-            <option value="" disabled>
-              {m.catalog.chooseOptions}
-            </option>
-            {product.variants.map((item) => {
-              const defaultUnit = defaultSellingUnit(item.sellingUnits);
-              return (
-                <option
-                  key={item.id}
-                  value={item.id}
-                  disabled={!isVariantAvailable(item) || !defaultUnit}
-                >
-                  {item.labelAr} ·{" "}
-                  {formatIls(defaultUnit?.priceAgorot ?? item.priceAgorot)}
-                </option>
-              );
-            })}
-          </select>
-        ) : null}
         {!available ? (
           <p className="product-unavailable">{m.catalog.unavailableNow}</p>
-        ) : optionCount > 1 && !choosing ? (
-          <button
-            type="button"
-            className="add-button"
-            onClick={() => setChoosing(true)}
-          >
-            {m.catalog.chooseOptions}
-          </button>
-        ) : optionCount > 1 && !choice ? null : !canAddFromCard || !cardLine ? (
+        ) : optionCount > 1 || !canAddFromCard || !cardLine ? (
           <Link
             href={`/products/${product.slug}`}
             className="add-button"
