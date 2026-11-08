@@ -1,5 +1,7 @@
 "use client";
 
+import { Check } from "lucide-react";
+
 import {
   selectionLabel,
   valueStates,
@@ -20,7 +22,7 @@ export function OptionSelectors({
   selection: OptionSelection;
   onSelect: (optionId: string, valueId: string) => void;
 }) {
-  const { m } = useI18n();
+  const { m, locale } = useI18n();
   const states = valueStates(options, variants, selection);
   return (
     <div className="option-selectors">
@@ -28,18 +30,13 @@ export function OptionSelectors({
         {selectionLabel(options, selection)}
       </p>
       {options.map((option) => {
-        const chosen = option.values.find(
-          (value) => value.id === selection[option.id],
-        );
         return (
           <fieldset key={option.id} className="variant-selector">
             <legend className="variant-selector-label">
               {option.nameAr}
-              {chosen ? (
-                <span className="variant-selector-chosen">
-                  : {chosen.valueAr}
-                </span>
-              ) : null}
+              <span className="variant-selector-chosen">
+                {" · "}{m.catalog.optionCount(option.values.length)}
+              </span>
             </legend>
             <div
               className="variant-selector-options"
@@ -56,12 +53,18 @@ export function OptionSelectors({
                     role="radio"
                     className="variant-option"
                     aria-checked={selected}
+                    aria-label={value.valueAr}
                     data-selected={selected}
                     data-state={state}
                     disabled={state === "impossible" || state === "unavailable"}
                     onClick={() => onSelect(option.id, value.id)}
                   >
-                    {value.valueAr}
+                    <bdi dir="auto">
+                      {locale === "ar"
+                        ? value.valueAr.replace(/\s*\([A-Za-z][^()]*\)\s*$/, "").replace(/^رائحة\s+/, "") || value.valueAr
+                        : value.valueAr}
+                    </bdi>
+                    {selected ? <Check className="variant-option-check" aria-hidden="true" /> : null}
                     {state === "unavailable" ? (
                       <span className="variant-option-note">
                         {m.catalog.optionUnavailable}
