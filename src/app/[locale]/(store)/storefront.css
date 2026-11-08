@@ -1,6 +1,3 @@
-From https://github.com/arabaya3/maithaloun-sooq
- * branch            main       -> FETCH_HEAD
-   f238a54..3c43b87  main       -> origin/main
 /* MAYTHA storefront design layer. Loaded by the store layout only, so admin keeps its styles. */
 :root {
   --forest: #0e5a2f;
