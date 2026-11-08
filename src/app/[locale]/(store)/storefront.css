@@ -2292,3 +2292,10 @@ body:has(.store-footer) > main {
   border-radius: var(--radius-sm);
   text-align: center;
 }
+
+@media (max-width: 47.99rem) {
+  .site-header .header-menu,
+  .site-header .cart-button {
+    display: none;
+  }
+}
