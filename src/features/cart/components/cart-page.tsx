@@ -1,6 +1,7 @@
 "use client";
 
 import { Trash2 } from "lucide-react";
+import { Sheet } from "@/shared/ui/sheet";
 import { useMemo, useState } from "react";
 
 import { BrandSymbol } from "@/features/storefront/components/brand-logo";
@@ -95,7 +96,6 @@ export function CartPage({
             <span className="eyebrow">{m.reviewEyebrow}</span>
             <h1 id="cart-title">{m.title}</h1>
           </div>
-          {!confirmingClear ? (
             <button
               type="button"
               className="clear-cart-button"
@@ -103,12 +103,10 @@ export function CartPage({
             >
               {m.clearCart}
             </button>
-          ) : null}
         </div>
 
-        {confirmingClear ? (
-          <div className="clear-cart-confirmation" role="alert">
-            <p>{m.clearConfirm}</p>
+        <Sheet open={confirmingClear} onClose={() => setConfirmingClear(false)} title={m.clearConfirm} centered>
+          <div className="clear-cart-confirmation">
             <div>
               <button
                 type="button"
@@ -124,7 +122,7 @@ export function CartPage({
               </button>
             </div>
           </div>
-        ) : null}
+        </Sheet>
 
         <div className="cart-line-list">
           {resolvedLines.map(

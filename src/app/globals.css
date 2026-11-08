@@ -4886,3 +4886,26 @@ html[data-launch="skip"] .launch-splash {
   outline: var(--focus-ring);
   outline-offset: 3px;
 }
+
+.sheet.sheet-centered {
+  align-items: center;
+  padding: 1rem;
+}
+
+.sheet-centered .sheet-panel {
+  width: min(100%, 24rem);
+  padding: 1.25rem;
+  border-radius: 1rem;
+}
+
+.sheet-centered .clear-cart-confirmation {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.sheet-centered .clear-cart-confirmation button:first-child {
+  color: white;
+  background: #8b2929;
+}
