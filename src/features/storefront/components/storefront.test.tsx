@@ -77,33 +77,12 @@ describe("storefront", () => {
     ).toBeInTheDocument();
   });
 
-  it("leads with the editorial hero and only true trust facts", () => {
+  it("keeps a page heading without the homepage banners", () => {
     const { container } = renderStorefront();
 
-    expect(
-      screen.getByRole("heading", {
-        level: 1,
-        name: "ماركات بتعرفها وبتثق فيها، لبيت أنظف وأجمل",
-      }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByText(
-        "منظفات وعناية شخصية ومستلزمات للبيت، نوصلها داخل ميثلون.",
-      ),
-    ).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "تسوّق الآن" })).toHaveAttribute(
-      "href",
-      "#catalog",
-    );
-    const facts = container.querySelector(".hero-facts");
-    expect(facts).toHaveTextContent("توصيل داخل ميثلون");
-    expect(facts).toHaveTextContent("الدفع عند الاستلام");
-    // Nothing the store cannot back: no ratings, discounts or easy returns.
-    expect(container.textContent).not.toMatch(
-      /تقييم|خصم حتى|إرجاع سهل|دفع آمن/,
-    );
-    // Without real product photos the hero shows no product picks.
-    expect(container.querySelector(".hero-picks")).toBeNull();
+    expect(screen.getByRole("heading", { level: 1 })).toBeInTheDocument();
+    expect(container.querySelector(".hero-facts")).toBeNull();
+    expect(screen.queryByRole("region", { name: "أقسام من البيت" })).toBeNull();
   });
 
   it("hides the brands row and best sellers until there is enough real data", () => {
@@ -169,11 +148,6 @@ describe("storefront", () => {
     expect(
       within(brands).getByRole("link", { name: "Finish" }).querySelector("img"),
     ).toBeNull();
-    // Lifestyle banners lead to the real categories they picture.
-    const editorial = screen.getByRole("region", { name: "أقسام من البيت" });
-    expect(
-      within(editorial).getByRole("link", { name: /منظفات المطبخ/ }),
-    ).toHaveAttribute("href", "/categories/kitchen");
   });
 
   it("orders RTL categories from all to home and exposes selection semantics", async () => {

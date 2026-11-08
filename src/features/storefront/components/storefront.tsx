@@ -19,10 +19,8 @@ import {
   type ProductSort,
 } from "@/features/catalog/domain/product-sort";
 import { CatalogToolbar } from "@/features/storefront/components/catalog-toolbar";
-import { Hero } from "@/features/storefront/components/hero";
 import {
   BestSellers,
-  EditorialBanners,
   FeaturedBrands,
   StoreBenefits,
 } from "@/features/storefront/components/home-sections";
@@ -290,11 +288,7 @@ export function Storefront({
         }
       />
       <main className="page-shell storefront-main">
-        {hasActiveFilter ? (
-          <h1 className="sr-only">{m.store.shopHeading}</h1>
-        ) : (
-          <Hero products={merchandising.heroProducts} />
-        )}
+        <h1 className="sr-only">{m.store.shopHeading}</h1>
         <CategoryPicker
           categories={categories}
           covers={covers}
@@ -305,7 +299,6 @@ export function Storefront({
           <>
             <FeaturedBrands brands={merchandising.brands} />
             <BestSellers products={merchandising.bestSellers} />
-            <EditorialBanners categories={categories} />
           </>
         )}
         <section
