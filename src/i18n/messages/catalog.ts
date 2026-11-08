@@ -39,7 +39,7 @@ const ar = {
   galleryLabel: (name: string) => `صور ${name}`,
   statusIncomplete: "غير متاح حالياً، نجهّز خيارات هذا المنتج",
   statusChooseOptions: "اختر من الخيارات لمعرفة التوفر",
-  statusAvailable: "متاح للإضافة إلى السلة",
+  statusAvailable: "متوفر",
   statusUnavailable: "غير متاح حالياً",
   usageNotes: "ملاحظات الاستخدام",
   galleryRole: "معرض صور",
@@ -108,7 +108,7 @@ const en: typeof ar = {
   statusIncomplete:
     "Not available yet — we're preparing this product's options",
   statusChooseOptions: "Choose options to see availability",
-  statusAvailable: "Available to add to cart",
+  statusAvailable: "In stock",
   statusUnavailable: "Currently unavailable",
   usageNotes: "How to use",
   galleryRole: "image gallery",
