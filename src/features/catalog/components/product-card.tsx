@@ -1,6 +1,13 @@
 "use client";
 
-import { Heart, Minus, Plus, ShoppingCart, Trash2 } from "lucide-react";
+import {
+  ChevronLeft,
+  Heart,
+  Minus,
+  Plus,
+  ShoppingCart,
+  Trash2,
+} from "lucide-react";
 
 import { useState } from "react";
 
@@ -139,7 +146,17 @@ export function ProductCard({ product }: { product: Product }) {
             className="add-button"
             aria-label={m.catalog.viewOptionsFor(name)}
           >
-            {m.catalog.viewOptions}
+            <span
+              className={optionCount > 1 ? "product-options-full" : undefined}
+            >
+              {m.catalog.viewOptions}
+            </span>
+            {optionCount > 1 ? (
+              <span className="product-options-compact" aria-hidden="true">
+                {m.catalog.optionCount(optionCount)}
+                <ChevronLeft />
+              </span>
+            ) : null}
           </Link>
         ) : inCart > 0 ? (
           <div
