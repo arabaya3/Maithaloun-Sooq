@@ -34,6 +34,7 @@ export function CatalogToolbar({
   sheet?: {
     content: ReactNode;
     activeCount: number;
+    onOpen?: () => void;
     onApply: () => void;
     onReset: () => void;
   };
@@ -59,7 +60,10 @@ export function CatalogToolbar({
               type="button"
               className="toolbar-button filter-trigger"
               aria-haspopup="dialog"
-              onClick={() => setOpen(true)}
+              onClick={() => {
+                sheet.onOpen?.();
+                setOpen(true);
+              }}
             >
               <SlidersHorizontal aria-hidden="true" />
               {m.store.filter}
@@ -103,7 +107,7 @@ export function CatalogToolbar({
               <X aria-hidden="true" />
             </button>
           ))}
-          {onClearFilters && chips.length > 1 ? (
+          {onClearFilters && chips.length > 0 ? (
             <button
               type="button"
               className="filter-clear"

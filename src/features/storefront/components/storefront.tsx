@@ -336,6 +336,7 @@ export function Storefront({
             onClearFilters={resetFilters}
             sheet={{
               activeCount: category === ALL_CATEGORIES ? 0 : 1,
+              onOpen: () => setDraftCategory(category),
               onApply: () => setCategory(draftCategory),
               onReset: () => setDraftCategory(ALL_CATEGORIES),
               content: (

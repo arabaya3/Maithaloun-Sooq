@@ -169,8 +169,7 @@ export function StoreBenefits() {
   const benefits = [
     {
       icon: BadgeCheck,
-      title: m.common.trustedBrands,
-      text: m.store.benefitBrandsText,
+      title: m.store.benefitBrandsTitle,
     },
     {
       icon: Truck,
@@ -183,7 +182,6 @@ export function StoreBenefits() {
     {
       icon: Banknote,
       title: m.common.cashOnDelivery,
-      text: m.store.benefitCash,
     },
     {
       icon: RefreshCcw,
@@ -199,7 +197,7 @@ export function StoreBenefits() {
             <Icon aria-hidden="true" />
             <span>
               <strong>{title}</strong>
-              <small>{text}</small>
+              {text ? <small>{text}</small> : null}
             </span>
           </li>
         ))}
