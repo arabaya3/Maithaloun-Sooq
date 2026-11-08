@@ -1,1 +1,418 @@
-InVzZSBjbGllbnQiOwoKaW1wb3J0IHsgTGF5b3V0R3JpZCwgUGFja2FnZVNlYXJjaCwgU2VhcmNoLCBYIH0gZnJvbSAibHVjaWRlLXJlYWN0IjsKaW1wb3J0IHsgdXNlRWZmZWN0LCB1c2VNZW1vLCB1c2VSZWYsIHVzZVN0YXRlLCB0eXBlIFJlZk9iamVjdCB9IGZyb20gInJlYWN0IjsKCmltcG9ydCB7IGNhdGVnb3J5SWNvbnMgfSBmcm9tICJAL2ZlYXR1cmVzL2NhdGFsb2cvY29tcG9uZW50cy9jYXRlZ29yeS1pY29ucyI7CmltcG9ydCB7IFByb2R1Y3RDYXJkIH0gZnJvbSAiQC9mZWF0dXJlcy9jYXRhbG9nL2NvbXBvbmVudHMvcHJvZHVjdC1jYXJkIjsKaW1wb3J0IHsgUHJvZHVjdE1lZGlhIH0gZnJvbSAiQC9mZWF0dXJlcy9jYXRhbG9nL2NvbXBvbmVudHMvcHJvZHVjdC1tZWRpYSI7CmltcG9ydCB7CiAgQUxMX0NBVEVHT1JJRVMsCiAgbG9jYWxpemVkQ2F0ZWdvcnlOYW1lLAogIHR5cGUgUHJvZHVjdENhdGVnb3J5LAp9IGZyb20gIkAvZmVhdHVyZXMvY2F0YWxvZy9kb21haW4vY2F0ZWdvcnkiOwppbXBvcnQgdHlwZSB7IENhdGVnb3J5SWQsIFByb2R1Y3QgfSBmcm9tICJAL2ZlYXR1cmVzL2NhdGFsb2cvZG9tYWluL3Byb2R1Y3QiOwppbXBvcnQgeyBmaWx0ZXJQcm9kdWN0cyB9IGZyb20gIkAvZmVhdHVyZXMvY2F0YWxvZy9kb21haW4vcHJvZHVjdC1zZWFyY2giOwppbXBvcnQgewogIHBhcnNlUHJvZHVjdFNvcnQsCiAgc29ydFByb2R1Y3RzLAogIHR5cGUgUHJvZHVjdFNvcnQsCn0gZnJvbSAiQC9mZWF0dXJlcy9jYXRhbG9nL2RvbWFpbi9wcm9kdWN0LXNvcnQiOwppbXBvcnQgeyBDYXRhbG9nVG9vbGJhciB9IGZyb20gIkAvZmVhdHVyZXMvc3RvcmVmcm9udC9jb21wb25lbnRzL2NhdGFsb2ctdG9vbGJhciI7CmltcG9ydCB7CiAgQmVzdFNlbGxlcnMsCiAgRmVhdHVyZWRCcmFuZHMsCiAgU3RvcmVCZW5lZml0cywKfSBmcm9tICJAL2ZlYXR1cmVzL3N0b3JlZnJvbnQvY29tcG9uZW50cy9ob21lLXNlY3Rpb25zIjsKaW1wb3J0IHsgTW9iaWxlTmF2aWdhdGlvbiB9IGZyb20gIkAvZmVhdHVyZXMvc3RvcmVmcm9udC9jb21wb25lbnRzL21vYmlsZS1uYXZpZ2F0aW9uIjsKaW1wb3J0IHsgU2l0ZUhlYWRlciB9IGZyb20gIkAvZmVhdHVyZXMvc3RvcmVmcm9udC9jb21wb25lbnRzL3NpdGUtaGVhZGVyIjsKaW1wb3J0IHsKICBjYXRlZ29yeUNvdmVycywKICB0eXBlIENhdGFsb2dCcmFuZCwKfSBmcm9tICJAL2ZlYXR1cmVzL3N0b3JlZnJvbnQvZG9tYWluL2hvbWUtbWVyY2hhbmRpc2luZyI7CmltcG9ydCB7IHVzZUkxOG4gfSBmcm9tICJAL2kxOG4vaTE4bi1wcm92aWRlciI7CmltcG9ydCB7IExpbmsgfSBmcm9tICJAL2kxOG4vbGluayI7CgovLyBUaGUgZmlyc3QgYmF0Y2gga2VlcHMgdGhlIHBob25lIHBhZ2Ugc2hvcnQ7IG1vcmUgaXMgb25lIHRhcCBhd2F5LCBuZXZlciBvbiBzY3JvbGwuCmV4cG9ydCBjb25zdCBDQVRBTE9HX0JBVENIID0gMTI7CgpleHBvcnQgaW50ZXJmYWNlIEhvbWVNZXJjaGFuZGlzaW5nIHsKICBoZXJvUHJvZHVjdHM6IHJlYWRvbmx5IFByb2R1Y3RbXTsKICBicmFuZHM6IHJlYWRvbmx5IENhdGFsb2dCcmFuZFtdOwogIGJlc3RTZWxsZXJzOiByZWFkb25seSBQcm9kdWN0W107Cn0KCmNvbnN0IGVtcHR5TWVyY2hhbmRpc2luZzogSG9tZU1lcmNoYW5kaXNpbmcgPSB7CiAgaGVyb1Byb2R1Y3RzOiBbXSwKICBicmFuZHM6IFtdLAogIGJlc3RTZWxsZXJzOiBbXSwKfTsKCmZ1bmN0aW9uIFByb2R1Y3RTZWFyY2goewogIHF1ZXJ5LAogIG9uQ2hhbmdlLAogIGlucHV0UmVmLAp9OiB7CiAgcXVlcnk6IHN0cmluZzsKICBvbkNoYW5nZTogKHZhbHVlOiBzdHJpbmcpID0+IHZvaWQ7CiAgaW5wdXRSZWY6IFJlZk9iamVjdDxIVE1MSW5wdXRFbGVtZW50IHwgbnVsbD47Cn0pIHsKICBjb25zdCB7IG0gfSA9IHVzZUkxOG4oKTsKICByZXR1cm4gKAogICAgPGRpdiBjbGFzc05hbWU9InNlYXJjaC13cmFwIiByb2xlPSJzZWFyY2giPgogICAgICA8bGFiZWwgaHRtbEZvcj0icHJvZHVjdC1zZWFyY2giIGNsYXNzTmFtZT0ic3Itb25seSI+CiAgICAgICAge20uc3RvcmUuc2VhcmNoTGFiZWx9CiAgICAgIDwvbGFiZWw+CiAgICAgIDxTZWFyY2ggYXJpYS1oaWRkZW49InRydWUiIC8+CiAgICAgIDxpbnB1dAogICAgICAgIHJlZj17aW5wdXRSZWZ9CiAgICAgICAgaWQ9InByb2R1Y3Qtc2VhcmNoIgogICAgICAgIHR5cGU9InNlYXJjaCIKICAgICAgICBlbnRlcktleUhpbnQ9InNlYXJjaCIKICAgICAgICB2YWx1ZT17cXVlcnl9CiAgICAgICAgb25DaGFuZ2U9eyhldmVudCkgPT4gb25DaGFuZ2UoZXZlbnQudGFyZ2V0LnZhbHVlKX0KICAgICAgICBvbktleURvd249eyhldmVudCkgPT4gewogICAgICAgICAgaWYgKGV2ZW50LmtleSA9PT0gIkVudGVyIikgewogICAgICAgICAgICBkb2N1bWVudAogICAgICAgICAgICAgIC5nZXRFbGVtZW50QnlJZCgiY2F0YWxvZyIpCiAgICAgICAgICAgICAgPy5zY3JvbGxJbnRvVmlldyh7IGJsb2NrOiAic3RhcnQiIH0pOwogICAgICAgICAgfQogICAgICAgIH19CiAgICAgICAgcGxhY2Vob2xkZXI9e20uc3RvcmUuc2VhcmNoUGxhY2Vob2xkZXJ9CiAgICAgICAgYXV0b0NvbXBsZXRlPSJvZmYiCiAgICAgIC8+CiAgICAgIHtxdWVyeSA/ICgKICAgICAgICA8YnV0dG9uCiAgICAgICAgICB0eXBlPSJidXR0b24iCiAgICAgICAgICBjbGFzc05hbWU9ImNsZWFyLXNlYXJjaCIKICAgICAgICAgIGFyaWEtbGFiZWw9e20uc3RvcmUuY2xlYXJTZWFyY2h9CiAgICAgICAgICBvbkNsaWNrPXsoKSA9PiB7CiAgICAgICAgICAgIG9uQ2hhbmdlKCIiKTsKICAgICAgICAgICAgaW5wdXRSZWYuY3VycmVudD8uZm9jdXMoKTsKICAgICAgICAgIH19CiAgICAgICAgPgogICAgICAgICAgPFggYXJpYS1oaWRkZW49InRydWUiIC8+CiAgICAgICAgPC9idXR0b24+CiAgICAgICkgOiBudWxsfQogICAgPC9kaXY+CiAgKTsKfQoKZnVuY3Rpb24gQ2F0ZWdvcnlQaWNrZXIoewogIGNhdGVnb3JpZXMsCiAgY292ZXJzLAogIHNlbGVjdGVkLAogIG9uU2VsZWN0LAp9OiB7CiAgY2F0ZWdvcmllczogcmVhZG9ubHkgUHJvZHVjdENhdGVnb3J5W107CiAgY292ZXJzOiBSZWFkb25seU1hcDxzdHJpbmcsIFByb2R1Y3Q+OwogIHNlbGVjdGVkOiBDYXRlZ29yeUlkOwogIG9uU2VsZWN0OiAoY2F0ZWdvcnk6IENhdGVnb3J5SWQpID0+IHZvaWQ7Cn0pIHsKICBjb25zdCB7IG0sIGxvY2FsZSB9ID0gdXNlSTE4bigpOwogIGNvbnN0IG9wdGlvbnMgPSBbCiAgICB7IGNvZGU6IEFMTF9DQVRFR09SSUVTLCBuYW1lOiBtLnN0b3JlLmFsbEZpbHRlciwgaWNvbjogImdyaWQiIGFzIGNvbnN0IH0sCiAgICAuLi5jYXRlZ29yaWVzLm1hcCgoY2F0ZWdvcnkpID0+ICh7CiAgICAgIGNvZGU6IGNhdGVnb3J5LmNvZGUsCiAgICAgIG5hbWU6IGxvY2FsaXplZENhdGVnb3J5TmFtZShjYXRlZ29yeSwgbG9jYWxlKSwKICAgICAgaWNvbjogY2F0ZWdvcnkuaWNvbiwKICAgIH0pKSwKICBdOwogIHJldHVybiAoCiAgICA8c2VjdGlvbiBjbGFzc05hbWU9ImNhdGVnb3JpZXMtc2VjdGlvbiIgYXJpYS1sYWJlbGxlZGJ5PSJjYXRlZ29yaWVzLXRpdGxlIj4KICAgICAgPGRpdiBjbGFzc05hbWU9ImhvbWUtc2VjdGlvbi1oZWFkaW5nIj4KICAgICAgICA8aDIgaWQ9ImNhdGVnb3JpZXMtdGl0bGUiPnttLnN0b3JlLnNob3BCeUNhdGVnb3J5fTwvaDI+CiAgICAgICAgPExpbmsgaHJlZj0iL2NhdGVnb3JpZXMiIGNsYXNzTmFtZT0iaG9tZS1zZWN0aW9uLWxpbmsiPgogICAgICAgICAge20uc3RvcmUuYWxsQ2F0ZWdvcmllc30KICAgICAgICA8L0xpbms+CiAgICAgIDwvZGl2PgogICAgICA8ZGl2CiAgICAgICAgY2xhc3NOYW1lPSJjYXRlZ29yeS1saXN0IgogICAgICAgIHJvbGU9Imdyb3VwIgogICAgICAgIGFyaWEtbGFiZWxsZWRieT0iY2F0ZWdvcmllcy10aXRsZSIKICAgICAgPgogICAgICAgIHtvcHRpb25zLm1hcCgoY2F0ZWdvcnkpID0+IHsKICAgICAgICAgIGNvbnN0IGFjdGl2ZSA9IHNlbGVjdGVkID09PSBjYXRlZ29yeS5jb2RlOwogICAgICAgICAgY29uc3QgSWNvbiA9IGNhdGVnb3J5SWNvbnNbY2F0ZWdvcnkuaWNvbl0gPz8gTGF5b3V0R3JpZDsKICAgICAgICAgIGNvbnN0IGNvdmVyID0gY292ZXJzLmdldChjYXRlZ29yeS5jb2RlKTsKICAgICAgICAgIHJldHVybiAoCiAgICAgICAgICAgIDxidXR0b24KICAgICAgICAgICAgICBrZXk9e2NhdGVnb3J5LmNvZGV9CiAgICAgICAgICAgICAgdHlwZT0iYnV0dG9uIgogICAgICAgICAgICAgIGNsYXNzTmFtZT0iY2F0ZWdvcnktaXRlbSIKICAgICAgICAgICAgICBkYXRhLWNhdGVnb3J5LWlkPXtjYXRlZ29yeS5jb2RlfQogICAgICAgICAgICAgIGRhdGEtYWN0aXZlPXthY3RpdmV9CiAgICAgICAgICAgICAgYXJpYS1wcmVzc2VkPXthY3RpdmV9CiAgICAgICAgICAgICAgb25DbGljaz17KCkgPT4gb25TZWxlY3QoY2F0ZWdvcnkuY29kZSl9CiAgICAgICAgICAgID4KICAgICAgICAgICAgICA8c3BhbgogICAgICAgICAgICAgICAgY2xhc3NOYW1lPSJjYXRlZ29yeS1pY29uIgogICAgICAgICAgICAgICAgZGF0YS1jb3Zlcj17Qm9vbGVhbihjb3Zlcil9CiAgICAgICAgICAgICAgICBhcmlhLWhpZGRlbj0idHJ1ZSIKICAgICAgICAgICAgICA+CiAgICAgICAgICAgICAgICB7Y292ZXIgPyAoCiAgICAgICAgICAgICAgICAgIDxQcm9kdWN0TWVkaWEKICAgICAgICAgICAgICAgICAgICBwcm9kdWN0PXtjb3Zlcn0KICAgICAgICAgICAgICAgICAgICBjbGFzc05hbWU9ImNhdGVnb3J5LWNvdmVyIgogICAgICAgICAgICAgICAgICAgIHNpemVzPSIxMTJweCIKICAgICAgICAgICAgICAgICAgLz4KICAgICAgICAgICAgICAgICkgOiAoCiAgICAgICAgICAgICAgICAgIDxJY29uIC8+CiAgICAgICAgICAgICAgICApfQogICAgICAgICAgICAgIDwvc3Bhbj4KICAgICAgICAgICAgICA8c3BhbiBjbGFzc05hbWU9ImNhdGVnb3J5LWxhYmVsIj57Y2F0ZWdvcnkubmFtZX08L3NwYW4+CiAgICAgICAgICAgIDwvYnV0dG9uPgogICAgICAgICAgKTsKICAgICAgICB9KX0KICAgICAgPC9kaXY+CiAgICA8L3NlY3Rpb24+CiAgKTsKfQoKLyoqIE1pcnJvcnMgdGhlIGZpbHRlcnMgaW50byB0aGUgYWRkcmVzcywgc28gYSBzZWFyY2ggb3IgY2F0ZWdvcnkgY2FuIGJlIHNoYXJlZCBhbmQgc3Vydml2ZXMgYSByZWxvYWQuICovCmZ1bmN0aW9uIHdyaXRlRmlsdGVyc1RvVXJsKAogIGNhdGVnb3J5OiBDYXRlZ29yeUlkLAogIHF1ZXJ5OiBzdHJpbmcsCiAgc29ydDogUHJvZHVjdFNvcnQsCikgewogIC8vIE9ubHkgdGhlIGNhdGFsb2cncyBvd24gcGFyYW1ldGVycyBjaGFuZ2U7IGFueXRoaW5nIGVsc2UgaW4gdGhlIGFkZHJlc3MgaXMga2VwdC4KICBjb25zdCB1cmwgPSBuZXcgVVJMKHdpbmRvdy5sb2NhdGlvbi5ocmVmKTsKICBpZiAoc29ydCA9PT0gImZlYXR1cmVkIikgdXJsLnNlYXJjaFBhcmFtcy5kZWxldGUoInNvcnQiKTsKICBlbHNlIHVybC5zZWFyY2hQYXJhbXMuc2V0KCJzb3J0Iiwgc29ydCk7CiAgaWYgKGNhdGVnb3J5ID09PSBBTExfQ0FURUdPUklFUykgdXJsLnNlYXJjaFBhcmFtcy5kZWxldGUoImNhdGVnb3J5Iik7CiAgZWxzZSB1cmwuc2VhcmNoUGFyYW1zLnNldCgiY2F0ZWdvcnkiLCBjYXRlZ29yeSk7CiAgaWYgKHF1ZXJ5LnRyaW0oKSkgdXJsLnNlYXJjaFBhcmFtcy5zZXQoInEiLCBxdWVyeS50cmltKCkpOwogIGVsc2UgdXJsLnNlYXJjaFBhcmFtcy5kZWxldGUoInEiKTsKICB3aW5kb3cuaGlzdG9yeS5yZXBsYWNlU3RhdGUod2luZG93Lmhpc3Rvcnkuc3RhdGUsICIiLCB1cmwpOwp9CgpleHBvcnQgZnVuY3Rpb24gU3RvcmVmcm9udCh7CiAgcHJvZHVjdHMsCiAgY2F0ZWdvcmllcywKICBpbml0aWFsQ2F0ZWdvcnkgPSBBTExfQ0FURUdPUklFUywKICBpbml0aWFsUXVlcnkgPSAiIiwKICBpbml0aWFsU29ydCA9ICJmZWF0dXJlZCIsCiAgbWVyY2hhbmRpc2luZyA9IGVtcHR5TWVyY2hhbmRpc2luZywKICByZWFkRmlsdGVyc0Zyb21VcmwgPSBmYWxzZSwKfTogewogIHByb2R1Y3RzOiByZWFkb25seSBQcm9kdWN0W107CiAgY2F0ZWdvcmllczogcmVhZG9ubHkgUHJvZHVjdENhdGVnb3J5W107CiAgaW5pdGlhbENhdGVnb3J5PzogQ2F0ZWdvcnlJZDsKICBpbml0aWFsUXVlcnk/OiBzdHJpbmc7CiAgaW5pdGlhbFNvcnQ/OiBQcm9kdWN0U29ydDsKICBtZXJjaGFuZGlzaW5nPzogSG9tZU1lcmNoYW5kaXNpbmc7CiAgLyoqIFRoZSBjYWNoZWQgaG9tZSBwYWdlIHJlYWRzID9jYXRlZ29yeSwgP3EgYW5kID9zb3J0IGluIHRoZSBicm93c2VyLCBpbiBwbGFjZSAobm8gcmVtb3VudCkuICovCiAgcmVhZEZpbHRlcnNGcm9tVXJsPzogYm9vbGVhbjsKfSkgewogIGNvbnN0IHsgbSwgbG9jYWxlIH0gPSB1c2VJMThuKCk7CiAgY29uc3QgW3F1ZXJ5LCBzZXRRdWVyeVN0YXRlXSA9IHVzZVN0YXRlKGluaXRpYWxRdWVyeSk7CiAgY29uc3QgW2NhdGVnb3J5LCBzZXRDYXRlZ29yeVN0YXRlXSA9IHVzZVN0YXRlPENhdGVnb3J5SWQ+KGluaXRpYWxDYXRlZ29yeSk7CiAgY29uc3QgW3NvcnQsIHNldFNvcnRTdGF0ZV0gPSB1c2VTdGF0ZTxQcm9kdWN0U29ydD4oaW5pdGlhbFNvcnQpOwogIC8vIFRoZSBwaG9uZSBzaGVldCBlZGl0cyBhIGRyYWZ0IGNhdGVnb3J5IHRoYXQgb25seSBhcHBsaWVzIG9uIMKrU2hvdyByZXN1bHRzwrsuCiAgY29uc3QgW2RyYWZ0Q2F0ZWdvcnksIHNldERyYWZ0Q2F0ZWdvcnldID0KICAgIHVzZVN0YXRlPENhdGVnb3J5SWQ+KGluaXRpYWxDYXRlZ29yeSk7CiAgY29uc3Qgc2V0Q2F0ZWdvcnkgPSAoY29kZTogQ2F0ZWdvcnlJZCkgPT4gewogICAgc2V0Q2F0ZWdvcnlTdGF0ZShjb2RlKTsKICAgIHNldERyYWZ0Q2F0ZWdvcnkoY29kZSk7CiAgICB3cml0ZUZpbHRlcnNUb1VybChjb2RlLCBxdWVyeSwgc29ydCk7CiAgfTsKICBjb25zdCBzZXRRdWVyeSA9ICh2YWx1ZTogc3RyaW5nKSA9PiB7CiAgICBzZXRRdWVyeVN0YXRlKHZhbHVlKTsKICAgIHdyaXRlRmlsdGVyc1RvVXJsKGNhdGVnb3J5LCB2YWx1ZSwgc29ydCk7CiAgfTsKICBjb25zdCBzZXRTb3J0ID0gKHZhbHVlOiBQcm9kdWN0U29ydCkgPT4gewogICAgc2V0U29ydFN0YXRlKHZhbHVlKTsKICAgIHdyaXRlRmlsdGVyc1RvVXJsKGNhdGVnb3J5LCBxdWVyeSwgdmFsdWUpOwogIH07CiAgdXNlRWZmZWN0KCgpID0+IHsKICAgIGlmICghcmVhZEZpbHRlcnNGcm9tVXJsKSByZXR1cm47CiAgICBjb25zdCBwYXJhbXMgPSBuZXcgVVJMU2VhcmNoUGFyYW1zKHdpbmRvdy5sb2NhdGlvbi5zZWFyY2gpOwogICAgLy8gVW5rbm93biwgaGlkZGVuIG9yIGFyY2hpdmVkIGNvZGVzIGZhbGwgYmFjayB0byBldmVyeSBwcm9kdWN0LgogICAgY29uc3QgZnJvbVVybCA9CiAgICAgIGNhdGVnb3JpZXMuZmluZCgoaXRlbSkgPT4gaXRlbS5jb2RlID09PSBwYXJhbXMuZ2V0KCJjYXRlZ29yeSIpKT8uY29kZSA/PwogICAgICBBTExfQ0FURUdPUklFUzsKICAgIGNvbnN0IHF1ZXJ5RnJvbVVybCA9IChwYXJhbXMuZ2V0KCJxIikgPz8gIiIpLnNsaWNlKDAsIDEwMCk7CiAgICBjb25zdCBzb3J0RnJvbVVybCA9IHBhcnNlUHJvZHVjdFNvcnQocGFyYW1zLmdldCgic29ydCIpKTsKICAgIHF1ZXVlTWljcm90YXNrKCgpID0+IHsKICAgICAgc2V0Q2F0ZWdvcnlTdGF0ZShmcm9tVXJsKTsKICAgICAgc2V0RHJhZnRDYXRlZ29yeShmcm9tVXJsKTsKICAgICAgc2V0UXVlcnlTdGF0ZShxdWVyeUZyb21VcmwpOwogICAgICBzZXRTb3J0U3RhdGUoc29ydEZyb21VcmwpOwogICAgfSk7CiAgICAvLyBPbmNlLCBvbiBhcnJpdmFsOiBsYXRlciBjaGFuZ2VzIGFyZSB3cml0dGVuIHRvIHRoZSBhZGRyZXNzIGJ5IHRoZSBzZXR0ZXJzIGFib3ZlLgogICAgLy8gZXNsaW50LWRpc2FibGUtbmV4dC1saW5lIHJlYWN0LWhvb2tzL2V4aGF1c3RpdmUtZGVwcwogIH0sIFtdKTsKICBjb25zdCBzZWFyY2hJbnB1dFJlZiA9IHVzZVJlZjxIVE1MSW5wdXRFbGVtZW50PihudWxsKTsKICBjb25zdCBjb3ZlcnMgPSB1c2VNZW1vKCgpID0+IGNhdGVnb3J5Q292ZXJzKHByb2R1Y3RzKSwgW3Byb2R1Y3RzXSk7CgogIGNvbnN0IGZpbHRlcmVkUHJvZHVjdHMgPSB1c2VNZW1vKAogICAgKCkgPT4KICAgICAgc29ydFByb2R1Y3RzKAogICAgICAgIGZpbHRlclByb2R1Y3RzKHByb2R1Y3RzLCB7IHF1ZXJ5LCBjYXRlZ29yeUlkOiBjYXRlZ29yeSB9KSwKICAgICAgICBzb3J0LAogICAgICApLAogICAgW2NhdGVnb3J5LCBwcm9kdWN0cywgcXVlcnksIHNvcnRdLAogICk7CiAgY29uc3QgZmlsdGVyS2V5ID0gYCR7Y2F0ZWdvcnl9fCR7cXVlcnkudHJpbSgpfXwke3NvcnR9YDsKICBjb25zdCBbYmF0Y2gsIHNldEJhdGNoXSA9IHVzZVN0YXRlKHsga2V5OiBmaWx0ZXJLZXksIGNvdW50OiBDQVRBTE9HX0JBVENIIH0pOwogIC8vIEEgbmV3IHNlYXJjaCBvciBjYXRlZ29yeSBzdGFydHMgYWdhaW4gZnJvbSB0aGUgZmlyc3QgYmF0Y2guCiAgY29uc3QgdmlzaWJsZUNvdW50ID0gYmF0Y2gua2V5ID09PSBmaWx0ZXJLZXkgPyBiYXRjaC5jb3VudCA6IENBVEFMT0dfQkFUQ0g7CiAgY29uc3QgdmlzaWJsZVByb2R1Y3RzID0gZmlsdGVyZWRQcm9kdWN0cy5zbGljZSgwLCB2aXNpYmxlQ291bnQpOwogIGNvbnN0IHJlbWFpbmluZyA9IGZpbHRlcmVkUHJvZHVjdHMubGVuZ3RoIC0gdmlzaWJsZVByb2R1Y3RzLmxlbmd0aDsKICBjb25zdCBzZWxlY3RlZENhdGVnb3J5ID0gY2F0ZWdvcmllcy5maW5kKChpdGVtKSA9PiBpdGVtLmNvZGUgPT09IGNhdGVnb3J5KTsKICBjb25zdCBoYXNBY3RpdmVGaWx0ZXIgPSBCb29sZWFuKHF1ZXJ5LnRyaW0oKSkgfHwgY2F0ZWdvcnkgIT09IEFMTF9DQVRFR09SSUVTOwoKICB1c2VFZmZlY3QoKCkgPT4gewogICAgaWYgKHdpbmRvdy5sb2NhdGlvbi5oYXNoID09PSAiI3Byb2R1Y3Qtc2VhcmNoIikgewogICAgICBzZWFyY2hJbnB1dFJlZi5jdXJyZW50Py5mb2N1cygpOwogICAgfQogIH0sIFtdKTsKCiAgY29uc3QgcmVzZXRGaWx0ZXJzID0gKCkgPT4gewogICAgc2V0UXVlcnlTdGF0ZSgiIik7CiAgICBzZXRDYXRlZ29yeVN0YXRlKEFMTF9DQVRFR09SSUVTKTsKICAgIHNldERyYWZ0Q2F0ZWdvcnkoQUxMX0NBVEVHT1JJRVMpOwogICAgd3JpdGVGaWx0ZXJzVG9VcmwoQUxMX0NBVEVHT1JJRVMsICIiLCBzb3J0KTsKICAgIHF1ZXVlTWljcm90YXNrKCgpID0+IHNlYXJjaElucHV0UmVmLmN1cnJlbnQ/LmZvY3VzKCkpOwogIH07CgogIHJldHVybiAoCiAgICA8PgogICAgICA8U2l0ZUhlYWRlcgogICAgICAgIHNlYXJjaD17CiAgICAgICAgICA8UHJvZHVjdFNlYXJjaAogICAgICAgICAgICBxdWVyeT17cXVlcnl9CiAgICAgICAgICAgIG9uQ2hhbmdlPXtzZXRRdWVyeX0KICAgICAgICAgICAgaW5wdXRSZWY9e3NlYXJjaElucHV0UmVmfQogICAgICAgICAgLz4KICAgICAgICB9CiAgICAgIC8+CiAgICAgIDxtYWluIGNsYXNzTmFtZT0icGFnZS1zaGVsbCBzdG9yZWZyb250LW1haW4iPgogICAgICAgIDxoMSBjbGFzc05hbWU9InNyLW9ubHkiPnttLnN0b3JlLnNob3BIZWFkaW5nfTwvaDE+CiAgICAgICAgPENhdGVnb3J5UGlja2VyCiAgICAgICAgICBjYXRlZ29yaWVzPXtjYXRlZ29yaWVzfQogICAgICAgICAgY292ZXJzPXtjb3ZlcnN9CiAgICAgICAgICBzZWxlY3RlZD17Y2F0ZWdvcnl9CiAgICAgICAgICBvblNlbGVjdD17c2V0Q2F0ZWdvcnl9CiAgICAgICAgLz4KICAgICAgICB7aGFzQWN0aXZlRmlsdGVyID8gbnVsbCA6ICgKICAgICAgICAgIDw+CiAgICAgICAgICAgIDxGZWF0dXJlZEJyYW5kcyBicmFuZHM9e21lcmNoYW5kaXNpbmcuYnJhbmRzfSAvPgogICAgICAgICAgICA8QmVzdFNlbGxlcnMgcHJvZHVjdHM9e21lcmNoYW5kaXNpbmcuYmVzdFNlbGxlcnN9IC8+CiAgICAgICAgICA8Lz4KICAgICAgICApfQogICAgICAgIDxzZWN0aW9uCiAgICAgICAgICBpZD0iY2F0YWxvZyIKICAgICAgICAgIGNsYXNzTmFtZT0iY2F0YWxvZy1zZWN0aW9uIgogICAgICAgICAgYXJpYS1sYWJlbGxlZGJ5PSJjYXRhbG9nLXRpdGxlIgogICAgICAgID4KICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPSJob21lLXNlY3Rpb24taGVhZGluZyBjYXRhbG9nLWhlYWRpbmciPgogICAgICAgICAgICA8aDIgaWQ9ImNhdGFsb2ctdGl0bGUiPgogICAgICAgICAgICAgIHtoYXNBY3RpdmVGaWx0ZXIgPyBtLnN0b3JlLnNlYXJjaFJlc3VsdHMgOiBtLnN0b3JlLmFsbFByb2R1Y3RzfQogICAgICAgICAgICA8L2gyPgogICAgICAgICAgPC9kaXY+CiAgICAgICAgICA8Q2F0YWxvZ1Rvb2xiYXIKICAgICAgICAgICAgY291bnQ9e2ZpbHRlcmVkUHJvZHVjdHMubGVuZ3RofQogICAgICAgICAgICBzb3J0PXtzb3J0fQogICAgICAgICAgICBvblNvcnQ9e3NldFNvcnR9CiAgICAgICAgICAgIGNoaXBzPXtbCiAgICAgICAgICAgICAgLi4uKHF1ZXJ5LnRyaW0oKQogICAgICAgICAgICAgICAgPyBbCiAgICAgICAgICAgICAgICAgICAgewogICAgICAgICAgICAgICAgICAgICAga2V5OiAicSIsCiAgICAgICAgICAgICAgICAgICAgICBsYWJlbDogbS5zdG9yZS5zZWFyY2hRdWVyeShxdWVyeS50cmltKCkpLAogICAgICAgICAgICAgICAgICAgICAgb25SZW1vdmU6ICgpID0+IHNldFF1ZXJ5KCIiKSwKICAgICAgICAgICAgICAgICAgICB9LAogICAgICAgICAgICAgICAgICBdCiAgICAgICAgICAgICAgICA6IFtdKSwKICAgICAgICAgICAgICAuLi4oY2F0ZWdvcnkgIT09IEFMTF9DQVRFR09SSUVTICYmIHNlbGVjdGVkQ2F0ZWdvcnkKICAgICAgICAgICAgICAgID8gWwogICAgICAgICAgICAgICAgICAgIHsKICAgICAgICAgICAgICAgICAgICAgIGtleTogImNhdGVnb3J5IiwKICAgICAgICAgICAgICAgICAgICAgIGxhYmVsOiBtLnN0b3JlLmNhdGVnb3J5RmlsdGVyKAogICAgICAgICAgICAgICAgICAgICAgICBsb2NhbGl6ZWRDYXRlZ29yeU5hbWUoc2VsZWN0ZWRDYXRlZ29yeSwgbG9jYWxlKSwKICAgICAgICAgICAgICAgICAgICAgICksCiAgICAgICAgICAgICAgICAgICAgICBvblJlbW92ZTogKCkgPT4gc2V0Q2F0ZWdvcnkoQUxMX0NBVEVHT1JJRVMpLAogICAgICAgICAgICAgICAgICAgIH0sCiAgICAgICAgICAgICAgICAgIF0KICAgICAgICAgICAgICAgIDogW10pLAogICAgICAgICAgICBdfQogICAgICAgICAgICBvbkNsZWFyRmlsdGVycz17cmVzZXRGaWx0ZXJzfQogICAgICAgICAgICBzaGVldD17ewogICAgICAgICAgICAgIGFjdGl2ZUNvdW50OiBjYXRlZ29yeSA9PT0gQUxMX0NBVEVHT1JJRVMgPyAwIDogMSwKICAgICAgICAgICAgICBvbkFwcGx5OiAoKSA9PiBzZXRDYXRlZ29yeShkcmFmdENhdGVnb3J5KSwKICAgICAgICAgICAgICBvblJlc2V0OiAoKSA9PiBzZXREcmFmdENhdGVnb3J5KEFMTF9DQVRFR09SSUVTKSwKICAgICAgICAgICAgICBjb250ZW50OiAoCiAgICAgICAgICAgICAgICA8ZmllbGRzZXQgY2xhc3NOYW1lPSJmaWx0ZXItc2hlZXQtZ3JvdXAiPgogICAgICAgICAgICAgICAgICA8bGVnZW5kPnttLnN0b3JlLmNhdGVnb3J5SGVhZGluZ308L2xlZ2VuZD4KICAgICAgICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9ImZpbHRlci1zaGVldC1vcHRpb25zIj4KICAgICAgICAgICAgICAgICAgICB7WwogICAgICAgICAgICAgICAgICAgICAgeyBjb2RlOiBBTExfQ0FURUdPUklFUywgbmFtZTogbS5zdG9yZS5hbGxGaWx0ZXIgfSwKICAgICAgICAgICAgICAgICAgICAgIC4uLmNhdGVnb3JpZXMubWFwKChpdGVtKSA9PiAoewogICAgICAgICAgICAgICAgICAgICAgICBjb2RlOiBpdGVtLmNvZGUsCiAgICAgICAgICAgICAgICAgICAgICAgIG5hbWU6IGxvY2FsaXplZENhdGVnb3J5TmFtZShpdGVtLCBsb2NhbGUpLAogICAgICAgICAgICAgICAgICAgICAgfSkpLAogICAgICAgICAgICAgICAgICAgIF0ubWFwKChvcHRpb24pID0+ICgKICAgICAgICAgICAgICAgICAgICAgIDxidXR0b24KICAgICAgICAgICAgICAgICAgICAgICAga2V5PXtvcHRpb24uY29kZX0KICAgICAgICAgICAgICAgICAgICAgICAgdHlwZT0iYnV0dG9uIgogICAgICAgICAgICAgICAgICAgICAgICBjbGFzc05hbWU9ImZpbHRlci1vcHRpb24iCiAgICAgICAgICAgICAgICAgICAgICAgIGFyaWEtcHJlc3NlZD17ZHJhZnRDYXRlZ29yeSA9PT0gb3B0aW9uLmNvZGV9CiAgICAgICAgICAgICAgICAgICAgICAgIG9uQ2xpY2s9eygpID0+IHNldERyYWZ0Q2F0ZWdvcnkob3B0aW9uLmNvZGUpfQogICAgICAgICAgICAgICAgICAgICAgPgogICAgICAgICAgICAgICAgICAgICAgICB7b3B0aW9uLm5hbWV9CiAgICAgICAgICAgICAgICAgICAgICA8L2J1dHRvbj4KICAgICAgICAgICAgICAgICAgICApKX0KICAgICAgICAgICAgICAgICAgPC9kaXY+CiAgICAgICAgICAgICAgICA8L2ZpZWxkc2V0PgogICAgICAgICAgICAgICksCiAgICAgICAgICAgIH19CiAgICAgICAgICAvPgoKICAgICAgICAgIHtmaWx0ZXJlZFByb2R1Y3RzLmxlbmd0aCA/ICgKICAgICAgICAgICAgPD4KICAgICAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT0icHJvZHVjdC1ncmlkIj4KICAgICAgICAgICAgICAgIHt2aXNpYmxlUHJvZHVjdHMubWFwKChwcm9kdWN0KSA9PiAoCiAgICAgICAgICAgICAgICAgIDxQcm9kdWN0Q2FyZCBrZXk9e3Byb2R1Y3QuaWR9IHByb2R1Y3Q9e3Byb2R1Y3R9IC8+CiAgICAgICAgICAgICAgICApKX0KICAgICAgICAgICAgICA8L2Rpdj4KICAgICAgICAgICAgICB7cmVtYWluaW5nID4gMCA/ICgKICAgICAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPSJjYXRhbG9nLW1vcmUiPgogICAgICAgICAgICAgICAgICA8cCBjbGFzc05hbWU9ImNhdGFsb2ctbW9yZS1jb3VudCI+CiAgICAgICAgICAgICAgICAgICAge20uc3RvcmUuc2hvd2luZygKICAgICAgICAgICAgICAgICAgICAgIHZpc2libGVQcm9kdWN0cy5sZW5ndGgsCiAgICAgICAgICAgICAgICAgICAgICBmaWx0ZXJlZFByb2R1Y3RzLmxlbmd0aCwKICAgICAgICAgICAgICAgICAgICApfQogICAgICAgICAgICAgICAgICA8L3A+CiAgICAgICAgICAgICAgICAgIDxidXR0b24KICAgICAgICAgICAgICAgICAgICB0eXBlPSJidXR0b24iCiAgICAgICAgICAgICAgICAgICAgY2xhc3NOYW1lPSJjYXRhbG9nLW1vcmUtYnV0dG9uIgogICAgICAgICAgICAgICAgICAgIG9uQ2xpY2s9eygpID0+CiAgICAgICAgICAgICAgICAgICAgICBzZXRCYXRjaCh7CiAgICAgICAgICAgICAgICAgICAgICAgIGtleTogZmlsdGVyS2V5LAogICAgICAgICAgICAgICAgICAgICAgICBjb3VudDogdmlzaWJsZUNvdW50ICsgQ0FUQUxPR19CQVRDSCwKICAgICAgICAgICAgICAgICAgICAgIH0pCiAgICAgICAgICAgICAgICAgICAgfQogICAgICAgICAgICAgICAgICA+CiAgICAgICAgICAgICAgICAgICAge20uc3RvcmUuc2hvd01vcmUoTWF0aC5taW4ocmVtYWluaW5nLCBDQVRBTE9HX0JBVENIKSl9CiAgICAgICAgICAgICAgICAgIDwvYnV0dG9uPgogICAgICAgICAgICAgICAgPC9kaXY+CiAgICAgICAgICAgICAgKSA6IG51bGx9CiAgICAgICAgICAgIDwvPgogICAgICAgICAgKSA6ICgKICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9ImVtcHR5LXN0YXRlIiByb2xlPSJzdGF0dXMiPgogICAgICAgICAgICAgIDxQYWNrYWdlU2VhcmNoIGFyaWEtaGlkZGVuPSJ0cnVlIiAvPgogICAgICAgICAgICAgIDxoMz57bS5zdG9yZS5ub1Jlc3VsdHN9PC9oMz4KICAgICAgICAgICAgICA8cD57bS5zdG9yZS5ub1Jlc3VsdHNIaW50fTwvcD4KICAgICAgICAgICAgICA8YnV0dG9uIHR5cGU9ImJ1dHRvbiIgb25DbGljaz17cmVzZXRGaWx0ZXJzfT4KICAgICAgICAgICAgICAgIHttLnN0b3JlLnNob3dBbGxQcm9kdWN0c30KICAgICAgICAgICAgICA8L2J1dHRvbj4KICAgICAgICAgICAgPC9kaXY+CiAgICAgICAgICApfQogICAgICAgIDwvc2VjdGlvbj4KICAgICAgICB7aGFzQWN0aXZlRmlsdGVyID8gbnVsbCA6IDxTdG9yZUJlbmVmaXRzIC8+fQogICAgICA8L21haW4+CiAgICAgIDxNb2JpbGVOYXZpZ2F0aW9uIC8+CiAgICA8Lz4KICApOwp9Cg==
+"use client";
+
+import { LayoutGrid, PackageSearch, Search, X } from "lucide-react";
+import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
+
+import { categoryIcons } from "@/features/catalog/components/category-icons";
+import { ProductCard } from "@/features/catalog/components/product-card";
+import { ProductMedia } from "@/features/catalog/components/product-media";
+import {
+  ALL_CATEGORIES,
+  localizedCategoryName,
+  type ProductCategory,
+} from "@/features/catalog/domain/category";
+import type { CategoryId, Product } from "@/features/catalog/domain/product";
+import { filterProducts } from "@/features/catalog/domain/product-search";
+import {
+  parseProductSort,
+  sortProducts,
+  type ProductSort,
+} from "@/features/catalog/domain/product-sort";
+import { CatalogToolbar } from "@/features/storefront/components/catalog-toolbar";
+import {
+  BestSellers,
+  FeaturedBrands,
+  StoreBenefits,
+} from "@/features/storefront/components/home-sections";
+import { MobileNavigation } from "@/features/storefront/components/mobile-navigation";
+import { SiteHeader } from "@/features/storefront/components/site-header";
+import {
+  categoryCovers,
+  type CatalogBrand,
+} from "@/features/storefront/domain/home-merchandising";
+import { useI18n } from "@/i18n/i18n-provider";
+import { Link } from "@/i18n/link";
+
+// The first batch keeps the phone page short; more is one tap away, never on scroll.
+export const CATALOG_BATCH = 12;
+
+export interface HomeMerchandising {
+  heroProducts: readonly Product[];
+  brands: readonly CatalogBrand[];
+  bestSellers: readonly Product[];
+}
+
+const emptyMerchandising: HomeMerchandising = {
+  heroProducts: [],
+  brands: [],
+  bestSellers: [],
+};
+
+function ProductSearch({
+  query,
+  onChange,
+  inputRef,
+}: {
+  query: string;
+  onChange: (value: string) => void;
+  inputRef: RefObject<HTMLInputElement | null>;
+}) {
+  const { m } = useI18n();
+  return (
+    <div className="search-wrap" role="search">
+      <label htmlFor="product-search" className="sr-only">
+        {m.store.searchLabel}
+      </label>
+      <Search aria-hidden="true" />
+      <input
+        ref={inputRef}
+        id="product-search"
+        type="search"
+        enterKeyHint="search"
+        value={query}
+        onChange={(event) => onChange(event.target.value)}
+        onKeyDown={(event) => {
+          if (event.key === "Enter") {
+            document
+              .getElementById("catalog")
+              ?.scrollIntoView({ block: "start" });
+          }
+        }}
+        placeholder={m.store.searchPlaceholder}
+        autoComplete="off"
+      />
+      {query ? (
+        <button
+          type="button"
+          className="clear-search"
+          aria-label={m.store.clearSearch}
+          onClick={() => {
+            onChange("");
+            inputRef.current?.focus();
+          }}
+        >
+          <X aria-hidden="true" />
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
+function CategoryPicker({
+  categories,
+  covers,
+  selected,
+  onSelect,
+}: {
+  categories: readonly ProductCategory[];
+  covers: ReadonlyMap<string, Product>;
+  selected: CategoryId;
+  onSelect: (category: CategoryId) => void;
+}) {
+  const { m, locale } = useI18n();
+  const options = [
+    { code: ALL_CATEGORIES, name: m.store.allFilter, icon: "grid" as const },
+    ...categories.map((category) => ({
+      code: category.code,
+      name: localizedCategoryName(category, locale),
+      icon: category.icon,
+    })),
+  ];
+  return (
+    <section className="categories-section" aria-labelledby="categories-title">
+      <div className="home-section-heading">
+        <h2 id="categories-title">{m.store.shopByCategory}</h2>
+        <Link href="/categories" className="home-section-link">
+          {m.store.allCategories}
+        </Link>
+      </div>
+      <div
+        className="category-list"
+        role="group"
+        aria-labelledby="categories-title"
+      >
+        {options.map((category) => {
+          const active = selected === category.code;
+          const Icon = categoryIcons[category.icon] ?? LayoutGrid;
+          const cover = covers.get(category.code);
+          return (
+            <button
+              key={category.code}
+              type="button"
+              className="category-item"
+              data-category-id={category.code}
+              data-active={active}
+              aria-pressed={active}
+              onClick={() => onSelect(category.code)}
+            >
+              <span
+                className="category-icon"
+                data-cover={Boolean(cover)}
+                aria-hidden="true"
+              >
+                {cover ? (
+                  <ProductMedia
+                    product={cover}
+                    className="category-cover"
+                    sizes="112px"
+                  />
+                ) : (
+                  <Icon />
+                )}
+              </span>
+              <span className="category-label">{category.name}</span>
+            </button>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+/** Mirrors the filters into the address, so a search or category can be shared and survives a reload. */
+function writeFiltersToUrl(
+  category: CategoryId,
+  query: string,
+  sort: ProductSort,
+) {
+  // Only the catalog's own parameters change; anything else in the address is kept.
+  const url = new URL(window.location.href);
+  if (sort === "featured") url.searchParams.delete("sort");
+  else url.searchParams.set("sort", sort);
+  if (category === ALL_CATEGORIES) url.searchParams.delete("category");
+  else url.searchParams.set("category", category);
+  if (query.trim()) url.searchParams.set("q", query.trim());
+  else url.searchParams.delete("q");
+  window.history.replaceState(window.history.state, "", url);
+}
+
+export function Storefront({
+  products,
+  categories,
+  initialCategory = ALL_CATEGORIES,
+  initialQuery = "",
+  initialSort = "featured",
+  merchandising = emptyMerchandising,
+  readFiltersFromUrl = false,
+}: {
+  products: readonly Product[];
+  categories: readonly ProductCategory[];
+  initialCategory?: CategoryId;
+  initialQuery?: string;
+  initialSort?: ProductSort;
+  merchandising?: HomeMerchandising;
+  /** The cached home page reads ?category, ?q and ?sort in the browser, in place (no remount). */
+  readFiltersFromUrl?: boolean;
+}) {
+  const { m, locale } = useI18n();
+  const [query, setQueryState] = useState(initialQuery);
+  const [category, setCategoryState] = useState<CategoryId>(initialCategory);
+  const [sort, setSortState] = useState<ProductSort>(initialSort);
+  // The phone sheet edits a draft category that only applies on «Show results».
+  const [draftCategory, setDraftCategory] =
+    useState<CategoryId>(initialCategory);
+  const setCategory = (code: CategoryId) => {
+    setCategoryState(code);
+    setDraftCategory(code);
+    writeFiltersToUrl(code, query, sort);
+  };
+  const setQuery = (value: string) => {
+    setQueryState(value);
+    writeFiltersToUrl(category, value, sort);
+  };
+  const setSort = (value: ProductSort) => {
+    setSortState(value);
+    writeFiltersToUrl(category, query, value);
+  };
+  useEffect(() => {
+    if (!readFiltersFromUrl) return;
+    const params = new URLSearchParams(window.location.search);
+    // Unknown, hidden or archived codes fall back to every product.
+    const fromUrl =
+      categories.find((item) => item.code === params.get("category"))?.code ??
+      ALL_CATEGORIES;
+    const queryFromUrl = (params.get("q") ?? "").slice(0, 100);
+    const sortFromUrl = parseProductSort(params.get("sort"));
+    queueMicrotask(() => {
+      setCategoryState(fromUrl);
+      setDraftCategory(fromUrl);
+      setQueryState(queryFromUrl);
+      setSortState(sortFromUrl);
+    });
+    // Once, on arrival: later changes are written to the address by the setters above.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const covers = useMemo(() => categoryCovers(products), [products]);
+
+  const filteredProducts = useMemo(
+    () =>
+      sortProducts(
+        filterProducts(products, { query, categoryId: category }),
+        sort,
+      ),
+    [category, products, query, sort],
+  );
+  const filterKey = `${category}|${query.trim()}|${sort}`;
+  const [batch, setBatch] = useState({ key: filterKey, count: CATALOG_BATCH });
+  // A new search or category starts again from the first batch.
+  const visibleCount = batch.key === filterKey ? batch.count : CATALOG_BATCH;
+  const visibleProducts = filteredProducts.slice(0, visibleCount);
+  const remaining = filteredProducts.length - visibleProducts.length;
+  const selectedCategory = categories.find((item) => item.code === category);
+  const hasActiveFilter = Boolean(query.trim()) || category !== ALL_CATEGORIES;
+
+  useEffect(() => {
+    if (window.location.hash === "#product-search") {
+      searchInputRef.current?.focus();
+    }
+  }, []);
+
+  const resetFilters = () => {
+    setQueryState("");
+    setCategoryState(ALL_CATEGORIES);
+    setDraftCategory(ALL_CATEGORIES);
+    writeFiltersToUrl(ALL_CATEGORIES, "", sort);
+    queueMicrotask(() => searchInputRef.current?.focus());
+  };
+
+  return (
+    <>
+      <SiteHeader
+        search={
+          <ProductSearch
+            query={query}
+            onChange={setQuery}
+            inputRef={searchInputRef}
+          />
+        }
+      />
+      <main className="page-shell storefront-main">
+        <h1 className="sr-only">{m.store.shopHeading}</h1>
+        <CategoryPicker
+          categories={categories}
+          covers={covers}
+          selected={category}
+          onSelect={setCategory}
+        />
+        {hasActiveFilter ? null : (
+          <>
+            <FeaturedBrands brands={merchandising.brands} />
+            <BestSellers products={merchandising.bestSellers} />
+          </>
+        )}
+        <section
+          id="catalog"
+          className="catalog-section"
+          aria-labelledby="catalog-title"
+        >
+          <div className="home-section-heading catalog-heading">
+            <h2 id="catalog-title">
+              {hasActiveFilter ? m.store.searchResults : m.store.allProducts}
+            </h2>
+          </div>
+          <CatalogToolbar
+            count={filteredProducts.length}
+            sort={sort}
+            onSort={setSort}
+            chips={[
+              ...(query.trim()
+                ? [
+                    {
+                      key: "q",
+                      label: m.store.searchQuery(query.trim()),
+                      onRemove: () => setQuery(""),
+                    },
+                  ]
+                : []),
+              ...(category !== ALL_CATEGORIES && selectedCategory
+                ? [
+                    {
+                      key: "category",
+                      label: m.store.categoryFilter(
+                        localizedCategoryName(selectedCategory, locale),
+                      ),
+                      onRemove: () => setCategory(ALL_CATEGORIES),
+                    },
+                  ]
+                : []),
+            ]}
+            onClearFilters={resetFilters}
+            sheet={{
+              activeCount: category === ALL_CATEGORIES ? 0 : 1,
+              onApply: () => setCategory(draftCategory),
+              onReset: () => setDraftCategory(ALL_CATEGORIES),
+              content: (
+                <fieldset className="filter-sheet-group">
+                  <legend>{m.store.categoryHeading}</legend>
+                  <div className="filter-sheet-options">
+                    {[
+                      { code: ALL_CATEGORIES, name: m.store.allFilter },
+                      ...categories.map((item) => ({
+                        code: item.code,
+                        name: localizedCategoryName(item, locale),
+                      })),
+                    ].map((option) => (
+                      <button
+                        key={option.code}
+                        type="button"
+                        className="filter-option"
+                        aria-pressed={draftCategory === option.code}
+                        onClick={() => setDraftCategory(option.code)}
+                      >
+                        {option.name}
+                      </button>
+                    ))}
+                  </div>
+                </fieldset>
+              ),
+            }}
+          />
+
+          {filteredProducts.length ? (
+            <>
+              <div className="product-grid">
+                {visibleProducts.map((product) => (
+                  <ProductCard key={product.id} product={product} />
+                ))}
+              </div>
+              {remaining > 0 ? (
+                <div className="catalog-more">
+                  <p className="catalog-more-count">
+                    {m.store.showing(
+                      visibleProducts.length,
+                      filteredProducts.length,
+                    )}
+                  </p>
+                  <button
+                    type="button"
+                    className="catalog-more-button"
+                    onClick={() =>
+                      setBatch({
+                        key: filterKey,
+                        count: visibleCount + CATALOG_BATCH,
+                      })
+                    }
+                  >
+                    {m.store.showMore(Math.min(remaining, CATALOG_BATCH))}
+                  </button>
+                </div>
+              ) : null}
+            </>
+          ) : (
+            <div className="empty-state" role="status">
+              <PackageSearch aria-hidden="true" />
+              <h3>{m.store.noResults}</h3>
+              <p>{m.store.noResultsHint}</p>
+              <button type="button" onClick={resetFilters}>
+                {m.store.showAllProducts}
+              </button>
+            </div>
+          )}
+        </section>
+        {hasActiveFilter ? null : <StoreBenefits />}
+      </main>
+      <MobileNavigation />
+    </>
+  );
+}
