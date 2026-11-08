@@ -139,21 +139,19 @@ describe("storefront", () => {
     const user = userEvent.setup();
     const { container } = renderStorefront();
     const categoryButtons = Array.from(
-      container.querySelectorAll<HTMLButtonElement>(".category-item"),
+      container.querySelectorAll<HTMLButtonElement>("button.category-item"),
     );
 
-    expect(categoryButtons[0]).toHaveTextContent("الكل");
+    expect(screen.getByRole("link", { name: "الكل" })).toHaveAttribute(
+      "href",
+      "/categories",
+    );
     expect(categoryButtons.at(-1)).toHaveTextContent("مستلزمات منزلية");
-    expect(categoryButtons[0]).toHaveAttribute("aria-pressed", "true");
 
     await user.click(screen.getByRole("button", { name: "مستلزمات منزلية" }));
     expect(
       screen.getByRole("button", { name: "مستلزمات منزلية" }),
     ).toHaveAttribute("aria-pressed", "true");
-    expect(screen.getByRole("button", { name: "الكل" })).toHaveAttribute(
-      "aria-pressed",
-      "false",
-    );
   });
 
   it("selects distinct local placeholder variants from product data", () => {

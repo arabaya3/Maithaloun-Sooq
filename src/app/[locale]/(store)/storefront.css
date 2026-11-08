@@ -312,7 +312,7 @@ body:has(.storefront-font-scope) {
 
 .category-cover img {
   object-fit: contain;
-  transform: scale(0.8);
+  transform: scale(0.98);
 }
 
 .category-item[data-active="true"] {
@@ -1914,8 +1914,8 @@ body:has(.store-footer) > main {
 
 @media (max-width: 47.99rem) {
   .storefront-main .category-item .category-icon {
-    width: 4.75rem;
-    height: 4.75rem;
+    width: 5.25rem;
+    height: 5.25rem;
   }
 
   .catalog-toolbar-row {
@@ -1935,4 +1935,14 @@ body:has(.store-footer) > main {
     max-width: 100%;
     text-overflow: ellipsis;
   }
+}
+
+.category-directory-tile {
+  text-decoration: none;
+  color: var(--forest);
+}
+
+.category-directory-tile .category-icon[data-cover="false"] {
+  background: var(--forest);
+  color: var(--white);
 }
