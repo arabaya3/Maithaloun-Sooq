@@ -129,7 +129,10 @@ function CategoryPicker({
         role="group"
         aria-labelledby="categories-title"
       >
-        <Link href="/categories" className="category-item category-directory-tile">
+        <Link
+          href="/categories"
+          className="category-item category-directory-tile"
+        >
           <span className="category-icon" data-cover="false" aria-hidden="true">
             <LayoutGrid />
           </span>
@@ -181,6 +184,7 @@ function writeFiltersToUrl(
 ) {
   // Only the catalog's own parameters change; anything else in the address is kept.
   const url = new URL(window.location.href);
+  url.searchParams.delete("shown");
   if (sort === "featured") url.searchParams.delete("sort");
   else url.searchParams.set("sort", sort);
   if (category === ALL_CATEGORIES) url.searchParams.delete("category");
@@ -237,7 +241,14 @@ export function Storefront({
       ALL_CATEGORIES;
     const queryFromUrl = (params.get("q") ?? "").slice(0, 100);
     const sortFromUrl = parseProductSort(params.get("sort"));
+    const shown = Number(params.get("shown"));
     queueMicrotask(() => {
+      if (Number.isSafeInteger(shown) && shown > CATALOG_BATCH) {
+        setBatch({
+          key: `${fromUrl}|${queryFromUrl.trim()}|${sortFromUrl}`,
+          count: shown,
+        });
+      }
       setCategoryState(fromUrl);
       setDraftCategory(fromUrl);
       setQueryState(queryFromUrl);
@@ -389,12 +400,19 @@ export function Storefront({
                   <button
                     type="button"
                     className="catalog-more-button"
-                    onClick={() =>
-                      setBatch({
-                        key: filterKey,
-                        count: visibleCount + CATALOG_BATCH,
-                      })
-                    }
+                    onClick={() => {
+                      const count = visibleCount + CATALOG_BATCH;
+                      setBatch({ key: filterKey, count });
+                      if (readFiltersFromUrl) {
+                        const url = new URL(window.location.href);
+                        url.searchParams.set("shown", String(count));
+                        window.history.replaceState(
+                          window.history.state,
+                          "",
+                          url,
+                        );
+                      }
+                    }}
                   >
                     {m.store.showMore(Math.min(remaining, CATALOG_BATCH))}
                   </button>
