@@ -164,7 +164,11 @@ export function ProductDetailActions({
         onClick={() => toggleFavorite(product.id)}
       >
         <Heart aria-hidden="true" className={favorite ? "fill-current" : ""} />
-        {favorite ? m.catalog.savedToFavorites : m.catalog.addToFavoritesButton}
+        <span>
+          {favorite
+            ? m.catalog.savedToFavorites
+            : m.catalog.addToFavoritesButton}
+        </span>
       </button>
       <p className="cart-confirmation" role="status" aria-live="polite">
         {confirmation}
