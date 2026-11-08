@@ -2407,3 +2407,30 @@ body:has(.store-footer) > main {
     border-color: transparent;
   }
 }
+
+.option-selectors .variant-option-check {
+  flex: none;
+  width: 1rem;
+  height: 1rem;
+}
+
+@media (max-width: 47.99rem) {
+  .option-selectors .variant-selector-options {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.4rem;
+  }
+
+  .option-selectors .variant-option {
+    display: flex;
+    min-height: 2.75rem;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+    padding: 0.35rem 0.5rem;
+    font-size: 0.875rem;
+    line-height: 1.35;
+    overflow-wrap: anywhere;
+  }
+}
