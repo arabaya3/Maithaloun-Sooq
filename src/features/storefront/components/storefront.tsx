@@ -110,7 +110,6 @@ function CategoryPicker({
 }) {
   const { m, locale } = useI18n();
   const options = [
-    { code: ALL_CATEGORIES, name: m.store.allFilter, icon: "grid" as const },
     ...categories.map((category) => ({
       code: category.code,
       name: localizedCategoryName(category, locale),
@@ -130,6 +129,12 @@ function CategoryPicker({
         role="group"
         aria-labelledby="categories-title"
       >
+        <Link href="/categories" className="category-item category-directory-tile">
+          <span className="category-icon" data-cover="false" aria-hidden="true">
+            <LayoutGrid />
+          </span>
+          <span className="category-label">{m.store.allFilter}</span>
+        </Link>
         {options.map((category) => {
           const active = selected === category.code;
           const Icon = categoryIcons[category.icon] ?? LayoutGrid;
