@@ -1400,7 +1400,7 @@ body:has(.store-footer) > main {
   }
 }
 
-/* Footer: content-sized, three columns on wide screens, compact link grids on phones */
+/* Footer: compact brand and policy links. */
 .store-footer-inner {
   gap: var(--space-4);
   padding-block: var(--space-6) var(--space-3);
@@ -1477,7 +1477,7 @@ body:has(.store-footer) > main {
 
 @media (min-width: 48rem) {
   .store-footer-inner {
-    grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
     gap: var(--space-3) var(--space-6);
     padding-block: var(--space-6) var(--space-3);
   }
