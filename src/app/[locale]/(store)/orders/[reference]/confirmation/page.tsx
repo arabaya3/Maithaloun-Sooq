@@ -15,7 +15,6 @@ import {
   whatsAppLinks,
   whatsAppOrderMessage,
 } from "@/features/orders/domain/whatsapp-order";
-import { orderStatusLabel } from "@/features/orders/domain/order-status";
 import { Link } from "@/i18n/link";
 import { getLocale, getMessages } from "@/i18n/server";
 import { formatIls } from "@/shared/lib/format-currency";
@@ -65,14 +64,9 @@ export default async function OrderConfirmationPage({
       <section aria-labelledby="confirmation-title">
         <BrandSymbol className="confirmation-brand-symbol" />
         <CheckCircle2 aria-hidden="true" />
-        <span className="eyebrow">{m.received}</span>
         <h1 id="confirmation-title">
-          {awaitingWhatsApp ? m.lastStepWhatsApp : m.thanks}
+          {awaitingWhatsApp ? m.lastStepWhatsApp : m.received}
         </h1>
-        <p>
-          {m.statusLabel}
-          <strong>{orderStatusLabel(confirmation.status, locale)}</strong>
-        </p>
         <div className="order-reference">
           <span>{m.reference}</span>
           <strong>
@@ -88,52 +82,53 @@ export default async function OrderConfirmationPage({
           />
         ) : awaitingWhatsApp ? (
           <p role="note">{m.savedNoWhatsApp}</p>
-        ) : (
-          <p role="note">{m.reachedStore}</p>
-        )}
-        <ul className="order-confirmation-lines" aria-label={m.orderLines}>
-          {details.lines.map((line, index) => (
-            <li key={index}>
-              <span>
-                <strong>
-                  <bdi dir="auto">{line.name}</bdi>
-                </strong>
-                {line.options ? <small>{line.options}</small> : null}
-                {line.unit ? <small>{line.unit}</small> : null}
-              </span>
-              <span>× {line.quantity}</span>
-              <bdi dir="ltr">{formatIls(line.lineSubtotalAgorot)}</bdi>
-            </li>
-          ))}
-        </ul>
-        <dl>
-          <div>
-            <dt>{m.subtotal}</dt>
-            <dd>
-              <bdi dir="ltr">{formatIls(confirmation.itemsSubtotalAgorot)}</bdi>
-            </dd>
-          </div>
-          <div>
-            <dt>{m.deliveryCost}</dt>
-            <dd>
-              {confirmation.deliveryFeeAgorot === null
-                ? m.confirmedLater
-                : formatIls(confirmation.deliveryFeeAgorot)}
-            </dd>
-          </div>
-          {confirmation.finalTotalAgorot === null ? null : (
+        ) : null}
+        <details>
+          <summary>{m.orderLines}</summary>
+          <ul className="order-confirmation-lines" aria-label={m.orderLines}>
+            {details.lines.map((line, index) => (
+              <li key={index}>
+                <span>
+                  <strong>
+                    <bdi dir="auto">{line.name}</bdi>
+                  </strong>
+                  {line.options ? <small>{line.options}</small> : null}
+                  {line.unit ? <small>{line.unit}</small> : null}
+                </span>
+                <span>× {line.quantity}</span>
+                <bdi dir="ltr">{formatIls(line.lineSubtotalAgorot)}</bdi>
+              </li>
+            ))}
+          </ul>
+          <dl>
             <div>
-              <dt>{m.total}</dt>
+              <dt>{m.subtotal}</dt>
               <dd>
-                <bdi dir="ltr">{formatIls(confirmation.finalTotalAgorot)}</bdi>
+                <bdi dir="ltr">{formatIls(confirmation.itemsSubtotalAgorot)}</bdi>
               </dd>
             </div>
-          )}
-          <div>
-            <dt>{m.paymentMethod}</dt>
-            <dd>{m.cashOnDelivery}</dd>
-          </div>
-        </dl>
+            <div>
+              <dt>{m.deliveryCost}</dt>
+              <dd>
+                {confirmation.deliveryFeeAgorot === null
+                  ? m.confirmedLater
+                  : formatIls(confirmation.deliveryFeeAgorot)}
+              </dd>
+            </div>
+            {confirmation.finalTotalAgorot === null ? null : (
+              <div>
+                <dt>{m.total}</dt>
+                <dd>
+                  <bdi dir="ltr">{formatIls(confirmation.finalTotalAgorot)}</bdi>
+                </dd>
+              </div>
+            )}
+            <div>
+              <dt>{m.paymentMethod}</dt>
+              <dd>{m.cashOnDelivery}</dd>
+            </div>
+          </dl>
+        </details>
         <Link href="/">{m.backToStore}</Link>
       </section>
       {suggestAccount ? (
