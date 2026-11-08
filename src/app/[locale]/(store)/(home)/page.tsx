@@ -1,3 +1,4 @@
+import Image from "next/image";
 import type { Metadata } from "next";
 
 import { bestSellerIds } from "@/features/catalog/infrastructure/best-sellers";
@@ -9,17 +10,18 @@ import {
   catalogBrands,
   pickHeroProducts,
 } from "@/features/storefront/domain/home-merchandising";
-import { localizedAlternates } from "@/i18n/server";
+import { getLocale, localizedAlternates } from "@/i18n/server";
 
 export async function generateMetadata(): Promise<Metadata> {
   return { alternates: await localizedAlternates("/") };
 }
 
 export default async function HomePage() {
-  const [products, categories, rankedIds] = await Promise.all([
+  const [products, categories, rankedIds, locale] = await Promise.all([
     productRepository.list(),
     storefrontCategories(),
     bestSellerIds(),
+    getLocale(),
   ]);
   const props = {
     products,
@@ -31,5 +33,22 @@ export default async function HomePage() {
     },
   };
   // Cached for everyone; the address filters are applied in the browser.
-  return <Storefront {...props} readFiltersFromUrl />;
+  const arabic = locale === "ar";
+  return (
+    <>
+      <Storefront {...props} readFiltersFromUrl />
+      <details className="home-meetho">
+        <summary aria-label={arabic ? "ميثو" : "Meetho"}>
+          <Image
+            src="/meetho.svg"
+            alt=""
+            width={130}
+            height={161}
+            unoptimized
+          />
+        </summary>
+        <p>{arabic ? "أهلًا فيك بميثا!" : "Welcome to MAYTHA!"}</p>
+      </details>
+    </>
+  );
 }
