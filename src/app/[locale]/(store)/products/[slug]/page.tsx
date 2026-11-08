@@ -90,7 +90,10 @@ export default async function ProductPage({ params }: ProductPageProps) {
     <>
       <SiteHeader />
       <main className="page-shell detail-page">
-        <ProductBackLink label={locale === "ar" ? "رجوع" : "Back"} />
+        <div className="detail-navigation">
+          <ProductBackLink label={locale === "ar" ? "رجوع" : "Back"} />
+          {category ? <span>{panel.categoryLabel}</span> : null}
+        </div>
         <nav className="breadcrumb" aria-label={m.catalog.breadcrumb}>
           <Link href="/">{m.common.home}</Link>
           <span aria-hidden="true">/</span>
@@ -113,6 +116,11 @@ export default async function ProductPage({ params }: ProductPageProps) {
                 <span className="eyebrow">{m.catalog.sameCategory}</span>
                 <h2 id="related-products-title">{m.catalog.relatedProducts}</h2>
               </div>
+              {category ? (
+                <Link href={`/categories/${encodeURIComponent(category.code)}`}>
+                  {locale === "ar" ? "عرض الكل" : "View all"}
+                </Link>
+              ) : null}
             </div>
             <div className="product-grid">
               {relatedProducts.map((relatedProduct) => (
