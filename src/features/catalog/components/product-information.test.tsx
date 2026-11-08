@@ -45,7 +45,7 @@ describe("product information", () => {
       { products: [] },
     );
     expect(
-      screen.getByRole("heading", { name: "وصف المنتج" }),
+      screen.getByText("وصف المنتج"),
     ).toBeInTheDocument();
     const usage = screen
       .getByText("طريقة الاستعمال")

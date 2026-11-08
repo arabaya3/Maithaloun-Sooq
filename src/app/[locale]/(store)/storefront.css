@@ -1946,3 +1946,36 @@ body:has(.store-footer) > main {
   background: var(--forest);
   color: var(--white);
 }
+
+.detail-page .product-detail-content > *,
+.detail-page .product-detail-actions > * {
+  order: 0;
+}
+
+.product-info-description {
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-sm);
+}
+
+.product-info-description > summary {
+  cursor: pointer;
+  padding-block: 0.65rem;
+  font-weight: 700;
+}
+
+.detail-page .product-gallery-thumbs img {
+  padding: 0.25rem;
+}
+
+@media (max-width: 47.99rem) {
+  .detail-page .product-gallery-stage {
+    max-width: 100%;
+    max-height: 30svh;
+    aspect-ratio: 4 / 3;
+  }
+
+  .detail-page .product-gallery-image {
+    padding: 0.75rem;
+  }
+}
