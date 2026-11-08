@@ -24,13 +24,10 @@ export function ProductInformation({
   const usage = split.usage ?? (usageNotes?.trim() || null);
   return (
     <div className="product-info">
-      <section
-        className="product-info-section"
-        aria-labelledby="description-title"
-      >
-        <h2 id="description-title">{m.catalog.descriptionTitle}</h2>
+      <details className="product-info-section product-info-description">
+        <summary>{m.catalog.descriptionTitle}</summary>
         <ProductDescription text={split.description} />
-      </section>
+      </details>
       {usage ? (
         <details className="product-info-section product-info-usage">
           <summary>
