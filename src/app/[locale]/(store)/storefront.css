@@ -2245,3 +2245,38 @@ body:has(.store-footer) > main {
     height: 2.75rem;
   }
 }
+
+.info-article .info-intro {
+  margin: 0;
+  color: var(--muted);
+}
+
+.info-disclosure {
+  padding-inline: 1rem;
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-sm);
+  background: var(--white);
+}
+
+.info-disclosure > summary {
+  padding-block: 0.85rem;
+  color: var(--forest);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.info-disclosure > p {
+  margin: 0 0 0.8rem;
+  line-height: 1.7;
+}
+
+.info-page .info-links {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 10rem), 1fr));
+  gap: 0.4rem;
+}
+
+.info-page .info-links a {
+  border-radius: var(--radius-sm);
+  text-align: center;
+}
