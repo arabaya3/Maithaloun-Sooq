@@ -18,7 +18,6 @@ import { formatVariantAttributes } from "@/features/catalog/domain/product-varia
 import { sellingLineText } from "@/features/catalog/domain/selling-unit";
 import { ACTIVE_SERVICE_AREA_CODE } from "@/features/delivery/delivery-policy";
 import { calculateDeliveryFeeAgorot } from "@/features/delivery/delivery-policy";
-import { getFreeDeliveryMessage } from "@/features/delivery/delivery-messaging";
 import type { ServiceArea } from "@/features/delivery/service-area";
 import { orderApiResponseSchema } from "@/features/orders/domain/order-confirmation";
 import { WHATSAPP_COUNTRY_CODES } from "@/features/orders/domain/phone";
@@ -81,12 +80,6 @@ export function CheckoutForm({
   const merchandiseSubtotal = cartMerchandiseSubtotal(resolvedLines);
   const deliveryFeeAgorot = calculateDeliveryFeeAgorot(merchandiseSubtotal);
   const orderTotal = merchandiseSubtotal + deliveryFeeAgorot;
-  const freeDeliveryMessage = getFreeDeliveryMessage(
-    merchandiseSubtotal,
-    locale,
-  );
-  const freeDeliveryQualified =
-    deliveryFeeAgorot === 0 && merchandiseSubtotal > 0;
   const maythalunEnabled = serviceAreas.some(
     (area) => area.code === ACTIVE_SERVICE_AREA_CODE && area.enabled,
   );
@@ -323,7 +316,6 @@ export function CheckoutForm({
 
       <aside className="checkout-summary" aria-labelledby="summary-title">
         <h2 id="summary-title">{cartText.summaryTitle}</h2>
-        <p className="checkout-service-note">{m.serviceNote}</p>
         {!resolvedLines.length ? (
           <p className="checkout-blocker">{m.cartEmpty}</p>
         ) : null}
@@ -337,51 +329,54 @@ export function CheckoutForm({
           <p className="checkout-blocker">{m.deliveryOnlyMaythalun}</p>
         ) : null}
 
-        <div className="checkout-items">
-          {resolvedLines.map((resolved) => {
-            const { line, unit } = resolved;
-            const attributeSummary = formatVariantAttributes(
-              resolved.variant.attributes,
-            );
-            const showUnit = Boolean(
-              unit &&
-              (unit.unitsPerSale > 1 ||
-                resolved.variant.sellingUnits.length > 1),
-            );
-            return (
-              <div key={cartLineKey(line)}>
-                <span>
-                  <bdi dir="auto">
-                    {localizedProductName(resolved.product, locale)}
-                  </bdi>
-                  {unit && showUnit ? (
-                    <>
+        <details>
+          <summary>{cartText.orderLines}</summary>
+          <div className="checkout-items">
+            {resolvedLines.map((resolved) => {
+              const { line, unit } = resolved;
+              const attributeSummary = formatVariantAttributes(
+                resolved.variant.attributes,
+              );
+              const showUnit = Boolean(
+                unit &&
+                (unit.unitsPerSale > 1 ||
+                  resolved.variant.sellingUnits.length > 1),
+              );
+              return (
+                <div key={cartLineKey(line)}>
+                  <span>
+                    <bdi dir="auto">
+                      {localizedProductName(resolved.product, locale)}
+                    </bdi>
+                    {unit && showUnit ? (
+                      <>
+                        {" · "}
+                        <bdi dir="auto">
+                          {sellingLineText(unit.labelAr, line.quantity)}
+                        </bdi>
+                      </>
+                    ) : (
+                      <>
+                        {" × "}
+                        {line.quantity}
+                      </>
+                    )}
+                    <span className="checkout-item-variant">
                       {" · "}
-                      <bdi dir="auto">
-                        {sellingLineText(unit.labelAr, line.quantity)}
-                      </bdi>
-                    </>
-                  ) : (
-                    <>
-                      {" × "}
-                      {line.quantity}
-                    </>
-                  )}
-                  <span className="checkout-item-variant">
-                    {" · "}
-                    {resolved.variant.labelAr}
-                    {attributeSummary ? ` · ${attributeSummary}` : ""}
+                      {resolved.variant.labelAr}
+                      {attributeSummary ? ` · ${attributeSummary}` : ""}
+                    </span>
                   </span>
-                </span>
-                <bdi dir="ltr">
-                  {resolved.lineSubtotalAgorot === null
-                    ? "—"
-                    : formatIls(resolved.lineSubtotalAgorot)}
-                </bdi>
-              </div>
-            );
-          })}
-        </div>
+                  <bdi dir="ltr">
+                    {resolved.lineSubtotalAgorot === null
+                      ? "—"
+                      : formatIls(resolved.lineSubtotalAgorot)}
+                  </bdi>
+                </div>
+              );
+            })}
+          </div>
+        </details>
 
         <div className="checkout-summary-rows">
           <div className="checkout-total">
@@ -403,15 +398,6 @@ export function CheckoutForm({
             </strong>
           </div>
         </div>
-        {merchandiseSubtotal > 0 ? (
-          <p
-            className="free-delivery-hint"
-            data-qualified={freeDeliveryQualified}
-            role="status"
-          >
-            {freeDeliveryMessage}
-          </p>
-        ) : null}
         <button
           type="submit"
           className={channel === "whatsapp" ? "checkout-whatsapp" : undefined}
