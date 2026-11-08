@@ -21,7 +21,6 @@ import {
 import { CatalogToolbar } from "@/features/storefront/components/catalog-toolbar";
 import {
   BestSellers,
-  FeaturedBrands,
   StoreBenefits,
 } from "@/features/storefront/components/home-sections";
 import { MobileNavigation } from "@/features/storefront/components/mobile-navigation";
@@ -296,10 +295,7 @@ export function Storefront({
           onSelect={setCategory}
         />
         {hasActiveFilter ? null : (
-          <>
-            <FeaturedBrands brands={merchandising.brands} />
-            <BestSellers products={merchandising.bestSellers} />
-          </>
+          <BestSellers products={merchandising.bestSellers} />
         )}
         <section
           id="catalog"

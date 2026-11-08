@@ -108,7 +108,7 @@ describe("storefront", () => {
     expect(container.textContent).not.toMatch(/تشكيلات مختارة/);
   });
 
-  it("shows owner-entered brands and featured products when present", () => {
+  it("shows featured products without the featured brands section", () => {
     renderWithProviders(
       <Storefront
         products={products}
@@ -129,25 +129,10 @@ describe("storefront", () => {
       />,
       { products },
     );
-    const brands = screen
-      .getByRole("heading", { name: "ماركات مختارة" })
-      .closest("section")!;
-    expect(
-      within(brands).getByRole("link", { name: "Finish" }),
-    ).toHaveAttribute("href", "/brands/Finish");
-    expect(
-      within(brands).getByRole("link", { name: "البركان" }),
-    ).toHaveAttribute("href", `/brands/${encodeURIComponent("البركان")}`);
+    expect(screen.queryByRole("heading", { name: "ماركات مختارة" })).toBeNull();
     expect(
       screen.getByRole("heading", { name: "منتجات مختارة" }),
     ).toBeInTheDocument();
-    // A verified logo replaces the wordmark; other brands keep their name.
-    expect(
-      within(brands).getByRole("link", { name: "Clear" }).querySelector("img"),
-    ).toHaveAttribute("src", "/brands/logos/clear.svg");
-    expect(
-      within(brands).getByRole("link", { name: "Finish" }).querySelector("img"),
-    ).toBeNull();
   });
 
   it("orders RTL categories from all to home and exposes selection semantics", async () => {
