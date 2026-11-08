@@ -273,7 +273,6 @@ export function CartPage({
                         onClick={() => removeItem(line)}
                       >
                         <Trash2 aria-hidden="true" />
-                        {m.remove}
                       </button>
                     </div>
                   </div>
@@ -324,33 +323,6 @@ export function CartPage({
 
       <aside className="cart-summary" aria-labelledby="cart-summary-title">
         <h2 id="cart-summary-title">{m.summaryTitle}</h2>
-        <ul className="cart-summary-lines" aria-label={m.orderLines}>
-          {resolvedLines.map((resolved) => {
-            const { line, unit, variant } = resolved;
-            const details = [
-              variant.labelAr,
-              formatVariantAttributes(variant.attributes),
-              unit && (unit.unitsPerSale > 1 || variant.sellingUnits.length > 1)
-                ? sellingLineText(unit.labelAr, line.quantity)
-                : `× ${line.quantity}`,
-            ].filter(Boolean);
-            return (
-              <li key={cartLineKey(line)}>
-                <span>
-                  <bdi dir="auto">
-                    {localizedProductName(resolved.product, locale)}
-                  </bdi>
-                  <small>{details.join(" · ")}</small>
-                </span>
-                <bdi dir="ltr">
-                  {resolved.lineSubtotalAgorot === null
-                    ? "—"
-                    : formatIls(resolved.lineSubtotalAgorot)}
-                </bdi>
-              </li>
-            );
-          })}
-        </ul>
         <div className="cart-summary-rows">
           <div>
             <span>{m.subtotal}</span>
