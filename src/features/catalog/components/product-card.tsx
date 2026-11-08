@@ -28,6 +28,7 @@ export function ProductCard({ product }: { product: Product }) {
   const name = localizedProductName(product, locale);
   const favorite = isFavorite(product.id);
   const optionCount = product.variants.length;
+  const [addedVariant, setAddedVariant] = useState<string | null>(null);
   const [choosing, setChoosing] = useState(false);
   const [choice, setChoice] = useState("");
   const variantId = choice || product.defaultVariantId;
@@ -215,12 +216,25 @@ export function ProductCard({ product }: { product: Product }) {
           <button
             type="button"
             className="add-button"
-            onClick={() => addItem(cardLine, 1)}
+            onClick={() => {
+              addItem(cardLine, 1);
+              setAddedVariant(variantId);
+            }}
           >
             <ShoppingCart aria-hidden="true" />
             {m.catalog.addToCart}
           </button>
         )}
+        {addedVariant === variantId && inCart > 0 ? (
+          <>
+            <p className="product-meta" role="status">
+              {locale === "ar" ? "تمت الإضافة للسلة" : "Added to cart"}
+            </p>
+            <Link href="/cart">
+              {locale === "ar" ? "عرض السلة" : "View cart"}
+            </Link>
+          </>
+        ) : null}
       </div>
     </article>
   );

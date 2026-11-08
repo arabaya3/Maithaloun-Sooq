@@ -20,6 +20,13 @@ export function normalizeSearchText(value: string): string {
     .replace(/\s+/g, " ");
 }
 
+const brandAliases: Record<string, string> = {
+  finish: "فينيش فنش",
+  alborkan: "البركان",
+  loyal: "لويال",
+  arar: "عرار",
+};
+
 export function filterProducts(
   products: readonly Product[],
   filter: ProductFilter,
@@ -29,10 +36,12 @@ export function filterProducts(
   return products.filter((product) => {
     const categoryMatches =
       filter.categoryId === "all" || product.categoryId === filter.categoryId;
+    const brand = normalizeSearchText(product.brand ?? "");
+    const aliases = brandAliases[brand] ?? "";
     const searchMatches =
       !query ||
       normalizeSearchText(
-        `${getProductDisplayName(product)} ${product.nameEn ?? ""} ${product.brand ?? ""}`,
+        `${getProductDisplayName(product)} ${product.nameEn ?? ""} ${brand} ${aliases}`,
       ).includes(query);
 
     return categoryMatches && searchMatches;
