@@ -21,8 +21,7 @@ export function ProductInformation({
   const split = description
     ? splitProductText(description)
     : { description: m.catalog.descriptionPending, usage: null };
-  // A separate usage field wins only when the description holds no usage of its own.
-  const usage = split.usage ?? (usageNotes?.trim() || null);
+  const usage = usageNotes?.trim() || split.usage;
   return (
     <div className="product-info">
       <details className="product-info-section product-info-description">

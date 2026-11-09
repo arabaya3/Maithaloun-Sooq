@@ -270,6 +270,7 @@ export default async function AdminProductEditPage({
             nameAr: product.nameAr,
             categoryId: product.categoryId,
             description: product.description ?? "",
+            usageNotes: product.usageNotes ?? "",
             kind: simple.kind,
             optionName: simple.optionName,
             rows: simple.rows,

@@ -57,6 +57,7 @@ const inputSchema = z.object({
   nameAr: z.string().trim().max(160),
   categoryId: z.string().max(40),
   description: z.string().trim().max(4_000),
+  usageNotes: z.string().trim().max(4_000).optional(),
   kind: z.enum(simpleKinds),
   optionName: z.string().trim().max(40),
   rows: z.array(rowSchema).min(1).max(MAX_OPTION_VALUES),
@@ -171,7 +172,7 @@ export async function saveSimpleProductAction(
         availability: "unavailable",
         sortOrder: 100,
         description: input.description || undefined,
-        usageNotes: undefined,
+        usageNotes: input.usageNotes || undefined,
         unit: undefined,
         detailsStatus: "placeholder",
         placeholderVariant: "general-cleaner",
@@ -193,7 +194,10 @@ export async function saveSimpleProductAction(
         availability: product.availability,
         sortOrder: product.sortOrder,
         description: input.description || undefined,
-        usageNotes: product.usageNotes,
+        usageNotes:
+          input.usageNotes === undefined
+            ? product.usageNotes
+            : input.usageNotes || undefined,
         unit: product.unit,
         detailsStatus: product.detailsStatus,
         placeholderVariant:

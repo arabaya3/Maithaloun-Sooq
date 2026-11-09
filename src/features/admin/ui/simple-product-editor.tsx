@@ -46,6 +46,7 @@ export interface SimpleProductInitial {
   nameAr: string;
   categoryId: string;
   description: string;
+  usageNotes: string;
   kind: SimpleKind;
   optionName: string;
   rows: SimpleRow[];
@@ -236,6 +237,7 @@ export function SimpleProductEditor({
   const [nameAr, setNameAr] = useState(initial.nameAr);
   const [categoryId, setCategoryId] = useState(initial.categoryId);
   const [description, setDescription] = useState(initial.description);
+  const [usageNotes, setUsageNotes] = useState(initial.usageNotes);
   const [kind, setKind] = useState<SimpleKind>(initial.kind);
   const [optionName, setOptionName] = useState(initial.optionName);
   const [rows, setRows] = useState<EditRow[]>(() =>
@@ -354,6 +356,7 @@ export function SimpleProductEditor({
     setNameAr(initial.nameAr);
     setCategoryId(initial.categoryId);
     setDescription(initial.description);
+    setUsageNotes(initial.usageNotes);
     setKind(initial.kind);
     setOptionName(initial.optionName);
     setRows(initial.rows.length ? initial.rows.map(toEdit) : [emptyRow()]);
@@ -373,6 +376,7 @@ export function SimpleProductEditor({
         nameAr,
         categoryId,
         description,
+        usageNotes,
         kind,
         optionName,
         rows: visibleRows.map((row) => ({
@@ -500,6 +504,18 @@ export function SimpleProductEditor({
             rows={3}
             maxLength={4000}
             aria-label="وصف المنتج"
+          />
+        </details>
+        <details className="sp-more" open={Boolean(initial.usageNotes)}>
+          <summary>طريقة الاستعمال (اختياري)</summary>
+          <textarea
+            value={usageNotes}
+            onChange={(event) =>
+              change(() => setUsageNotes(event.target.value))
+            }
+            rows={3}
+            maxLength={4000}
+            aria-label="طريقة الاستعمال"
           />
         </details>
       </section>
