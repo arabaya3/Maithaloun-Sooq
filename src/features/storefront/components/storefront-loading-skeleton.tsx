@@ -1,5 +1,7 @@
 "use client";
 
+import Image from "next/image";
+
 import { useI18n } from "@/i18n/i18n-provider";
 
 import { MobileNavigation } from "./mobile-navigation";
@@ -17,23 +19,20 @@ export function StorefrontLoadingSkeleton() {
         <p className="sr-only" role="status">
           {misc.loadingProducts}
         </p>
-        <section className="welcome" aria-hidden="true">
-          <span className="skeleton skeleton-title" />
-          <span className="skeleton skeleton-search" />
-        </section>
-        <span className="skeleton skeleton-hero" aria-hidden="true" />
-        <div className="category-list" aria-hidden="true">
-          {Array.from({ length: 5 }, (_, index) => (
-            <span key={index} className="skeleton-category">
-              <span className="skeleton skeleton-category-icon" />
-              <span className="skeleton skeleton-category-label" />
+        <div className="grid min-h-[42vh] place-items-center" aria-hidden="true">
+          <div className="relative motion-safe:animate-pulse">
+            <Image
+              src="/brand/logo/meetho-header.svg"
+              alt=""
+              width={160}
+              height={117}
+              unoptimized
+              className="rounded-xl"
+            />
+            <span className="absolute -end-4 -top-2 text-xl text-[#40865a]">
+              ✦
             </span>
-          ))}
-        </div>
-        <div className="product-grid" aria-hidden="true">
-          {Array.from({ length: 4 }, (_, index) => (
-            <span key={index} className="skeleton skeleton-product" />
-          ))}
+          </div>
         </div>
       </main>
       <MobileNavigation />
