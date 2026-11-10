@@ -2505,6 +2505,16 @@ body:has(.store-footer) > main {
 }
 
 @media (max-width: 47.99rem) {
+  .mobile-navigation a:is([href="/request-product"], [href="/en/request-product"]) {
+    margin-inline: 0;
+    text-align: center;
+  }
+
+  .mobile-navigation a:is([href="/request-product"], [href="/en/request-product"]) > span {
+    font-size: 0.72rem;
+    white-space: nowrap;
+  }
+
   .site-header-no-search .header-bar {
     grid-template-areas: "menu brand actions";
   }
