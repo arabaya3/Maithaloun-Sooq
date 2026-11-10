@@ -66,7 +66,7 @@ test("guest orders without any account step, then sees an optional suggestion", 
   await expect(page.getByRole("dialog")).toHaveCount(0);
   await placeOrder(page, PHONES[0]!);
   const suggestion = page.locator(".account-suggestion");
-  await expect(suggestion).toContainText("أنشئ حساباً لحفظ المفضلة");
+  await expect(suggestion).toContainText("أنشئ حساباً لمتابعة الطلبات");
   await expect(page.getByRole("dialog")).toHaveCount(0);
   await expectNoHorizontalOverflow(page);
   expect(issues.consoleErrors).toEqual([]);
@@ -147,49 +147,12 @@ test("reorder shows current prices before adding to the cart", async ({
   await expect(page.getByText("9.5 ₪").first()).toBeVisible();
 });
 
-test("guest favourites merge into the account only when the customer asks", async ({
-  page,
-}) => {
-  await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto("/");
-  await page
-    .getByRole("button", { name: /إضافة مبيض Dolphin إلى المفضلة/ })
-    .click();
-  await page.goto("/favorites");
-  await expect(page.locator(".results-count")).toHaveText("منتج واحد");
-  await expect(page.getByRole("link", { name: "سجّل الدخول" })).toBeVisible();
-
-  await signIn(page, PHONES[1]!, "/favorites");
-  await expect(page).toHaveURL(/\/favorites/);
-  const prompt = page.locator(".account-suggestion");
-  await expect(prompt).toContainText("محفوظة على هذا الجهاز فقط");
-  await page.screenshot({
-    path: "artifacts/customer-accounts/favorites-merge-390.png",
-    fullPage: true,
-  });
-  await expect(page.locator(".empty-state")).toBeVisible();
-  await prompt.getByRole("button", { name: "إضافة إلى حسابي" }).click();
-  await expect(prompt).toContainText("أضفنا منتجات هذا الجهاز إلى مفضلتك (1)");
-  await expect(
-    page.locator("[data-product-id='dolphin-bleach']"),
-  ).toBeVisible();
-
-  await page.reload();
-  await expect(
-    page.locator("[data-product-id='dolphin-bleach']"),
-  ).toBeVisible();
-  await expect(page.locator(".account-suggestion")).toHaveCount(0);
-  await expectNoHorizontalOverflow(page);
-});
-
 test("a second customer sees none of the first customer's data", async ({
   page,
 }) => {
   await signIn(page, PHONES[2]!, "/account/orders");
   await expect(page.getByText("لا توجد طلبات بعد")).toBeVisible();
   await expect(page.getByText(/طلبات سابقة برقمك/)).toHaveCount(0);
-  await page.goto("/favorites");
-  await expect(page.locator(".empty-state")).toBeVisible();
 });
 
 test("profile, default address prefill and account deletion", async ({

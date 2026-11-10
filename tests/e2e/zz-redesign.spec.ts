@@ -34,10 +34,10 @@ for (const locale of ["ar", "en"] as const) {
     await expectAccessible(page);
   });
 
-  test(`empty wishlist and the delivery page pass axe (${locale})`, async ({
+  test(`product request and delivery pages pass axe (${locale})`, async ({
     page,
   }) => {
-    for (const path of ["/favorites", "/delivery"]) {
+    for (const path of ["/request-product", "/delivery"]) {
       await page.goto(`${prefix}${path}`);
       await expect(page.locator("main")).toBeVisible();
       await expectAccessible(page);

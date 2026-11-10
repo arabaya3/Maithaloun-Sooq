@@ -71,10 +71,8 @@ describe("storefront", () => {
     expect(screen.getByText("7 ₪")).toHaveAttribute("dir", "ltr");
     expect(screen.getByLabelText("السعر 7 ₪")).toBeInTheDocument();
     expect(
-      screen.getByRole("button", {
-        name: "إضافة منظف عام Secret إلى المفضلة",
-      }),
-    ).toBeInTheDocument();
+      screen.queryByRole("button", { name: /المفضلة/ }),
+    ).not.toBeInTheDocument();
   });
 
   it("keeps a page heading without the homepage banners", () => {

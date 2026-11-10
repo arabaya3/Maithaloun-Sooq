@@ -87,9 +87,6 @@ export default async function AccountPage({
                 {t.continueAsGuest}
               </Link>
             </section>
-            <nav className="account-shortcuts" aria-label={t.shortcuts}>
-              <Link href="/favorites">{t.favorites}</Link>
-            </nav>
             <section className="account-card">
               <h2>{t.storeApp}</h2>
               <InstallHelpEntry />

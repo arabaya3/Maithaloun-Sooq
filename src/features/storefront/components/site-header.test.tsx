@@ -28,11 +28,9 @@ describe("SiteHeader", () => {
     expect(
       screen.getByRole("link", { name: "MAYTHA MARKET، الرئيسية" }),
     ).toHaveAttribute("href", "/");
-    const brand = container.querySelector(".brand")!;
-    expect(brand.querySelector(".brand-name")).toHaveTextContent(/^MAYTHA$/);
-    expect(brand.querySelector(".brand-subtitle")).toHaveTextContent(
-      /^MARKET$/,
-    );
+    expect(
+      screen.getByRole("img", { name: "MAYTHA MARKET" }),
+    ).toBeInTheDocument();
     expect(container.textContent).not.toContain("سوق ميثلون");
     const search = screen.getByRole("searchbox", { name: "ابحث في المنتجات" });
     expect(search).toHaveAttribute("name", "q");
@@ -83,8 +81,8 @@ describe("MobileNavigation", () => {
       "/",
       "/categories",
       "/offers",
-      "/favorites",
-      "/account",
+      "/cart",
+      "/request-product",
     ]);
     expect(screen.getByRole("link", { name: "العروض" })).toHaveAttribute(
       "aria-current",

@@ -1,6 +1,6 @@
 "use client";
 
-import { Heart, ShoppingBasket } from "lucide-react";
+import { ShoppingBasket } from "lucide-react";
 import { useState } from "react";
 
 import { QuantityControl } from "@/features/cart/components/quantity-control";
@@ -19,7 +19,6 @@ import {
   piecesText,
   type SellingUnit,
 } from "@/features/catalog/domain/selling-unit";
-import { useFavorites } from "@/features/favorites/favorites-provider";
 import { useI18n } from "@/i18n/i18n-provider";
 import { formatIls } from "@/shared/lib/format-currency";
 
@@ -47,10 +46,8 @@ export function ProductDetailActions({
   const setConfirmation = (text: string) =>
     setNotice({ key: selectionKey, text });
   const { addItem } = useCart();
-  const { isFavorite, toggleFavorite } = useFavorites();
   const { m, locale } = useI18n();
   const name = localizedProductName(product, locale);
-  const favorite = isFavorite(product.id);
   const variant = product.variants.find((entry) => entry.id === variantId);
   const canAdd = Boolean(
     variant &&
@@ -151,24 +148,6 @@ export function ProductDetailActions({
           : variantId
             ? m.catalog.productUnavailable
             : m.catalog.chooseOptions}
-      </button>
-      <button
-        type="button"
-        className="detail-favorite-button"
-        aria-label={
-          favorite
-            ? m.catalog.removeFromFavorites(name)
-            : m.catalog.addToFavorites(name)
-        }
-        aria-pressed={favorite}
-        onClick={() => toggleFavorite(product.id)}
-      >
-        <Heart aria-hidden="true" className={favorite ? "fill-current" : ""} />
-        <span>
-          {favorite
-            ? m.catalog.savedToFavorites
-            : m.catalog.addToFavoritesButton}
-        </span>
       </button>
       <p className="cart-confirmation" role="status" aria-live="polite">
         {confirmation}

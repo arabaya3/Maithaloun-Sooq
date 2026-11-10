@@ -16,7 +16,7 @@ const ar = {
   cashOnDelivery: "نقداً عند الاستلام",
   backToStore: "العودة إلى المتجر",
   accountSuggestion:
-    "أنشئ حساباً لحفظ المفضلة، متابعة الطلبات وإعادة طلب مشترياتك بسهولة. يمكنك إضافة هذا الطلب لحسابك بعد تأكيد رقمك.",
+    "أنشئ حساباً لمتابعة الطلبات وإعادة طلب مشترياتك بسهولة. يمكنك إضافة هذا الطلب لحسابك بعد تأكيد رقمك.",
   createAccount: "إنشاء حساب",
   handoffTitle: "أرسل الطلب على واتساب لتأكيده",
   handoffText:
@@ -69,7 +69,7 @@ const en: typeof ar = {
   cashOnDelivery: "Cash on delivery",
   backToStore: "Back to the store",
   accountSuggestion:
-    "Create an account to save favourites, follow your orders and reorder easily. You can add this order to your account once your number is verified.",
+    "Create an account to follow your orders and reorder easily. You can add this order to your account once your number is verified.",
   createAccount: "Create an account",
   handoffTitle: "Send your order on WhatsApp to confirm it",
   handoffText:

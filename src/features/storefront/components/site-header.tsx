@@ -1,6 +1,6 @@
 "use client";
 
-import { Heart, Menu, Search, ShoppingBag } from "lucide-react";
+import { Menu, Search, ShoppingBag } from "lucide-react";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 
@@ -36,16 +36,26 @@ function HeaderSearchForm() {
   );
 }
 
-export function SiteHeader({ search }: { search?: ReactNode }) {
+export function SiteHeader({
+  search,
+  hideSearch = false,
+}: {
+  search?: ReactNode;
+  hideSearch?: boolean;
+}) {
   const { count } = useCart();
-  const { m } = useI18n();
+  const { m, locale } = useI18n();
   const pathname = splitLocalePath(usePathname() ?? "/").path;
   const categories = useNavigationCategories();
   const isCurrent = (href: string) =>
     href === "/" ? pathname === "/" : pathname.startsWith(href);
 
   return (
-    <header className="site-header">
+    <header
+      className={
+        hideSearch ? "site-header site-header-no-search" : "site-header"
+      }
+    >
       <div className="header-bar page-shell">
         <Link
           href="/categories"
@@ -55,17 +65,11 @@ export function SiteHeader({ search }: { search?: ReactNode }) {
           <Menu aria-hidden="true" />
         </Link>
         <BrandLogo />
-        <div className="header-search">{search ?? <HeaderSearchForm />}</div>
+        {hideSearch ? null : (
+          <div className="header-search">{search ?? <HeaderSearchForm />}</div>
+        )}
         <nav className="header-actions" aria-label={m.common.cart}>
           <LanguageSwitcher className="header-language" />
-          <Link
-            href="/favorites"
-            className="header-action header-action-wide"
-            aria-current={isCurrent("/favorites") ? "page" : undefined}
-          >
-            <Heart aria-hidden="true" />
-            <span>{m.common.favorites}</span>
-          </Link>
           <Link href="/cart" className="header-action cart-button">
             <span className="cart-icon">
               <ShoppingBag aria-hidden="true" />
@@ -126,6 +130,12 @@ export function SiteHeader({ search }: { search?: ReactNode }) {
             aria-current={isCurrent("/offers") ? "page" : undefined}
           >
             {m.common.offers}
+          </Link>
+          <Link
+            href="/request-product"
+            aria-current={isCurrent("/request-product") ? "page" : undefined}
+          >
+            {locale === "ar" ? "اطلب منتج" : "Request product"}
           </Link>
         </div>
       </nav>

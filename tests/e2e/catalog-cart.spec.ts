@@ -15,9 +15,7 @@ function trackPageIssues(page: Page) {
   return { consoleErrors, failedRequests };
 }
 
-test("product details, favorites, and cart stay synchronized", async ({
-  page,
-}) => {
+test("product details and cart stay synchronized", async ({ page }) => {
   const issues = trackPageIssues(page);
   await page.goto("/");
 
@@ -29,16 +27,6 @@ test("product details, favorites, and cart stay synchronized", async ({
   await expect(
     page.getByRole("heading", { level: 1, name: "منظف عام Secret" }),
   ).toBeVisible();
-
-  const favorite = page.getByRole("button", {
-    name: "إضافة منظف عام Secret إلى المفضلة",
-  });
-  await favorite.click();
-  await expect(
-    page.getByRole("button", {
-      name: "إزالة منظف عام Secret من المفضلة",
-    }),
-  ).toHaveAttribute("aria-pressed", "true");
 
   await page
     .locator(".product-detail-actions")
@@ -54,12 +42,6 @@ test("product details, favorites, and cart stay synchronized", async ({
   await page
     .getByRole("link", { name: /^MAYTHA MARKET\s?، الرئيسية$/ })
     .click();
-  await expect(
-    page.getByRole("button", {
-      name: "إزالة منظف عام Secret من المفضلة",
-    }),
-  ).toHaveAttribute("aria-pressed", "true");
-
   await page.locator(".cart-button").click();
   await expect(
     page.getByRole("heading", { level: 1, name: "سلة التسوق" }),

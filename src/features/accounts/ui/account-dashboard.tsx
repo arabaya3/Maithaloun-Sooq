@@ -143,7 +143,6 @@ export function AccountDashboard({ profile }: { profile: CustomerProfile }) {
     <div className="account-sections">
       <nav className="account-shortcuts" aria-label={t.accountShortcuts}>
         <Link href="/account/orders">{t.myOrders}</Link>
-        <Link href="/favorites">{t.favorites}</Link>
       </nav>
 
       <section className="account-card" aria-labelledby="profile-title">
