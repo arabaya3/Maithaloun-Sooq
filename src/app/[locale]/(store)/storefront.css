@@ -2314,7 +2314,8 @@ body:has(.store-footer) > main {
     background: var(--sage-line);
   }
 
-  .storefront-main:has(#catalog) + .mobile-navigation a[aria-current="page"] {
+  .storefront-main:has(#catalog) + .mobile-navigation a[aria-current="page"],
+  .product-request-page + .mobile-navigation a[aria-current="page"] {
     margin-inline: 0.35rem;
     background: var(--sage-soft);
   }
