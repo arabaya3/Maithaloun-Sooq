@@ -1,13 +1,6 @@
 "use client";
 
-import {
-  ChevronLeft,
-  Heart,
-  Minus,
-  Plus,
-  ShoppingCart,
-  Trash2,
-} from "lucide-react";
+import { ChevronLeft, Minus, Plus, ShoppingCart, Trash2 } from "lucide-react";
 
 import { useState } from "react";
 
@@ -22,16 +15,13 @@ import {
   localizedProductName,
   type Product,
 } from "@/features/catalog/domain/product";
-import { useFavorites } from "@/features/favorites/favorites-provider";
 import { useI18n } from "@/i18n/i18n-provider";
 import { Link } from "@/i18n/link";
 
 export function ProductCard({ product }: { product: Product }) {
   const { lines, addItem, setQuantity, removeItem } = useCart();
-  const { isFavorite, toggleFavorite } = useFavorites();
   const { m, locale } = useI18n();
   const name = localizedProductName(product, locale);
-  const favorite = isFavorite(product.id);
   const optionCount = product.variants.length;
   const [addedVariant, setAddedVariant] = useState<string | null>(null);
   const variantId = product.defaultVariantId;
@@ -70,22 +60,6 @@ export function ProductCard({ product }: { product: Product }) {
           product={product}
           sizes="(min-width: 64rem) 252px, (min-width: 48rem) 30vw, 120px"
         />
-        <button
-          type="button"
-          className="icon-button favorite-button"
-          aria-label={
-            favorite
-              ? m.catalog.removeFromFavorites(name)
-              : m.catalog.addToFavorites(name)
-          }
-          aria-pressed={favorite}
-          onClick={() => toggleFavorite(product.id)}
-        >
-          <Heart
-            aria-hidden="true"
-            className={favorite ? "fill-current" : ""}
-          />
-        </button>
       </div>
 
       <div className="product-details">

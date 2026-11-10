@@ -83,8 +83,8 @@ describe("MobileNavigation", () => {
       "/",
       "/categories",
       "/offers",
-      "/favorites",
-      "/account",
+      "/cart",
+      "/request-product",
     ]);
     expect(screen.getByRole("link", { name: "العروض" })).toHaveAttribute(
       "aria-current",

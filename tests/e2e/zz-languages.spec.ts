@@ -206,7 +206,7 @@ test.describe("English pages at phone and desktop widths", () => {
         "/en/products/general-cleaner-secret",
         "/en/cart",
         "/en/checkout",
-        "/en/favorites",
+        "/en/request-product",
         "/en/account",
       ]) {
         await page.goto(path);
