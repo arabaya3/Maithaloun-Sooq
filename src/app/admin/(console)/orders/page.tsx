@@ -232,9 +232,7 @@ export default async function AdminOrdersPage({
                           prefetch={false}
                           title={order.publicReference}
                         >
-                          <bdi dir="ltr">
-                            {shortenOrderReference(order.publicReference)}
-                          </bdi>
+                          طلب {order.customerName}
                         </Link>
                       </td>
                       <td>{order.customerName}</td>
