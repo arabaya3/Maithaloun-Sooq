@@ -165,8 +165,12 @@ export default async function CustomersPage({
       )}
 
       <section className="admin-panel" aria-labelledby="new-customer-title">
-        <h2 id="new-customer-title">زبون جديد</h2>
-        <CustomerDetailsForm />
+        <details className="admin-fold" open={!customers.length}>
+          <summary id="new-customer-title">إضافة زبون جديد</summary>
+          <div className="admin-fold-body">
+            <CustomerDetailsForm />
+          </div>
+        </details>
       </section>
     </main>
   );

@@ -54,23 +54,29 @@ function Ranking({
 }) {
   return (
     <section className="admin-panel" aria-label={title}>
-      <h2>{title}</h2>
-      {items.length ? (
-        <ol className="admin-line-list">
-          {items.map((item, index) => (
-            <li key={item.productKey} className="admin-line">
-              <span className="admin-line-main">
-                <strong>
-                  <bdi dir="ltr">{index + 1}</bdi>. {item.name}
-                </strong>
-              </span>
-              <span className="admin-line-side">{value(item)}</span>
-            </li>
-          ))}
-        </ol>
-      ) : (
-        <p className="admin-empty">لا توجد بيانات كافية في هذه الفترة.</p>
-      )}
+      <details className="admin-fold">
+        <summary>
+          <h2>{title}</h2>
+        </summary>
+        <div className="admin-fold-body">
+          {items.length ? (
+            <ol className="admin-line-list">
+              {items.map((item, index) => (
+                <li key={item.productKey} className="admin-line">
+                  <span className="admin-line-main">
+                    <strong>
+                      <bdi dir="ltr">{index + 1}</bdi>. {item.name}
+                    </strong>
+                  </span>
+                  <span className="admin-line-side">{value(item)}</span>
+                </li>
+              ))}
+            </ol>
+          ) : (
+            <p className="admin-empty">لا توجد بيانات كافية في هذه الفترة.</p>
+          )}
+        </div>
+      </details>
     </section>
   );
 }
@@ -247,52 +253,66 @@ export default async function ReportsPage({
       </section>
 
       <section className="admin-panel" aria-labelledby="channels-title">
-        <h2 id="channels-title">البيع المباشر مقابل طلبات المتجر</h2>
-        <ul className="admin-line-list">
-          {report.channels.map((channel) => (
-            <li key={channel.channel} className="admin-line">
-              <span className="admin-line-main">
-                <strong>{channelLabels[channel.channel]}</strong>
-                <small>
-                  <bdi dir="ltr">{channel.orderCount}</bdi> عملية · ربح{" "}
-                  <Money agorot={channel.grossProfitAgorot} />
-                </small>
-              </span>
-              <span className="admin-line-side">
-                <Money agorot={channel.netSalesAgorot} />
-              </span>
-            </li>
-          ))}
-        </ul>
+        <details className="admin-fold">
+          <summary>
+            <h2 id="channels-title">البيع المباشر مقابل طلبات المتجر</h2>
+          </summary>
+          <div className="admin-fold-body">
+            <ul className="admin-line-list">
+              {report.channels.map((channel) => (
+                <li key={channel.channel} className="admin-line">
+                  <span className="admin-line-main">
+                    <strong>{channelLabels[channel.channel]}</strong>
+                    <small>
+                      <bdi dir="ltr">{channel.orderCount}</bdi> عملية · ربح{" "}
+                      <Money agorot={channel.grossProfitAgorot} />
+                    </small>
+                  </span>
+                  <span className="admin-line-side">
+                    <Money agorot={channel.netSalesAgorot} />
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </details>
       </section>
 
       <section className="admin-panel" aria-labelledby="series-title">
-        <h2 id="series-title">المبيعات والربح حسب الفترة</h2>
-        <ul className="admin-bar-list">
-          {report.profitSeries
-            .filter((point) => point.netSalesAgorot !== 0)
-            .map((point) => (
-              <li key={point.from}>
-                <span className="admin-bar-label">
-                  <bdi dir="ltr">{point.label}</bdi>
-                </span>
-                <span
-                  className="admin-bar"
-                  style={{
-                    inlineSize: `${Math.max(4, Math.round((point.netSalesAgorot / maxSales) * 100))}%`,
-                  }}
-                  aria-hidden="true"
-                />
-                <span className="admin-bar-value">
-                  <Money agorot={point.netSalesAgorot} /> · ربح{" "}
-                  <Money agorot={point.grossProfitAgorot} />
-                </span>
-              </li>
-            ))}
-        </ul>
-        {report.profitSeries.every((point) => point.netSalesAgorot === 0) ? (
-          <p className="admin-empty">لا توجد مبيعات في هذه الفترة.</p>
-        ) : null}
+        <details className="admin-fold">
+          <summary>
+            <h2 id="series-title">المبيعات والربح حسب الفترة</h2>
+          </summary>
+          <div className="admin-fold-body">
+            <ul className="admin-bar-list">
+              {report.profitSeries
+                .filter((point) => point.netSalesAgorot !== 0)
+                .map((point) => (
+                  <li key={point.from}>
+                    <span className="admin-bar-label">
+                      <bdi dir="ltr">{point.label}</bdi>
+                    </span>
+                    <span
+                      className="admin-bar"
+                      style={{
+                        inlineSize: `${Math.max(4, Math.round((point.netSalesAgorot / maxSales) * 100))}%`,
+                      }}
+                      aria-hidden="true"
+                    />
+                    <span className="admin-bar-value">
+                      <Money agorot={point.netSalesAgorot} /> · ربح{" "}
+                      <Money agorot={point.grossProfitAgorot} />
+                    </span>
+                  </li>
+                ))}
+            </ul>
+            {report.profitSeries.every(
+              (point) => point.netSalesAgorot === 0,
+            ) ? (
+              <p className="admin-empty">لا توجد مبيعات في هذه الفترة.</p>
+            ) : null}
+          </div>
+        </details>
       </section>
 
       <div className="admin-two-column">
@@ -334,146 +354,179 @@ export default async function ReportsPage({
           )}
         />
         <section className="admin-panel" aria-labelledby="selling-units-title">
-          <h2 id="selling-units-title">المبيعات حسب طريقة البيع</h2>
-          {report.bySellingUnit.length ? (
-            <ul className="admin-line-list">
-              {report.bySellingUnit.map((row) => (
-                <li key={row.key} className="admin-line">
-                  <span className="admin-line-main">
-                    <strong>{row.name}</strong>
-                    <small>
-                      {row.sellingUnitLabel ?? "بالوحدة"} ·{" "}
-                      <Quantity milli={row.saleQuantityMilli} /> مرة ·{" "}
-                      <Quantity milli={row.quantityMilli} /> قطعة
-                      {row.profitAgorot === null ? (
-                        " · التكلفة غير مسجلة"
-                      ) : (
-                        <>
-                          {" "}
-                          · تكلفة <Money agorot={row.cogsAgorot ?? 0} /> · ربح{" "}
-                          <Money agorot={row.profitAgorot} />
-                        </>
-                      )}
-                    </small>
-                  </span>
-                  <span className="admin-line-side">
-                    <Money agorot={row.netSalesAgorot} />
-                  </span>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="admin-empty">
-              لا توجد مبيعات حسب طرق البيع في هذه الفترة.
-            </p>
-          )}
+          <details className="admin-fold">
+            <summary>
+              <h2 id="selling-units-title">المبيعات حسب طريقة البيع</h2>
+            </summary>
+            <div className="admin-fold-body">
+              {report.bySellingUnit.length ? (
+                <ul className="admin-line-list">
+                  {report.bySellingUnit.map((row) => (
+                    <li key={row.key} className="admin-line">
+                      <span className="admin-line-main">
+                        <strong>{row.name}</strong>
+                        <small>
+                          {row.sellingUnitLabel ?? "بالوحدة"} ·{" "}
+                          <Quantity milli={row.saleQuantityMilli} /> مرة ·{" "}
+                          <Quantity milli={row.quantityMilli} /> قطعة
+                          {row.profitAgorot === null ? (
+                            " · التكلفة غير مسجلة"
+                          ) : (
+                            <>
+                              {" "}
+                              · تكلفة <Money agorot={row.cogsAgorot ?? 0} /> ·
+                              ربح <Money agorot={row.profitAgorot} />
+                            </>
+                          )}
+                        </small>
+                      </span>
+                      <span className="admin-line-side">
+                        <Money agorot={row.netSalesAgorot} />
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="admin-empty">
+                  لا توجد مبيعات حسب طرق البيع في هذه الفترة.
+                </p>
+              )}
+            </div>
+          </details>
         </section>
       </div>
 
       <div className="admin-two-column">
         <section className="admin-panel" aria-labelledby="stock-alerts-title">
-          <h2 id="stock-alerts-title">نواقص المخزون</h2>
-          {report.outOfStock.length + report.lowStock.length ? (
-            <ul className="admin-line-list">
-              {report.outOfStock.map((item) => (
-                <li key={`out-${item.variantId}`} className="admin-line">
-                  <span className="admin-line-main">
-                    <strong>{item.name}</strong>
-                  </span>
-                  <span className="admin-line-side">نفد</span>
-                </li>
-              ))}
-              {report.lowStock.map((item) => (
-                <li key={`low-${item.variantId}`} className="admin-line">
-                  <span className="admin-line-main">
-                    <strong>{item.name}</strong>
-                  </span>
-                  <span className="admin-line-side">
-                    <Quantity milli={item.availableMilli} unit={item.unit} />
-                  </span>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="admin-empty">لا توجد نواقص.</p>
-          )}
+          <details className="admin-fold">
+            <summary>
+              <h2 id="stock-alerts-title">نواقص المخزون</h2>
+            </summary>
+            <div className="admin-fold-body">
+              {report.outOfStock.length + report.lowStock.length ? (
+                <ul className="admin-line-list">
+                  {report.outOfStock.map((item) => (
+                    <li key={`out-${item.variantId}`} className="admin-line">
+                      <span className="admin-line-main">
+                        <strong>{item.name}</strong>
+                      </span>
+                      <span className="admin-line-side">نفد</span>
+                    </li>
+                  ))}
+                  {report.lowStock.map((item) => (
+                    <li key={`low-${item.variantId}`} className="admin-line">
+                      <span className="admin-line-main">
+                        <strong>{item.name}</strong>
+                      </span>
+                      <span className="admin-line-side">
+                        <Quantity
+                          milli={item.availableMilli}
+                          unit={item.unit}
+                        />
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="admin-empty">لا توجد نواقص.</p>
+              )}
+            </div>
+          </details>
         </section>
 
         <section className="admin-panel" aria-labelledby="slow-title">
-          <h2 id="slow-title">بضاعة راكدة</h2>
-          {report.slowMoving.length ? (
-            <ul className="admin-line-list">
-              {report.slowMoving.map((item) => (
-                <li key={item.variantId} className="admin-line">
-                  <span className="admin-line-main">
-                    <strong>{item.name}</strong>
-                    <small>
-                      {item.daysSinceSale === null
-                        ? "لم يُبع منذ بدء التتبّع"
-                        : `آخر بيع قبل ${item.daysSinceSale} يوم`}
-                    </small>
-                  </span>
-                  <span className="admin-line-side">
-                    <Quantity milli={item.onHandMilli} unit={item.unit} />
-                  </span>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="admin-empty">لا توجد بضاعة راكدة.</p>
-          )}
+          <details className="admin-fold">
+            <summary>
+              <h2 id="slow-title">بضاعة راكدة</h2>
+            </summary>
+            <div className="admin-fold-body">
+              {report.slowMoving.length ? (
+                <ul className="admin-line-list">
+                  {report.slowMoving.map((item) => (
+                    <li key={item.variantId} className="admin-line">
+                      <span className="admin-line-main">
+                        <strong>{item.name}</strong>
+                        <small>
+                          {item.daysSinceSale === null
+                            ? "لم يُبع منذ بدء التتبّع"
+                            : `آخر بيع قبل ${item.daysSinceSale} يوم`}
+                        </small>
+                      </span>
+                      <span className="admin-line-side">
+                        <Quantity milli={item.onHandMilli} unit={item.unit} />
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="admin-empty">لا توجد بضاعة راكدة.</p>
+              )}
+            </div>
+          </details>
         </section>
 
         <section className="admin-panel" aria-labelledby="overdue-title">
-          <h2 id="overdue-title">ديون متأخرة</h2>
-          {report.overdueCustomers.length ? (
-            <ul className="admin-line-list">
-              {report.overdueCustomers.map((customer) => (
-                <li key={customer.id}>
-                  <Link
-                    href={`/admin/customers/${customer.id}`}
-                    prefetch={false}
-                    className="admin-line"
-                  >
-                    <span className="admin-line-main">
-                      <strong>{customer.name}</strong>
-                      <small>
-                        منذ <bdi dir="ltr">{customer.ageDays}</bdi> يوم
-                      </small>
-                    </span>
-                    <span className="admin-line-side">
-                      <Money agorot={customer.balanceAgorot} />
-                    </span>
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="admin-empty">لا توجد ديون متأخرة.</p>
-          )}
+          <details className="admin-fold">
+            <summary>
+              <h2 id="overdue-title">ديون متأخرة</h2>
+            </summary>
+            <div className="admin-fold-body">
+              {report.overdueCustomers.length ? (
+                <ul className="admin-line-list">
+                  {report.overdueCustomers.map((customer) => (
+                    <li key={customer.id}>
+                      <Link
+                        href={`/admin/customers/${customer.id}`}
+                        prefetch={false}
+                        className="admin-line"
+                      >
+                        <span className="admin-line-main">
+                          <strong>{customer.name}</strong>
+                          <small>
+                            منذ <bdi dir="ltr">{customer.ageDays}</bdi> يوم
+                          </small>
+                        </span>
+                        <span className="admin-line-side">
+                          <Money agorot={customer.balanceAgorot} />
+                        </span>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="admin-empty">لا توجد ديون متأخرة.</p>
+              )}
+            </div>
+          </details>
         </section>
 
         <section className="admin-panel" aria-labelledby="cost-changes-title">
-          <h2 id="cost-changes-title">تغيّر تكلفة الشراء</h2>
-          {report.costChanges.length ? (
-            <ul className="admin-line-list">
-              {report.costChanges.map((change, index) => (
-                <li key={`${change.name}-${index}`} className="admin-line">
-                  <span className="admin-line-main">
-                    <strong>{change.name}</strong>
-                  </span>
-                  <span className="admin-line-side">
-                    <span>
-                      <Money agorot={change.previousCostAgorot ?? 0} /> ←{" "}
-                      <Money agorot={change.newCostAgorot} />
-                    </span>
-                  </span>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="admin-empty">لم تتغيّر تكاليف الشراء.</p>
-          )}
+          <details className="admin-fold">
+            <summary>
+              <h2 id="cost-changes-title">تغيّر تكلفة الشراء</h2>
+            </summary>
+            <div className="admin-fold-body">
+              {report.costChanges.length ? (
+                <ul className="admin-line-list">
+                  {report.costChanges.map((change, index) => (
+                    <li key={`${change.name}-${index}`} className="admin-line">
+                      <span className="admin-line-main">
+                        <strong>{change.name}</strong>
+                      </span>
+                      <span className="admin-line-side">
+                        <span>
+                          <Money agorot={change.previousCostAgorot ?? 0} /> ←{" "}
+                          <Money agorot={change.newCostAgorot} />
+                        </span>
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="admin-empty">لم تتغيّر تكاليف الشراء.</p>
+              )}
+            </div>
+          </details>
         </section>
       </div>
     </main>
