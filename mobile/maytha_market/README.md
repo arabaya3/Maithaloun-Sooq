@@ -5,7 +5,7 @@ Reads the public store API; orders are sent by the customer through WhatsApp (th
 
 ```
 flutter pub get
-flutter run --dart-define=API_BASE_URL=https://maithaloun-sooq.vercel.app
+flutter run --dart-define=API_BASE_URL=https://www.maytha.app
 flutter analyze && flutter test
 flutter test integration_test -d <device>   # live API, read-only (catalog, product, quote); never creates orders
 flutter build apk --debug

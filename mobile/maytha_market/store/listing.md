@@ -4,8 +4,8 @@ App name: **MAYTHA MARKET**
 Package / bundle id: `market.maytha.app`
 Category: Shopping
 Default language: Arabic (ar). Also: English (en-US).
-Website / support / marketing URL: https://maithaloun-sooq.vercel.app
-Privacy policy URL: https://maithaloun-sooq.vercel.app/privacy
+Website / support / marketing URL: https://www.maytha.app
+Privacy policy URL: https://www.maytha.app/privacy
 Contact (WhatsApp): +972599105456
 
 ## Field limits (characters) and current length

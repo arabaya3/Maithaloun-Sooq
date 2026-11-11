@@ -7,6 +7,7 @@
 	     App ID needs the Associated Domains capability in the Apple developer account. -->
 	<key>com.apple.developer.associated-domains</key>
 	<array>
+		<string>applinks:www.maytha.app</string>
 		<string>applinks:maithaloun-sooq.vercel.app</string>
 	</array>
 </dict>

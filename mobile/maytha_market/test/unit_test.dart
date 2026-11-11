@@ -86,7 +86,7 @@ void main() {
   group('whatsapp message', () {
     test('Arabic message matches the website lines exactly', () {
       final msg = buildWhatsAppOrderMessage(
-          quote: sampleQuote, arabic: true, storeUrl: 'https://maithaloun-sooq.vercel.app');
+          quote: sampleQuote, arabic: true, storeUrl: 'https://www.maytha.app');
       expect(msg.split('\n'), [
         'مرحباً MAYTHA 🌿',
         '',
@@ -102,7 +102,7 @@ void main() {
         'الإجمالي: 30 ₪',
         'الدفع نقداً عند الاستلام.',
         '',
-        'رابط المتجر: https://maithaloun-sooq.vercel.app',
+        'رابط المتجر: https://www.maytha.app',
       ]);
     });
     test('English message and omitted option line', () {
@@ -205,6 +205,7 @@ void main() {
     });
     test('deep link slugs', () {
       expect(slugFromDeepLink(Uri.parse('maytha://product/fairy-lemon')), 'fairy-lemon');
+      expect(slugFromDeepLink(Uri.parse('https://www.maytha.app/products/broom')), 'broom');
       expect(slugFromDeepLink(Uri.parse('https://maithaloun-sooq.vercel.app/products/broom')), 'broom');
       expect(slugFromDeepLink(Uri.parse('https://maithaloun-sooq.vercel.app/ar/products/broom')), 'broom');
       expect(slugFromDeepLink(Uri.parse('https://maithaloun-sooq.vercel.app/about')), isNull);

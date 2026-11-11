@@ -6,7 +6,7 @@ Items marked **[Owner]** need the store owner's accounts, money, devices or keys
 - [ ] The store API endpoints (`/api/v1/catalog`, `/api/v1/products/<slug>`, `/api/v1/cart/quote`) are live in Production.
 - [ ] `flutter analyze` clean and `flutter test` green in `mobile/maytha_market`.
 - [ ] Manual smoke test on a real Android phone: browse, search in Arabic, product page, add to cart, totals, "Order via WhatsApp" opens WhatsApp with the right message, language switch, deep link `maytha://product/<slug>`.
-- [x] Privacy policy: https://maithaloun-sooq.vercel.app/privacy (English: /en/privacy), with an app section. **[Owner]** reviews the text.
+- [x] Privacy policy: https://www.maytha.app/privacy (English: /en/privacy), with an app section. **[Owner]** reviews the text.
 - [ ] Bump `version:` in `pubspec.yaml` for every upload (`1.0.0+1` → `1.0.1+2`...). The build number must always increase.
 
 Build with a non-default API if needed:
@@ -40,7 +40,7 @@ Build with a non-default API if needed:
       3. Vercel → Project → Settings → Environment Variables (Production): `ANDROID_APP_CERT_SHA256` =
          `<app signing SHA-256>,<upload SHA-256>` (the upload one lets locally installed release builds verify too). Redeploy.
          Do not set it before step 2: with the upload fingerprint only, Play installs will not verify.
-      4. Check `https://maithaloun-sooq.vercel.app/.well-known/assetlinks.json` lists both (404 until set). The app already
+      4. Check `https://www.maytha.app/.well-known/assetlinks.json` lists both (404 until set). The app already
          declares `android:autoVerify="true"` for `/products/*`, `/ar/products/*`, `/en/products/*`.
       5. On a phone with the Play build: `adb shell pm get-app-links market.maytha.app` shows `verified`.
       `maytha://product/<slug>` always opens the app.
@@ -53,9 +53,9 @@ iOS is built and tested in CI on every app change (`.github/workflows/mobile.yml
 - [ ] Open `ios/Runner.xcworkspace` in Xcode → Runner target → Signing & Capabilities → select the Team; bundle id `market.maytha.app` (register it in the developer portal if Xcode does not do it automatically).
 - [ ] Check app icon (no alpha) and launch screen in the simulator; run on a real iPhone.
 - [ ] Test deep link `maytha://product/<slug>` and WhatsApp ordering on the iPhone.
-- [ ] **Universal Links**: in the developer portal enable **Associated Domains** for the App ID `market.maytha.app` (the app already requests `applinks:maithaloun-sooq.vercel.app`). In Vercel add `APPLE_TEAM_ID` = your 10-character Team ID and redeploy; `https://maithaloun-sooq.vercel.app/.well-known/apple-app-site-association` then lists `<TEAM_ID>.market.maytha.app` for product pages.
+- [ ] **Universal Links**: in the developer portal enable **Associated Domains** for the App ID `market.maytha.app` (the app already requests `applinks:www.maytha.app`). In Vercel add `APPLE_TEAM_ID` = your 10-character Team ID and redeploy; `https://www.maytha.app/.well-known/apple-app-site-association` then lists `<TEAM_ID>.market.maytha.app` for product pages.
 - [ ] `flutter build ipa --release` (or Xcode → Product → Archive) and upload with Xcode Organizer or Transporter.
-- [ ] **[Owner]** App Store Connect: create the app (name, primary language Arabic, bundle id, SKU), category Shopping, privacy policy URL, App Privacy = Data Not Collected, age rating, screenshots: iPhone 6.9" set `store/app-store/*.png` (1320×2868, from the `store-screenshots` workflow artifact; the app is iPhone only, so no iPad set), name ≤ 30, subtitle ≤ 30, promotional text ≤ 170, description ≤ 4000 and keywords ≤ 100 characters from `store/listing.md`, support/marketing URL https://maithaloun-sooq.vercel.app, review contact details.
+- [ ] **[Owner]** App Store Connect: create the app (name, primary language Arabic, bundle id, SKU), category Shopping, privacy policy URL, App Privacy = Data Not Collected, age rating, screenshots: iPhone 6.9" set `store/app-store/*.png` (1320×2868, from the `store-screenshots` workflow artifact; the app is iPhone only, so no iPad set), name ≤ 30, subtitle ≤ 30, promotional text ≤ 170, description ≤ 4000 and keywords ≤ 100 characters from `store/listing.md`, support/marketing URL https://www.maytha.app, review contact details.
 - [ ] TestFlight internal test, then submit for review. Explain in the review notes that ordering happens through WhatsApp and payment is cash on delivery (no in-app purchases of digital goods).
 
 ## 3. After release
