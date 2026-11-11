@@ -1,3 +1,4 @@
+import { AdminDisclosure } from "@/features/admin/ui/admin-disclosure";
 import type { Metadata } from "next";
 import Link from "next/link";
 import {
@@ -33,7 +34,6 @@ import {
   AdminNextActionLabel,
   AdminStatusBadge,
   formatAdminRelativeTime,
-  shortenOrderReference,
 } from "@/features/admin/ui/admin-status-badge";
 import { EmptyState, MetricCard, StickyAction } from "@/features/admin/ui/kit";
 import { PushNotificationControl } from "@/features/admin/ui/push-notification-control";
@@ -126,12 +126,8 @@ async function WeekCard({ actor }: { actor: AdminActor }) {
   const max = Math.max(1, ...week.days.map((day) => day.netSalesAgorot));
   const change = week.todayAgorot - week.yesterdayAgorot;
   return (
-    <section
-      className="admin-today-card admin-week"
-      aria-labelledby="week-title"
-    >
+    <AdminDisclosure title="آخر 7 أيام" className="admin-today-card admin-week">
       <div className="admin-today-card-head">
-        <h2 id="week-title">آخر 7 أيام</h2>
         <Link href="/admin/reports" prefetch={false}>
           التقارير
           <ChevronLeft size={16} aria-hidden="true" />
@@ -193,7 +189,7 @@ async function WeekCard({ actor }: { actor: AdminActor }) {
       ) : (
         <p className="admin-muted">لا توجد مبيعات في آخر 7 أيام.</p>
       )}
-    </section>
+    </AdminDisclosure>
   );
 }
 
@@ -383,10 +379,7 @@ export default async function AdminTodayPage() {
                           className="admin-action-item-title"
                           title={order.publicReference}
                         >
-                          طلب{" "}
-                          <bdi dir="ltr">
-                            {shortenOrderReference(order.publicReference)}
-                          </bdi>
+                          طلب {order.customerName}
                         </Link>
                         <p className="admin-muted">
                           <bdi>{order.customerName}</bdi> ·{" "}
@@ -419,13 +412,9 @@ export default async function AdminTodayPage() {
             )}
           </section>
 
-          <section
-            className="admin-today-card"
-            aria-labelledby="timeline-title"
-          >
+          <AdminDisclosure title="مهام اليوم" className="admin-today-card">
             <div className="admin-today-card-head">
               <div>
-                <h2 id="timeline-title">مهام اليوم</h2>
                 <p className="admin-muted">
                   كل ما حدث في متجرك اليوم، بالترتيب الزمني
                 </p>
@@ -478,7 +467,7 @@ export default async function AdminTodayPage() {
                 </p>
               </EmptyState>
             )}
-          </section>
+          </AdminDisclosure>
         </div>
 
         <aside className="admin-today-side" aria-label="إجراءات وتنبيهات">
@@ -516,11 +505,10 @@ export default async function AdminTodayPage() {
             </Suspense>
           </section>
 
-          <section className="admin-today-card" aria-labelledby="device-title">
-            <h2 id="device-title">هذا الجهاز</h2>
+          <AdminDisclosure title="هذا الجهاز" className="admin-today-card">
             <AdminInstallAction />
             <PushNotificationControl />
-          </section>
+          </AdminDisclosure>
         </aside>
       </div>
     </main>

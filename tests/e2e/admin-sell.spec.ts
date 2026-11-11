@@ -68,30 +68,21 @@ test("order page says what each status change does before it happens", async ({
   for (const [width, height] of WIDTHS) {
     await page.setViewportSize({ width, height });
     await page.goto(`/admin/orders/${reference}`);
-    const actions = page.getByRole("region", { name: "الإجراءات المتاحة" });
+    const actions = page.getByRole("region", { name: "متابعة الطلب" });
     const confirm = actions.getByRole("button", { name: "تأكيد الطلب" });
     await expect(confirm).toBeEnabled();
     // The effect is announced with the button, not discovered afterwards.
     await expect(confirm).toHaveAccessibleDescription(
       /ماذا سيحدث عند التأكيد:.*«منظف عام.*» غير متتبَّع في المخزون، فلا يتغير\. لا يُحصَّل أي مبلغ الآن/,
     );
-    const next = page.getByRole("link", {
-      name: "الإجراء التالي: تأكيد الطلب",
-    });
-    if (width < 1024) {
-      await expect(next).toBeVisible();
-      await stickyClearOfLauncher(page);
-    } else {
-      await expect(next).toBeHidden();
-    }
+    await expect(confirm).toBeVisible();
     await expectNoHorizontalOverflow(page);
     await axe(page, ".admin-status-form");
     await page.screenshot({ path: `${SHOTS}/order-${width}.png` });
   }
 
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.getByRole("link", { name: "الإجراء التالي: تأكيد الطلب" }).click();
-  await expect(page).toHaveURL(/#status-actions$/);
+  await page.getByText("إجراءات إضافية", { exact: true }).click();
   await page.getByRole("button", { name: "إلغاء الطلب" }).click();
   await expect(
     page.getByText("لا يوجد حجز لهذا الطلب، فلا يتغير المخزون."),
@@ -99,6 +90,7 @@ test("order page says what each status change does before it happens", async ({
   await page.getByRole("button", { name: "تراجع" }).click();
   await page.getByRole("button", { name: "تأكيد الطلب" }).click();
   await expect(page.getByRole("button", { name: "بدء التجهيز" })).toBeVisible();
+  await page.getByText("إجراءات إضافية", { exact: true }).click();
   await page.getByRole("button", { name: "إلغاء الطلب" }).click();
   await expect(
     page.getByText("لا يوجد مبلغ مدفوع لإرجاعه؛ الطلب بالدفع عند التسليم."),

@@ -1,3 +1,4 @@
+import { AdminDisclosure } from "@/features/admin/ui/admin-disclosure";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -66,8 +67,7 @@ export default async function WhatsAppAssistantPage({
         </p>
       ) : null}
 
-      <section className="admin-panel" aria-labelledby="simulator-title">
-        <h2 id="simulator-title">تجربة المحادثة</h2>
+      <AdminDisclosure title="تجربة المحادثة" className="admin-panel">
         <form action={simulatorMessageAction} className="admin-form">
           <label>
             <span>اكتبي كأنك زبونة</span>
@@ -82,7 +82,7 @@ export default async function WhatsAppAssistantPage({
             إرسال للمساعد
           </button>
         </form>
-      </section>
+      </AdminDisclosure>
 
       <section className="admin-panel" aria-labelledby="conversations-title">
         <h2 id="conversations-title">المحادثات</h2>

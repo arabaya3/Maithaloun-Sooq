@@ -441,7 +441,9 @@ export function AdminMobileHeader({ role }: { role: AdminRole }) {
   }
   return (
     <header className="admin-mobile-header">
-      <AdminBrand compact />
+      <Link href="/admin" prefetch={false} className="admin-wordmark">
+        MAYTHA MARKET
+      </Link>
       <div className="admin-mobile-header-actions">
         <button
           type="button"

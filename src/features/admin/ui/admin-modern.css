@@ -391,3 +391,567 @@
   outline: 2px solid var(--admin-forest);
   outline-offset: 2px;
 }
+
+/* Direction one: quiet, compact, and driven by the next task. */
+.admin-direction-one {
+  --admin-bg: #fafbf9;
+  --admin-surface: #fff;
+  --admin-text: #172d24;
+  --admin-muted: #637068;
+  --admin-forest: #0d5133;
+  --admin-forest-hover: #093d26;
+  --admin-nav-selected: #e8f0df;
+  --admin-border: #dce3da;
+  --admin-control: 44px;
+  --admin-topbar-height: 60px;
+  --admin-shadow-xs: 0 1px 3px #17372c04;
+}
+
+.admin-direction-one .admin-wordmark {
+  color: #fff;
+  text-decoration: none;
+  font-weight: 800;
+  font-size: 0.92rem;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.admin-direction-one .admin-mobile-header,
+.admin-direction-one .admin-topbar {
+  background: var(--admin-forest);
+  color: #fff;
+  border: 0;
+  box-shadow: none;
+}
+
+.admin-direction-one .admin-topbar-title {
+  color: #fff;
+  font-size: 1rem;
+}
+
+.admin-direction-one .admin-mobile-header-action {
+  color: #fff;
+  background: transparent;
+  border: 1px solid #ffffff26;
+}
+
+.admin-direction-one .admin-mobile-header-action:hover {
+  background: #ffffff1c;
+}
+
+.admin-direction-one .admin-page {
+  gap: 0.85rem;
+}
+
+.admin-direction-one .admin-page--narrow {
+  inline-size: 100%;
+  max-inline-size: 60rem;
+  margin-inline: auto;
+}
+
+.admin-direction-one .admin-page h1 {
+  font-size: clamp(1.3rem, 1rem + 0.8vw, 1.75rem);
+  letter-spacing: -0.02em;
+}
+
+.admin-direction-one .admin-page-header > div {
+  gap: 0.15rem;
+}
+
+.admin-direction-one .admin-lede {
+  font-size: 0.8rem;
+  line-height: 1.5;
+}
+
+.admin-direction-one .admin-panel {
+  border-radius: 14px;
+}
+
+.admin-direction-one .admin-panel .admin-panel {
+  box-shadow: none;
+}
+
+.admin-direction-one :is(.admin-status-tabs, .admin-status-chips, .admin-tabs) {
+  background: transparent;
+  border: 0;
+  padding: 0.15rem 0;
+  gap: 0.4rem;
+}
+
+.admin-direction-one
+  :is(.admin-status-tabs, .admin-status-chips, .admin-tabs)
+  > :is(a, button) {
+  border: 1px solid var(--admin-border);
+  background: #fff;
+  border-radius: 999px;
+  min-block-size: 44px;
+  padding-inline: 0.8rem;
+}
+
+.admin-direction-one
+  :is(.admin-status-tabs, .admin-status-chips, .admin-tabs)
+  > .is-active,
+.admin-direction-one
+  :is(.admin-status-tabs, .admin-status-chips, .admin-tabs)
+  > [aria-current="page"] {
+  color: #fff;
+  background: var(--admin-forest);
+  border-color: var(--admin-forest);
+}
+
+.admin-direction-one .admin-toolbar,
+.admin-direction-one .admin-filters {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  box-shadow: none;
+}
+
+.admin-direction-one :is(.admin-toolbar-search, .admin-search-bar) {
+  border-radius: 12px;
+}
+
+.admin-direction-one .admin-kpi-strip {
+  border-radius: 14px;
+  background: #fff;
+  border-color: var(--admin-border);
+}
+
+.admin-direction-one .admin-btn-primary {
+  box-shadow: none;
+}
+
+.admin-direction-one .admin-bottom-nav-item[aria-current="page"],
+.admin-direction-one .admin-bottom-nav-item.is-active {
+  background: var(--admin-nav-selected);
+  color: var(--admin-forest);
+  border-radius: 12px;
+}
+
+.admin-direction-one .admin-order-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.6rem;
+}
+.admin-direction-one .admin-order-summary > :is(a, div) {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-block-size: 76px;
+  border: 1px solid var(--admin-border);
+  background: var(--admin-surface);
+  border-radius: 12px;
+  color: var(--admin-text);
+  text-decoration: none;
+  gap: 0.1rem;
+}
+.admin-direction-one .admin-order-summary > :first-child {
+  background: var(--admin-nav-selected);
+}
+.admin-direction-one .admin-order-summary strong {
+  font-size: 1.3rem;
+  font-weight: 750;
+}
+.admin-direction-one .admin-order-summary span {
+  font-size: 0.75rem;
+  color: var(--admin-muted);
+}
+
+.admin-direction-one .admin-page-menu {
+  position: relative;
+}
+.admin-direction-one .admin-page-menu > summary {
+  cursor: pointer;
+  padding: 0.6rem;
+  min-block-size: 44px;
+  font-size: 0.8rem;
+  color: var(--admin-muted);
+}
+
+.admin-direction-one .admin-order-action-total {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  padding: 0.8rem;
+  border: 1px solid var(--admin-border);
+  border-radius: 12px;
+  background: var(--admin-surface);
+}
+.admin-direction-one
+  .admin-order-action-total
+  > div:first-child:not(.admin-status-actions) {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+.admin-direction-one .admin-order-action-total span {
+  color: var(--admin-muted);
+  font-size: 0.75rem;
+}
+.admin-direction-one .admin-order-action-total strong {
+  font-size: 1.4rem;
+  line-height: 1.3;
+}
+.admin-direction-one .admin-order-action-total .admin-status-actions {
+  flex: 1;
+  justify-content: flex-end;
+}
+.admin-direction-one .admin-status-step {
+  width: auto;
+}
+.admin-direction-one .admin-status-step > .admin-btn {
+  width: 100%;
+  min-block-size: 44px;
+}
+
+.admin-direction-one
+  :is(
+    .admin-order-impact-details,
+    .admin-order-reason-details,
+    .admin-cancel-block
+  ) {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  margin: 0;
+  font-size: 0.8rem;
+}
+.admin-direction-one
+  :is(
+    .admin-order-impact-details,
+    .admin-order-reason-details,
+    .admin-cancel-block
+  )
+  > summary {
+  cursor: pointer;
+  min-block-size: 44px;
+  padding-block: 0.65rem;
+  color: var(--admin-muted);
+}
+.admin-direction-one .admin-cancel-confirm {
+  border: 1px solid var(--admin-danger-border);
+  border-radius: 12px;
+  padding: 0.8rem;
+}
+.admin-direction-one .admin-order-cards {
+  gap: 0.65rem;
+}
+.admin-direction-one .admin-order-card {
+  border-radius: 14px;
+  box-shadow: none;
+}
+.admin-direction-one .admin-order-card-bottom {
+  margin-block: 0.4rem;
+  font-size: 0.75rem;
+}
+.admin-direction-one .admin-order-card-actions .admin-btn {
+  min-height: 44px;
+}
+
+.admin-direction-one .admin-disclosure {
+  padding: 0;
+  inline-size: 100%;
+  min-inline-size: 0;
+}
+.admin-direction-one .admin-disclosure > summary {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.8rem 0.9rem;
+  min-block-size: 52px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 700;
+  list-style: none;
+}
+.admin-direction-one .admin-disclosure > summary::-webkit-details-marker {
+  display: none;
+}
+.admin-direction-one .admin-disclosure[open] > summary svg {
+  transform: rotate(180deg);
+}
+.admin-direction-one .admin-disclosure-body {
+  padding: 0 0.9rem 0.9rem;
+}
+
+@media (max-width: 63.99rem) {
+  .admin-direction-one .admin-mobile-header {
+    min-block-size: calc(58px + env(safe-area-inset-top));
+    padding-inline: 0.85rem;
+  }
+  .admin-direction-one .admin-body {
+    padding: 0.9rem 0.85rem;
+  }
+  .admin-direction-one .admin-form-section {
+    padding: 0.9rem;
+    border-radius: 14px;
+  }
+  .admin-direction-one .admin-page-header {
+    align-items: flex-start;
+  }
+  .admin-direction-one .admin-panel-header {
+    align-items: center;
+  }
+  .admin-direction-one .admin-search-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+  .admin-direction-one .admin-search-bar input {
+    min-inline-size: 0;
+    flex: 1;
+    font-size: 16px;
+  }
+}
+@media print {
+  .admin-direction-one .admin-disclosure-body {
+    display: block !important;
+  }
+  .admin-direction-one .admin-panel {
+    box-shadow: none;
+  }
+}
+
+.admin-direction-one .admin-disclosure > summary h2 {
+  margin: 0;
+  font-size: inherit;
+}
+.admin-direction-one .admin-workspace-nav {
+  position: static;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  padding: 0.25rem 0;
+  background: transparent;
+  border: 0;
+  scrollbar-width: thin;
+}
+.admin-direction-one .admin-workspace-nav a {
+  white-space: nowrap;
+  flex: none;
+  font-size: 0.8rem;
+  min-block-size: 44px;
+}
+@media screen and (max-width: 40rem) {
+  .admin-direction-one .admin-table-wrap:has(> table[data-card-labels]) {
+    border: 0;
+    background: transparent;
+    overflow: visible;
+  }
+  .admin-direction-one table[data-card-labels] {
+    display: block;
+    inline-size: 100%;
+    min-inline-size: 0;
+    background: transparent;
+    border: 0;
+  }
+  .admin-direction-one table[data-card-labels] thead {
+    position: absolute;
+    inline-size: 1px;
+    block-size: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+  .admin-direction-one table[data-card-labels] tbody {
+    display: grid;
+    gap: 0.7rem;
+  }
+  .admin-direction-one table[data-card-labels] tbody tr {
+    position: relative;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.5rem 0.75rem;
+    padding: 0.85rem;
+    border: 1px solid var(--admin-border);
+    border-radius: 14px;
+    background: var(--admin-surface);
+  }
+  .admin-direction-one table[data-card-labels] tbody td {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.15rem;
+    padding: 0;
+    border: 0;
+    min-inline-size: 0;
+    overflow-wrap: anywhere;
+    white-space: normal;
+    font-size: 0.85rem;
+  }
+  .admin-direction-one table[data-card-labels] td::before {
+    content: attr(data-label);
+    font-size: 0.7rem;
+    font-weight: 500;
+    color: var(--admin-muted);
+  }
+  .admin-direction-one table[data-card-labels] td:first-child,
+  .admin-direction-one table[data-card-labels] td[data-label="المنتج"],
+  .admin-direction-one table[data-card-labels] td[data-label="الصنف"] {
+    grid-column: 1 / -1;
+    font-weight: 700;
+  }
+  .admin-direction-one table[data-card-labels] td[data-label="تحديد"] {
+    position: absolute;
+    inset-block-start: 0.7rem;
+    inset-inline-end: 0.7rem;
+  }
+  .admin-direction-one table[data-card-labels] td[data-label="تحديد"]::before {
+    content: none;
+  }
+  .admin-direction-one
+    table[data-card-labels]:has(td[data-label="تحديد"])
+    tbody
+    tr {
+    padding-inline-end: 3.5rem;
+  }
+  .admin-direction-one table[data-card-labels] td[data-label="الإجراءات"] {
+    grid-column: 1 / -1;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .admin-direction-one
+    table[data-card-labels]
+    td[data-label="الإجراءات"]::before {
+    content: none;
+  }
+}
+.admin-login-page {
+  background: #fafbf9;
+}
+.admin-login-page > section {
+  border: 1px solid #dce3da;
+  border-radius: 20px;
+  box-shadow: 0 12px 40px #16372d09;
+}
+
+.admin-direction-one .admin-today-card {
+  border: 1px solid var(--admin-border);
+  border-radius: 14px;
+  box-shadow: none;
+}
+.admin-direction-one .admin-today-card:has(> summary) {
+  padding: 0;
+}
+.admin-direction-one .admin-today-main,
+.admin-direction-one .admin-today-side {
+  gap: 0.85rem;
+}
+.admin-direction-one
+  .admin-today-main
+  > [aria-labelledby="needs-action-title"] {
+  order: -1;
+}
+.admin-direction-one .admin-action-item {
+  gap: 0.75rem;
+  padding-block: 0.75rem;
+}
+.admin-direction-one .admin-kpi {
+  min-block-size: 5.25rem;
+  padding: 0.85rem;
+  border-radius: 12px;
+  box-shadow: none;
+}
+.admin-direction-one .admin-kpi-value {
+  font-size: 1.4rem;
+}
+.admin-direction-one .admin-kpi-support {
+  font-size: 0.7rem;
+}
+.admin-direction-one .admin-login-brand {
+  color: var(--admin-forest);
+  font-size: 0.9rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+@media screen and (max-width: 40rem) {
+  .admin-direction-one
+    table[data-card-labels]:has(td[data-label="تحديد"])
+    thead {
+    position: static;
+    display: block;
+    inline-size: 100%;
+    block-size: auto;
+    clip-path: none;
+    margin-block-end: 0.5rem;
+  }
+  .admin-direction-one
+    table[data-card-labels]:has(td[data-label="تحديد"])
+    thead
+    tr {
+    display: flex;
+  }
+  .admin-direction-one
+    table[data-card-labels]:has(td[data-label="تحديد"])
+    th:not(:has(input[type="checkbox"])) {
+    position: absolute;
+    inline-size: 1px;
+    block-size: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+  .admin-direction-one table[data-card-labels] th:has(input[type="checkbox"]) {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.35rem 0;
+    background: transparent;
+    border: 0;
+  }
+  .admin-direction-one
+    table[data-card-labels]
+    th:has(input[type="checkbox"])::after {
+    content: "تحديد الكل";
+    color: var(--admin-muted);
+    font-size: 0.75rem;
+  }
+}
+
+.admin-direction-one .admin-list-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding-block: 0.6rem;
+}
+.admin-direction-one .admin-product-item {
+  border-radius: 14px;
+  padding: 0.85rem;
+  gap: 0.65rem;
+  box-shadow: none;
+}
+.admin-direction-one .admin-product-item-title {
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+.admin-direction-one .admin-product-item-title bdi {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.admin-direction-one .admin-product-item-main > .admin-muted {
+  font-size: 0.72rem;
+}
+.admin-direction-one .admin-product-thumb {
+  inline-size: 42px;
+  block-size: 42px;
+  border-radius: 10px;
+  flex: none;
+}
+.admin-direction-one .admin-product-item-side {
+  gap: 0.4rem;
+}
+.admin-direction-one .admin-disclosure-panel {
+  padding: 0;
+}
+.admin-direction-one .admin-disclosure {
+  border: 0;
+  background: transparent;
+  scroll-margin-block-start: 6rem;
+}

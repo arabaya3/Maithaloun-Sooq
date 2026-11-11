@@ -1,3 +1,4 @@
+import { AdminDisclosure } from "@/features/admin/ui/admin-disclosure";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { FlaskConical, ScrollText, Users } from "lucide-react";
@@ -162,11 +163,10 @@ export default async function AdminSettingsPage({
       ) : null}
 
       {historical.length > 0 ? (
-        <section
+        <AdminDisclosure
+          title="مناطق تاريخية (للسجلات فقط)"
           className="admin-panel"
-          aria-labelledby="historical-areas-title"
         >
-          <h2 id="historical-areas-title">مناطق تاريخية (للسجلات فقط)</h2>
           <p className="admin-muted">
             محفوظة لسلامة الطلبات القديمة. مخفية عن اختيار الزبون عند التعطيل.
           </p>
@@ -175,7 +175,7 @@ export default async function AdminSettingsPage({
               <DeliveryAreaForm key={area.code} area={area} />
             ))}
           </div>
-        </section>
+        </AdminDisclosure>
       ) : null}
     </main>
   );

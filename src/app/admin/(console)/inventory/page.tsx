@@ -1,3 +1,4 @@
+import { AdminDisclosure } from "@/features/admin/ui/admin-disclosure";
 import type { Metadata } from "next";
 import Link from "next/link";
 import {
@@ -264,7 +265,7 @@ export default async function InventoryOverviewPage() {
           </Link>
         </div>
         {attention.length ? (
-          <AttentionList items={attention} />
+          <AttentionList items={attention.slice(0, 6)} />
         ) : overview.trackedCount === 0 ? (
           <EmptyState Icon={PackageCheck} title="لم يبدأ تتبّع المخزون بعد">
             <p className="admin-muted">
@@ -284,9 +285,8 @@ export default async function InventoryOverviewPage() {
       </section>
 
       <div className="admin-two-column">
-        <section className="admin-panel" aria-labelledby="invoices-title">
+        <AdminDisclosure title="آخر فواتير الشراء" className="admin-panel">
           <div className="admin-panel-header">
-            <h2 id="invoices-title">آخر فواتير الشراء</h2>
             <Link href="/admin/inventory/purchases" prefetch={false}>
               عرض الكل
             </Link>
@@ -320,12 +320,9 @@ export default async function InventoryOverviewPage() {
           ) : (
             <p className="admin-empty">لا توجد فواتير شراء بعد.</p>
           )}
-        </section>
+        </AdminDisclosure>
 
-        <section className="admin-panel" aria-labelledby="receipts-title">
-          <div className="admin-panel-header">
-            <h2 id="receipts-title">وصل حديثاً</h2>
-          </div>
+        <AdminDisclosure title="وصل حديثاً" className="admin-panel">
           {overview.recentReceipts.length ? (
             <ul className="admin-line-list">
               {overview.recentReceipts.map((receipt, index) => (
@@ -355,7 +352,7 @@ export default async function InventoryOverviewPage() {
           ) : (
             <p className="admin-empty">لم تُستلم بضاعة بعد.</p>
           )}
-        </section>
+        </AdminDisclosure>
       </div>
 
       {overview.untrackedCount > 0 ? (

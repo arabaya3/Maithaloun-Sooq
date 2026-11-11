@@ -332,20 +332,23 @@ test("admin authentication, operations, and privacy controls", async ({
     )
     .click();
   await expect(
-    page.getByRole("heading", { name: new RegExp(reference) }),
+    page.getByRole("heading", { name: "طلب عميل تجريبي" }),
   ).toBeVisible();
   await page.screenshot({
     path: "artifacts/admin-screenshots/order-details-mobile.png",
     fullPage: true,
   });
-  await expect(page.getByText("الاسم الكامل")).toBeVisible();
-  await expect(page.getByText("عميل تجريبي")).toBeVisible();
+  await expect(
+    page.getByRole("region", { name: "الزبون والتوصيل" }),
+  ).toContainText("عميل تجريبي");
   expect(
     await page.evaluate(
       () => document.documentElement.scrollWidth - window.innerWidth,
     ),
   ).toBeLessThanOrEqual(1);
-  const whatsappLink = page.getByRole("link", { name: "تواصل عبر واتساب" });
+  const whatsappLink = page.getByRole("link", {
+    name: "التواصل مع عميل تجريبي عبر واتساب",
+  });
   await expect(whatsappLink).toBeVisible();
   await expect(whatsappLink).toHaveAttribute(
     "href",
@@ -374,13 +377,15 @@ test("admin authentication, operations, and privacy controls", async ({
     })
     .click();
   await expect(
-    page.getByText("هذه الحالة نهائية ولا يمكن تغييرها."),
+    page
+      .locator(".admin-order-action-total")
+      .getByText(orderStatusLabels.delivered),
   ).toBeVisible();
 
   const moreSheet = await openMoreSheet(page);
   await moreSheet.getByRole("button", { name: "تسجيل الخروج" }).click();
   await expect(
-    page.getByRole("heading", { name: "دخول إدارة MAYTHA MARKET" }),
+    page.getByRole("heading", { name: "أهلاً بعودتك" }),
   ).toBeVisible();
   await page.goto("/admin");
   await expect(page).toHaveURL(/\/admin\/login/);

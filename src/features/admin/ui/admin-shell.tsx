@@ -23,7 +23,7 @@ export function AdminShell({
   children: React.ReactNode;
 }) {
   return (
-    <div className="admin-app">
+    <div className="admin-app admin-direction-one">
       <aside className="admin-sidebar" aria-label="التنقل الجانبي">
         <AdminBrand />
         <AdminDesktopNav

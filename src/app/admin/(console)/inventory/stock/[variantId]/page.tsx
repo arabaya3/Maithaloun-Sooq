@@ -1,3 +1,4 @@
+import { AdminDisclosure } from "@/features/admin/ui/admin-disclosure";
 import type { Metadata } from "next";
 import { SlidersHorizontal } from "lucide-react";
 import { notFound } from "next/navigation";
@@ -150,8 +151,7 @@ export default async function StockDetailPage({
         </section>
       ) : null}
 
-      <section className="admin-panel" aria-labelledby="movements-title">
-        <h2 id="movements-title">سجل الحركات</h2>
+      <AdminDisclosure title="سجل الحركات" className="admin-panel">
         {movements.length ? (
           <ol className="admin-line-list admin-movement-timeline">
             {movements.map((movement) => (
@@ -195,7 +195,7 @@ export default async function StockDetailPage({
         ) : (
           <p className="admin-empty">لا توجد حركات مخزون لهذا الصنف بعد.</p>
         )}
-      </section>
+      </AdminDisclosure>
     </main>
   );
 }

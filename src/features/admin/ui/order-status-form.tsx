@@ -9,6 +9,7 @@ import {
   orderStatusLabels,
   type OrderStatus,
 } from "@/features/orders/domain/order-status";
+import { formatIls } from "@/shared/lib/format-currency";
 import type { StatusImpact } from "@/features/orders/domain/status-impact";
 
 function ImpactNote({ impact, id }: { impact?: StatusImpact; id: string }) {
@@ -38,6 +39,7 @@ export function OrderStatusForm({
   version,
   cancelOnly = false,
   impacts = {},
+  totalAgorot,
 }: {
   publicReference: string;
   status: OrderStatus;
@@ -46,6 +48,7 @@ export function OrderStatusForm({
   cancelOnly?: boolean;
   /** Stock and money effect of each allowed next status, computed on the server. */
   impacts?: Partial<Record<OrderStatus, StatusImpact>>;
+  totalAgorot?: number | null;
 }) {
   const transitions = getAllowedTransitions(status).filter(
     (value) => !cancelOnly || value === "cancelled",
@@ -60,7 +63,18 @@ export function OrderStatusForm({
   );
 
   if (!transitions.length) {
-    return <p className="admin-muted">هذه الحالة نهائية ولا يمكن تغييرها.</p>;
+    if (totalAgorot === undefined) {
+      return <p className="admin-muted">هذه الحالة نهائية ولا يمكن تغييرها.</p>;
+    }
+    return (
+      <div className="admin-order-action-total">
+        <span>إجمالي الطلب</span>
+        <strong>
+          {totalAgorot == null ? "غير معروف" : formatIls(totalAgorot)}
+        </strong>
+        <p className="admin-muted">{orderStatusLabels[status]}</p>
+      </div>
+    );
   }
 
   const advance = transitions.filter((value) => value !== "cancelled");
@@ -70,30 +84,47 @@ export function OrderStatusForm({
     <form className="admin-form admin-status-form" action={formAction}>
       <input type="hidden" name="publicReference" value={publicReference} />
       <input type="hidden" name="expectedVersion" value={String(version)} />
-      <div className="admin-status-actions">
-        {advance.map((nextStatus) => (
-          <div key={nextStatus} className="admin-status-step">
-            <details className="admin-order-impact-details">
-              <summary>ماذا سيحدث عند تغيير الحالة؟</summary>
-              <ImpactNote impact={impacts[nextStatus]} id={`impact-${nextStatus}`} />
-            </details>
-            <button
-              type="submit"
-              name="nextStatus"
-              value={nextStatus}
-              disabled={pending || impacts[nextStatus]?.blocked}
-              aria-describedby={
-                impacts[nextStatus] ? `impact-${nextStatus}` : undefined
-              }
-              className="admin-btn admin-btn-primary"
-            >
-              {getPrimaryNextActionLabel(status) ??
-                `نقل إلى ${orderStatusLabels[nextStatus]}`}
-            </button>
+      <div className="admin-order-action-total">
+        {totalAgorot !== undefined ? (
+          <div>
+            <span>الإجمالي</span>
+            <strong>
+              {totalAgorot === null ? "غير معروف" : formatIls(totalAgorot)}
+            </strong>
           </div>
-        ))}
+        ) : null}
+        <div className="admin-status-actions">
+          {advance.map((nextStatus) => (
+            <div key={nextStatus} className="admin-status-step">
+              <button
+                type="submit"
+                name="nextStatus"
+                value={nextStatus}
+                disabled={pending || impacts[nextStatus]?.blocked}
+                aria-describedby={
+                  impacts[nextStatus] ? `impact-${nextStatus}` : undefined
+                }
+                className="admin-btn admin-btn-primary"
+              >
+                {getPrimaryNextActionLabel(status) ??
+                  `نقل إلى ${orderStatusLabels[nextStatus]}`}
+              </button>
+            </div>
+          ))}
+        </div>
       </div>
-
+      {advance.map((next) => (
+        <details
+          key={next}
+          className="admin-order-impact-details"
+          open={impacts[next]?.blocked || undefined}
+        >
+          <summary>
+            {impacts[next]?.blocked ? "تعذّر تحديث الحالة" : "أثر تحديث الحالة"}
+          </summary>
+          <ImpactNote impact={impacts[next]} id={`impact-${next}`} />
+        </details>
+      ))}
       <details className="admin-order-reason-details">
         <summary>إضافة ملاحظة داخلية (اختياري)</summary>
         <label htmlFor="order-reason">السبب الداخلي</label>
@@ -101,7 +132,11 @@ export function OrderStatusForm({
       </details>
 
       {canCancel ? (
-        <div className="admin-cancel-block">
+        <details
+          className="admin-cancel-block"
+          open={confirmCancel || undefined}
+        >
+          <summary>إجراءات إضافية</summary>
           {!confirmCancel ? (
             <button
               type="button"
@@ -134,7 +169,7 @@ export function OrderStatusForm({
               </button>
             </div>
           )}
-        </div>
+        </details>
       ) : null}
 
       {state?.message ? (
