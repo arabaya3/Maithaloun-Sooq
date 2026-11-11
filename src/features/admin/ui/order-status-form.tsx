@@ -73,10 +73,10 @@ export function OrderStatusForm({
       <div className="admin-status-actions">
         {advance.map((nextStatus) => (
           <div key={nextStatus} className="admin-status-step">
-            <ImpactNote
-              impact={impacts[nextStatus]}
-              id={`impact-${nextStatus}`}
-            />
+            <details className="admin-order-impact-details">
+              <summary>ماذا سيحدث عند تغيير الحالة؟</summary>
+              <ImpactNote impact={impacts[nextStatus]} id={`impact-${nextStatus}`} />
+            </details>
             <button
               type="submit"
               name="nextStatus"
@@ -94,8 +94,11 @@ export function OrderStatusForm({
         ))}
       </div>
 
-      <label htmlFor="order-reason">سبب داخلي اختياري</label>
-      <input id="order-reason" name="reason" maxLength={180} />
+      <details className="admin-order-reason-details">
+        <summary>إضافة ملاحظة داخلية (اختياري)</summary>
+        <label htmlFor="order-reason">السبب الداخلي</label>
+        <input id="order-reason" name="reason" maxLength={180} />
+      </details>
 
       {canCancel ? (
         <div className="admin-cancel-block">
