@@ -15,7 +15,7 @@ import {
   getAllowedTransitions,
   getPrimaryNextActionLabel,
 } from "@/features/orders/domain/order-status";
-import { StickyAction } from "@/features/admin/ui/kit";
+import styles from "./order-detail.module.css";
 import { statusImpact } from "@/features/orders/domain/status-impact";
 import { orderStatusLabels } from "@/features/orders/domain/order-status";
 import { formatIls } from "@/shared/lib/format-currency";
@@ -42,19 +42,21 @@ export default async function AdminOrderDetailPage({
   const isFreeDelivery = order.deliveryFeeAgorot === 0;
   const qaCreated = (await searchParams).qa === "created";
 
-  // On phones the next step stays in reach; it jumps to the actions so the impact is read before committing.
+  const orderTitle = `طلب ${order.customerName}`;
+
+  // Keep the status action beside the summary on this page.
   const nextLabel = order.isTest
     ? null
     : getPrimaryNextActionLabel(order.status);
 
   return (
-    <main className="admin-page admin-order-detail">
+    <main className={`admin-page admin-order-detail ${styles.page}`}>
       <p className="admin-breadcrumb">
         <Link href="/admin/orders" prefetch={false}>
           الطلبات
         </Link>
         <span aria-hidden="true"> / </span>
-        <bdi dir="ltr">{order.publicReference}</bdi>
+        {orderTitle}
       </p>
 
       {order.isTest ? (
@@ -74,27 +76,22 @@ export default async function AdminOrderDetailPage({
         <div className="admin-detail-main">
           <header className="admin-order-detail-header">
             <div>
-              <h1>
-                طلب <bdi dir="ltr">{order.publicReference}</bdi>
-              </h1>
+              <h1>{orderTitle}</h1>
               <p className="admin-muted">
                 {formatAdminDateTime(order.createdAt)} · نقداً عند الاستلام
               </p>
             </div>
             <AdminStatusBadge status={order.status} />
+            {nextLabel ? (
+              <a className="admin-btn admin-btn-primary" href="#status-actions">
+                {nextLabel}
+              </a>
+            ) : null}
+            <details className={styles.reference}>
+              <summary>مرجع الطلب</summary>
+              <bdi dir="ltr">{order.publicReference}</bdi>
+            </details>
           </header>
-          {nextLabel ? (
-            <div className="admin-order-next">
-              <StickyAction>
-                <a
-                  className="admin-btn admin-btn-primary admin-btn-block"
-                  href="#status-actions"
-                >
-                  الإجراء التالي: {nextLabel}
-                </a>
-              </StickyAction>
-            </div>
-          ) : null}
 
           <section className="admin-panel" aria-labelledby="customer-title">
             <div className="admin-panel-header">
@@ -218,29 +215,33 @@ export default async function AdminOrderDetailPage({
             className="admin-panel"
             aria-labelledby="order-history-title"
           >
-            <h2 id="order-history-title">سجل الحالات</h2>
-            {order.history.length === 0 ? (
-              <p className="admin-muted">لا يوجد تغيير حالة بعد.</p>
-            ) : (
-              <ol className="admin-timeline">
-                {order.history.map((entry, index) => (
-                  <li key={`${entry.createdAt}-${index}`}>
-                    <span className="admin-timeline-dot" aria-hidden="true" />
-                    <div>
-                      <p>
-                        {orderStatusLabels[entry.previousStatus]} →{" "}
-                        {orderStatusLabels[entry.newStatus]}
-                      </p>
-                      <p className="admin-muted">
-                        {entry.actorName} ·{" "}
-                        {formatAdminDateTime(entry.createdAt)}
-                      </p>
-                      {entry.reason ? <p>{entry.reason}</p> : null}
-                    </div>
-                  </li>
-                ))}
-              </ol>
-            )}
+            <details>
+              <summary id="order-history-title">
+                سجل الحالات ({order.history.length})
+              </summary>
+              {order.history.length === 0 ? (
+                <p className="admin-muted">لا يوجد تغيير حالة بعد.</p>
+              ) : (
+                <ol className="admin-timeline">
+                  {order.history.map((entry, index) => (
+                    <li key={`${entry.createdAt}-${index}`}>
+                      <span className="admin-timeline-dot" aria-hidden="true" />
+                      <div>
+                        <p>
+                          {orderStatusLabels[entry.previousStatus]} →{" "}
+                          {orderStatusLabels[entry.newStatus]}
+                        </p>
+                        <p className="admin-muted">
+                          {entry.actorName} ·{" "}
+                          {formatAdminDateTime(entry.createdAt)}
+                        </p>
+                        {entry.reason ? <p>{entry.reason}</p> : null}
+                      </div>
+                    </li>
+                  ))}
+                </ol>
+              )}
+            </details>
           </section>
         </div>
 
