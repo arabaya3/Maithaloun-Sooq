@@ -1,3 +1,4 @@
+import styles from "./[id]/order-detail.module.css";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { MessageCircle } from "lucide-react";
@@ -11,7 +12,6 @@ import {
   AdminNextActionLabel,
   AdminStatusBadge,
   formatAdminRelativeTime,
-  shortenOrderReference,
 } from "@/features/admin/ui/admin-status-badge";
 import {
   getPrimaryNextActionLabel,
@@ -74,7 +74,7 @@ export default async function AdminOrdersPage({
   const pageCount = Math.max(1, Math.ceil(result.total / 20));
 
   return (
-    <main className="admin-page">
+    <main className={`admin-page ${styles.list}`}>
       <header className="admin-page-header">
         <div>
           <h1>الطلبات</h1>
@@ -303,9 +303,7 @@ export default async function AdminOrdersPage({
                         prefetch={false}
                         title={order.publicReference}
                       >
-                        <bdi dir="ltr">
-                          {shortenOrderReference(order.publicReference)}
-                        </bdi>
+                        طلب {order.customerName}
                       </Link>
                       <AdminStatusBadge status={order.status} />
                     </div>
