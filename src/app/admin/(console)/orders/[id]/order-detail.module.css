@@ -241,3 +241,48 @@
     gap: 0.5rem;
   }
 }
+
+/* Compact, mobile-first order detail layout */
+.page :global(.admin-detail-layout) {
+  display: flex;
+  flex-direction: column;
+  gap: .75rem;
+}
+.page :global(.admin-panel) {
+  border-radius: 1.25rem;
+  padding: .9rem 1rem;
+  box-shadow: 0 2px 12px rgb(0 0 0 / 3%);
+}
+.page :global(.admin-panel h2) { font-size: 1.02rem; margin-block: 0 .65rem; }
+.page :global(.admin-order-detail-header) { padding: .3rem 0; }
+.page :global(.admin-order-detail-header h1) { font-size: 1.25rem; }
+.page :global(.admin-definition-list) { gap: .35rem; }
+.page :global(.admin-definition-list > div) { padding-block: .2rem; }
+.page :global(.admin-actions-panel) { order: 1; }
+.page :global(section[aria-labelledby="order-items-title"]) { order: 2; }
+.page :global(section[aria-labelledby="totals-title"]) { order: 3; }
+.page :global(section[aria-labelledby="customer-title"]) { order: 4; }
+.page :global(section[aria-labelledby="delivery-title"]) { order: 5; }
+.page :global(section[aria-labelledby="order-history-title"]) { order: 6; }
+.page :global(.admin-order-impact-details),
+.page :global(.admin-order-reason-details) { margin-block: .4rem; font-size: .85rem; }
+.page :global(.admin-order-impact-details summary),
+.page :global(.admin-order-reason-details summary) { color: var(--admin-muted); font-weight: 500; }
+.page :global(.admin-order-reason-details input) { width: 100%; margin-block-start: .5rem; }
+.page :global(.admin-order-reason-details label) { display: block; margin-block-start: .5rem; }
+.page :global(.admin-total-final) { border-radius: .75rem; background: #e7f5ed; padding: .6rem; }
+.page :global(.admin-cancel-block) { border: 0; padding-block-start: .3rem; }
+.page :global(.admin-status-actions .admin-btn-primary) { width: 100%; min-height: 3rem; }
+.page :global(.admin-cancel-block .admin-btn-danger) { width: 100%; min-height: 2.8rem; }
+@media (min-width: 48rem) {
+  .page :global(.admin-detail-layout) { max-width: 56rem; margin-inline: auto; }
+  .page :global(.admin-panel) { padding: 1.25rem; }
+}
+@media (max-width: 40rem) {
+  .page :global(.admin-data-table tr) { padding-block: .45rem; }
+  .page :global(.admin-data-table td) { padding: .2rem; font-size: .88rem; }
+  .page :global(.admin-data-table td:nth-child(4)) { display: none; }
+  .page :global(.admin-definition-list) { font-size: .9rem; }
+  .page :global(.admin-panel-header) { gap: .5rem; flex-wrap: wrap; }
+  .page :global(.admin-panel-header .admin-btn) { min-height: 2.5rem; }
+}
