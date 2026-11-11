@@ -36,11 +36,18 @@ export function WorkspaceNav({
     function schedule() {
       if (!frame) frame = window.requestAnimationFrame(update);
     }
-    schedule();
+    function revealHash() {
+      const target = document.getElementById(window.location.hash.slice(1));
+      if (target instanceof HTMLDetailsElement) target.open = true;
+      schedule();
+    }
+    revealHash();
+    window.addEventListener("hashchange", revealHash);
     window.addEventListener("scroll", schedule, { passive: true });
     window.addEventListener("resize", schedule);
     return () => {
       window.cancelAnimationFrame(frame);
+      window.removeEventListener("hashchange", revealHash);
       window.removeEventListener("scroll", schedule);
       window.removeEventListener("resize", schedule);
     };
@@ -53,7 +60,11 @@ export function WorkspaceNav({
           key={section.id}
           href={`#${section.id}`}
           aria-current={current === section.id ? "true" : undefined}
-          onClick={() => setCurrent(section.id)}
+          onClick={() => {
+            const target = document.getElementById(section.id);
+            if (target instanceof HTMLDetailsElement) target.open = true;
+            setCurrent(section.id);
+          }}
         >
           {section.label}
         </a>

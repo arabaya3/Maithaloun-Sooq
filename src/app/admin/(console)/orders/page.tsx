@@ -86,11 +86,39 @@ export default async function AdminOrdersPage({
           </p>
         </div>
         {actor.role === "owner" ? (
-          <Link href="/admin/orders/qa" prefetch={false} className="admin-btn">
-            طلبات الاختبار
-          </Link>
+          <details className="admin-page-menu">
+            <summary>المزيد</summary>
+            <Link
+              href="/admin/orders/qa"
+              prefetch={false}
+              className="admin-btn"
+            >
+              طلبات الاختبار
+            </Link>
+          </details>
         ) : null}
       </header>
+
+      <section className="admin-order-summary" aria-label="ملخص الطلبات">
+        <div>
+          <strong>
+            {statusCounts.pending +
+              statusCounts.awaiting_whatsapp +
+              statusCounts.confirmed +
+              statusCounts.preparing +
+              statusCounts.out_for_delivery}
+          </strong>
+          <span>قيد التنفيذ</span>
+        </div>
+        <Link href="/admin/orders?status=delivered" prefetch={false}>
+          <strong>{statusCounts.delivered}</strong>
+          <span>مكتملة</span>
+        </Link>
+        <Link href="/admin/orders?status=cancelled" prefetch={false}>
+          <strong>{statusCounts.cancelled}</strong>
+          <span>ملغاة</span>
+        </Link>
+      </section>
 
       <nav className="admin-status-tabs" aria-label="تصفية الحالة">
         <Link
@@ -209,7 +237,7 @@ export default async function AdminOrdersPage({
       ) : (
         <>
           <div className="admin-table-wrap admin-table-desktop">
-            <table className="admin-data-table">
+            <table className="admin-data-table" data-card-labels>
               <thead>
                 <tr>
                   <th>الطلب</th>
@@ -226,7 +254,7 @@ export default async function AdminOrdersPage({
                   const actionLabel = getPrimaryNextActionLabel(order.status);
                   return (
                     <tr key={order.publicReference}>
-                      <td>
+                      <td data-label="الطلب">
                         <Link
                           href={`/admin/orders/${order.publicReference}`}
                           prefetch={false}
@@ -235,8 +263,8 @@ export default async function AdminOrdersPage({
                           طلب {order.customerName}
                         </Link>
                       </td>
-                      <td>{order.customerName}</td>
-                      <td>
+                      <td data-label="الزبون">{order.customerName}</td>
+                      <td data-label="التواصل">
                         {order.whatsappContactUrl ? (
                           <a
                             className="admin-icon-link"
@@ -251,17 +279,17 @@ export default async function AdminOrdersPage({
                           <span className="admin-muted">—</span>
                         )}
                       </td>
-                      <td className="admin-num">
+                      <td className="admin-num" data-label="الإجمالي">
                         {order.finalTotalAgorot === null
                           ? order.status === "cancelled"
                             ? "ملغي"
                             : "غير مكتمل"
                           : formatIls(order.finalTotalAgorot)}
                       </td>
-                      <td>
+                      <td data-label="الحالة">
                         <AdminStatusBadge status={order.status} />
                       </td>
-                      <td>
+                      <td data-label="وقت الطلب">
                         <time dateTime={order.createdAt}>
                           {formatAdminRelativeTime(order.createdAt)}
                         </time>
@@ -269,7 +297,7 @@ export default async function AdminOrdersPage({
                           {formatAdminDateTime(order.createdAt)}
                         </div>
                       </td>
-                      <td>
+                      <td data-label="الإجراء التالي">
                         {actionLabel ? (
                           <Link
                             className="admin-btn admin-btn-primary admin-btn-sm"

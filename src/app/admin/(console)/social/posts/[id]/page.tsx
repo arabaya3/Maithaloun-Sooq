@@ -1,3 +1,4 @@
+import { AdminDisclosure } from "@/features/admin/ui/admin-disclosure";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { CheckCircle2, RotateCcw, Undo2, XCircle } from "lucide-react";
@@ -439,8 +440,7 @@ export default async function SocialPostPage({
             ) : null}
           </div>
 
-          <section className="admin-panel" aria-labelledby="history-title">
-            <h2 id="history-title">السجل</h2>
+          <AdminDisclosure title="السجل" className="admin-panel">
             <ol className="admin-line-list">
               {events.map(({ event, actorName }) => (
                 <li key={event.id} className="admin-line">
@@ -463,7 +463,7 @@ export default async function SocialPostPage({
                 </li>
               ))}
             </ol>
-          </section>
+          </AdminDisclosure>
         </section>
       </div>
     </main>

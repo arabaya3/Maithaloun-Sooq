@@ -1,3 +1,4 @@
+import { AdminDisclosure } from "@/features/admin/ui/admin-disclosure";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -111,12 +112,11 @@ export default async function SupplierDetailPage({
             )}
           </section>
 
-          <section
+          <AdminDisclosure
+            title="كشف الحساب"
             id="statement"
             className="admin-panel admin-workspace-anchor"
-            aria-labelledby="supplier-statement-title"
           >
-            <h2 id="supplier-statement-title">كشف الحساب</h2>
             <form className="admin-form admin-inline-form" method="get">
               <label>
                 من
@@ -139,6 +139,7 @@ export default async function SupplierDetailPage({
                 <table
                   className="admin-data-table"
                   aria-label="حركات حساب المورد"
+                  data-card-labels
                 >
                   <thead>
                     <tr>
@@ -151,8 +152,10 @@ export default async function SupplierDetailPage({
                   <tbody>
                     {statement.lines.map((line, index) => (
                       <tr key={`${line.date}-${index}`}>
-                        <td>{formatAdminDateTime(line.date)}</td>
-                        <td>
+                        <td data-label="التاريخ">
+                          {formatAdminDateTime(line.date)}
+                        </td>
+                        <td data-label="الحركة">
                           {line.label}
                           {line.note ? (
                             <small className="admin-muted">
@@ -161,10 +164,10 @@ export default async function SupplierDetailPage({
                             </small>
                           ) : null}
                         </td>
-                        <td>
+                        <td data-label="المبلغ">
                           <Money agorot={line.amountAgorot} />
                         </td>
-                        <td>
+                        <td data-label="الرصيد">
                           <Money agorot={line.balanceAgorot} />
                         </td>
                       </tr>
@@ -180,16 +183,15 @@ export default async function SupplierDetailPage({
                 تظهر أول 200 حركة فقط؛ ضيّقي الفترة لرؤية الباقي.
               </p>
             ) : null}
-          </section>
+          </AdminDisclosure>
         </>
       ) : null}
 
-      <section
+      <AdminDisclosure
+        title="فواتير الشراء"
         id="invoices"
         className="admin-panel admin-workspace-anchor"
-        aria-labelledby="supplier-invoices-title"
       >
-        <h2 id="supplier-invoices-title">فواتير الشراء</h2>
         {invoices.length ? (
           <ul className="admin-line-list">
             {invoices.map((invoice) => (
@@ -221,14 +223,13 @@ export default async function SupplierDetailPage({
         ) : (
           <p className="admin-muted">لا توجد فواتير شراء من هذا المورد بعد.</p>
         )}
-      </section>
+      </AdminDisclosure>
 
-      <section
+      <AdminDisclosure
+        title="أسماء الأصناف عند المورد"
         id="aliases"
         className="admin-panel admin-workspace-anchor"
-        aria-labelledby="supplier-aliases-title"
       >
-        <h2 id="supplier-aliases-title">أسماء الأصناف عند المورد</h2>
         {aliases.length ? (
           <ul className="admin-line-list">
             {aliases.map((alias) => (
@@ -257,14 +258,13 @@ export default async function SupplierDetailPage({
             المورد، ليُقرأ صحيحاً في المرة القادمة.
           </p>
         )}
-      </section>
+      </AdminDisclosure>
 
-      <section
+      <AdminDisclosure
+        title="بيانات المورد"
         id="profile"
         className="admin-panel admin-workspace-anchor"
-        aria-labelledby="supplier-edit-title"
       >
-        <h2 id="supplier-edit-title">بيانات المورد</h2>
         <SupplierEditForm supplier={supplier} />
         {canArchive ? (
           <SupplierArchiveForm
@@ -272,7 +272,7 @@ export default async function SupplierDetailPage({
             active={supplier.active}
           />
         ) : null}
-      </section>
+      </AdminDisclosure>
 
       {statement && owed ? (
         <StickyAction>

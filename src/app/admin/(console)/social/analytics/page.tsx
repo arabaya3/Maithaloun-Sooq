@@ -1,3 +1,4 @@
+import { AdminDisclosure } from "@/features/admin/ui/admin-disclosure";
 import type { Metadata } from "next";
 import Link from "next/link";
 import {
@@ -142,10 +143,14 @@ export default async function SocialAnalyticsPage() {
         )}
       </section>
 
-      <section className="admin-panel" aria-labelledby="jobs-title">
-        <h2 id="jobs-title">
-          <Activity size={18} aria-hidden="true" /> سجل المهام المجدولة
-        </h2>
+      <AdminDisclosure
+        title={
+          <>
+            <Activity size={18} aria-hidden="true" /> سجل المهام المجدولة
+          </>
+        }
+        className="admin-panel"
+      >
         <ol className="admin-line-list">
           {runs.map((run) => (
             <li key={run.id} className="admin-line">
@@ -186,7 +191,7 @@ export default async function SocialAnalyticsPage() {
             </li>
           ))}
         </ol>
-      </section>
+      </AdminDisclosure>
     </main>
   );
 }

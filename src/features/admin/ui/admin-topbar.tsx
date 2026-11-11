@@ -1,8 +1,6 @@
 "use client";
 
-import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Plus } from "lucide-react";
 
 import { AdminGlobalSearch } from "./admin-global-search";
 
@@ -62,7 +60,6 @@ function resolveTitle(pathname: string): string {
 export function AdminTopbar() {
   const pathname = usePathname();
   const title = resolveTitle(pathname);
-  const showAddProduct = pathname.startsWith("/admin/products");
 
   return (
     <div className="admin-topbar">
@@ -71,16 +68,6 @@ export function AdminTopbar() {
       </div>
       <div className="admin-topbar-actions">
         <AdminGlobalSearch />
-        {showAddProduct ? (
-          <Link
-            href="/admin/products/new"
-            className="admin-btn admin-btn-primary admin-btn-sm"
-            prefetch={false}
-          >
-            <Plus size={16} aria-hidden="true" />
-            إضافة منتج
-          </Link>
-        ) : null}
       </div>
     </div>
   );

@@ -24,10 +24,11 @@ export default async function AdminLoginPage({
   if (session) redirect(nextPath);
 
   return (
-    <main className="admin-login-page">
+    <main className="admin-login-page admin-direction-one">
       <section>
-        <h1>دخول إدارة MAYTHA MARKET</h1>
-        <p>هذه الصفحة مخصصة للمالك فقط. لا يوجد تسجيل عام.</p>
+        <p className="admin-login-brand">MAYTHA MARKET</p>
+        <h1>أهلاً بعودتك</h1>
+        <p>سجّل الدخول لإدارة متجرك.</p>
         <LoginForm nextPath={nextPath} />
       </section>
     </main>

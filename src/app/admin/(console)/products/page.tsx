@@ -317,6 +317,7 @@ export default async function AdminProductsPage({
         <ArchivedProductList rows={archivedVisible} canManage={canManage} />
       ) : (
         <ProductList
+          key={JSON.stringify([tab, query, category])}
           rows={visible}
           canManage={canManage}
           canStock={can(actor, "stock.adjust")}

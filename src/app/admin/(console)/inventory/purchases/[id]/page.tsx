@@ -1,3 +1,4 @@
+import { AdminDisclosure } from "@/features/admin/ui/admin-disclosure";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -84,8 +85,7 @@ export default async function PurchaseDetailPage({
         </ul>
       </section>
 
-      <section className="admin-panel" aria-labelledby="stock-effect-title">
-        <h2 id="stock-effect-title">أثرها على المخزون</h2>
+      <AdminDisclosure title="أثرها على المخزون" className="admin-panel">
         <p className="admin-muted">
           كما سُجّل في دفتر المخزون عند حفظ الفاتورة.
         </p>
@@ -126,7 +126,7 @@ export default async function PurchaseDetailPage({
             </li>
           ))}
         </ul>
-      </section>
+      </AdminDisclosure>
 
       <section className="admin-panel" aria-labelledby="invoice-summary-title">
         <h2 id="invoice-summary-title">ملخص الفاتورة</h2>

@@ -306,6 +306,8 @@ export function ProductList({
 }) {
   const router = useRouter();
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
+  const [shownCount, setShownCount] = useState(24);
+  const displayedRows = rows.slice(0, shownCount);
   const [editing, setEditing] = useState<string | null>(null);
   const [target, setTarget] = useState("");
   const [moveMessage, setMoveMessage] = useState<{
@@ -328,7 +330,9 @@ export function ProductList({
   );
   const names = new Map(rows.map((row) => [row.id, row.name]));
   const visibleSelected = rows.filter((row) => selected.has(row.id));
-  const allSelected = rows.length > 0 && visibleSelected.length === rows.length;
+  const allSelected =
+    displayedRows.length > 0 &&
+    displayedRows.every((row) => selected.has(row.id));
 
   function toggle(id: string) {
     setSelected((current) => {
@@ -402,7 +406,10 @@ export function ProductList({
       ) : null}
 
       <div className="admin-table-wrap admin-table-desktop">
-        <table className="admin-data-table admin-product-table">
+        <table
+          className="admin-data-table admin-product-table"
+          data-card-labels
+        >
           <thead>
             <tr>
               {canManage ? (
@@ -416,7 +423,7 @@ export function ProductList({
                         setSelected(
                           allSelected
                             ? new Set()
-                            : new Set(rows.map((row) => row.id)),
+                            : new Set(displayedRows.map((row) => row.id)),
                         )
                       }
                     />
@@ -437,7 +444,7 @@ export function ProductList({
             </tr>
           </thead>
           <tbody>
-            {rows.map((row) => (
+            {displayedRows.map((row) => (
               <tr
                 key={row.id}
                 data-selected={selected.has(row.id) || undefined}
@@ -454,7 +461,7 @@ export function ProductList({
                     </label>
                   </td>
                 ) : null}
-                <td>
+                <td data-label="المنتج">
                   <span className="admin-product-name-cell">
                     <Thumb row={row} />
                     <Link href={`/admin/products/${row.id}`} prefetch={false}>
@@ -469,13 +476,15 @@ export function ProductList({
                     />
                   ) : null}
                 </td>
-                <td>{row.category}</td>
-                <td className="admin-num">{row.price}</td>
-                <td>{typesLabel(row.variantCount)}</td>
+                <td data-label="القسم">{row.category}</td>
+                <td className="admin-num" data-label="السعر">
+                  {row.price}
+                </td>
+                <td data-label="الأنواع">{typesLabel(row.variantCount)}</td>
                 {showStock ? (
                   <td className="admin-num">{stockLabel(row)}</td>
                 ) : null}
-                <td>
+                <td data-label="الحالة">
                   <Chips row={row} />
                 </td>
                 {canManage ? (
@@ -510,7 +519,7 @@ export function ProductList({
       </div>
 
       <ul className="admin-product-cards">
-        {rows.map((row) => (
+        {displayedRows.map((row) => (
           <li key={row.id}>
             <article
               className="admin-product-item"
@@ -583,6 +592,21 @@ export function ProductList({
           </li>
         ))}
       </ul>
+
+      <div className="admin-list-footer">
+        <p className="admin-muted" role="status">
+          عرض {displayedRows.length} من {rows.length} منتج
+        </p>
+        {displayedRows.length < rows.length ? (
+          <button
+            type="button"
+            className="admin-btn admin-btn-secondary"
+            onClick={() => setShownCount((count) => count + 24)}
+          >
+            عرض المزيد
+          </button>
+        ) : null}
+      </div>
 
       {canManage && visibleSelected.length ? (
         <form

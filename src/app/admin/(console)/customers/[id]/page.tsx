@@ -1,3 +1,4 @@
+import { AdminDisclosure } from "@/features/admin/ui/admin-disclosure";
 import type { Metadata } from "next";
 import Link from "next/link";
 import {
@@ -172,15 +173,17 @@ export default async function CustomerProfilePage({
         </section>
       ) : null}
 
-      <section
+      <AdminDisclosure
+        title="كشف الحساب"
         id="statement"
         className="admin-panel admin-workspace-anchor"
-        aria-labelledby="statement-title"
       >
-        <h2 id="statement-title">كشف الحساب</h2>
         {customer.statement.length ? (
           <div className="admin-table-wrap">
-            <table className="admin-data-table admin-statement">
+            <table
+              className="admin-data-table admin-statement"
+              data-card-labels
+            >
               <thead>
                 <tr>
                   <th>التاريخ</th>
@@ -196,8 +199,10 @@ export default async function CustomerProfilePage({
                     : undefined;
                   return (
                     <tr key={line.id}>
-                      <td>{formatAdminDateTime(line.at)}</td>
-                      <td>
+                      <td data-label="التاريخ">
+                        {formatAdminDateTime(line.at)}
+                      </td>
+                      <td data-label="الحركة">
                         {ledgerEntryLabels[line.type]}
                         {invoice !== undefined && line.invoiceId ? (
                           <>
@@ -211,11 +216,11 @@ export default async function CustomerProfilePage({
                           </>
                         ) : null}
                       </td>
-                      <td className="admin-num">
+                      <td className="admin-num" data-label="المبلغ">
                         {line.amountAgorot > 0 ? "+ " : "− "}
                         <Money agorot={Math.abs(line.amountAgorot)} />
                       </td>
-                      <td className="admin-num">
+                      <td className="admin-num" data-label="الرصيد بعدها">
                         <Money agorot={line.balanceAgorot} />
                       </td>
                     </tr>
@@ -230,14 +235,13 @@ export default async function CustomerProfilePage({
         <p className="admin-muted">
           + تزيد ما على الزبون (بيع)، − تنقصه (دفعة أو إلغاء).
         </p>
-      </section>
+      </AdminDisclosure>
 
-      <section
+      <AdminDisclosure
+        title="الفواتير"
         id="invoices"
         className="admin-panel admin-workspace-anchor"
-        aria-labelledby="invoices-title"
       >
-        <h2 id="invoices-title">الفواتير</h2>
         {customer.invoices.length ? (
           <ul className="admin-line-list">
             {customer.invoices.map((invoice) => {
@@ -277,14 +281,13 @@ export default async function CustomerProfilePage({
         ) : (
           <p className="admin-empty">لا توجد فواتير لهذا الزبون.</p>
         )}
-      </section>
+      </AdminDisclosure>
 
-      <section
+      <AdminDisclosure
+        title="الدفعات"
         id="payments"
         className="admin-panel admin-workspace-anchor"
-        aria-labelledby="payments-title"
       >
-        <h2 id="payments-title">الدفعات</h2>
         {customer.payments.length ? (
           <ul className="admin-line-list">
             {customer.payments.map((payment) => (
@@ -320,14 +323,13 @@ export default async function CustomerProfilePage({
         ) : (
           <p className="admin-empty">لا توجد دفعات بعد.</p>
         )}
-      </section>
+      </AdminDisclosure>
 
-      <section
+      <AdminDisclosure
+        title="التذكير بالدين"
         id="reminders"
         className="admin-panel admin-workspace-anchor"
-        aria-labelledby="reminders-title"
       >
-        <h2 id="reminders-title">التذكير بالدين</h2>
         <p className="admin-muted">
           {reminders.disputed
             ? `الرصيد متنازع عليه${reminders.disputeNote ? `: ${reminders.disputeNote}` : ""} — التذكيرات متوقفة.`
@@ -364,14 +366,13 @@ export default async function CustomerProfilePage({
             disputed={reminders.disputed}
           />
         ) : null}
-      </section>
+      </AdminDisclosure>
 
-      <section
+      <AdminDisclosure
+        title="بيانات الزبون"
         id="profile"
         className="admin-panel admin-workspace-anchor"
-        aria-labelledby="details-title"
       >
-        <h2 id="details-title">بيانات الزبون</h2>
         {customer.aliases.length ? (
           <p className="admin-muted">
             يُعرف أيضاً بـ: {customer.aliases.join("، ")}
@@ -385,7 +386,7 @@ export default async function CustomerProfilePage({
             notes: customer.notes ?? "",
           }}
         />
-      </section>
+      </AdminDisclosure>
     </main>
   );
 }

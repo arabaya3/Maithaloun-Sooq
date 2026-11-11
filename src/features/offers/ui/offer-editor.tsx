@@ -293,7 +293,11 @@ export function OfferEditor({
               </p>
             )}
             <div className="admin-table-wrap">
-              <table className="admin-data-table" aria-label="الأسعار في العرض">
+              <table
+                className="admin-data-table"
+                aria-label="الأسعار في العرض"
+                data-card-labels
+              >
                 <thead>
                   <tr>
                     <th scope="col">الصنف</th>
@@ -305,14 +309,16 @@ export function OfferEditor({
                 <tbody>
                   {preview.rows.map((row) => (
                     <tr key={row.variantId}>
-                      <td>{row.label}</td>
-                      <td>{formatIls(row.listPriceAgorot)}</td>
-                      <td>
+                      <td data-label="الصنف">{row.label}</td>
+                      <td data-label="السعر الحالي">
+                        {formatIls(row.listPriceAgorot)}
+                      </td>
+                      <td data-label="في العرض">
                         {row.finalPriceAgorot === null
                           ? "لا يُطبَّق"
                           : formatIls(row.finalPriceAgorot)}
                       </td>
-                      <td>
+                      <td data-label="الربح للقطعة">
                         {row.finalPriceAgorot === null ||
                         row.avgCostAgorot === null
                           ? "—"

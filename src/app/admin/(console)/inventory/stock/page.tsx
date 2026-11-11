@@ -227,7 +227,7 @@ export default async function StockListPage({
           </ul>
 
           <div className="admin-table-wrap admin-stock-table">
-            <table className="admin-data-table">
+            <table className="admin-data-table" data-card-labels>
               <thead>
                 <tr>
                   <th>المنتج</th>
@@ -245,7 +245,7 @@ export default async function StockListPage({
               <tbody>
                 {items.map((item) => (
                   <tr key={item.variantId}>
-                    <td>
+                    <td data-label="المنتج">
                       <Link
                         href={`/admin/inventory/stock/${item.variantId}`}
                         prefetch={false}
@@ -260,31 +260,31 @@ export default async function StockListPage({
                         </span>
                       </Link>
                     </td>
-                    <td>
+                    <td data-label="الحالة">
                       <StockStatusPill status={item.status} />
                     </td>
-                    <td>
+                    <td data-label="الكمية">
                       {item.tracked ? (
                         <Quantity milli={item.onHandMilli} unit={item.unit} />
                       ) : (
                         "—"
                       )}
                     </td>
-                    <td>
+                    <td data-label="محجوز">
                       {item.tracked ? (
                         <Quantity milli={item.reservedMilli} />
                       ) : (
                         "—"
                       )}
                     </td>
-                    <td>
+                    <td data-label="المتوفر">
                       {item.tracked ? (
                         <Quantity milli={item.availableMilli} />
                       ) : (
                         "—"
                       )}
                     </td>
-                    <td>
+                    <td data-label="حد الطلب">
                       {item.reorderThresholdMilli === null ? (
                         "—"
                       ) : (
@@ -300,7 +300,7 @@ export default async function StockListPage({
                         )}
                       </td>
                     ) : null}
-                    <td>
+                    <td data-label="سعر البيع">
                       <Money agorot={item.salePriceAgorot} />
                     </td>
                     {showCosts ? (
@@ -322,7 +322,7 @@ export default async function StockListPage({
                         )}
                       </td>
                     ) : null}
-                    <td className="admin-muted">
+                    <td className="admin-muted" data-label="آخر حركة">
                       <LastMovement item={item} />
                     </td>
                   </tr>
