@@ -143,14 +143,7 @@ export default async function SocialAnalyticsPage() {
         )}
       </section>
 
-      <AdminDisclosure
-        title={
-          <>
-            <Activity size={18} aria-hidden="true" /> سجل المهام المجدولة
-          </>
-        }
-        className="admin-panel"
-      >
+      <AdminDisclosure title="سجل المهام المجدولة" className="admin-panel">
         <ol className="admin-line-list">
           {runs.map((run) => (
             <li key={run.id} className="admin-line">
