@@ -119,8 +119,12 @@ export default async function SuppliersPage() {
       )}
 
       <section className="admin-panel" aria-labelledby="new-supplier-title">
-        <h2 id="new-supplier-title">مورد جديد</h2>
-        <SupplierCreateForm />
+        <details className="admin-fold" open={!suppliers.length}>
+          <summary id="new-supplier-title">إضافة مورد جديد</summary>
+          <div className="admin-fold-body">
+            <SupplierCreateForm />
+          </div>
+        </details>
       </section>
     </main>
   );
