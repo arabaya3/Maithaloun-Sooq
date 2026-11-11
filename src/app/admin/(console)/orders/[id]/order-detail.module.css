@@ -1,0 +1,101 @@
+.page {
+  min-width: 0;
+}
+
+.page :global(.admin-detail-layout) {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.page :global(.admin-detail-main),
+.page :global(.admin-detail-aside) {
+  display: contents;
+}
+
+.page :global(.admin-order-detail-header) {
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.page :global(.admin-order-detail-header h1) {
+  font-size: clamp(1.3rem, 4vw, 1.8rem);
+  overflow-wrap: anywhere;
+}
+
+.page :global(.admin-panel) {
+  padding: 1rem;
+  margin: 0;
+}
+
+.page :global(.admin-sticky-panel) {
+  position: static;
+}
+
+.page :global(.admin-definition-list) {
+  gap: 0.75rem;
+}
+
+.page :global(.admin-order-detail-header) {
+  order: 0;
+}
+.page :global(.admin-actions-panel) {
+  order: 1;
+}
+.page :global(section[aria-labelledby="customer-title"]) {
+  order: 2;
+}
+.page :global(section[aria-labelledby="delivery-title"]) {
+  order: 3;
+}
+.page :global(section[aria-labelledby="order-items-title"]) {
+  order: 4;
+}
+.page :global(section[aria-labelledby="totals-title"]) {
+  order: 5;
+}
+.page :global(section[aria-labelledby="order-history-title"]) {
+  order: 6;
+}
+
+.reference {
+  width: 100%;
+  font-size: 0.8rem;
+  overflow-wrap: anywhere;
+}
+
+.page summary {
+  cursor: pointer;
+  font-weight: 700;
+}
+
+@media (max-width: 40rem) {
+  .page :global(.admin-data-table) {
+    min-width: 0;
+    width: 100%;
+  }
+  .page :global(.admin-data-table thead) {
+    display: none;
+  }
+  .page :global(.admin-data-table tr) {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    border-bottom: 1px solid var(--admin-border);
+    padding-block: 0.75rem;
+  }
+  .page :global(.admin-data-table td) {
+    overflow-wrap: anywhere;
+    border: 0;
+    padding: 0.3rem;
+  }
+  .page :global(.admin-data-table td:first-child) {
+    grid-column: 1 / -1;
+    font-weight: 700;
+  }
+  .page :global(.admin-data-table td:nth-child(4))::before {
+    content: "سعر الوحدة ";
+  }
+  .page :global(.admin-data-table td:last-child)::before {
+    content: "المجموع ";
+  }
+}
