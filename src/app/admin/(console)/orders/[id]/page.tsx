@@ -11,10 +11,7 @@ import { AdminStatusBadge } from "@/features/admin/ui/admin-status-badge";
 import { OrderItemStockNote } from "@/features/admin/ui/order-item-stock-note";
 import { sellingLineText } from "@/features/catalog/domain/selling-unit";
 import { OrderStatusForm } from "@/features/admin/ui/order-status-form";
-import {
-  getAllowedTransitions,
-  getPrimaryNextActionLabel,
-} from "@/features/orders/domain/order-status";
+import { getAllowedTransitions } from "@/features/orders/domain/order-status";
 import styles from "./order-detail.module.css";
 import { statusImpact } from "@/features/orders/domain/status-impact";
 import { orderStatusLabels } from "@/features/orders/domain/order-status";
@@ -44,10 +41,19 @@ export default async function AdminOrderDetailPage({
 
   const orderTitle = `طلب ${order.customerName}`;
 
-  // Keep the status action beside the summary on this page.
-  const nextLabel = order.isTest
-    ? null
-    : getPrimaryNextActionLabel(order.status);
+  const stages = [
+    "pending",
+    "confirmed",
+    "preparing",
+    "out_for_delivery",
+    "delivered",
+  ] as const;
+  const currentStage = stages.findIndex((stage) => stage === order.status);
+  const reached = new Set([
+    "pending",
+    ...order.history.map((entry) => entry.newStatus),
+    order.status,
+  ]);
 
   return (
     <main className={`admin-page admin-order-detail ${styles.page}`}>
@@ -82,11 +88,6 @@ export default async function AdminOrderDetailPage({
               </p>
             </div>
             <AdminStatusBadge status={order.status} />
-            {nextLabel ? (
-              <a className="admin-btn admin-btn-primary" href="#status-actions">
-                {nextLabel}
-              </a>
-            ) : null}
             <details className={styles.reference}>
               <summary>مرجع الطلب</summary>
               <bdi dir="ltr">{order.publicReference}</bdi>
@@ -284,7 +285,36 @@ export default async function AdminOrderDetailPage({
             className="admin-panel admin-actions-panel admin-sticky-panel"
             aria-labelledby="status-actions-title"
           >
-            <h2 id="status-actions-title">الإجراءات المتاحة</h2>
+            <h2 id="status-actions-title">متابعة الطلب</h2>
+            <ol className={styles.progress} aria-label="مراحل الطلب">
+              {stages.map((stage, index) => {
+                const current =
+                  stage === order.status ||
+                  (stage === "pending" && order.status === "awaiting_whatsapp");
+                const done =
+                  order.status === "cancelled"
+                    ? reached.has(stage)
+                    : index < currentStage;
+                return (
+                  <li
+                    key={stage}
+                    data-done={done || undefined}
+                    aria-current={current ? "step" : undefined}
+                  >
+                    <span className={styles.dot}>{done ? "✓" : index + 1}</span>
+                    <span>
+                      {stage === "pending" &&
+                      order.status === "awaiting_whatsapp"
+                        ? orderStatusLabels.awaiting_whatsapp
+                        : orderStatusLabels[stage]}
+                    </span>
+                  </li>
+                );
+              })}
+            </ol>
+            {order.status === "cancelled" ? (
+              <p className="admin-muted">تم إلغاء الطلب</p>
+            ) : null}
             <OrderStatusForm
               publicReference={order.publicReference}
               status={order.status}
