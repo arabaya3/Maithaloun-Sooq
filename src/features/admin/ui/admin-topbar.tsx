@@ -14,6 +14,17 @@ const titles: Record<string, string> = {
   "/admin/products/new/photo": "تصوير منتج",
 
   "/admin/settings": "إعدادات المتجر",
+  "/admin/categories": "الأقسام",
+  "/admin/offers": "العروض",
+  "/admin/offers/new": "عرض جديد",
+  "/admin/settings/users": "حسابات الإدارة",
+  "/admin/audit": "سجل التدقيق",
+  "/admin/whatsapp": "مساعد واتساب",
+  "/admin/social": "فيسبوك",
+  "/admin/social/queue": "قائمة النشر",
+  "/admin/social/inbox": "صندوق الرسائل",
+  "/admin/social/analytics": "أداء المحتوى",
+  "/admin/social/settings": "إعدادات فيسبوك",
   "/admin/notifications": "الإشعارات",
   "/admin/voice": "سجّل عملية بالصوت",
   "/admin/reports": "التقارير",
@@ -42,6 +53,9 @@ function resolveTitle(pathname: string): string {
   if (pathname.startsWith("/admin/inventory/purchases/")) return "فاتورة شراء";
   if (pathname.startsWith("/admin/inventory/review/"))
     return "مراجعة قبل الحفظ";
+  if (pathname.startsWith("/admin/categories/")) return "تعديل القسم";
+  if (pathname.startsWith("/admin/offers/")) return "تعديل العرض";
+  if (pathname.startsWith("/admin/social/posts/")) return "تفاصيل المنشور";
   return "إدارة MAYTHA MARKET";
 }
 
