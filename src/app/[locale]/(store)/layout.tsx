@@ -25,8 +25,9 @@ import { getLocale } from "@/i18n/server";
 import "./storefront.css";
 
 // Storefront pages are static: rendered once, served from the cache, refreshed by revalidateStorefront()
-// whenever the owner changes the catalog, and at most every 15 minutes as a safety net (stock moves).
-export const revalidate = 900;
+// whenever the catalog, stock or an order changes, and once a day as a safety net. A short window made
+// crawlers re-render every product page around the clock, the main Vercel CPU cost.
+export const revalidate = 86400;
 
 // Catalog-backed providers live here so admin and utility routes never load the catalog. Nothing here
 // reads the request, so every page under it can be served from the static cache; the signed-in
