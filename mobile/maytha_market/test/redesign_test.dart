@@ -195,8 +195,8 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.textContaining('لا حاجة لإنشاء حساب'), findsOneWidget);
     expect(find.text('عرض الصفحة الكاملة على الموقع'), findsOneWidget);
-    expect(policyUri('privacy', 'ar').toString(), 'https://maithaloun-sooq.vercel.app/privacy');
-    expect(policyUri('terms', 'en').toString(), 'https://maithaloun-sooq.vercel.app/en/terms');
+    expect(policyUri('privacy', 'ar').toString(), 'https://www.maytha.app/privacy');
+    expect(policyUri('terms', 'en').toString(), 'https://www.maytha.app/en/terms');
   });
 
   group('session restoration', () {

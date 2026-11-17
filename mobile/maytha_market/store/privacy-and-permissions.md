@@ -30,8 +30,8 @@ Verify them again against the final build before submitting.
 - Tracking: No.
 - `ITSAppUsesNonExemptEncryption` = false is set in Info.plist (HTTPS only).
 
-**Privacy policy URL** (both stores): https://maithaloun-sooq.vercel.app/privacy (Arabic) and
-https://maithaloun-sooq.vercel.app/en/privacy (English). It has a section on the app that matches the points above.
+**Privacy policy URL** (both stores): https://www.maytha.app/privacy (Arabic) and
+https://www.maytha.app/en/privacy (English). It has a section on the app that matches the points above.
 
 ## Permissions
 - Android: `android.permission.INTERNET` only (main manifest). No location, camera, contacts, storage, or notifications.
@@ -56,7 +56,7 @@ so they are not in release builds.
 | path_provider_foundation 2.6.0 | finds the cache directory | none | no native sources: the package is Dart FFI only (`dartPluginClass`), so there is nothing to declare |
 
 Dart-only packages (`http`, `cached_network_image`, `flutter_cache_manager`, `provider`, `intl`, `flutter_svg`) contain
-no native iOS code. The app's only network destinations are the store API (`maithaloun-sooq.vercel.app`) and the
+no native iOS code. The app's only network destinations are the store API (`www.maytha.app`) and the
 product-image host (Supabase storage). There are no analytics, ads, crash-reporting or attribution SDKs.
 
 The Flutter engine (`Flutter.xcframework`) ships its own manifest (source
