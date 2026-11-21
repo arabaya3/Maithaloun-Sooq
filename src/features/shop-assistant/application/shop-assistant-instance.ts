@@ -1,7 +1,5 @@
 import "server-only";
 
-import { createOpenAI } from "@ai-sdk/openai";
-
 import { PostgresRateLimiter } from "@/features/admin/auth/postgres-rate-limiter";
 import { storefrontCategories } from "@/features/catalog/infrastructure/category-repository";
 import { productRepository } from "@/features/catalog/infrastructure/product-repository";
@@ -12,6 +10,7 @@ import type { MessageSender } from "../domain/transport";
 import { CloudApiSender } from "../infrastructure/cloud-api";
 import { createAiTurn } from "./shop-assistant-ai";
 import { ShopAssistantService } from "./shop-assistant-service";
+import { chatModel } from "@/server/ai/provider";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -50,13 +49,13 @@ const limiter = new PostgresRateLimiter(db);
 
 const aiTurn = createAiTurn(
   () => {
-    const apiKey = process.env.OPENAI_API_KEY;
-    if (!apiKey) throw new Error("AI_NOT_CONFIGURED");
-    return createOpenAI({ apiKey })(
+    const model = chatModel(
       process.env.SHOP_ASSISTANT_MODEL?.trim() ||
         process.env.OPENAI_ASSISTANT_MODEL?.trim() ||
         "gpt-4.1-mini",
     );
+    if (!model) throw new Error("AI_NOT_CONFIGURED");
+    return model;
   },
   async () => {
     const [products, categories] = await Promise.all([

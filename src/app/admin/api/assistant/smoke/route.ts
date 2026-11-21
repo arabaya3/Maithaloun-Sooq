@@ -11,6 +11,7 @@ import {
   SMOKE_RATE_LIMIT,
   smokeTestEnabled,
 } from "@/features/assistant/domain/smoke-test";
+import { isAiConfigured } from "@/server/ai/openai-client";
 import { db } from "@/server/db/db";
 
 export const dynamic = "force-dynamic";
@@ -27,7 +28,7 @@ export async function POST(request: Request) {
   if (actor.role !== "owner") {
     return jsonNoStore({ ok: false, message: "هذا الفحص للمالك فقط." }, 403);
   }
-  if (!process.env.OPENAI_API_KEY && process.env.AI_FAKE_MODE !== "1") {
+  if (!isAiConfigured() && process.env.AI_FAKE_MODE !== "1") {
     return jsonNoStore(
       { ok: false, message: "المساعد غير مهيأ على الخادم بعد." },
       503,
