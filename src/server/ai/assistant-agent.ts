@@ -1,6 +1,5 @@
 import "server-only";
 
-import { createOpenAI } from "@ai-sdk/openai";
 import {
   isStepCount,
   ToolLoopAgent,
@@ -26,23 +25,23 @@ import {
 import { createFakeAssistantModel } from "./assistant-fake-model";
 import { isFakeAiEnabled } from "./fake-mode";
 import { AiError } from "./openai-client";
+import { agentCallSettings, chatModel, chatModelId } from "./provider";
+
+function openAiAssistantModelId(): string {
+  return process.env.OPENAI_ASSISTANT_MODEL ?? "gpt-4.1-mini";
+}
 
 export function assistantModelId(): string {
   return isFakeAiEnabled()
     ? "fake-assistant-model"
-    : (process.env.OPENAI_ASSISTANT_MODEL ?? "gpt-4.1-mini");
+    : chatModelId(openAiAssistantModelId());
 }
 
 function assistantModel() {
   if (isFakeAiEnabled()) return createFakeAssistantModel();
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) throw new AiError("AI_NOT_CONFIGURED");
-  return createOpenAI({ apiKey })(assistantModelId());
-}
-
-// Reasoning models reject sampling settings; everything else runs deterministically for tool selection.
-function supportsTemperature(modelId: string): boolean {
-  return !/^(o\d|gpt-5)/.test(modelId);
+  const model = chatModel(openAiAssistantModelId());
+  if (!model) throw new AiError("AI_NOT_CONFIGURED");
+  return model;
 }
 
 const agentSettings = () => ({
@@ -60,8 +59,9 @@ const agentSettings = () => ({
       ? { toolChoice: "none" as const }
       : undefined,
   maxRetries: 1,
-  maxOutputTokens: 900,
-  ...(supportsTemperature(assistantModelId()) ? { temperature: 0 } : {}),
+  ...(isFakeAiEnabled()
+    ? { maxOutputTokens: 900, temperature: 0 }
+    : agentCallSettings(assistantModelId(), 900)),
 });
 
 export function createAssistantAgent(context: AssistantToolContext) {

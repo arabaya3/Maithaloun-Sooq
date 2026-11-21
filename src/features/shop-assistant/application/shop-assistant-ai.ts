@@ -24,6 +24,7 @@ import { addToCart, setCartQuantity } from "../domain/conversation-cart";
 import { matchProducts } from "../domain/product-matching";
 import { replies } from "../domain/replies";
 import type { AiTurn, AssistantTurnContext } from "./shop-assistant-service";
+import { outputBudget } from "@/server/ai/provider";
 
 export const MAX_ASSISTANT_STEPS = 6;
 
@@ -254,7 +255,7 @@ export function createAiTurn(
       messages: [...context.history, { role: "user", content: text }],
       tools: createShopAssistantTools(context, catalog, storeUrl),
       stopWhen: isStepCount(MAX_ASSISTANT_STEPS),
-      maxOutputTokens: 600,
+      ...outputBudget(600),
       maxRetries: 1,
     });
     return result.text;
