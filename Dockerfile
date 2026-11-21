@@ -16,12 +16,12 @@ COPY . .
 FROM source AS migrator
 CMD ["sh", "-c", "pnpm exec tsx tools/migrate-database.ts && pnpm exec tsx tools/ensure-order-contact-columns.ts"]
 
-# Built without runtime secrets: storefront pages render on first request and are then cached (ISR).
+# Built with the runtime env (as on Vercel Production) so the storefront prerenders and every route keeps
+# its intended static/dynamic mode. The env arrives as a BuildKit secret and never lands in an image layer.
 FROM source AS builder
-ARG NEXT_PUBLIC_VAPID_PUBLIC_KEY=""
-ENV NEXT_PUBLIC_VAPID_PUBLIC_KEY=$NEXT_PUBLIC_VAPID_PUBLIC_KEY NODE_OPTIONS=--max-old-space-size=1536
-RUN pnpm exec next build --webpack
-
+ENV NODE_OPTIONS=--max-old-space-size=1536
+RUN --mount=type=secret,id=appenv,required=true \
+    set -a && . /run/secrets/appenv && set +a && pnpm exec next build --webpack
 FROM node:22-bookworm-slim AS runner
 ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 PORT=3000 HOSTNAME=0.0.0.0
 WORKDIR /app
