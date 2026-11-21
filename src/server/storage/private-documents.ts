@@ -6,6 +6,7 @@ import path from "node:path";
 import { createClient } from "@supabase/supabase-js";
 
 import { testDoublesAllowed } from "@/server/env/isolated-test-server";
+import { getMediaRoot } from "@/server/storage/media-root";
 
 export interface StoredDocumentLocation {
   provider: "supabase" | "local";
@@ -116,6 +117,13 @@ let cached: PrivateDocumentStore | null = null;
 
 export function getPrivateDocumentStore(): PrivateDocumentStore {
   if (cached) return cached;
+  const mediaRoot = getMediaRoot();
+  if (mediaRoot) {
+    // Self-hosted: documents stay on the server's disk, outside the public media folder. Files copied
+    // from Supabase keep their object path, so rows that still say "supabase" resolve here too.
+    cached = localStore(path.join(mediaRoot, "private"));
+    return cached;
+  }
   const url = process.env.SUPABASE_URL;
   const secret = process.env.SUPABASE_SECRET_KEY;
   if (url && secret) {

@@ -30,6 +30,7 @@ import {
 import { mapProductRow } from "@/features/catalog/infrastructure/product-row-mapper";
 import { loadVariantCommerce } from "@/features/catalog/infrastructure/variant-commerce";
 import * as schema from "@/server/db/schema";
+import { MEDIA_PRODUCT_SRC } from "@/server/storage/media-root";
 
 import { addGalleryImage, syncImageMirrors } from "./gallery-store";
 
@@ -90,7 +91,7 @@ export const adminCapturedProductCreateSchema = z
     brand: optionalText(80),
     size: optionalText(80),
     barcode: optionalText(64),
-    imageSrc: z.string().url().max(500),
+    imageSrc: z.union([z.url().max(500), z.string().regex(MEDIA_PRODUCT_SRC)]),
     imageWidth: z.number().int().positive().max(10_000),
     imageHeight: z.number().int().positive().max(10_000),
   })
@@ -967,7 +968,8 @@ export class AdminCatalogService {
       !productIdSchema.safeParse(input.domainId).success ||
       !(
         z.url().max(500).safeParse(input.image.src).success ||
-        /^\/dev-product-images\/[0-9a-f-]{36}\.webp$/.test(input.image.src)
+        /^\/dev-product-images\/[0-9a-f-]{36}\.webp$/.test(input.image.src) ||
+        MEDIA_PRODUCT_SRC.test(input.image.src)
       )
     ) {
       throw new AdminCatalogError("invalid_input");

@@ -22,6 +22,8 @@ const socialRenderAssets = [
 ];
 
 const nextConfig: NextConfig = {
+  // Self-hosted Docker image: a minimal Node server with only the files it needs.
+  output: "standalone",
   poweredByHeader: false,
   // Storefront pages live under app/[locale]; unmatched addresses get one static page with no layout.
   experimental: { globalNotFound: true },

@@ -1,0 +1,47 @@
+# Lives at /opt/maytha/compose.yaml on the server. Secrets are in /opt/maytha/.env and app.env (never committed).
+name: maytha
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    env_file: .env
+    command: ["postgres", "-c", "shared_buffers=128MB", "-c", "max_connections=40", "-c", "work_mem=4MB", "-c", "effective_cache_size=512MB"]
+    volumes: ["pgdata:/var/lib/postgresql/data"]
+    networks: [maytha]
+    mem_limit: 512m
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U maytha -d maytha"]
+      interval: 10s
+      retries: 5
+
+  migrate:
+    image: maytha-migrator:latest
+    profiles: [deploy]
+    env_file: app.env
+    environment: { APPLY_DB_MIGRATIONS: "1" }
+    depends_on: { db: { condition: service_healthy } }
+    networks: [maytha]
+
+  app:
+    image: maytha-app:latest
+    restart: unless-stopped
+    env_file: app.env
+    environment: { MEDIA_ROOT: /data/media, TRUST_PROXY: "true" }
+    volumes: ["./media:/data/media"]
+    ports: ["127.0.0.1:3010:3000"]
+    depends_on: { db: { condition: service_healthy } }
+    networks: [maytha]
+    mem_limit: 900m
+    stop_grace_period: 30s
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/').then(r=>process.exit(r.status<500?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+volumes:
+  pgdata: {}
+networks:
+  maytha:
+    name: maytha

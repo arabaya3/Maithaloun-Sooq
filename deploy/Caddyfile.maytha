@@ -1,0 +1,10 @@
+# Added to the server's shared Caddy (iih-ivr) when switching DNS; that Caddy joins the "maytha" network.
+maytha.app, www.maytha.app {
+	encode zstd gzip
+	request_body {
+		max_size 25MB
+	}
+	reverse_proxy maytha-app-1:3000 {
+		header_up X-Forwarded-Proto {scheme}
+	}
+}
