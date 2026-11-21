@@ -8,6 +8,11 @@ import sharp from "sharp";
 
 import { testDoublesAllowed } from "@/server/env/isolated-test-server";
 import { MAX_GALLERY_UPLOAD_BYTES } from "@/features/admin/domain/gallery-upload-limits";
+import {
+  getMediaRoot,
+  MEDIA_PRODUCT_FILE,
+  MEDIA_PRODUCT_PREFIX,
+} from "@/server/storage/media-root";
 
 import {
   removeProductPhoto,
@@ -45,8 +50,36 @@ export async function readDevProductImage(
   }
 }
 
+// Self-hosted: photos are written to <MEDIA_ROOT>/public/products and served by /media/[...path].
+function mediaStore(root: string): ProductImageStore {
+  const dir = path.join(root, "public", "products");
+  return {
+    async remove(src) {
+      const file = src.startsWith(MEDIA_PRODUCT_PREFIX)
+        ? src.slice(MEDIA_PRODUCT_PREFIX.length)
+        : "";
+      if (!MEDIA_PRODUCT_FILE.test(file)) return false;
+      await rm(path.join(dir, file), { force: true });
+      return true;
+    },
+    async put(webp) {
+      const file = `${randomUUID()}.webp`;
+      await mkdir(dir, { recursive: true });
+      await writeFile(path.join(dir, file), webp, { flag: "wx" });
+      const metadata = await sharp(webp).metadata();
+      return {
+        src: `${MEDIA_PRODUCT_PREFIX}${file}`,
+        width: metadata.width ?? 1_200,
+        height: metadata.height ?? 1_200,
+      };
+    },
+  };
+}
+
 // Product photos are public storefront assets; development without Supabase keeps them on disk.
 export function getProductImageStore(): ProductImageStore {
+  const mediaRoot = getMediaRoot();
+  if (mediaRoot) return mediaStore(mediaRoot);
   if (process.env.SUPABASE_URL && process.env.SUPABASE_SECRET_KEY) {
     return { put: uploadProductPhoto, remove: removeProductPhoto };
   }

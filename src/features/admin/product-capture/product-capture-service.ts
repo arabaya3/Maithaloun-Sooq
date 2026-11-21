@@ -4,6 +4,10 @@ import { randomUUID } from "node:crypto";
 
 import { createClient } from "@supabase/supabase-js";
 import sharp from "sharp";
+import {
+  isAiConfigured,
+  requestStructuredJson,
+} from "@/server/ai/openai-client";
 import { z } from "zod";
 
 const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
@@ -58,28 +62,6 @@ function productSchema(categoryCodes: readonly string[]) {
   } as const;
 }
 
-function extractResponseText(response: unknown): string {
-  const parsed = z
-    .object({
-      output: z.array(
-        z.object({
-          type: z.string(),
-          content: z
-            .array(z.object({ type: z.string(), text: z.string().optional() }))
-            .optional(),
-        }),
-      ),
-    })
-    .safeParse(response);
-  if (!parsed.success) throw new Error("AI_RESPONSE_INVALID");
-  for (const item of parsed.data.output) {
-    for (const content of item.content ?? []) {
-      if (content.type === "output_text" && content.text) return content.text;
-    }
-  }
-  throw new Error("AI_RESPONSE_EMPTY");
-}
-
 export async function normalizeProductPhoto(file: File): Promise<Buffer> {
   if (!ACCEPTED_IMAGE_TYPES.has(file.type) || file.size > MAX_IMAGE_BYTES) {
     throw new Error("INVALID_IMAGE");
@@ -106,52 +88,29 @@ export async function analyzeProductPhoto(
   image: Buffer,
   categories: ReadonlyArray<{ code: string; nameAr: string }>,
 ): Promise<ProductCaptureDraft> {
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) throw new Error("AI_NOT_CONFIGURED");
-  const response = await fetch("https://api.openai.com/v1/responses", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
+  if (!isAiConfigured()) throw new Error("AI_NOT_CONFIGURED");
+  let draft: unknown;
+  try {
+    draft = await requestStructuredJson({
       model: process.env.OPENAI_VISION_MODEL ?? "gpt-4.1-mini",
-      store: false,
-      input: [
+      schemaName: "cleaning_product_draft",
+      schema: productSchema(categories.map((category) => category.code)),
+      instructions: `اقرأ عبوة منتج تنظيف من صورة حقيقية. اقترح بيانات عربية قصيرة ومحايدة دون اختراع مكونات أو ادعاءات. استخدم categoryId من: ${categories
+        .map((category) => `${category.code}=${category.nameAr}`)
+        .join(", ")}. إذا لم يظهر حقل بوضوح أعد نصاً فارغاً وخفّض confidence.`,
+      content: [
         {
-          role: "user",
-          content: [
-            {
-              type: "input_text",
-              text: `اقرأ عبوة منتج تنظيف من صورة حقيقية. اقترح بيانات عربية قصيرة ومحايدة دون اختراع مكونات أو ادعاءات. استخدم categoryId من: ${categories
-                .map((category) => `${category.code}=${category.nameAr}`)
-                .join(
-                  ", ",
-                )}. إذا لم يظهر حقل بوضوح أعد نصاً فارغاً وخفّض confidence.`,
-            },
-            {
-              type: "input_image",
-              image_url: `data:image/webp;base64,${image.toString("base64")}`,
-              detail: "high",
-            },
-          ],
+          type: "input_image",
+          image_url: `data:image/webp;base64,${image.toString("base64")}`,
+          detail: "high",
         },
       ],
-      text: {
-        format: {
-          type: "json_schema",
-          name: "cleaning_product_draft",
-          strict: true,
-          schema: productSchema(categories.map((category) => category.code)),
-        },
-      },
-    }),
-    signal: AbortSignal.timeout(45_000),
-  });
-  if (!response.ok) throw new Error("AI_REQUEST_FAILED");
-  return productDraftSchema.parse(
-    JSON.parse(extractResponseText(await response.json())),
-  );
+      timeoutMs: 45_000,
+    });
+  } catch {
+    throw new Error("AI_REQUEST_FAILED");
+  }
+  return productDraftSchema.parse(draft);
 }
 
 export async function cleanProductPhotoWithAi(image: Buffer): Promise<Buffer> {
