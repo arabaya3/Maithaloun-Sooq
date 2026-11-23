@@ -82,8 +82,14 @@ test("unknown, hidden and archived codes are not found", async ({ page }) => {
     // The home page ignores a hidden category in its address and shows everything.
     await page.goto(`/?category=${hidden!.code}`);
     await expect(
-      page.locator('.category-item[data-category-id="all"]'),
-    ).toHaveAttribute("aria-pressed", "true");
+      page.getByRole("heading", { level: 2, name: "وصل حديثًا" }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("group", { name: "عوامل التصفية المختارة" }),
+    ).toHaveCount(0);
+    await expect(
+      page.locator(`.category-item[data-category-id="${hidden!.code}"]`),
+    ).toHaveCount(0);
   } finally {
     await withTestDb(
       (sql) =>
@@ -92,21 +98,43 @@ test("unknown, hidden and archived codes are not found", async ({ page }) => {
   }
 });
 
-test("the home page keeps the chosen category in its address", async ({
+test("home category cards open the category page", async ({ page }) => {
+  const [first] = (await publishedCounts()).filter((item) => item.count > 0);
+  await page.goto("/");
+  const card = page.locator(
+    `.categories-section a.category-item[data-category-id="${first!.code}"]`,
+  );
+  await expect(card).toHaveAttribute("href", `/categories/${first!.code}`);
+  await card.click();
+  await expect(page).toHaveURL(new RegExp(`/categories/${first!.code}$`));
+  await expect(
+    page.getByRole("heading", { level: 1, name: first!.name_ar }),
+  ).toBeVisible();
+  await expect(page.locator("article[data-product-id]")).toHaveCount(
+    Math.min(first!.count, 12),
+  );
+});
+
+test("the home filter keeps the chosen category in its address", async ({
   page,
 }) => {
   const [first] = (await publishedCounts()).filter((item) => item.count > 0);
   await page.goto("/");
-  await page.locator(`[data-category-id="${first!.code}"]`).click();
+  await page.getByRole("button", { name: /تصفية/ }).click();
+  const sheet = page.getByRole("dialog", { name: "تصفية المنتجات" });
+  await sheet.getByText(first!.name_ar, { exact: true }).click();
+  await sheet.getByRole("button", { name: /عرض النتائج/ }).click();
   await expect(page).toHaveURL(new RegExp(`\\?category=${first!.code}$`));
   await page.reload();
   await expect(
-    page.locator(`[data-category-id="${first!.code}"]`),
-  ).toHaveAttribute("aria-pressed", "true");
+    page.getByRole("button", { name: `إزالة القسم: ${first!.name_ar}` }),
+  ).toBeVisible();
   await expect(page.locator("article[data-product-id]")).toHaveCount(
     Math.min(first!.count, 12),
   );
-  await page.locator('[data-category-id="all"]').click();
+  await page
+    .getByRole("button", { name: `إزالة القسم: ${first!.name_ar}` })
+    .click();
   await expect(page).toHaveURL(/\/$/);
 });
 
@@ -130,7 +158,7 @@ for (const width of [360, 390, 768, 1440]) {
       await page.goto("/");
       await page
         .locator('[data-product-id="general-cleaner"]')
-        .getByRole("button", { name: "أضف إلى السلة" })
+        .getByRole("button", { name: "أضف للسلة" })
         .click();
       await page.goto("/cart");
       await expectNoHorizontalOverflow(page);

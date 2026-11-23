@@ -1,7 +1,7 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
 
-import { expectNoHorizontalOverflow, withTestDb } from "./support";
+import { expectNoHorizontalOverflow, withTestDb, openCart } from "./support";
 
 const SHOTS = "artifacts/languages";
 
@@ -92,7 +92,7 @@ test.describe("an English browser", () => {
         .locator('[data-product-id="general-cleaner"]')
         .getByRole("button", { name: "Add to cart" })
         .click();
-      await page.locator(".cart-button").click();
+      await openCart(page);
       await expect(page).toHaveURL(/\/en\/cart$/);
       await expect(
         page.getByRole("heading", { level: 1, name: "Shopping cart" }),

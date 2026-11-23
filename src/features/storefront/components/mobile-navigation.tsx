@@ -33,6 +33,10 @@ export function MobileNavigation() {
             key={item.href}
             href={item.href}
             aria-current={isCurrent ? "page" : undefined}
+            // The cart says how many items it holds, like the header cart.
+            aria-label={
+              item.href === "/cart" ? m.store.cartCount(count) : undefined
+            }
           >
             {item.href === "/cart" ? (
               <span className="cart-icon">
@@ -47,9 +51,6 @@ export function MobileNavigation() {
               <Icon aria-hidden="true" />
             )}
             <span>{item.label}</span>
-            {item.href === "/cart" && count > 0 ? (
-              <span className="sr-only">{m.store.cartCount(count)}</span>
-            ) : null}
           </Link>
         );
       })}

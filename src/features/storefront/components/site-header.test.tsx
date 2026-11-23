@@ -91,5 +91,9 @@ describe("MobileNavigation", () => {
     expect(screen.getByRole("link", { name: "الرئيسية" })).not.toHaveAttribute(
       "aria-current",
     );
+    // The cart tab says how many items the cart holds.
+    expect(
+      screen.getByRole("link", { name: "السلة، عدد المنتجات 0" }),
+    ).toHaveAttribute("href", "/cart");
   });
 });

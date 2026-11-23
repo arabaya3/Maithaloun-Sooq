@@ -47,6 +47,8 @@ export function BrandLogoTile({
       height={512}
       alt={decorative ? "" : STORE_NAME}
       aria-hidden={decorative ? "true" : undefined}
+      // Shown first, in the launch splash: it is the largest paint, so it loads at once.
+      loading="eager"
       unoptimized
     />
   );

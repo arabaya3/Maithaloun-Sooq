@@ -4,6 +4,7 @@ import {
   expectNoHorizontalOverflow,
   trackPageIssues,
   withTestDb,
+  cartLink,
 } from "./support";
 
 const CODE = "246810";
@@ -38,8 +39,8 @@ async function signIn(page: Page, phone: string, next = "") {
 async function addToCart(page: Page, productId: string) {
   const product = page.locator(`[data-product-id="${productId}"]`);
   await expect(async () => {
-    await product.getByRole("button", { name: "أضف إلى السلة" }).click();
-    await expect(page.locator(".cart-button")).toHaveAccessibleName(
+    await product.getByRole("button", { name: "أضف للسلة" }).click();
+    await expect(await cartLink(page)).toHaveAccessibleName(
       /عدد المنتجات [1-9]/,
       { timeout: 2_000 },
     );

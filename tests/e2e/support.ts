@@ -134,3 +134,29 @@ export async function dispatchInstallPrompt(page: Page) {
     window.dispatchEvent(event);
   });
 }
+
+/**
+ * The cart link the shopper sees: the bottom bar on phones, the header cart on wider screens.
+ * Both are named «السلة، عدد المنتجات N».
+ */
+export async function cartLink(page: Page) {
+  const bar = page.locator('.mobile-navigation a[href$="/cart"]');
+  return (await bar.isVisible()) ? bar : page.locator(".cart-button");
+}
+
+/**
+ * Hides only the Next.js development-tools badge (<nextjs-portal>), which `next dev` draws in the
+ * bottom-left corner, over the cart tab in RTL. Production builds have no such element, so there it
+ * does nothing; nothing of the store itself is hidden.
+ */
+export async function hideDevToolsBadge(page: Page) {
+  await page.addStyleTag({
+    content: "nextjs-portal { display: none !important; }",
+  });
+}
+
+/** Opens the cart by tapping the visible cart link, as a shopper would. */
+export async function openCart(page: Page) {
+  await hideDevToolsBadge(page);
+  await (await cartLink(page)).click();
+}

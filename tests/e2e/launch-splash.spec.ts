@@ -1,6 +1,11 @@
 import { expect, test, type Page } from "@playwright/test";
 
-import { expectNoHorizontalOverflow, login, trackPageIssues } from "./support";
+import {
+  expectNoHorizontalOverflow,
+  login,
+  trackPageIssues,
+  cartLink,
+} from "./support";
 
 async function observeLayoutShift(page: Page) {
   await page.addInitScript(() => {
@@ -47,8 +52,8 @@ for (const viewport of [
     await expect(page.locator("html")).toHaveAttribute("data-launch", "ready");
 
     const product = page.locator('[data-product-id="general-cleaner"]');
-    await product.getByRole("button", { name: "أضف إلى السلة" }).click();
-    await expect(page.locator(".cart-button")).toContainText("1");
+    await product.getByRole("button", { name: "أضف للسلة" }).click();
+    await expect(await cartLink(page)).toContainText("1");
     await expectNoHorizontalOverflow(page);
     expect(await layoutShift(page)).toBe(0);
     if (viewport.width === 390) {
