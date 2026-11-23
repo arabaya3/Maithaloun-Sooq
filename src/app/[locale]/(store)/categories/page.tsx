@@ -7,6 +7,7 @@ import {
   localizedCategoryDescription,
   localizedCategoryName,
 } from "@/features/catalog/domain/category";
+import { categoryProductCounts } from "@/features/catalog/domain/product-categories";
 import { storefrontCategories } from "@/features/catalog/infrastructure/category-repository";
 import { productRepository } from "@/features/catalog/infrastructure/product-repository";
 import { MobileNavigation } from "@/features/storefront/components/mobile-navigation";
@@ -32,10 +33,7 @@ export default async function CategoriesPage() {
     getMessages(),
   ]);
   const covers = categoryCovers(products);
-  const counts = new Map<string, number>();
-  for (const product of products) {
-    counts.set(product.categoryId, (counts.get(product.categoryId) ?? 0) + 1);
-  }
+  const counts = categoryProductCounts(products);
 
   return (
     <>

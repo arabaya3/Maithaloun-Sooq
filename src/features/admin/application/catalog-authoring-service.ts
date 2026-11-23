@@ -1620,12 +1620,20 @@ export class CatalogAuthoringService {
     const rows = await this.database
       .select({
         category: schema.productCategories,
-        productCount: sql<number>`count(${schema.products.id}) filter (where ${schema.products.archivedAt} is null and ${schema.products.mergedIntoProductId} is null)`,
+        // Products listed in the category, as primary or extra; each product counts once.
+        productCount: sql<number>`count(distinct ${schema.products.id}) filter (where ${schema.products.archivedAt} is null and ${schema.products.mergedIntoProductId} is null)`,
       })
       .from(schema.productCategories)
       .leftJoin(
+        schema.productCategoryLinks,
+        eq(
+          schema.productCategoryLinks.categoryCode,
+          schema.productCategories.code,
+        ),
+      )
+      .leftJoin(
         schema.products,
-        eq(schema.products.categoryId, schema.productCategories.code),
+        eq(schema.products.id, schema.productCategoryLinks.productId),
       )
       .where(
         includeArchived
@@ -2096,6 +2104,25 @@ export class CatalogAuthoringService {
         .set({ categoryId: target.code, updatedAt: new Date() })
         .where(eq(schema.products.categoryId, source.code))
         .returning({ id: schema.products.id });
+      // Products that listed the source as an extra category now list the target instead.
+      const extraListings = await transaction
+        .select({ productId: schema.productCategoryLinks.productId })
+        .from(schema.productCategoryLinks)
+        .where(eq(schema.productCategoryLinks.categoryCode, source.code));
+      if (extraListings.length) {
+        await transaction
+          .insert(schema.productCategoryLinks)
+          .values(
+            extraListings.map(({ productId }) => ({
+              productId,
+              categoryCode: target.code,
+            })),
+          )
+          .onConflictDoNothing();
+      }
+      await transaction
+        .delete(schema.productCategoryLinks)
+        .where(eq(schema.productCategoryLinks.categoryCode, source.code));
       const now = new Date();
       await transaction
         .update(schema.productCategories)
@@ -2142,6 +2169,10 @@ export class CatalogAuthoringService {
         ) {
           throw new CatalogAuthoringError("category_not_empty");
         }
+        // No product has it as its main category; extra listings simply go with it.
+        await transaction
+          .delete(schema.productCategoryLinks)
+          .where(eq(schema.productCategoryLinks.categoryCode, code));
         await transaction
           .delete(schema.productCategories)
           .where(eq(schema.productCategories.code, code));

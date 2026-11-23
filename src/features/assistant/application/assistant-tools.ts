@@ -334,6 +334,13 @@ export function createAssistantTools(context: AssistantToolContext) {
             category:
               categories.find((row) => row.code === product.categoryId)
                 ?.nameAr ?? product.categoryId,
+            // Other categories the same product is also shown in; changing «القسم» keeps them.
+            extraCategories: (product.categoryIds ?? [])
+              .filter((code) => code !== product.categoryId)
+              .map(
+                (code) =>
+                  categories.find((row) => row.code === code)?.nameAr ?? code,
+              ),
             unit: product.unit ?? null,
             price: formatIls(product.priceAgorot),
             availability: product.availability,

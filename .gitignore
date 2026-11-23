@@ -41,3 +41,6 @@ next-env.d.ts
 
 # Taste Skill working files
 /.taste-skill/
+
+# Backups written by tools/reclassify-categories.ts --apply
+category-backups/

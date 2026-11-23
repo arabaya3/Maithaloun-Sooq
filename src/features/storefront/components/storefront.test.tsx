@@ -71,8 +71,10 @@ describe("storefront", () => {
     expect(screen.getByText("7 ₪")).toHaveAttribute("dir", "ltr");
     expect(screen.getByLabelText("السعر 7 ₪")).toBeInTheDocument();
     expect(
-      screen.queryByRole("button", { name: /المفضلة/ }),
-    ).not.toBeInTheDocument();
+      screen.getByRole("button", { name: "إضافة منظف عام Secret إلى المفضلة" }),
+    ).toHaveAttribute("aria-pressed", "false");
+    // The home strip about delivery is gone; delivery rules live in the cart and checkout.
+    expect(screen.queryByText("توصيل داخل ميثلون")).toBeNull();
   });
 
   it("keeps a page heading without the homepage banners", () => {
@@ -83,73 +85,47 @@ describe("storefront", () => {
     expect(screen.queryByRole("region", { name: "أقسام من البيت" })).toBeNull();
   });
 
-  it("hides the brands row and best sellers until there is enough real data", () => {
+  it("shows today's category from the server, category cards that open their page, and one product list", () => {
     const { container } = renderWithProviders(
       <Storefront
         products={products}
         categories={categories}
-        merchandising={{
-          heroProducts: [],
-          brands: [
-            { name: "Finish", productCount: 2 },
-            { name: "Arar", productCount: 1 },
-          ],
-          bestSellers: products.slice(0, 2),
-        }}
+        daily={{ code: "kitchen", productIds: ["arar-dish-liquid"] }}
       />,
       { products },
     );
-    expect(screen.queryByRole("heading", { name: "ماركات مختارة" })).toBeNull();
-    expect(screen.queryByRole("heading", { name: "منتجات مختارة" })).toBeNull();
-    // The curated collections block is gone for good.
-    expect(container.querySelector(".promo-grid, .promo")).toBeNull();
-    expect(container.textContent).not.toMatch(/تشكيلات مختارة/);
-  });
-
-  it("shows featured products without the featured brands section", () => {
-    renderWithProviders(
-      <Storefront
-        products={products}
-        categories={categories}
-        merchandising={{
-          heroProducts: [],
-          brands: [
-            { name: "Finish", productCount: 3 },
-            { name: "Arar", productCount: 2 },
-            { name: "البركان", productCount: 1 },
-            { name: "Clear", productCount: 1 },
-          ],
-          bestSellers: [...products, products[0]!].map((product, index) => ({
-            ...product,
-            id: `${product.id}-${index}`,
-          })),
-        }}
-      />,
-      { products },
-    );
-    expect(screen.queryByRole("heading", { name: "ماركات مختارة" })).toBeNull();
+    const banner = container.querySelector(".daily-category")!;
+    expect(banner).toHaveAttribute("data-category-id", "kitchen");
+    expect(within(banner as HTMLElement).getByText("قسم اليوم")).toBeVisible();
     expect(
-      screen.getByRole("heading", { name: "منتجات مختارة" }),
-    ).toBeInTheDocument();
-  });
-
-  it("orders RTL categories from all to home and exposes selection semantics", async () => {
-    const user = userEvent.setup();
-    const { container } = renderStorefront();
-    const categoryButtons = Array.from(
-      container.querySelectorAll<HTMLButtonElement>("button.category-item"),
-    );
-
-    expect(screen.getByRole("link", { name: "الكل" })).toHaveAttribute(
+      within(banner as HTMLElement).getByRole("link", {
+        name: /تسوّق منظفات المطبخ/,
+      }),
+    ).toHaveAttribute("href", "/categories/kitchen");
+    expect(screen.getByRole("link", { name: "منظفات الغسيل" })).toHaveAttribute(
       "href",
-      "/categories",
+      "/categories/laundry",
     );
-    expect(categoryButtons.at(-1)).toHaveTextContent("مستلزمات منزلية");
+    expect(screen.getByRole("heading", { name: "وصل حديثًا" })).toBeVisible();
+    expect(screen.getByRole("link", { name: "عرض الكل" })).toHaveAttribute(
+      "href",
+      "/products",
+    );
+    // No second rail of the same products, and no offers section.
+    expect(screen.queryByRole("heading", { name: "منتجات مختارة" })).toBeNull();
+    expect(screen.queryByRole("link", { name: "العروض" })).toBeNull();
+    expect(container.querySelectorAll("article[data-product-id]")).toHaveLength(
+      products.length,
+    );
+  });
 
-    await user.click(screen.getByRole("button", { name: "مستلزمات منزلية" }));
+  it("falls back to a plain link to every category when no category is picked", () => {
+    const { container } = renderStorefront();
+    const banner = container.querySelector(".daily-category")!;
+    expect(banner).toHaveAttribute("data-fallback", "true");
     expect(
-      screen.getByRole("button", { name: "مستلزمات منزلية" }),
-    ).toHaveAttribute("aria-pressed", "true");
+      within(banner as HTMLElement).getByRole("link", { name: /كل الأقسام/ }),
+    ).toHaveAttribute("href", "/categories");
   });
 
   it("selects distinct local placeholder variants from product data", () => {
@@ -181,9 +157,15 @@ describe("storefront", () => {
 
   it("filters by category", async () => {
     const user = userEvent.setup();
-    renderStorefront();
+    renderWithProviders(
+      <Storefront
+        products={products}
+        categories={categories}
+        initialCategory="kitchen"
+      />,
+      { products },
+    );
 
-    await user.click(screen.getByRole("button", { name: "منظفات المطبخ" }));
     expect(screen.queryByText("منظف عام Secret")).not.toBeInTheDocument();
     expect(screen.getByText("سائل جلي Arar")).toBeInTheDocument();
 
@@ -206,9 +188,7 @@ describe("storefront", () => {
         name: "زيادة كمية منظف عام Secret",
       }),
     ).toBeNull();
-    await user.click(
-      within(card).getByRole("button", { name: "أضف إلى السلة" }),
-    );
+    await user.click(within(card).getByRole("button", { name: "أضف للسلة" }));
     await user.click(
       within(card).getByRole("button", {
         name: "زيادة كمية منظف عام Secret",
@@ -229,7 +209,7 @@ describe("storefront", () => {
       }),
     );
     expect(
-      within(card).getByRole("button", { name: "أضف إلى السلة" }),
+      within(card).getByRole("button", { name: "أضف للسلة" }),
     ).toBeVisible();
     expect(
       screen.getByRole("link", { name: /^السلة، عدد المنتجات\s*0$/ }),
@@ -242,7 +222,7 @@ describe("storefront", () => {
     const card = screen.getByText("منظف غير متاح").closest("article");
     expect(card).not.toBeNull();
     expect(
-      within(card!).queryByRole("button", { name: "أضف إلى السلة" }),
+      within(card!).queryByRole("button", { name: "أضف للسلة" }),
     ).toBeNull();
     expect(
       within(card!).queryByRole("button", {
@@ -282,15 +262,7 @@ describe("storefront catalog batches", () => {
     expect(cards()).toHaveLength(30);
     expect(screen.queryByRole("button", { name: /عرض المزيد/ })).toBeNull();
 
-    // A new category starts from the first batch and counts only its own products.
-    const homeButton = document.querySelector(
-      '[data-category-id="home"]',
-    ) as HTMLElement;
-    await user.click(homeButton);
-    expect(cards()).toHaveLength(12);
-    expect(screen.getByText("يظهر 12 من 20")).toBeInTheDocument();
-
-    // Search narrows inside the category and never hides a match behind the button.
+    // Search starts again from the first batch and never hides a match behind the button.
     await user.type(screen.getByRole("searchbox"), "رقم 1");
     expect(cards().length).toBeLessThanOrEqual(12);
     expect(screen.queryByRole("button", { name: /عرض المزيد/ })).toBeNull();

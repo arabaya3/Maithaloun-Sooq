@@ -45,6 +45,7 @@ export default async function AdminNewProductPage() {
           productId: null,
           nameAr: "",
           categoryId: "",
+          extraCategoryIds: [],
           description: "",
           usageNotes: "",
           kind: "single",

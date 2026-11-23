@@ -118,6 +118,8 @@ export function mapProductRow(
   specifications: readonly SpecRow[] = [],
   offers: ReadonlyMap<string, VariantOffer> = new Map(),
   commerce: ReadonlyMap<string, VariantCommerce> = new Map(),
+  /** Every category the product is listed in; the primary always comes first. */
+  categoryCodes: readonly string[] = [],
 ): Product {
   const mappedVariants = variants
     .filter((variant) => !variant.archivedAt)
@@ -153,6 +155,12 @@ export function mapProductRow(
     usageNotesEn: row.usageNotesEn ?? undefined,
     priceAgorot: defaultVariant.priceAgorot,
     categoryId: row.categoryId,
+    categoryIds: [
+      row.categoryId,
+      ...[...new Set(categoryCodes)].filter((code) => code !== row.categoryId),
+    ],
+    // The original creation time; edits never change it, so «newest» stays put.
+    createdAt: row.createdAt.toISOString(),
     image: defaultVariant.image,
     availability: mappedVariants.some(
       (variant) => variant.availability === "available",

@@ -56,6 +56,8 @@ const inputSchema = z.object({
     .nullable(),
   nameAr: z.string().trim().max(160),
   categoryId: z.string().max(40),
+  /** Omitted: the extra categories are left as they are. */
+  extraCategoryIds: z.array(z.string().max(40)).max(20).optional(),
   description: z.string().trim().max(4_000),
   usageNotes: z.string().trim().max(4_000).optional(),
   kind: z.enum(simpleKinds),
@@ -119,6 +121,18 @@ export async function saveSimpleProductAction(
   const categories = await catalogAuthoringService.listCategories();
   if (!categories.some((category) => category.code === input.categoryId))
     return { ok: false, message: "اختاري القسم." };
+  if (
+    input.extraCategoryIds?.some(
+      (code) =>
+        !categories.some(
+          (category) => category.code === code && !category.archived,
+        ),
+    )
+  )
+    return {
+      ok: false,
+      message: "أحد الأقسام الإضافية غير موجود. حدّثي الصفحة.",
+    };
 
   const multi = input.kind !== "single";
   const rows: Row[] = multi ? input.rows : input.rows.slice(0, 1);
@@ -169,6 +183,9 @@ export async function saveSimpleProductAction(
         latinName: undefined,
         priceAgorot: firstPrice,
         categoryId: input.categoryId as never,
+        ...(input.extraCategoryIds
+          ? { extraCategoryIds: input.extraCategoryIds as never }
+          : {}),
         availability: "unavailable",
         sortOrder: 100,
         description: input.description || undefined,
@@ -191,6 +208,9 @@ export async function saveSimpleProductAction(
         usageNotesEn: product.usageNotesEn,
         priceAgorot: product.priceAgorot > 0 ? product.priceAgorot : firstPrice,
         categoryId: input.categoryId as never,
+        ...(input.extraCategoryIds
+          ? { extraCategoryIds: input.extraCategoryIds as never }
+          : {}),
         availability: product.availability,
         sortOrder: product.sortOrder,
         description: input.description || undefined,

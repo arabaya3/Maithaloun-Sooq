@@ -1,6 +1,13 @@
 "use client";
 
-import { ChevronLeft, Minus, Plus, ShoppingCart, Trash2 } from "lucide-react";
+import {
+  ChevronLeft,
+  Heart,
+  Minus,
+  Plus,
+  ShoppingCart,
+  Trash2,
+} from "lucide-react";
 
 import { useState } from "react";
 
@@ -15,13 +22,23 @@ import {
   localizedProductName,
   type Product,
 } from "@/features/catalog/domain/product";
+import { useFavorites } from "@/features/favorites/favorites-provider";
 import { useI18n } from "@/i18n/i18n-provider";
 import { Link } from "@/i18n/link";
 
-export function ProductCard({ product }: { product: Product }) {
+export function ProductCard({
+  product,
+  isNew = false,
+}: {
+  product: Product;
+  /** Set by the list from the real creation date; the card never guesses it. */
+  isNew?: boolean;
+}) {
   const { lines, addItem, setQuantity, removeItem } = useCart();
+  const { isFavorite, toggleFavorite } = useFavorites();
   const { m, locale } = useI18n();
   const name = localizedProductName(product, locale);
+  const favorite = isFavorite(product.id);
   const optionCount = product.variants.length;
   const [addedVariant, setAddedVariant] = useState<string | null>(null);
   const variantId = product.defaultVariantId;
@@ -58,8 +75,27 @@ export function ProductCard({ product }: { product: Product }) {
       <div className="product-card-media">
         <ProductMedia
           product={product}
-          sizes="(min-width: 64rem) 252px, (min-width: 48rem) 30vw, 120px"
+          sizes="(min-width: 64rem) 252px, (min-width: 48rem) 30vw, 50vw"
         />
+        {isNew ? (
+          <span className="product-badge-new">{m.catalog.newBadge}</span>
+        ) : null}
+        <button
+          type="button"
+          className="icon-button favorite-button"
+          aria-label={
+            favorite
+              ? m.catalog.removeFromFavorites(name)
+              : m.catalog.addToFavorites(name)
+          }
+          aria-pressed={favorite}
+          onClick={() => toggleFavorite(product.id)}
+        >
+          <Heart
+            aria-hidden="true"
+            className={favorite ? "fill-current" : ""}
+          />
+        </button>
       </div>
 
       <div className="product-details">
@@ -120,17 +156,8 @@ export function ProductCard({ product }: { product: Product }) {
             className="add-button"
             aria-label={m.catalog.viewOptionsFor(name)}
           >
-            <span
-              className={optionCount > 1 ? "product-options-full" : undefined}
-            >
-              {m.catalog.viewOptions}
-            </span>
-            {optionCount > 1 ? (
-              <span className="product-options-compact" aria-hidden="true">
-                {m.catalog.optionCount(optionCount)}
-                <ChevronLeft />
-              </span>
-            ) : null}
+            <span>{m.catalog.selectOptions}</span>
+            <ChevronLeft className="rtl-flip" aria-hidden="true" />
           </Link>
         ) : inCart > 0 ? (
           <div
@@ -179,18 +206,14 @@ export function ProductCard({ product }: { product: Product }) {
             }}
           >
             <ShoppingCart aria-hidden="true" />
-            {m.catalog.addToCart}
+            <span>{m.catalog.addToCartShort}</span>
           </button>
         )}
+        {/* The quantity control replaces the button, so the card keeps its height; this is for screen readers. */}
         {addedVariant === variantId && inCart > 0 ? (
-          <>
-            <p className="product-meta" role="status">
-              {locale === "ar" ? "تمت الإضافة للسلة" : "Added to cart"}
-            </p>
-            <Link href="/cart">
-              {locale === "ar" ? "عرض السلة" : "View cart"}
-            </Link>
-          </>
+          <p className="sr-only" role="status">
+            {locale === "ar" ? "تمت الإضافة للسلة" : "Added to cart"}
+          </p>
         ) : null}
       </div>
     </article>

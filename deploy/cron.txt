@@ -1,3 +1,6 @@
 # Server crontab (replaces the Vercel cron in vercel.json). CRON_SECRET is read from app.env.
 30 2 * * * /opt/maytha/backup.sh >> /opt/maytha/backups/backup.log 2>&1
 0 5 * * * curl -fsS -H "Authorization: Bearer $(grep -E '^CRON_SECRET=' /opt/maytha/app.env | cut -d= -f2-)" http://127.0.0.1:3010/api/cron/daily >/dev/null
+# Right after midnight in Hebron (21:00 UTC in summer, 22:00 UTC in winter; this assumes the server
+# clock is UTC): refreshes the storefront so «today's category» follows the store day.
+1 21,22 * * * curl -fsS -H "Authorization: Bearer $(grep -E '^CRON_SECRET=' /opt/maytha/app.env | cut -d= -f2-)" http://127.0.0.1:3010/api/cron/storefront-day >/dev/null

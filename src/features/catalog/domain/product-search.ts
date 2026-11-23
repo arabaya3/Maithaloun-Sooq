@@ -1,5 +1,6 @@
 import {
   getProductDisplayName,
+  isInCategory,
   type CategoryId,
   type Product,
 } from "./product";
@@ -35,7 +36,7 @@ export function filterProducts(
 
   return products.filter((product) => {
     const categoryMatches =
-      filter.categoryId === "all" || product.categoryId === filter.categoryId;
+      filter.categoryId === "all" || isInCategory(product, filter.categoryId);
     const brand = normalizeSearchText(product.brand ?? "");
     const aliases = brandAliases[brand] ?? "";
     const searchMatches =

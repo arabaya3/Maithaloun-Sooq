@@ -36,8 +36,10 @@ describe("ProductCard", () => {
     ).toHaveAttribute("href", "/en/products/general-cleaner-secret");
     expect(screen.getByLabelText("Price 7 ₪")).toBeInTheDocument();
     expect(
-      screen.queryByRole("button", { name: /wishlist/ }),
-    ).not.toBeInTheDocument();
+      screen.getByRole("button", {
+        name: "Add Secret All-Purpose Cleaner to wishlist",
+      }),
+    ).toHaveAttribute("aria-pressed", "false");
 
     await user.click(screen.getByRole("button", { name: "Add to cart" }));
     expect(
@@ -77,7 +79,7 @@ describe("ProductCard", () => {
       screen.getByRole("link", { name: "منظف عام Secret" }),
     ).toHaveAttribute("href", "/products/general-cleaner-secret");
     expect(
-      screen.getByRole("button", { name: "أضف إلى السلة" }),
+      screen.getByRole("button", { name: "أضف للسلة" }),
     ).toBeInTheDocument();
   });
 });

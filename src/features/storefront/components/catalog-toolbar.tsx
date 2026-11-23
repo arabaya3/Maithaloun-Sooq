@@ -43,10 +43,11 @@ export function CatalogToolbar({
     onReset: () => void;
   };
 }) {
-  const { m, locale } = useI18n();
+  const { m } = useI18n();
   const sortId = useId();
   const [open, setOpen] = useState(false);
   const sortLabels: Record<ProductSort, string> = {
+    newest: m.store.sortNewest,
     featured: m.store.sortFeatured,
     "price-asc": m.store.sortPriceAsc,
     "price-desc": m.store.sortPriceDesc,
@@ -55,19 +56,12 @@ export function CatalogToolbar({
   return (
     <div className="catalog-toolbar">
       {heading ? (
-        <div className="home-section-heading catalog-heading">
-          {heading}
-          <span className="results-count" aria-live="polite">
-            {m.common.productCount(count)}
-          </span>
-        </div>
+        <div className="home-section-heading catalog-heading">{heading}</div>
       ) : null}
       <div className="catalog-toolbar-row">
-        {!heading ? (
-          <span className="results-count" aria-live="polite">
-            {m.common.productCount(count)}
-          </span>
-        ) : null}
+        <span className="results-count" aria-live="polite">
+          {m.common.productCount(count)}
+        </span>
         <div className="catalog-toolbar-actions">
           {sheet ? (
             <button
@@ -96,11 +90,7 @@ export function CatalogToolbar({
             >
               {PRODUCT_SORTS.map((value) => (
                 <option key={value} value={value}>
-                  {heading && value === "featured"
-                    ? locale === "ar"
-                      ? "ترتيب"
-                      : "Sort"
-                    : sortLabels[value]}
+                  {sortLabels[value]}
                 </option>
               ))}
             </select>
@@ -177,10 +167,13 @@ function FilterSheet({
     const panel = panelRef.current;
     if (!panel) return;
     const overflow = document.body.style.overflow;
-    panel.showModal();
+    // Older browsers (and jsdom) lack showModal; the sheet still opens as a plain dialog.
+    if (typeof panel.showModal === "function") panel.showModal();
+    else panel.setAttribute("open", "");
     document.body.style.overflow = "hidden";
     return () => {
-      panel.close();
+      if (typeof panel.close === "function") panel.close();
+      else panel.removeAttribute("open");
       document.body.style.overflow = overflow;
     };
   }, []);

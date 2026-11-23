@@ -29,7 +29,10 @@ import { ProductForm } from "@/features/admin/ui/product-form";
 import { SellingUnitsEditor } from "@/features/admin/ui/selling-units-editor";
 import { simpleEditorState } from "@/features/admin/domain/simple-product";
 import { SimpleProductEditor } from "@/features/admin/ui/simple-product-editor";
-import { getProductDisplayName } from "@/features/catalog/domain/product";
+import {
+  getProductDisplayName,
+  productCategoryCodes,
+} from "@/features/catalog/domain/product";
 
 export const metadata: Metadata = {
   title: "تعديل المنتج",
@@ -269,6 +272,7 @@ export default async function AdminProductEditPage({
             productId: product.id,
             nameAr: product.nameAr,
             categoryId: product.categoryId,
+            extraCategoryIds: productCategoryCodes(product).slice(1),
             description: product.description ?? "",
             usageNotes: product.usageNotes ?? "",
             kind: simple.kind,

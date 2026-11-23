@@ -56,20 +56,15 @@ export function SiteHeader({
         hideSearch ? "site-header site-header-no-search" : "site-header"
       }
     >
+      {/* Phones: language, the logo in the middle, then a full-width search. The cart and the
+          categories live in the bottom bar there; wider screens show the cart here as well. */}
       <div className="header-bar page-shell">
-        <Link
-          href="/categories"
-          className="header-icon header-menu"
-          aria-label={m.store.allCategories}
-        >
-          <Menu aria-hidden="true" />
-        </Link>
+        <LanguageSwitcher className="header-language" />
         <BrandLogo />
         {hideSearch ? null : (
           <div className="header-search">{search ?? <HeaderSearchForm />}</div>
         )}
         <nav className="header-actions" aria-label={m.common.cart}>
-          <LanguageSwitcher className="header-language" />
           <Link href="/cart" className="header-action cart-button">
             <span className="cart-icon">
               <ShoppingBag aria-hidden="true" />
@@ -118,18 +113,17 @@ export function SiteHeader({
             );
           })}
           <Link
+            href="/products"
+            aria-current={isCurrent("/products") ? "page" : undefined}
+          >
+            {m.store.allProductsTitle}
+          </Link>
+          <Link
             href="/brands"
             className="desktop-navigation-brands"
             aria-current={isCurrent("/brands") ? "page" : undefined}
           >
             {m.common.brands}
-          </Link>
-          <Link
-            href="/offers"
-            className="desktop-navigation-offers"
-            aria-current={isCurrent("/offers") ? "page" : undefined}
-          >
-            {m.common.offers}
           </Link>
           <Link
             href="/request-product"

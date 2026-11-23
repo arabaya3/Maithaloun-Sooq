@@ -99,11 +99,11 @@ describe("catalog filters and sorting", () => {
     const sheet = screen.getByRole("dialog", { name: "تصفية المنتجات" });
     const kitchen = categories.find((category) => category.code === "kitchen")!;
     await user.click(
-      within(sheet).getByRole("button", { name: kitchen.nameAr }),
+      within(sheet).getByRole("radio", { name: new RegExp(kitchen.nameAr) }),
     );
     expect(names()).toHaveLength(3);
     await user.click(
-      within(sheet).getByRole("button", { name: "عرض النتائج" }),
+      within(sheet).getByRole("button", { name: /عرض النتائج/ }),
     );
     expect(screen.queryByRole("dialog")).toBeNull();
     expect(names()).toEqual(["منظف b"]);
@@ -115,7 +115,11 @@ describe("catalog filters and sorting", () => {
       item(`p${index}`, "home", 2000 - index * 100),
     );
     renderWithProviders(
-      <Storefront products={many} categories={categories} />,
+      <Storefront
+        products={many}
+        categories={categories}
+        initialSort="featured"
+      />,
       {
         products: many,
       },

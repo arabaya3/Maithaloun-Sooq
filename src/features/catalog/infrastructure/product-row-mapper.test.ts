@@ -70,6 +70,8 @@ describe("product database mapping", () => {
       latinName: "Secret",
       priceAgorot: 700,
       categoryId: "home",
+      categoryIds: ["home"],
+      createdAt: "2026-01-01T00:00:00.000Z",
       availability: "available",
       publication: "published",
       image: { kind: "placeholder", variant: "general-cleaner" },
@@ -179,5 +181,18 @@ describe("product database mapping", () => {
     expect(() => mapProductRow(row, [])).toThrow(
       /Product general-cleaner has no variants/,
     );
+  });
+
+  it("lists the primary first, then the extra categories, without duplicates", () => {
+    const product = mapProductRow(
+      row,
+      [defaultVariant],
+      [],
+      new Map(),
+      new Map(),
+      ["paper-tissues", "home", "paper-tissues"],
+    );
+    expect(product.categoryId).toBe("home");
+    expect(product.categoryIds).toEqual(["home", "paper-tissues"]);
   });
 });

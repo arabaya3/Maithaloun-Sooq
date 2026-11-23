@@ -18,6 +18,7 @@ const onStorefront = and(
 );
 
 import { liveOffersForVariants } from "./offer-queries";
+import { loadCategoryLinks } from "./product-category-links";
 import { loadProductPresentation } from "./product-presentation";
 import { mapProductRow } from "./product-row-mapper";
 import { loadProductCommerce, singlePiecePrice } from "./variant-commerce";
@@ -30,7 +31,7 @@ export class PostgresProductRepository implements ProductRepository {
       .select()
       .from(schema.products)
       .where(onStorefront)
-      .orderBy(asc(schema.products.sortOrder));
+      .orderBy(asc(schema.products.sortOrder), asc(schema.products.domainId));
     return this.mapProducts(rows);
   }
 
@@ -86,7 +87,7 @@ export class PostgresProductRepository implements ProductRepository {
     if (!rows.length) return [];
     const productIds = rows.map((row) => row.id);
     // Selling units and stock load in the same round trip as the variants.
-    const [variantRows, specRows, commerce] = await Promise.all([
+    const [variantRows, specRows, commerce, categoryLinks] = await Promise.all([
       this.database
         .select()
         .from(schema.productVariants)
@@ -98,6 +99,7 @@ export class PostgresProductRepository implements ProductRepository {
         .where(inArray(schema.productSpecifications.productId, productIds))
         .orderBy(asc(schema.productSpecifications.sortOrder)),
       loadProductCommerce(this.database, productIds),
+      loadCategoryLinks(this.database, productIds),
     ]);
 
     const variantsByProductId = new Map<
@@ -142,6 +144,7 @@ export class PostgresProductRepository implements ProductRepository {
         specsByProductId.get(row.id) ?? [],
         offers,
         commerce,
+        categoryLinks.get(row.id) ?? [],
       ),
     );
   }
