@@ -368,3 +368,78 @@
   font-weight: 600;
   cursor: pointer;
 }
+
+/* Extra categories: a searchable list of checkboxes; every target is 44px. */
+.extra-categories {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  margin: 0;
+  padding: 12px;
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius);
+}
+
+.extra-categories legend {
+  padding-inline: 4px;
+  font-weight: 600;
+}
+
+.extra-categories-hint {
+  margin: 0;
+  color: var(--admin-muted, inherit);
+  font-size: 0.875rem;
+}
+
+.extra-categories-search {
+  display: grid;
+  gap: 4px;
+}
+
+.extra-categories-search input {
+  min-height: var(--admin-touch, 44px);
+  padding: 8px 12px;
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius);
+  background: var(--admin-bg);
+  font: inherit;
+}
+
+.extra-categories-chosen {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.extra-categories-chosen button {
+  min-height: var(--admin-touch, 44px);
+  padding-inline: 12px;
+  border: 1px solid var(--admin-border);
+  border-radius: 999px;
+  background: var(--admin-bg);
+  font: inherit;
+  cursor: pointer;
+}
+
+.extra-categories-list {
+  display: grid;
+  max-height: 16rem;
+  overflow-y: auto;
+}
+
+.extra-categories-option {
+  display: flex;
+  min-height: var(--admin-touch, 44px);
+  align-items: center;
+  gap: 10px;
+  padding-inline: 4px;
+  cursor: pointer;
+}
+
+.extra-categories-option input {
+  width: 1.15rem;
+  height: 1.15rem;
+}

@@ -176,8 +176,9 @@ test.describe("other browsers", () => {
       // Same page and filter, now in English.
       await expect(page).toHaveURL(/\/en\?category=laundry$/);
       await expect(page.locator("html")).toHaveAttribute("dir", "ltr");
-      await page.goto("/offers");
-      await expect(page).toHaveURL(/\/en\/offers$/);
+      // The saved choice follows the shopper to the next page.
+      await page.goto("/products");
+      await expect(page).toHaveURL(/\/en\/products$/);
     });
   });
 
@@ -201,7 +202,8 @@ test.describe("English pages at phone and desktop widths", () => {
       for (const path of [
         "/en",
         "/en/categories",
-        "/en/offers",
+        "/en/products",
+        "/en/favorites",
         "/en/brands",
         "/en/products/general-cleaner-secret",
         "/en/cart",
