@@ -8,6 +8,7 @@ import { formatVariantAttributes } from "@/features/catalog/domain/product-varia
 import { ACTIVE_SERVICE_AREA_CODE } from "@/features/delivery/delivery-policy";
 import type { CheckoutRequest } from "@/features/orders/domain/checkout-request";
 import type { OrderConfirmation } from "@/features/orders/domain/order-confirmation";
+import { orderCreatedNotification } from "@/features/orders/domain/order-notification";
 import {
   CartPricingError,
   priceCart,
@@ -221,8 +222,19 @@ export class OrderService {
           await transaction.insert(schema.adminNotifications).values({
             type: "order_created",
             orderId: createdOrder.id,
-            title: "طلب جديد",
-            body: `وصل طلب جديد بقيمة ${(finalTotalAgorot / 100).toFixed(2)} ₪`,
+            ...orderCreatedNotification({
+              customerName: request.customerName,
+              totalAgorot: finalTotalAgorot,
+              channel:
+                request.checkoutChannel === "whatsapp" ? "whatsapp" : "web",
+              lines: resolvedItems.map((item) => ({
+                name: getProductDisplayName({
+                  nameAr: item.product.nameAr,
+                  latinName: item.product.latinName ?? undefined,
+                }),
+                quantity: item.quantity,
+              })),
+            }),
             href: `/admin/orders/${createdOrder.publicReference}`,
           });
 

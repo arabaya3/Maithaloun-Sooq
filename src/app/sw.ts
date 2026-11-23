@@ -98,6 +98,8 @@ self.addEventListener("push", (event) => {
   event.waitUntil(
     self.registration.showNotification(payload?.title ?? "MAYTHA MARKET", {
       body: payload?.body ?? "لديك تحديث جديد في الطلبات.",
+      lang: "ar",
+      dir: "rtl",
       icon: appIcons.icon192,
       badge: appIcons.icon192,
       data: { href: payload?.href ?? "/admin/orders" },
