@@ -6,8 +6,8 @@ import {
 import { compareNewest } from "@/features/catalog/domain/product-sort";
 import { daysBetween, toStoreDate } from "@/shared/lib/store-time";
 
-/** How many product photos the «today's category» banner shows. */
-export const DAILY_CATEGORY_PHOTOS = 3;
+/** How many products the «today's category» showcase turns through. */
+export const DAILY_CATEGORY_PHOTOS = 6;
 
 /**
  * The store's calendar day (Asia/Hebron) as a whole number of days since 1970-01-01. Every visitor
