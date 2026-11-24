@@ -126,8 +126,12 @@ export function DailyCategoryBanner({
             {m.store.categoryProductCount(productCount)}
           </p>
         ) : null}
-        <Link href={href} className="daily-category-cta">
-          {m.store.shopCategoryCta(name)}
+        <Link
+          href={href}
+          className="daily-category-cta"
+          aria-label={m.store.shopCategoryCta(name)}
+        >
+          {m.store.shopNow}
           <ChevronLeft className="rtl-flip" aria-hidden="true" />
         </Link>
       </div>
