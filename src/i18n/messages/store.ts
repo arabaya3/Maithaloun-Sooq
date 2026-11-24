@@ -74,8 +74,16 @@ const ar = {
         : count <= 10
           ? `${count} منتجات في هذا القسم`
           : `${count} منتجًا في هذا القسم`,
-  showcaseProduct: (position: number, name: string) =>
-    `عرض المنتج ${position}: ${name}`,
+  dailyShop: "تسوّق القسم",
+  dailyDiscover: (name: string) => `اكتشف ${name}`,
+  dailyCarousel: (name: string) => `منتجات من ${name}`,
+  dailyGroup: (position: number, total: number) =>
+    `المجموعة ${position} من ${total}`,
+  dailyShowGroup: (position: number) => `عرض المجموعة ${position}`,
+  dailyPrevious: "المجموعة السابقة",
+  dailyNext: "المجموعة التالية",
+  dailyPause: "إيقاف التبديل التلقائي",
+  dailyPlay: "تشغيل التبديل التلقائي",
   dailyFallbackTitle: "تصفّح أقسام المتجر",
   dailyFallbackCta: "كل الأقسام",
   allProductsTitle: "كل المنتجات",
@@ -151,8 +159,16 @@ const en: typeof ar = {
   shopCategoryCta: (name: string) => `Shop ${name}`,
   categoryProductCount: (count: number) =>
     count === 1 ? "1 product in this category" : `${count} products in this category`,
-  showcaseProduct: (position: number, name: string) =>
-    `Show product ${position}: ${name}`,
+  dailyShop: "Shop the category",
+  dailyDiscover: (name: string) => `Discover ${name}`,
+  dailyCarousel: (name: string) => `Products from ${name}`,
+  dailyGroup: (position: number, total: number) =>
+    `Group ${position} of ${total}`,
+  dailyShowGroup: (position: number) => `Show group ${position}`,
+  dailyPrevious: "Previous group",
+  dailyNext: "Next group",
+  dailyPause: "Pause automatic rotation",
+  dailyPlay: "Resume automatic rotation",
   dailyFallbackTitle: "Browse the store’s categories",
   dailyFallbackCta: "All categories",
   allProductsTitle: "All products",

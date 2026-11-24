@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { pickDailyCategory, storeDayNumber } from "./daily-category";
+import {
+  groupDailyProducts,
+  pickDailyCategory,
+  storeDayNumber,
+} from "./daily-category";
 
 const categories = [
   { code: "laundry", sortOrder: 30 },
@@ -88,5 +92,40 @@ describe("storeDayNumber", () => {
   it("is the same day number for every instant of one store day", () => {
     const day = storeDayNumber(new Date("2026-11-24T00:00:00+02:00"));
     expect(storeDayNumber(new Date("2026-11-24T23:59:59+02:00"))).toBe(day);
+  });
+});
+
+describe("groupDailyProducts", () => {
+  const items = (count: number) =>
+    Array.from({ length: count }, (_, index) => ({ id: `p${index}` }));
+
+  it("keeps the order and fills groups of the given size", () => {
+    expect(
+      groupDailyProducts(items(6), 3).map((group) => group.map((p) => p.id)),
+    ).toEqual([
+      ["p0", "p1", "p2"],
+      ["p3", "p4", "p5"],
+    ]);
+  });
+
+  it("balances the groups instead of leaving a lone product", () => {
+    expect(groupDailyProducts(items(4), 3).map((group) => group.length)).toEqual(
+      [2, 2],
+    );
+    expect(groupDailyProducts(items(7), 3).map((group) => group.length)).toEqual(
+      [3, 2, 2],
+    );
+  });
+
+  it("never repeats a product, inside a group or across groups", () => {
+    const repeated = [...items(5), { id: "p1" }, { id: "p3" }];
+    const ids = groupDailyProducts(repeated, 3).flat().map((p) => p.id);
+    expect(new Set(ids).size).toBe(ids.length);
+    expect(ids).toHaveLength(5);
+  });
+
+  it("gives one group for a few products and none for an empty list", () => {
+    expect(groupDailyProducts(items(2), 3)).toHaveLength(1);
+    expect(groupDailyProducts([], 3)).toEqual([]);
   });
 });

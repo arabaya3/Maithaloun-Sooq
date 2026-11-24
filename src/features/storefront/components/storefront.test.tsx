@@ -99,7 +99,7 @@ describe("storefront", () => {
     expect(within(banner as HTMLElement).getByText("قسم اليوم")).toBeVisible();
     expect(
       within(banner as HTMLElement).getByRole("link", {
-        name: /تسوّق منظفات المطبخ/,
+        name: /^تسوّق القسم: منظفات المطبخ/,
       }),
     ).toHaveAttribute("href", "/categories/kitchen");
     expect(screen.getByRole("link", { name: "منظفات الغسيل" })).toHaveAttribute(
