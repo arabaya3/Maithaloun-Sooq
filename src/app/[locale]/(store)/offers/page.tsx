@@ -1,54 +1,10 @@
-import { BadgePercent } from "lucide-react";
-import type { Metadata } from "next";
+import { permanentRedirect } from "next/navigation";
 
-import { ProductCard } from "@/features/catalog/components/product-card";
-import { productRepository } from "@/features/catalog/infrastructure/product-repository";
-import { MobileNavigation } from "@/features/storefront/components/mobile-navigation";
-import { SiteHeader } from "@/features/storefront/components/site-header";
-import { productsOnOffer } from "@/features/storefront/domain/home-merchandising";
-import { Link } from "@/i18n/link";
-import { getMessages, localizedAlternates } from "@/i18n/server";
+import { localizePath } from "@/i18n/config";
+import { getLocale } from "@/i18n/server";
 
-export async function generateMetadata(): Promise<Metadata> {
-  const m = await getMessages();
-  return {
-    alternates: await localizedAlternates("/offers"),
-    title: m.meta.offersTitle,
-    description: m.meta.offersDescription,
-  };
-}
-
+// The storefront no longer has an offers section; offers still apply to prices, and the admin keeps
+// managing them. Old links and bookmarks land on the home page instead of a 404.
 export default async function OffersPage() {
-  const [all, m] = await Promise.all([productRepository.list(), getMessages()]);
-  const products = productsOnOffer(all);
-
-  return (
-    <>
-      <SiteHeader />
-      <main className="page-shell listing-page">
-        <div className="listing-heading">
-          <span className="eyebrow">MAYTHA MARKET</span>
-          <h1>{m.common.offers}</h1>
-          <span className="results-count">
-            {m.common.productCount(products.length)}
-          </span>
-        </div>
-        {products.length ? (
-          <div className="product-grid">
-            {products.map((product) => (
-              <ProductCard key={product.id} product={product} />
-            ))}
-          </div>
-        ) : (
-          <div className="empty-state" role="status">
-            <BadgePercent aria-hidden="true" />
-            <h2>{m.store.noOffers}</h2>
-            <p>{m.store.noOffersHint}</p>
-            <Link href="/">{m.common.backHome}</Link>
-          </div>
-        )}
-      </main>
-      <MobileNavigation />
-    </>
-  );
+  permanentRedirect(localizePath(await getLocale(), "/"));
 }

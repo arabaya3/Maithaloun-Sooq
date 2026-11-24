@@ -1,5 +1,6 @@
 import { config as loadEnvironment } from "dotenv";
 import { expect, test, type Page } from "@playwright/test";
+import { openCart, cartLink } from "./support";
 import postgres from "postgres";
 
 import { parseTestEnv } from "../../src/server/env/env-schema";
@@ -31,10 +32,9 @@ async function countOrders(): Promise<number> {
 
 async function openCheckout(page: Page) {
   await page.goto("/");
-  await expect(page.locator(".hero-facts")).toContainText("توصيل داخل ميثلون");
   const product = page.locator('[data-product-id="general-cleaner"]');
-  await product.getByRole("button", { name: "أضف إلى السلة" }).click();
-  await page.locator(".cart-button").click();
+  await product.getByRole("button", { name: "أضف للسلة" }).click();
+  await openCart(page);
   await page.getByRole("link", { name: "الطلب عبر الموقع" }).click();
   await expect(
     page.getByRole("heading", { level: 1, name: "بيانات الطلب" }),
@@ -113,7 +113,7 @@ test("validates and creates a cash-on-delivery order with +970", async ({
   await expect(page.getByText("0591234567")).toHaveCount(0);
 
   await page.getByRole("link", { name: "العودة إلى المتجر" }).click();
-  await expect(page.locator(".cart-button")).toHaveAccessibleName(
+  await expect(await cartLink(page)).toHaveAccessibleName(
     "السلة، عدد المنتجات 0",
   );
   expect(consoleErrors).toEqual([]);
@@ -149,7 +149,7 @@ test("failed submission preserves the cart", async ({ page }) => {
   await expect(page.locator(".checkout-error-summary")).toContainText(
     "تعذّر حفظ الطلب الآن.",
   );
-  await expect(page.locator(".cart-button")).toHaveAccessibleName(
+  await expect(await cartLink(page)).toHaveAccessibleName(
     "السلة، عدد المنتجات 1",
   );
   await expect(

@@ -27,6 +27,10 @@ import {
   variantAttributesSchema,
   variantDomainIdSchema,
 } from "@/features/catalog/domain/product-variant";
+import {
+  loadCategoryLinks,
+  replaceExtraCategories,
+} from "@/features/catalog/infrastructure/product-category-links";
 import { mapProductRow } from "@/features/catalog/infrastructure/product-row-mapper";
 import { loadVariantCommerce } from "@/features/catalog/infrastructure/variant-commerce";
 import * as schema from "@/server/db/schema";
@@ -62,6 +66,8 @@ export const adminProductUpdateSchema = z
     usageNotesEn: optionalText(4_000),
     priceAgorot: z.number().int().positive().max(10_000_000),
     categoryId: productCategorySchema,
+    // Omitted: the extra categories stay exactly as they are. A list replaces them.
+    extraCategoryIds: z.array(productCategorySchema).max(20).optional(),
     availability: z.enum(productAvailabilityValues),
     sortOrder: z.number().int().min(0).max(100_000),
     description: optionalText(4_000),
@@ -292,6 +298,19 @@ export class AdminCatalogService {
         .returning();
       if (!row) throw new AdminCatalogError("not_found");
 
+      if (parsed.data.extraCategoryIds) {
+        await this.assertCategoriesExist(
+          transaction,
+          parsed.data.extraCategoryIds,
+        );
+        await replaceExtraCategories(
+          transaction,
+          row.id,
+          row.categoryId,
+          parsed.data.extraCategoryIds,
+        );
+      }
+
       await this.syncDefaultVariantFromProduct(transaction, row, {
         priceAgorot: parsed.data.priceAgorot,
         availability: parsed.data.availability,
@@ -349,6 +368,18 @@ export class AdminCatalogService {
           })
           .returning();
         if (!row) throw new AdminCatalogError("invalid_input");
+        if (parsed.data.extraCategoryIds?.length) {
+          await this.assertCategoriesExist(
+            transaction,
+            parsed.data.extraCategoryIds,
+          );
+          await replaceExtraCategories(
+            transaction,
+            row.id,
+            row.categoryId,
+            parsed.data.extraCategoryIds,
+          );
+        }
 
         const defaultVariantId = `${row.domainId}--default`;
         const [variant] = await transaction
@@ -888,7 +919,7 @@ export class AdminCatalogService {
   ): Promise<Product[]> {
     if (!rows.length) return [];
     const productIds = rows.map((row) => row.id);
-    const [loadedVariants, specRows] = await Promise.all([
+    const [loadedVariants, specRows, categoryLinks] = await Promise.all([
       this.database
         .select()
         .from(schema.productVariants)
@@ -899,6 +930,7 @@ export class AdminCatalogService {
         .from(schema.productSpecifications)
         .where(inArray(schema.productSpecifications.productId, productIds))
         .orderBy(asc(schema.productSpecifications.sortOrder)),
+      loadCategoryLinks(this.database, productIds),
     ]);
 
     // For archived products, a product whose every variant is archived is read with them as they were.
@@ -952,8 +984,29 @@ export class AdminCatalogService {
         specsByProductId.get(row.id) ?? [],
         new Map(),
         commerce,
+        categoryLinks.get(row.id) ?? [],
       ),
     );
+  }
+
+  /** Extra categories must be real, unarchived categories (hidden ones are allowed). */
+  private async assertCategoriesExist(
+    executor: Pick<PostgresJsDatabase<typeof schema>, "select">,
+    codes: readonly string[],
+  ): Promise<void> {
+    const unique = [...new Set(codes)];
+    if (!unique.length) return;
+    const rows = await executor
+      .select({ code: schema.productCategories.code })
+      .from(schema.productCategories)
+      .where(
+        and(
+          inArray(schema.productCategories.code, unique),
+          isNull(schema.productCategories.archivedAt),
+        ),
+      );
+    if (rows.length !== unique.length)
+      throw new AdminCatalogError("invalid_input");
   }
 
   async setImage(

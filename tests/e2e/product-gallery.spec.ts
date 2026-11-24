@@ -6,6 +6,8 @@ import {
   login,
   trackPageIssues,
   withTestDb,
+  openCart,
+  cartLink,
 } from "./support";
 
 // معطر لويال shape: colour × size, six variants, images of every scope. Green has no picture of its own.
@@ -200,7 +202,7 @@ test("mobile: tapping the blue image selects only blue, keeps the size, and the 
       select sku, price_agorot as price from product_variants where domain_id = 'e2e-loyal--blue-l'`,
   );
   expect(variant).toEqual({ sku: "E2E-E2E-LOYAL-BLUE-L", price: 1800 });
-  await page.locator(".cart-button").click();
+  await openCart(page);
   await expect(page.locator(".cart-line-variant").first()).toContainText(
     "أزرق · كبير",
   );
@@ -739,7 +741,7 @@ test("selection, quantity and picture survive the cart and checkout at 360, 390,
     await page.waitForLoadState("networkidle");
     await page.evaluate(() => window.localStorage.clear());
     await page.reload();
-    await expect(page.locator(".cart-button")).toContainText("عدد المنتجات 0");
+    await expect(await cartLink(page)).toContainText("عدد المنتجات 0");
     const gallery = page.getByRole("region", { name: `صور ${LOYAL.name}` });
     await gallery
       .getByRole("button", { name: /— اللون: أزرق$/ })
@@ -759,7 +761,7 @@ test("selection, quantity and picture survive the cart and checkout at 360, 390,
       .getByRole("button", { name: "أضف إلى السلة" })
       .click();
 
-    await page.locator(".cart-button").click();
+    await openCart(page);
     const line = page.locator(".cart-line").first();
     await expect(line.locator(".cart-line-variant")).toContainText(
       "أزرق · كبير",
@@ -782,7 +784,7 @@ test("selection, quantity and picture survive the cart and checkout at 360, 390,
     expect(decodeURIComponent((await shownImage(page)) ?? "")).toContain(NAVY);
 
     if (width === 390) {
-      await page.locator(".cart-button").click();
+      await openCart(page);
       await page.getByRole("link", { name: "الطلب عبر الموقع" }).click();
       await page
         .getByRole("textbox", { name: "الاسم", exact: true })

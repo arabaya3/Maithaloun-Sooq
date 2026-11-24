@@ -1,5 +1,6 @@
 import {
   isProductAvailable,
+  productCategoryCodes,
   type Product,
 } from "@/features/catalog/domain/product";
 
@@ -83,8 +84,26 @@ export function categoryCovers(
   products: readonly Product[],
 ): Map<string, Product> {
   const covers = new Map<string, Product>();
+  // A product listed in several categories can stand for each of them; its own category goes first.
   for (const product of pickHeroProducts(products, Number.POSITIVE_INFINITY)) {
     covers.set(product.categoryId, product);
   }
+  for (const product of rankedPhotoProducts(products)) {
+    for (const code of productCategoryCodes(product)) {
+      if (!covers.has(code)) covers.set(code, product);
+    }
+  }
   return covers;
+}
+
+function rankedPhotoProducts(products: readonly Product[]): Product[] {
+  return products
+    .filter((product) => hasPhoto(product) && isProductAvailable(product))
+    .map((product, index) => ({ product, index }))
+    .sort(
+      (left, right) =>
+        Number(Boolean(right.product.brand)) -
+          Number(Boolean(left.product.brand)) || left.index - right.index,
+    )
+    .map(({ product }) => product);
 }

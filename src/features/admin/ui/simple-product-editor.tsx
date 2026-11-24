@@ -18,7 +18,10 @@ import {
   simpleKindLabels,
   type SimpleKind,
 } from "@/features/admin/domain/simple-product";
-import { CategoryOptions } from "@/features/admin/ui/admin-categories";
+import {
+  CategoryOptions,
+  ExtraCategoriesPicker,
+} from "@/features/admin/ui/admin-categories";
 import { QuickCategory } from "@/features/admin/ui/quick-category";
 import { MAX_OPTION_VALUES } from "@/features/catalog/domain/product-options";
 import { MAX_PRODUCT_IMAGES } from "@/features/catalog/domain/product-gallery";
@@ -45,6 +48,8 @@ export interface SimpleProductInitial {
   productId: string | null;
   nameAr: string;
   categoryId: string;
+  /** The other categories the product is also shown in. */
+  extraCategoryIds: string[];
   description: string;
   usageNotes: string;
   kind: SimpleKind;
@@ -236,6 +241,9 @@ export function SimpleProductEditor({
   const router = useRouter();
   const [nameAr, setNameAr] = useState(initial.nameAr);
   const [categoryId, setCategoryId] = useState(initial.categoryId);
+  const [extraCategoryIds, setExtraCategoryIds] = useState<string[]>(
+    initial.extraCategoryIds,
+  );
   const [description, setDescription] = useState(initial.description);
   const [usageNotes, setUsageNotes] = useState(initial.usageNotes);
   const [kind, setKind] = useState<SimpleKind>(initial.kind);
@@ -355,6 +363,7 @@ export function SimpleProductEditor({
     if (!window.confirm("تجاهل كل التغييرات غير المحفوظة؟")) return;
     setNameAr(initial.nameAr);
     setCategoryId(initial.categoryId);
+    setExtraCategoryIds(initial.extraCategoryIds);
     setDescription(initial.description);
     setUsageNotes(initial.usageNotes);
     setKind(initial.kind);
@@ -375,6 +384,9 @@ export function SimpleProductEditor({
         productId: initial.productId,
         nameAr,
         categoryId,
+        extraCategoryIds: extraCategoryIds.filter(
+          (code) => code !== categoryId,
+        ),
         description,
         usageNotes,
         kind,
@@ -493,6 +505,11 @@ export function SimpleProductEditor({
         </label>
         <QuickCategory
           onCreated={(code) => change(() => setCategoryId(code))}
+        />
+        <ExtraCategoriesPicker
+          primary={categoryId}
+          value={extraCategoryIds}
+          onChange={(next) => change(() => setExtraCategoryIds(next))}
         />
         <details className="sp-more" open={Boolean(initial.description)}>
           <summary>وصف قصير (اختياري)</summary>

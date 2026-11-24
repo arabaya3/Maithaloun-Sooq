@@ -8,7 +8,7 @@ import { SiteHeader } from "./site-header";
 import { StoreNavigationProvider } from "./store-navigation";
 
 vi.mock("next/navigation", () => ({
-  usePathname: () => "/offers",
+  usePathname: () => "/favorites",
 }));
 
 describe("SiteHeader", () => {
@@ -44,11 +44,12 @@ describe("SiteHeader", () => {
       "href",
       "/categories/laundry",
     );
-    expect(
-      screen
-        .getByRole("navigation", { name: "التنقل الرئيسي" })
-        .querySelector("[aria-current=page]"),
-    ).toHaveTextContent("العروض");
+    // The offers section is gone from the storefront.
+    expect(screen.queryByRole("link", { name: "العروض" })).toBeNull();
+    expect(screen.getByRole("link", { name: "كل المنتجات" })).toHaveAttribute(
+      "href",
+      "/products",
+    );
   });
 
   it("uses the live search it is given instead of the plain one", () => {
@@ -73,23 +74,26 @@ describe("SiteHeader", () => {
 });
 
 describe("MobileNavigation", () => {
-  it("offers five real destinations and marks the current one without relying on colour", () => {
+  it("offers Home, Categories, Wishlist and Cart and marks the current one without relying on colour", () => {
     renderWithProviders(<MobileNavigation />, { productIds: [] });
 
     const links = screen.getAllByRole("link");
     expect(links.map((link) => link.getAttribute("href"))).toEqual([
       "/",
       "/categories",
-      "/offers",
+      "/favorites",
       "/cart",
-      "/request-product",
     ]);
-    expect(screen.getByRole("link", { name: "العروض" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "المفضلة" })).toHaveAttribute(
       "aria-current",
       "page",
     );
     expect(screen.getByRole("link", { name: "الرئيسية" })).not.toHaveAttribute(
       "aria-current",
     );
+    // The cart tab says how many items the cart holds.
+    expect(
+      screen.getByRole("link", { name: "السلة، عدد المنتجات 0" }),
+    ).toHaveAttribute("href", "/cart");
   });
 });

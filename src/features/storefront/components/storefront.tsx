@@ -11,41 +11,36 @@ import {
   localizedCategoryName,
   type ProductCategory,
 } from "@/features/catalog/domain/category";
-import type { CategoryId, Product } from "@/features/catalog/domain/product";
+import {
+  productCategoryCodes,
+  type CategoryId,
+  type Product,
+} from "@/features/catalog/domain/product";
 import { filterProducts } from "@/features/catalog/domain/product-search";
 import {
+  DEFAULT_PRODUCT_SORT,
   parseProductSort,
   sortProducts,
   type ProductSort,
 } from "@/features/catalog/domain/product-sort";
 import { CatalogToolbar } from "@/features/storefront/components/catalog-toolbar";
-import {
-  BestSellers,
-  StoreBenefits,
-} from "@/features/storefront/components/home-sections";
+import { DailyCategoryBanner } from "@/features/storefront/components/daily-category-banner";
 import { MobileNavigation } from "@/features/storefront/components/mobile-navigation";
 import { SiteHeader } from "@/features/storefront/components/site-header";
-import {
-  categoryCovers,
-  type CatalogBrand,
-} from "@/features/storefront/domain/home-merchandising";
+import { useListScrollRestore } from "@/features/storefront/components/use-list-scroll-restore";
+import { categoryCovers } from "@/features/storefront/domain/home-merchandising";
+import { isNewArrival } from "@/features/storefront/domain/new-arrivals";
 import { useI18n } from "@/i18n/i18n-provider";
 import { Link } from "@/i18n/link";
 
 // The first batch keeps the phone page short; more is one tap away, never on scroll.
 export const CATALOG_BATCH = 12;
 
-export interface HomeMerchandising {
-  heroProducts: readonly Product[];
-  brands: readonly CatalogBrand[];
-  bestSellers: readonly Product[];
+/** The category the server picked for today (Asia/Hebron) and the products whose photos it shows. */
+export interface DailyCategory {
+  code: string | null;
+  productIds: readonly string[];
 }
-
-const emptyMerchandising: HomeMerchandising = {
-  heroProducts: [],
-  brands: [],
-  bestSellers: [],
-};
 
 function ProductSearch({
   query,
@@ -100,22 +95,12 @@ function ProductSearch({
 function CategoryPicker({
   categories,
   covers,
-  selected,
-  onSelect,
 }: {
   categories: readonly ProductCategory[];
   covers: ReadonlyMap<string, Product>;
-  selected: CategoryId;
-  onSelect: (category: CategoryId) => void;
 }) {
   const { m, locale } = useI18n();
-  const options = [
-    ...categories.map((category) => ({
-      code: category.code,
-      name: localizedCategoryName(category, locale),
-      icon: category.icon,
-    })),
-  ];
+  if (!categories.length) return null;
   return (
     <section className="categories-section" aria-labelledby="categories-title">
       <div className="home-section-heading">
@@ -124,54 +109,40 @@ function CategoryPicker({
           {m.store.allCategories}
         </Link>
       </div>
-      <div
-        className="category-list"
-        role="group"
-        aria-labelledby="categories-title"
-      >
-        <Link
-          href="/categories"
-          className="category-item category-directory-tile"
-        >
-          <span className="category-icon" data-cover="false" aria-hidden="true">
-            <LayoutGrid />
-          </span>
-          <span className="category-label">{m.store.allFilter}</span>
-        </Link>
-        {options.map((category) => {
-          const active = selected === category.code;
+      <ul className="category-list">
+        {categories.map((category) => {
           const Icon = categoryIcons[category.icon] ?? LayoutGrid;
           const cover = covers.get(category.code);
           return (
-            <button
-              key={category.code}
-              type="button"
-              className="category-item"
-              data-category-id={category.code}
-              data-active={active}
-              aria-pressed={active}
-              onClick={() => onSelect(category.code)}
-            >
-              <span
-                className="category-icon"
-                data-cover={Boolean(cover)}
-                aria-hidden="true"
+            <li key={category.code}>
+              <Link
+                href={`/categories/${encodeURIComponent(category.code)}`}
+                className="category-item"
+                data-category-id={category.code}
               >
-                {cover ? (
-                  <ProductMedia
-                    product={cover}
-                    className="category-cover"
-                    sizes="112px"
-                  />
-                ) : (
-                  <Icon />
-                )}
-              </span>
-              <span className="category-label">{category.name}</span>
-            </button>
+                <span
+                  className="category-icon"
+                  data-cover={Boolean(cover)}
+                  aria-hidden="true"
+                >
+                  {cover ? (
+                    <ProductMedia
+                      product={cover}
+                      className="category-cover"
+                      sizes="(min-width: 48rem) 160px, 96px"
+                    />
+                  ) : (
+                    <Icon />
+                  )}
+                </span>
+                <span className="category-label">
+                  {localizedCategoryName(category, locale)}
+                </span>
+              </Link>
+            </li>
           );
         })}
-      </div>
+      </ul>
     </section>
   );
 }
@@ -185,7 +156,7 @@ function writeFiltersToUrl(
   // Only the catalog's own parameters change; anything else in the address is kept.
   const url = new URL(window.location.href);
   url.searchParams.delete("shown");
-  if (sort === "featured") url.searchParams.delete("sort");
+  if (sort === DEFAULT_PRODUCT_SORT) url.searchParams.delete("sort");
   else url.searchParams.set("sort", sort);
   if (category === ALL_CATEGORIES) url.searchParams.delete("category");
   else url.searchParams.set("category", category);
@@ -199,8 +170,9 @@ export function Storefront({
   categories,
   initialCategory = ALL_CATEGORIES,
   initialQuery = "",
-  initialSort = "featured",
-  merchandising = emptyMerchandising,
+  initialSort = DEFAULT_PRODUCT_SORT,
+  daily = null,
+  newSince = null,
   readFiltersFromUrl = false,
 }: {
   products: readonly Product[];
@@ -208,7 +180,10 @@ export function Storefront({
   initialCategory?: CategoryId;
   initialQuery?: string;
   initialSort?: ProductSort;
-  merchandising?: HomeMerchandising;
+  /** Computed on the server for the store day, so every visitor and the first paint agree. */
+  daily?: DailyCategory | null;
+  /** Products created since this ISO time carry the «new» badge. */
+  newSince?: string | null;
   /** The cached home page reads ?category, ?q and ?sort in the browser, in place (no remount). */
   readFiltersFromUrl?: boolean;
 }) {
@@ -232,6 +207,9 @@ export function Storefront({
     setSortState(value);
     writeFiltersToUrl(category, query, value);
   };
+  const [filtersReady, setFiltersReady] = useState(!readFiltersFromUrl);
+  const filterKey = `${category}|${query.trim()}|${sort}`;
+  const [batch, setBatch] = useState({ key: filterKey, count: CATALOG_BATCH });
   useEffect(() => {
     if (!readFiltersFromUrl) return;
     const params = new URLSearchParams(window.location.search);
@@ -243,6 +221,7 @@ export function Storefront({
     const sortFromUrl = parseProductSort(params.get("sort"));
     const shown = Number(params.get("shown"));
     queueMicrotask(() => {
+      setFiltersReady(true);
       if (Number.isSafeInteger(shown) && shown > CATALOG_BATCH) {
         setBatch({
           key: `${fromUrl}|${queryFromUrl.trim()}|${sortFromUrl}`,
@@ -257,8 +236,15 @@ export function Storefront({
     // Once, on arrival: later changes are written to the address by the setters above.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+  useListScrollRestore(filtersReady);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const covers = useMemo(() => categoryCovers(products), [products]);
+  const dailyCategory =
+    categories.find((item) => item.code === daily?.code) ?? null;
+  const dailyProducts = useMemo(() => {
+    const byId = new Map(products.map((product) => [product.id, product]));
+    return (daily?.productIds ?? []).flatMap((id) => byId.get(id) ?? []);
+  }, [daily, products]);
 
   const filteredProducts = useMemo(
     () =>
@@ -268,8 +254,6 @@ export function Storefront({
       ),
     [category, products, query, sort],
   );
-  const filterKey = `${category}|${query.trim()}|${sort}`;
-  const [batch, setBatch] = useState({ key: filterKey, count: CATALOG_BATCH });
   // A new search or category starts again from the first batch.
   const visibleCount = batch.key === filterKey ? batch.count : CATALOG_BATCH;
   const categoryCounts = useMemo(() => {
@@ -281,7 +265,9 @@ export function Storefront({
       [ALL_CATEGORIES, matches.length],
     ]);
     for (const product of matches) {
-      counts.set(product.categoryId, (counts.get(product.categoryId) ?? 0) + 1);
+      for (const code of productCategoryCodes(product)) {
+        counts.set(code, (counts.get(code) ?? 0) + 1);
+      }
     }
     return counts;
   }, [products, query]);
@@ -317,17 +303,15 @@ export function Storefront({
       />
       <main className="page-shell storefront-main">
         <h1 className="sr-only">{m.store.shopHeading}</h1>
-        <div className="catalog-merchandising">
-          <CategoryPicker
-            categories={categories}
-            covers={covers}
-            selected={category}
-            onSelect={setCategory}
-          />
-          {hasActiveFilter ? null : (
-            <BestSellers products={merchandising.bestSellers} />
-          )}
-        </div>
+        {hasActiveFilter ? null : (
+          <div className="catalog-merchandising">
+            <DailyCategoryBanner
+              category={dailyCategory}
+              products={dailyProducts}
+            />
+            <CategoryPicker categories={categories} covers={covers} />
+          </div>
+        )}
         <section
           id="catalog"
           className="catalog-section"
@@ -335,9 +319,16 @@ export function Storefront({
         >
           <CatalogToolbar
             heading={
-              <h2 id="catalog-title">
-                {hasActiveFilter ? m.store.searchResults : m.store.allProducts}
-              </h2>
+              <>
+                <h2 id="catalog-title">
+                  {hasActiveFilter
+                    ? m.store.searchResults
+                    : m.store.newArrivals}
+                </h2>
+                <Link href="/products" className="home-section-link">
+                  {m.store.viewAll}
+                </Link>
+              </>
             }
             count={filteredProducts.length}
             sort={sort}
@@ -428,7 +419,11 @@ export function Storefront({
             <>
               <div className="product-grid">
                 {visibleProducts.map((product) => (
-                  <ProductCard key={product.id} product={product} />
+                  <ProductCard
+                    key={product.id}
+                    product={product}
+                    isNew={isNewArrival(product, newSince)}
+                  />
                 ))}
               </div>
               {remaining > 0 ? (
@@ -472,7 +467,6 @@ export function Storefront({
             </div>
           )}
         </section>
-        {hasActiveFilter ? null : <StoreBenefits />}
       </main>
       <MobileNavigation />
     </>

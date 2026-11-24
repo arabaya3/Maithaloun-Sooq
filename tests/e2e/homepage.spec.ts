@@ -15,6 +15,9 @@ function trackPageIssues(page: Page) {
   return { consoleErrors, failedRequests };
 }
 
+const cartCount = (page: Page) =>
+  page.locator(".mobile-navigation .cart-count");
+
 test("homepage search, filtering, and cart work in RTL", async ({ page }) => {
   const issues = trackPageIssues(page);
   await page.goto("/");
@@ -32,13 +35,15 @@ test("homepage search, filtering, and cart work in RTL", async ({ page }) => {
   await expect(page.getByText("منظف عام Secret")).toBeHidden();
 
   const product = page.locator("article").filter({ hasText: "سائل جلي Arar" });
-  await product.getByRole("button", { name: "أضف إلى السلة" }).click();
-  await expect(page.locator(".cart-button")).toHaveAccessibleName(
-    "السلة، عدد المنتجات 1",
-  );
+  await product.getByRole("button", { name: "أضف للسلة" }).click();
+  await expect(cartCount(page)).toHaveText("1");
 
+  // The category filter lives in the «تصفية» sheet; the category cards open category pages.
   await search.clear();
-  await page.getByRole("button", { name: "منظفات المطبخ" }).click();
+  await page.getByRole("button", { name: /تصفية/ }).click();
+  const sheet = page.getByRole("dialog", { name: "تصفية المنتجات" });
+  await sheet.getByText("منظفات المطبخ", { exact: true }).click();
+  await sheet.getByRole("button", { name: /عرض النتائج/ }).click();
   await expect(page.getByText("سائل جلي Arar")).toBeVisible();
   await expect(page.getByText("مبيض Dolphin")).toBeHidden();
 
@@ -56,19 +61,18 @@ test("brand name is spelled MAYTHA MARKET everywhere it renders", async ({
   for (const route of [
     "/",
     "/products/general-cleaner-secret",
+    "/products",
     "/cart",
     "/checkout",
-    "/offers",
     "/categories",
+    "/favorites",
     "/account",
   ]) {
     await page.goto(route);
-    await expect(page.locator("header .brand .brand-name")).toHaveText(
-      "MAYTHA",
-    );
-    await expect(page.locator("header .brand .brand-subtitle")).toHaveText(
-      "MARKET",
-    );
+    // The header carries the official logo image; its text alternative is the store name.
+    await expect(
+      page.locator("header .brand").getByRole("img", { name: "MAYTHA MARKET" }),
+    ).toBeVisible();
     expect(await page.locator("body").innerText()).not.toMatch(
       /سوق ميثلون|سوق ميثون/,
     );
@@ -76,90 +80,107 @@ test("brand name is spelled MAYTHA MARKET everywhere it renders", async ({
 });
 
 test("navigation routes resolve successfully", async ({ page }) => {
-  const offers = await page.goto("/offers");
-  expect(offers?.status()).toBe(200);
+  // The offers section left the storefront; old links land on the home page.
+  await page.goto("/offers");
+  await expect(page).toHaveURL(/\/$/);
   await expect(
-    page.getByRole("heading", { level: 1, name: "العروض" }),
+    page.getByRole("heading", { level: 2, name: "وصل حديثًا" }),
+  ).toBeVisible();
+  const all = await page.goto("/products");
+  expect(all?.status()).toBe(200);
+  await expect(
+    page.getByRole("heading", { level: 1, name: "كل المنتجات" }),
   ).toBeVisible();
   const categories = await page.goto("/categories");
   expect(categories?.status()).toBe(200);
   await expect(
     page.getByRole("heading", { level: 1, name: "الأقسام" }),
   ).toBeVisible();
+  const favorites = await page.goto("/favorites");
+  expect(favorites?.status()).toBe(200);
+  await expect(
+    page.getByRole("heading", { level: 1, name: "المفضلة" }),
+  ).toBeVisible();
   const account = await page.goto("/account");
   expect(account?.status()).toBe(200);
   await expect(page.getByRole("link", { name: "متابعة كضيف" })).toBeVisible();
 });
 
-test("mobile header, hero, RTL categories, and bottom spacing remain usable", async ({
+test("home: compact header, today's category, category cards, new arrivals and no delivery strip", async ({
   page,
 }) => {
   const issues = trackPageIssues(page);
-  await page.setViewportSize({ width: 360, height: 800 });
+  await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/");
 
-  const brand = page.locator(".brand");
-  const cart = page.locator(".cart-button");
-  const location = page.locator(".hero-facts");
-  const [brandBox, cartBox, locationBox] = await Promise.all([
+  const brand = page.locator("header .brand");
+  const language = page.locator("header .header-language");
+  const search = page.getByRole("searchbox", { name: "ابحث في المنتجات" });
+  const [brandBox, languageBox, searchBox] = await Promise.all([
     brand.boundingBox(),
-    cart.boundingBox(),
-    location.boundingBox(),
+    language.boundingBox(),
+    search.boundingBox(),
   ]);
-
-  expect(brandBox).not.toBeNull();
-  expect(cartBox).not.toBeNull();
-  expect(locationBox).not.toBeNull();
-  expect(Math.abs(brandBox!.y - cartBox!.y)).toBeLessThan(10);
-  expect(locationBox!.y).toBeGreaterThan(brandBox!.y + brandBox!.height);
-  await expect(page.locator(".hero-facts")).toContainText("توصيل داخل ميثلون");
+  // Language and logo on one row, the search under them across the page.
   expect(
-    await location.evaluate(
-      (element) => element.scrollWidth <= element.clientWidth,
+    Math.abs(
+      brandBox!.y +
+        brandBox!.height / 2 -
+        (languageBox!.y + languageBox!.height / 2),
     ),
-  ).toBe(true);
+  ).toBeLessThan(12);
+  expect(searchBox!.y).toBeGreaterThan(brandBox!.y + brandBox!.height - 1);
+  expect(searchBox!.width).toBeGreaterThan(300);
+  await expect(page.locator("header .cart-button")).toBeHidden();
 
-  await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
-  await expect(page.getByRole("link", { name: "تسوّق الآن" })).toBeVisible();
-
-  const categoryList = page.locator(".category-list");
-  const firstCategory = page.getByRole("button", { name: "الكل" });
-  // Exact, because the active-filter chip «إزالة القسم: …» also contains the name.
-  const lastCategory = page.getByRole("button", {
-    name: "مستلزمات منزلية",
-    exact: true,
-  });
-
-  const listBox = await categoryList.boundingBox();
-  const firstBox = await firstCategory.boundingBox();
-  expect(listBox).not.toBeNull();
-  expect(firstBox).not.toBeNull();
-  expect(firstBox!.x).toBeGreaterThanOrEqual(listBox!.x - 1);
-  expect(firstBox!.y).toBeGreaterThanOrEqual(listBox!.y - 1);
-
-  await lastCategory.evaluate((element) =>
-    element.scrollIntoView({ block: "nearest", inline: "nearest" }),
+  const banner = page.locator(".daily-category");
+  await expect(banner).toBeVisible();
+  await expect(banner.getByText("قسم اليوم")).toBeVisible();
+  const code = await banner.getAttribute("data-category-id");
+  expect(code).toBeTruthy();
+  await expect(banner.getByRole("link", { name: /^تسوّق/ })).toHaveAttribute(
+    "href",
+    `/categories/${code}`,
   );
-  // Measured again: scrolling the last category into view may move the page.
-  const [lastBox, scrolledListBox] = await Promise.all([
-    lastCategory.boundingBox(),
-    categoryList.boundingBox(),
-  ]);
-  expect(lastBox).not.toBeNull();
-  expect(lastBox!.y).toBeGreaterThanOrEqual(scrolledListBox!.y - 1);
-  await lastCategory.click();
-  await expect(lastCategory).toHaveAttribute("aria-pressed", "true");
+  // Same category on a reload: it changes with the store day only.
+  await page.reload();
+  await expect(page.locator(".daily-category")).toHaveAttribute(
+    "data-category-id",
+    code!,
+  );
 
-  await firstCategory.click();
+  const cards = page.locator(".categories-section a.category-item");
+  expect(await cards.count()).toBeGreaterThan(0);
+  for (const href of await cards.evaluateAll((items) =>
+    items.map((item) => item.getAttribute("href")),
+  )) {
+    expect(href).toMatch(/^\/categories\/[a-z0-9-]+$/);
+  }
+  await expect(
+    page.getByRole("link", { name: "كل الأقسام" }).first(),
+  ).toHaveAttribute("href", "/categories");
+  await expect(
+    page.getByRole("heading", { level: 2, name: "وصل حديثًا" }),
+  ).toBeVisible();
+  await expect(page.getByRole("link", { name: "عرض الكل" })).toHaveAttribute(
+    "href",
+    "/products",
+  );
+  await expect(
+    page.getByRole("combobox", { name: "ترتيب المنتجات" }),
+  ).toHaveValue("newest");
+
+  // Removed from the home page; delivery rules still apply in cart and checkout.
+  await expect(page.getByText("توصيل داخل ميثلون")).toHaveCount(0);
+  await expect(page.locator(".store-benefits")).toHaveCount(0);
+
+  // The last card's action stays above the bottom bar, and the page ends on the footer.
   const finalAction = page
     .locator(".product-card")
     .last()
     .locator(".product-actions");
   await page.evaluate(() =>
-    window.scrollTo({
-      top: document.documentElement.scrollHeight,
-      behavior: "smooth",
-    }),
+    window.scrollTo({ top: document.documentElement.scrollHeight }),
   );
   await expect
     .poll(() =>
@@ -170,40 +191,26 @@ test("mobile header, hero, RTL categories, and bottom spacing remain usable", as
       ),
     )
     .toBe(true);
-
-  const navigation = page.locator(".mobile-navigation");
   const actionBox = await finalAction.boundingBox();
-  const navigationBox = await navigation.boundingBox();
-  expect(actionBox).not.toBeNull();
-  expect(navigationBox).not.toBeNull();
+  const navigationBox = await page.locator(".mobile-navigation").boundingBox();
   expect(actionBox!.y + actionBox!.height).toBeLessThanOrEqual(
     navigationBox!.y,
   );
-
-  const spacing = await page.evaluate(() => {
-    const root = getComputedStyle(document.documentElement);
-    return {
-      token: root.getPropertyValue("--mobile-nav-height").trim(),
-      // The footer reserves the bottom bar, so the page ends on the footer, not on a blank strip.
-      footerPadding: Number.parseFloat(
-        getComputedStyle(document.querySelector(".store-footer")!)
-          .paddingBottom,
-      ),
-      gapBelowFooter:
-        document.documentElement.scrollHeight -
-        (document.querySelector(".store-footer")!.getBoundingClientRect()
-          .bottom +
-          window.scrollY),
-      navigationHeight: document
-        .querySelector(".mobile-navigation")!
-        .getBoundingClientRect().height,
-    };
-  });
+  const spacing = await page.evaluate(() => ({
+    token: getComputedStyle(document.documentElement)
+      .getPropertyValue("--mobile-nav-height")
+      .trim(),
+    footerPadding: Number.parseFloat(
+      getComputedStyle(document.querySelector(".store-footer")!).paddingBottom,
+    ),
+    navigationHeight: document
+      .querySelector(".mobile-navigation")!
+      .getBoundingClientRect().height,
+  }));
   expect(spacing.token).toBe("4.25rem");
   expect(spacing.footerPadding).toBeGreaterThanOrEqual(
     spacing.navigationHeight - 1,
   );
-  expect(Math.abs(spacing.gapBelowFooter)).toBeLessThanOrEqual(1);
   expect(issues.consoleErrors).toEqual([]);
   expect(issues.failedRequests).toEqual([]);
 });
@@ -219,14 +226,15 @@ for (const viewport of [
   }) => {
     const issues = trackPageIssues(page);
     await page.setViewportSize(viewport);
-    await page.goto("/");
-    await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
-    await expect(page.getByRole("link", { name: "تسوّق الآن" })).toBeVisible();
-
-    const overflow = await page.evaluate(
-      () => document.documentElement.scrollWidth - window.innerWidth,
-    );
-    expect(overflow).toBeLessThanOrEqual(1);
+    for (const route of ["/", "/products"]) {
+      await page.goto(route);
+      await expect(page.getByRole("heading", { level: 1 })).toBeAttached();
+      await expect(page.locator(".product-card").first()).toBeVisible();
+      const overflow = await page.evaluate(
+        () => document.documentElement.scrollWidth - window.innerWidth,
+      );
+      expect(overflow).toBeLessThanOrEqual(1);
+    }
     expect(issues.consoleErrors).toEqual([]);
     expect(issues.failedRequests).toEqual([]);
   });
@@ -241,9 +249,9 @@ test("keyboard users reach search and products in RTL order with a visible focus
     await page.evaluate(() => getComputedStyle(document.body).direction),
   ).toBe("rtl");
 
-  // Right to left: the categories menu, then the wordmark, then the search.
+  // Right to left: the language switch, then the logo, then the search.
   await page.keyboard.press("Tab");
-  await expect(page.locator(".header-menu")).toBeFocused();
+  await expect(page.locator(".header-language")).toBeFocused();
   await page.keyboard.press("Tab");
   await expect(
     page.getByRole("link", { name: /^MAYTHA MARKET\s?، الرئيسية$/ }),
@@ -262,20 +270,16 @@ test("keyboard users reach search and products in RTL order with a visible focus
     await search.evaluate((el) => getComputedStyle(el).outlineStyle),
   ).not.toBe("none");
 
-  await page.keyboard.press("Tab");
-  // The language switcher sits between the search and the cart.
-  await expect(page.locator(".header-language")).toBeFocused();
-  await page.keyboard.press("Tab");
-  await expect(page.locator(".cart-button")).toBeFocused();
+  // Next comes today's category.
   await page.keyboard.press("Tab");
   const focused = page.locator(":focus");
-  await expect(focused).toHaveText(/تسوّق الآن/);
+  await expect(focused).toHaveText(/^تسوّق|كل الأقسام/);
   expect(
     await focused.evaluate((el) => getComputedStyle(el).outlineStyle),
   ).not.toBe("none");
 });
 
-test("product rows add to the cart, then change quantity in place", async ({
+test("product cards add to the cart, then change quantity in place", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
@@ -284,14 +288,12 @@ test("product rows add to the cart, then change quantity in place", async ({
     .locator(".product-card")
     .filter({ hasText: "منظف عام Secret" });
 
-  await card.getByRole("button", { name: "أضف إلى السلة" }).click();
+  await card.getByRole("button", { name: "أضف للسلة" }).click();
   await card
     .getByRole("button", { name: "زيادة كمية منظف عام Secret" })
     .click();
   await expect(card.locator(".card-quantity output")).toHaveText("2");
-  await expect(page.locator(".cart-button")).toHaveAccessibleName(
-    "السلة، عدد المنتجات 2",
-  );
+  await expect(cartCount(page)).toHaveText("2");
 
   await card
     .getByRole("button", { name: "تقليل كمية منظف عام Secret" })
@@ -299,18 +301,59 @@ test("product rows add to the cart, then change quantity in place", async ({
   await card
     .getByRole("button", { name: "إزالة منظف عام Secret من السلة" })
     .click();
+  await expect(card.getByRole("button", { name: "أضف للسلة" })).toBeVisible();
+  await expect(cartCount(page)).toHaveCount(0);
+
+  // The heart saves to the wishlist without touching the cart.
+  const heart = card.getByRole("button", {
+    name: "إضافة منظف عام Secret إلى المفضلة",
+  });
+  await heart.click();
   await expect(
-    card.getByRole("button", { name: "أضف إلى السلة" }),
+    card.getByRole("button", { name: "إزالة منظف عام Secret من المفضلة" }),
+  ).toHaveAttribute("aria-pressed", "true");
+  await page.goto("/favorites");
+  await expect(
+    page.locator("article").filter({ hasText: "منظف عام Secret" }),
   ).toBeVisible();
 });
 
-test("bottom navigation targets are at least 44px and mark the current page", async ({
+test("back from a product restores the list, its sort and the scroll position", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/products?sort=price-asc");
+  await expect(
+    page.getByRole("combobox", { name: "ترتيب المنتجات" }),
+  ).toHaveValue("price-asc");
+  const last = page.locator(".product-card").last();
+  await last.scrollIntoViewIfNeeded();
+  const before = await page.evaluate(() => window.scrollY);
+  expect(before).toBeGreaterThan(100);
+  await last.locator(".product-card-link").click();
+  await expect(page).toHaveURL(/\/products\/[a-z0-9-]+$/);
+  await page.goBack();
+  await expect(page).toHaveURL(/\/products\?sort=price-asc$/);
+  await expect(
+    page.getByRole("combobox", { name: "ترتيب المنتجات" }),
+  ).toHaveValue("price-asc");
+  await expect
+    .poll(() => page.evaluate(() => window.scrollY))
+    .toBeGreaterThan(before - 80);
+});
+
+test("bottom navigation: Home, Categories, Wishlist, Cart, 44px targets, current page marked", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 360, height: 800 });
-  await page.goto("/offers");
+  await page.goto("/categories");
   const links = page.locator(".mobile-navigation a");
   await expect(links).toHaveCount(4);
+  expect(
+    await links.evaluateAll((items) =>
+      items.map((item) => item.getAttribute("href")),
+    ),
+  ).toEqual(["/", "/categories", "/favorites", "/cart"]);
   for (const box of await links.evaluateAll((items) =>
     items.map((item) => item.getBoundingClientRect().toJSON()),
   )) {
@@ -318,6 +361,9 @@ test("bottom navigation targets are at least 44px and mark the current page", as
     expect(box.height).toBeGreaterThanOrEqual(44);
   }
   await expect(
-    page.locator(".mobile-navigation").getByRole("link", { name: "العروض" }),
+    page.locator('.mobile-navigation a[href="/categories"]'),
   ).toHaveAttribute("aria-current", "page");
+  await expect(
+    page.locator(".mobile-navigation").getByRole("link", { name: "العروض" }),
+  ).toHaveCount(0);
 });

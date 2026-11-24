@@ -179,6 +179,33 @@ export const products = pgTable(
   ],
 );
 
+// Every category a product is shown in, its primary (products.category_id) included. One product
+// row, many listings: price, stock, images, options and reviews stay on the product itself.
+export const productCategoryLinks = pgTable(
+  "product_category_links",
+  {
+    productId: uuid("product_id")
+      .notNull()
+      .references(() => products.id, {
+        onDelete: "cascade",
+        onUpdate: "cascade",
+      }),
+    categoryCode: varchar("category_code", { length: 40 })
+      .notNull()
+      .references(() => productCategories.code, {
+        onDelete: "restrict",
+        onUpdate: "cascade",
+      }),
+    createdAt: timestamp("created_at", { withTimezone: true, mode: "date" })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.productId, table.categoryCode] }),
+    index("product_category_links_category_idx").on(table.categoryCode),
+  ],
+);
+
 export const productVariants = pgTable(
   "product_variants",
   {

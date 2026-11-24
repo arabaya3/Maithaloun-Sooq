@@ -1,7 +1,7 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
 
-import { expectNoHorizontalOverflow, withTestDb } from "./support";
+import { expectNoHorizontalOverflow, withTestDb, openCart } from "./support";
 
 const SHOTS = "artifacts/languages";
 
@@ -92,7 +92,7 @@ test.describe("an English browser", () => {
         .locator('[data-product-id="general-cleaner"]')
         .getByRole("button", { name: "Add to cart" })
         .click();
-      await page.locator(".cart-button").click();
+      await openCart(page);
       await expect(page).toHaveURL(/\/en\/cart$/);
       await expect(
         page.getByRole("heading", { level: 1, name: "Shopping cart" }),
@@ -176,8 +176,9 @@ test.describe("other browsers", () => {
       // Same page and filter, now in English.
       await expect(page).toHaveURL(/\/en\?category=laundry$/);
       await expect(page.locator("html")).toHaveAttribute("dir", "ltr");
-      await page.goto("/offers");
-      await expect(page).toHaveURL(/\/en\/offers$/);
+      // The saved choice follows the shopper to the next page.
+      await page.goto("/products");
+      await expect(page).toHaveURL(/\/en\/products$/);
     });
   });
 
@@ -201,7 +202,8 @@ test.describe("English pages at phone and desktop widths", () => {
       for (const path of [
         "/en",
         "/en/categories",
-        "/en/offers",
+        "/en/products",
+        "/en/favorites",
         "/en/brands",
         "/en/products/general-cleaner-secret",
         "/en/cart",

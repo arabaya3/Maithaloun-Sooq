@@ -5,6 +5,7 @@ import {
 import {
   isProductAvailable,
   localizedProductName,
+  productCategoryCodes,
   localizedProductText,
   type Product,
 } from "@/features/catalog/domain/product";
@@ -46,6 +47,8 @@ export function publicProduct(product: Product, locale: Locale) {
     nameAr: product.nameAr,
     brand: product.brand ?? null,
     categoryCode: product.categoryId,
+    // Every category it is listed in, the primary first.
+    categoryCodes: productCategoryCodes(product),
     available: isProductAvailable(product),
     priceAgorot: cardPriceAgorot(product),
     image: image(product.image, name),

@@ -53,6 +53,10 @@ export const productSchema = z
     usageNotesEn: z.string().min(1).optional(),
     priceAgorot: z.number().int().nonnegative(),
     categoryId: productCategorySchema,
+    /** Primary first, then the extra categories it is also shown in. Absent means the primary only. */
+    categoryIds: z.array(productCategorySchema).min(1).optional(),
+    /** ISO time the product was first created. Absent only in fixtures; such products sort last. */
+    createdAt: z.iso.datetime({ offset: true }).optional(),
     image: z.discriminatedUnion("kind", [
       z.object({
         kind: z.literal("placeholder"),
@@ -120,6 +124,22 @@ export function getProductDisplayName(
   return product.latinName
     ? `${product.nameAr} ${product.latinName}`
     : product.nameAr;
+}
+
+/** Every category the product is listed in, primary first, without duplicates. */
+export function productCategoryCodes(
+  product: Pick<Product, "categoryId" | "categoryIds">,
+): string[] {
+  return [...new Set([product.categoryId, ...(product.categoryIds ?? [])])];
+}
+
+export function isInCategory(
+  product: Pick<Product, "categoryId" | "categoryIds">,
+  code: string,
+): boolean {
+  return (
+    product.categoryId === code || Boolean(product.categoryIds?.includes(code))
+  );
 }
 
 export function isProductAvailable(product: Product): boolean {

@@ -39,7 +39,7 @@ async function fillCart(page: Page) {
   await page.goto("/");
   await page
     .locator('[data-product-id="general-cleaner"]')
-    .getByRole("button", { name: "أضف إلى السلة" })
+    .getByRole("button", { name: "أضف للسلة" })
     .click();
   await page.goto("/cart");
 }

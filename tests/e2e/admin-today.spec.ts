@@ -1,7 +1,12 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
 
-import { expectNoHorizontalOverflow, login, trackPageIssues } from "./support";
+import {
+  expectNoHorizontalOverflow,
+  login,
+  trackPageIssues,
+  cartLink,
+} from "./support";
 
 const SHOTS = "artifacts/admin-today";
 const CUSTOMER = "زبونة لوحة اليوم";
@@ -20,8 +25,8 @@ async function placeOrder(page: Page) {
   await page.goto("/");
   const product = page.locator('[data-product-id="general-cleaner"]');
   await expect(async () => {
-    await product.getByRole("button", { name: "أضف إلى السلة" }).click();
-    await expect(page.locator(".cart-button")).toHaveAccessibleName(
+    await product.getByRole("button", { name: "أضف للسلة" }).click();
+    await expect(await cartLink(page)).toHaveAccessibleName(
       /عدد المنتجات [1-9]/,
       { timeout: 2_000 },
     );

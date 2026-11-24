@@ -15,7 +15,11 @@ import {
   upsertProductSpecificationAction,
   upsertProductVariantAction,
 } from "@/features/admin/application/admin-actions";
-import { CategoryOptions } from "@/features/admin/ui/admin-categories";
+import {
+  CategoryOptions,
+  ExtraCategoriesField,
+} from "@/features/admin/ui/admin-categories";
+import { productCategoryCodes } from "@/features/catalog/domain/product";
 import {
   placeholderKinds,
   type Product,
@@ -547,6 +551,13 @@ function EditProductForm({
                   <CategoryOptions />
                 </select>
               </label>
+              <div className="admin-field-span">
+                <ExtraCategoriesField
+                  initialPrimary={product.categoryId}
+                  primarySelectId="product-category"
+                  initial={productCategoryCodes(product).slice(1)}
+                />
+              </div>
               <label htmlFor="product-availability">
                 التوفر
                 <select

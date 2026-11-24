@@ -1,7 +1,9 @@
 import type { ProductCategory } from "@/features/catalog/domain/category";
 import { localizedCategoryName } from "@/features/catalog/domain/category";
 import {
+  isInCategory,
   isProductAvailable,
+  productCategoryCodes,
   type Product,
 } from "@/features/catalog/domain/product";
 import { normalizeSearchText } from "@/features/catalog/domain/product-search";
@@ -94,7 +96,7 @@ export function matchProducts(
   const scored = products
     .filter(
       (product) =>
-        !options.categoryCode || product.categoryId === options.categoryCode,
+        !options.categoryCode || isInCategory(product, options.categoryCode),
     )
     .map((product) => {
       const name = normalizeSearchText(
@@ -103,7 +105,9 @@ export function matchProducts(
           .join(" "),
       );
       const brand = normalizeSearchText(product.brand ?? "");
-      const category = categoryNames.get(product.categoryId) ?? "";
+      const category = productCategoryCodes(product)
+        .map((code) => categoryNames.get(code) ?? "")
+        .join(" ");
       const description = normalizeSearchText(
         [product.description, product.descriptionEn].filter(Boolean).join(" "),
       );

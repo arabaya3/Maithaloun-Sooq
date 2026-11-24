@@ -2,13 +2,15 @@ import { ArrowRight } from "lucide-react";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
-import { ProductCard } from "@/features/catalog/components/product-card";
 import {
   localizedCategoryDescription,
   localizedCategoryName,
 } from "@/features/catalog/domain/category";
 import { storefrontCategories } from "@/features/catalog/infrastructure/category-repository";
+import { productsInCategory } from "@/features/catalog/domain/product-categories";
 import { productRepository } from "@/features/catalog/infrastructure/product-repository";
+import { ProductListing } from "@/features/storefront/components/product-listing";
+import { newSince } from "@/features/storefront/domain/new-arrivals";
 import { MobileNavigation } from "@/features/storefront/components/mobile-navigation";
 import { SiteHeader } from "@/features/storefront/components/site-header";
 import { Link } from "@/i18n/link";
@@ -68,9 +70,8 @@ export default async function CategoryPage({
     getMessages(),
   ]);
   if (!category) notFound();
-  const inCategory = products.filter(
-    (product) => product.categoryId === category.code,
-  );
+  // Its own products and the ones it lists as an extra category; one card per product.
+  const inCategory = productsInCategory(products, category.code);
   const description = localizedCategoryDescription(category, locale);
 
   return (
@@ -83,27 +84,20 @@ export default async function CategoryPage({
             {m.store.allCategoriesBack}
           </Link>
         </nav>
-        <div className="section-heading catalog-heading">
-          <h1>{localizedCategoryName(category, locale)}</h1>
-          <span className="results-count">
-            {m.common.productCount(inCategory.length)}
-          </span>
-        </div>
         {description ? (
           <p className="category-description">{description}</p>
         ) : null}
-        {inCategory.length ? (
-          <div className="product-grid">
-            {inCategory.map((product) => (
-              <ProductCard key={product.id} product={product} />
-            ))}
-          </div>
-        ) : (
-          <div className="empty-state" role="status">
-            <h2>{m.store.emptyCategory}</h2>
-            <Link href="/categories">{m.store.browseOtherCategories}</Link>
-          </div>
-        )}
+        <ProductListing
+          products={inCategory}
+          newSince={newSince(new Date())}
+          heading={<h1>{localizedCategoryName(category, locale)}</h1>}
+          emptyState={
+            <div className="empty-state" role="status">
+              <h2>{m.store.emptyCategory}</h2>
+              <Link href="/categories">{m.store.browseOtherCategories}</Link>
+            </div>
+          }
+        />
       </main>
       <MobileNavigation />
     </>

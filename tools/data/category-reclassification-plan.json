@@ -1,0 +1,222 @@
+{
+  "description": "Proposed category corrections and extra categories, written from a read-only look at the production catalog (names, descriptions, photos) on 2026-11-23. Each entry names the product's current primary category; the tool skips an entry whose product has moved since. Only categories change: names, prices, stock and photos are never touched.",
+  "createdOn": "2026-11-23",
+  "entries": [
+    {
+      "productId": "product-13b6f6f9",
+      "name": "مناديل مبللة لتنظيف المطبخ وإزالة الدهون إنفينيو – برائحة الليمون – 80 منديل",
+      "currentPrimary": "kitchen-dishwashing",
+      "primary": "kitchen-dishwashing",
+      "extras": ["paper-tissues"],
+      "reason": "Kitchen degreasing wet wipes: a kitchen cleaner first, and shoppers looking for wipes find it under «الورقيات والمناديل» too."
+    },
+    {
+      "productId": "product-939384b6",
+      "name": "مناديل مبللة لتنظيف الأرضيات إنفينيو فلور – برائحة الليمون والنعناع – 10 مناديل",
+      "currentPrimary": "paper-tissues",
+      "primary": "home-cleaners",
+      "extras": ["paper-tissues"],
+      "reason": "Floor-cleaning wet wipes are a floor cleaner, not a paper tissue; kept in «الورقيات والمناديل» as an extra so it does not disappear from there."
+    },
+    {
+      "productId": "product-753b43ea",
+      "name": "دلو مناديل تنظيف عامة متعددة الاستخدامات – عبوة 400 منديل تقريبًا.",
+      "currentPrimary": "paper-tissues",
+      "primary": "home-cleaners",
+      "extras": ["paper-tissues"],
+      "reason": "General cleaning wipes (description: removes dirt, grease and stains): a household cleaner; still listed under wipes as an extra."
+    },
+    {
+      "productId": "product-ce080b30",
+      "name": "محارم نيو كومباكت المبللة من كومفرت – 120 منديل",
+      "currentPrimary": "personal-care",
+      "primary": "personal-care",
+      "extras": ["paper-tissues"],
+      "reason": "Scented personal wet wipes: personal care stays primary; also shown with the other wipes and tissues."
+    },
+    {
+      "productId": "product-f9480186",
+      "name": "مناديل جونسون بيبي المبللة للأطفال (Johnson's Baby Gentle All Over Wipes) – 72 منديل",
+      "currentPrimary": "baby-care",
+      "primary": "baby-care",
+      "extras": ["paper-tissues"],
+      "reason": "Baby wet wipes (personal care for babies, not cleaning wipes): baby care stays primary; also shown with wipes and tissues."
+    },
+    {
+      "productId": "product-45f90fa1",
+      "name": "مناديل مبللة للأطفال بامبرز فريش كلين – 52 منديل",
+      "currentPrimary": "baby-care",
+      "primary": "baby-care",
+      "extras": ["paper-tissues"],
+      "reason": "Baby wet wipes: baby care stays primary; also shown with wipes and tissues."
+    },
+    {
+      "productId": "product-6dd3177a",
+      "name": "محارم هابي نايس المبللة للأطفال – 72 منديل",
+      "currentPrimary": "baby-care",
+      "primary": "baby-care",
+      "extras": ["paper-tissues"],
+      "reason": "Baby wet wipes: baby care stays primary; also shown with wipes and tissues."
+    },
+    {
+      "productId": "product-5c0ffd8a",
+      "name": "مناشف ورقية السلطان – فائقة الامتصاص – عبوة 6 رول",
+      "currentPrimary": "paper-tissues",
+      "primary": "paper-tissues",
+      "extras": ["kitchen-dishwashing"],
+      "reason": "Paper towels; the description says they are for everyday kitchen use, so they are also shown in the kitchen."
+    },
+    {
+      "productId": "product-490b7203",
+      "name": "سائل غسيل ملابس الأطفال البركان – 1.4 لتر",
+      "currentPrimary": "baby-care",
+      "primary": "baby-care",
+      "extras": ["laundry"],
+      "reason": "Laundry liquid for baby clothes: baby care stays primary; it is also a laundry detergent."
+    },
+    {
+      "productId": "product-29da8efe",
+      "name": "شامبو السنافر للأطفال – 4 لتر",
+      "currentPrimary": "personal-care",
+      "primary": "personal-care",
+      "extras": ["baby-care"],
+      "reason": "A children's shampoo (the name says «للأطفال»): also shown in the children's category."
+    },
+    {
+      "productId": "product-875b0b09",
+      "name": "شامبو جونسون للأطفال الأصلي – 750 مل",
+      "currentPrimary": "personal-care",
+      "primary": "personal-care",
+      "extras": ["baby-care"],
+      "reason": "Johnson's baby shampoo: also shown in the children's category."
+    },
+    {
+      "productId": "product-3c53ea27",
+      "name": "طقم مزيل الدهون البارد ثاندر Thunder من البريق – عبوتين 700 مل + إسفنجة",
+      "currentPrimary": "home-cleaners",
+      "primary": "home-cleaners",
+      "extras": ["kitchen-dishwashing"],
+      "reason": "A degreaser: also shown in the kitchen, where the other grease removers are."
+    },
+    {
+      "productId": "product-eca2b842",
+      "name": "فينيسيا Venecia – مزيل الزيوت والدهون القوي متعدد الاستخدامات من داليا – 750 مل",
+      "currentPrimary": "kitchen-dishwashing",
+      "primary": "kitchen-dishwashing",
+      "extras": ["home-cleaners"],
+      "reason": "Multi-purpose grease and oil remover (the name says متعدد الاستخدامات): kitchen stays primary, also listed with household cleaners."
+    },
+    {
+      "productId": "product-46ef798d",
+      "name": "جل منظف البركان متعدد الاستخدامات للمطابخ والحمامات والأرضيات والأواني المنزلية - 600 غم",
+      "currentPrimary": "home-cleaners",
+      "primary": "home-cleaners",
+      "extras": ["kitchen-dishwashing", "bathroom"],
+      "reason": "The name lists kitchens, bathrooms and floors: shown in the kitchen and bathroom categories too."
+    },
+    {
+      "productId": "product-41da5f9f",
+      "name": "معجون البركان متعدد الاستخدامات للتنظيف الصعب وإزالة الدهون – برائحة الليمون",
+      "currentPrimary": "home-cleaners",
+      "primary": "home-cleaners",
+      "extras": ["kitchen-dishwashing"],
+      "reason": "Cleaning paste for tough dirt and grease: also shown in the kitchen."
+    },
+    {
+      "productId": "product-2a3cc6a2",
+      "name": "كلور دولفين Dolphin – مبيض ومعقم متعدد الاستخدامات بتركيز 4.5% – 4 لتر",
+      "currentPrimary": "home-cleaners",
+      "primary": "home-cleaners",
+      "extras": ["laundry"],
+      "reason": "Bleach; the description mentions whitening white clothes, so it is also shown in laundry."
+    },
+    {
+      "productId": "product-a718315e",
+      "name": "مزيل البقع متعدد الاستخدامات البركان مع فرشاة تنظيف",
+      "currentPrimary": "home-cleaners",
+      "primary": "home-cleaners",
+      "extras": ["carpet-upholstery"],
+      "reason": "Stain remover for fabrics, carpets and upholstery (description): also shown in carpets and upholstery."
+    },
+    {
+      "productId": "product-a1fc8efe",
+      "name": "مزيل الروائح لايت ويف – 600 مل",
+      "currentPrimary": "home-cleaners",
+      "primary": "home-fragrances",
+      "extras": ["home-cleaners"],
+      "reason": "An odour-removing spray, like «مزيل الروائح القوية البركان» which is already in home fragrances; kept in household cleaners as an extra."
+    },
+    {
+      "productId": "product-d48ded64",
+      "name": "بودرة معطر السجاد والغرف البركان",
+      "currentPrimary": "carpet-upholstery",
+      "primary": "carpet-upholstery",
+      "extras": ["home-fragrances"],
+      "reason": "Carpet and room freshener powder: also shown in home fragrances."
+    },
+    {
+      "productId": "product-d35ed5dc",
+      "name": "فرشاة تنظيف السجاد والموكيت اليدوية",
+      "currentPrimary": "carpet-upholstery",
+      "primary": "carpet-upholstery",
+      "extras": ["cleaning-tools"],
+      "reason": "A hand brush: also shown with the other cleaning tools."
+    }
+  ],
+  "unclear": [
+    {
+      "productId": "product-2b99a86f",
+      "name": "دلو محارم مسك المعطرة بعدة روائح",
+      "currentPrimary": "paper-tissues",
+      "note": "The description only says «مناديل مسك المعطّرة»; it is not clear whether these are scented paper tissues or wet cleaning wipes. Left unchanged."
+    },
+    {
+      "productId": "product-13b95df6",
+      "name": "أكياس نفايات سوداء قوية ومتينة – 1.2 كغم – مقاس 75×90 سم",
+      "currentPrimary": "cleaning-tools",
+      "note": "Bin bags sit in cleaning tools. The archived, hidden category «أكياس النفايات والقمامة» (category-7) existed for them; restoring it is the owner's choice. Left unchanged."
+    },
+    {
+      "productId": "product-0a007a73",
+      "name": "أكياس نفايات عدد 50 كيس – 52 × 65",
+      "currentPrimary": "cleaning-tools",
+      "note": "Bin bags; same as above. Left unchanged."
+    },
+    {
+      "productId": "product-4ed55e78",
+      "name": "أكياس نفايات Strong Naylon – 70 × 50",
+      "currentPrimary": "cleaning-tools",
+      "note": "Bin bags; same as above. Left unchanged."
+    },
+    {
+      "productId": "product-6b02b51b",
+      "name": "أكياس تغليف وحفظ الطعام المطاطية أبيلوندو – عبوة 100 قطعة",
+      "currentPrimary": "kitchen-dishwashing",
+      "note": "Food-storage items (with the freezer bags, sandwich bags and foil) are not dishwashing products, but the kitchen is the closest existing category. A «حفظ الطعام» category is a proposal only. Left unchanged."
+    },
+    {
+      "productId": "product-1ecdabec",
+      "name": "صابون سائل لغسل اليدين بروائح الزهور المتنوعة من عرار",
+      "currentPrimary": "personal-care",
+      "note": "Hand soap could also be shown in the bathroom; left to the owner. Left unchanged."
+    },
+    {
+      "productId": "product-58d32a34",
+      "name": "صابونة مرحاض بون (BON) من نكا",
+      "currentPrimary": "bathroom",
+      "note": "Cleans and scents the toilet; could also be a home fragrance. Left unchanged."
+    },
+    {
+      "productId": "product-a7939dec",
+      "name": "منظف غسالة الصحون فينيش (Finish Dishwasher Cleaner) برائحة الليمون",
+      "currentPrimary": "category-3",
+      "note": "Archived product in the archived category «الجلي والمطبخ»; it is not on the storefront. Left unchanged."
+    },
+    {
+      "productId": "product-1f376033",
+      "name": "جهاز طارد الناموس الكهربائي سبيرا مات بلس",
+      "currentPrimary": "category-6",
+      "note": "The insect-control category (category-6) has no English name, so English shoppers see the Arabic. Category text is the owner's to write. Left unchanged."
+    }
+  ]
+}

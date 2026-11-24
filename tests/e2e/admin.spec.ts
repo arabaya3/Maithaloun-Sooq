@@ -6,7 +6,7 @@ import {
   getPrimaryNextActionLabel,
   orderStatusLabels,
 } from "../../src/features/orders/domain/order-status";
-import { openAdvanced } from "./support";
+import { openAdvanced, openCart, cartLink } from "./support";
 import { parseTestEnv } from "../../src/server/env/env-schema";
 import { parseTestAdminEnv } from "../../src/test/test-admin";
 
@@ -269,18 +269,17 @@ test("admin authentication, operations, and privacy controls", async ({
   ).toBeVisible({ timeout: 15_000 });
 
   await page.goto("/");
-  await expect(page.locator(".hero-facts")).toContainText("توصيل داخل ميثلون");
   const product = page.locator('[data-product-id="dolphin-bleach"]');
   await expect(product).toBeVisible();
   // A tap before hydration is dropped, so retry until the cart reflects it.
   await expect(async () => {
-    await product.getByRole("button", { name: "أضف إلى السلة" }).click();
-    await expect(page.locator(".cart-button")).toHaveAccessibleName(
+    await product.getByRole("button", { name: "أضف للسلة" }).click();
+    await expect(await cartLink(page)).toHaveAccessibleName(
       /السلة، عدد المنتجات [1-9]/,
       { timeout: 2_000 },
     );
   }).toPass();
-  await page.locator(".cart-button").click();
+  await openCart(page);
   await page.getByRole("link", { name: "الطلب عبر الموقع" }).click();
   await expect(page).toHaveURL(/\/checkout/);
   await expect(page.getByRole("heading", { name: "بيانات الطلب" })).toBeVisible(

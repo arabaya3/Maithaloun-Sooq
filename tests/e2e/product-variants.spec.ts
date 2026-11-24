@@ -6,6 +6,8 @@ import {
   login,
   trackPageIssues,
   withTestDb,
+  openCart,
+  cartLink,
 } from "./support";
 
 // Storefront fixture: scent × size with one combination that does not exist (مسك 1 لتر).
@@ -201,10 +203,10 @@ test("storefront: choose scent and size, missing combination never reached, exac
     .locator(".product-detail-actions")
     .getByRole("button", { name: "أضف إلى السلة" })
     .click();
-  await expect(page.locator(".cart-button")).toHaveAccessibleName(
+  await expect(await cartLink(page)).toHaveAccessibleName(
     "السلة، عدد المنتجات 1",
   );
-  await page.locator(".cart-button").click();
+  await openCart(page);
   await expect(page.getByLabel("مجموع المنتجات 12 ₪")).toBeVisible();
 
   // The price is re-read at checkout; a price raised after adding to the cart is the one charged.

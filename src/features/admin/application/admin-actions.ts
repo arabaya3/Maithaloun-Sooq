@@ -177,6 +177,14 @@ export async function updateProductAction(
       usageNotesEn: optional(formData.get("usageNotesEn")),
       priceAgorot,
       categoryId: String(formData.get("categoryId") ?? "") as never,
+      // Only a form that shows the picker may change the extra categories.
+      ...(formData.has("extraCategoryIdsPresent")
+        ? {
+            extraCategoryIds: formData
+              .getAll("extraCategoryIds")
+              .map(String) as never,
+          }
+        : {}),
       availability: String(formData.get("availability") ?? "") as never,
       sortOrder: Number(formData.get("sortOrder")),
       description: optional(formData.get("description")),

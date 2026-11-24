@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { openCart } from "./support";
 
 function trackPageIssues(page: Page) {
   const consoleErrors: string[] = [];
@@ -32,9 +33,8 @@ test("product details and cart stay synchronized", async ({ page }) => {
     .locator(".product-detail-actions")
     .getByRole("button", { name: "أضف إلى السلة" })
     .click();
-  await expect(page.locator(".cart-button")).toHaveAccessibleName(
-    "السلة، عدد المنتجات 1",
-  );
+  // Phones carry the cart in the bottom bar, with its count.
+  await expect(page.locator(".mobile-navigation .cart-count")).toHaveText("1");
   await expect(
     page.getByText("تمت إضافة منظف عام Secret إلى السلة."),
   ).toBeVisible();
@@ -42,7 +42,7 @@ test("product details and cart stay synchronized", async ({ page }) => {
   await page
     .getByRole("link", { name: /^MAYTHA MARKET\s?، الرئيسية$/ })
     .click();
-  await page.locator(".cart-button").click();
+  await openCart(page);
   await expect(
     page.getByRole("heading", { level: 1, name: "سلة التسوق" }),
   ).toBeVisible();
@@ -62,10 +62,17 @@ test("product details and cart stay synchronized", async ({ page }) => {
 });
 
 test("delivery area indicator is fixed to ميثلون", async ({ page }) => {
+  // The home strip is gone; the product page still states the delivery area and the free threshold.
+  for (let round = 0; round < 2; round += 1) {
+    await page.goto("/products/general-cleaner-secret");
+    await page.getByText("التوصيل والدفع", { exact: true }).click();
+    const delivery = page.locator(".product-trust li").first();
+    await expect(delivery).toBeVisible();
+    await expect(delivery).toContainText("توصيل داخل ميثلون");
+    await expect(delivery).toContainText("100");
+  }
   await page.goto("/");
-  await expect(page.locator(".hero-facts")).toContainText("توصيل داخل ميثلون");
-  await page.reload();
-  await expect(page.locator(".hero-facts")).toContainText("توصيل داخل ميثلون");
+  await expect(page.locator(".hero-facts, .store-benefits")).toHaveCount(0);
 });
 
 test("unknown product slug returns not found", async ({ page }) => {

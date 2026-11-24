@@ -61,6 +61,14 @@ const ar = {
   allBrandsBack: "كل الماركات",
   opening: "جارٍ فتح MAYTHA MARKET",
   loadingProducts: "جارٍ تحميل المنتجات…",
+  sortNewest: "الأحدث أولاً",
+  newArrivals: "وصل حديثًا",
+  viewAll: "عرض الكل",
+  todayCategory: "قسم اليوم",
+  shopCategoryCta: (name: string) => `تسوّق ${name}`,
+  dailyFallbackTitle: "تصفّح أقسام المتجر",
+  dailyFallbackCta: "كل الأقسام",
+  allProductsTitle: "كل المنتجات",
 };
 
 const en: typeof ar = {
@@ -126,6 +134,14 @@ const en: typeof ar = {
   allBrandsBack: "All brands",
   opening: "Opening MAYTHA MARKET",
   loadingProducts: "Loading products…",
+  sortNewest: "Newest first",
+  newArrivals: "New arrivals",
+  viewAll: "View all",
+  todayCategory: "Today’s category",
+  shopCategoryCta: (name: string) => `Shop ${name}`,
+  dailyFallbackTitle: "Browse the store’s categories",
+  dailyFallbackCta: "All categories",
+  allProductsTitle: "All products",
 };
 
 export const store = { ar, en };
