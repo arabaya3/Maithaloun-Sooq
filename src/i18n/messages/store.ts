@@ -66,6 +66,16 @@ const ar = {
   viewAll: "عرض الكل",
   todayCategory: "قسم اليوم",
   shopCategoryCta: (name: string) => `تسوّق ${name}`,
+  categoryProductCount: (count: number) =>
+    count === 1
+      ? "منتج واحد في هذا القسم"
+      : count === 2
+        ? "منتجان في هذا القسم"
+        : count <= 10
+          ? `${count} منتجات في هذا القسم`
+          : `${count} منتجًا في هذا القسم`,
+  showcaseProduct: (position: number, name: string) =>
+    `عرض المنتج ${position}: ${name}`,
   dailyFallbackTitle: "تصفّح أقسام المتجر",
   dailyFallbackCta: "كل الأقسام",
   allProductsTitle: "كل المنتجات",
@@ -139,6 +149,10 @@ const en: typeof ar = {
   viewAll: "View all",
   todayCategory: "Today’s category",
   shopCategoryCta: (name: string) => `Shop ${name}`,
+  categoryProductCount: (count: number) =>
+    count === 1 ? "1 product in this category" : `${count} products in this category`,
+  showcaseProduct: (position: number, name: string) =>
+    `Show product ${position}: ${name}`,
   dailyFallbackTitle: "Browse the store’s categories",
   dailyFallbackCta: "All categories",
   allProductsTitle: "All products",

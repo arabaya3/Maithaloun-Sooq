@@ -2475,54 +2475,92 @@ body:has(.storefront-font-scope) {
   gap: var(--space-6);
 }
 
-/* Today's category: one compact banner, text beside real product photos. */
+/* Today's category: a deep green banner with a showcase that turns through real products. */
 .daily-category {
+  position: relative;
+  isolation: isolate;
   display: grid;
-  min-height: 9.5rem;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  gap: var(--space-3);
-  padding: var(--space-4);
+  gap: var(--space-4);
+  padding: var(--space-5) var(--space-4);
   overflow: hidden;
-  border: 1px solid var(--sage-line);
-  border-radius: var(--radius-card);
-  background: var(--sage-soft);
+  color: var(--white);
+  border-radius: calc(var(--radius-card) + 0.25rem);
+  background:
+    radial-gradient(120% 140% at 0% 100%, rgb(163 196 154 / 28%), transparent 55%),
+    linear-gradient(135deg, var(--forest) 0%, var(--forest-deep) 100%);
+  box-shadow: var(--shadow-raised);
+}
+
+/* Two soft rings behind the showcase give the banner depth without any stock art. */
+.daily-category::before,
+.daily-category::after {
+  position: absolute;
+  z-index: -1;
+  border: 1px solid rgb(255 255 255 / 12%);
+  border-radius: 50%;
+  content: "";
+  inset-inline-end: -3rem;
+}
+
+.daily-category::before {
+  width: 15rem;
+  height: 15rem;
+  top: -4rem;
+}
+
+.daily-category::after {
+  width: 22rem;
+  height: 22rem;
+  top: -7.5rem;
+  inset-inline-end: -6.5rem;
 }
 
 .daily-category-body {
   display: grid;
   min-width: 0;
   justify-items: start;
-  gap: 0.4rem;
+  gap: 0.5rem;
 }
 
 .daily-category-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
   margin: 0;
-  padding: 0.15rem 0.6rem;
-  color: var(--forest);
+  padding: 0.25rem 0.7rem;
+  color: var(--forest-deep);
   border-radius: var(--radius-pill);
-  background: var(--white);
-  font-size: 0.72rem;
-  font-weight: 700;
+  background: var(--sage);
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+
+.daily-category-eyebrow svg {
+  width: 0.85rem;
+  height: 0.85rem;
 }
 
 .daily-category h2 {
   margin: 0;
-  color: var(--forest-deep);
+  color: var(--white);
   font-family: var(--font-display);
-  font-size: clamp(1.2rem, 5vw, 1.6rem);
-  font-weight: 700;
-  line-height: 1.3;
+  font-size: clamp(1.5rem, 6.5vw, 2.25rem);
+  font-weight: 800;
+  line-height: 1.2;
   overflow-wrap: anywhere;
+  text-wrap: balance;
 }
 
 .daily-category-text {
   display: -webkit-box;
   margin: 0;
   overflow: hidden;
-  color: var(--text-muted);
+  color: rgb(255 255 255 / 82%);
   font-size: var(--text-sm);
-  line-height: 1.5;
+  line-height: 1.55;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
 }
@@ -2531,23 +2569,27 @@ body:has(.storefront-font-scope) {
   display: inline-flex;
   min-height: 2.75rem;
   align-items: center;
-  gap: 0.35rem;
-  margin-top: 0.25rem;
-  padding-inline: 1rem;
-  color: var(--white);
+  gap: 0.4rem;
+  margin-top: 0.35rem;
+  padding-inline: 1.15rem;
+  color: var(--forest-deep);
   border-radius: var(--radius-pill);
-  background: var(--forest);
+  background: var(--white);
   font-size: var(--text-sm);
-  font-weight: 700;
+  font-weight: 800;
   text-decoration: none;
+  transition: transform 160ms ease, box-shadow 160ms ease;
 }
 
 .daily-category-cta:hover {
-  background: var(--forest-deep);
+  box-shadow: 0 6px 18px rgb(0 0 0 / 18%);
+  transform: translateY(-1px);
 }
 
-.daily-category-cta:focus-visible {
-  outline: var(--focus-ring);
+.daily-category-cta:focus-visible,
+.daily-showcase-card:focus-visible,
+.daily-showcase-dot:focus-visible {
+  outline: 3px solid var(--white);
   outline-offset: 3px;
 }
 
@@ -2556,23 +2598,54 @@ body:has(.storefront-font-scope) {
   height: 1rem;
 }
 
-.daily-category-photos {
+.daily-showcase {
   display: grid;
-  grid-template-columns: 5.25rem 3.5rem;
-  grid-template-rows: repeat(2, 2.6rem);
-  gap: 0.4rem;
-  margin: 0;
-  padding: 0;
-  list-style: none;
+  justify-items: center;
+  gap: 0.15rem;
 }
 
-.daily-category-photos[data-count="1"] {
-  grid-template-columns: 6rem;
+.daily-showcase-card {
+  display: grid;
+  width: 8.5rem;
+  gap: 0.35rem;
+  padding: 0.4rem;
+  color: var(--text);
+  border-radius: var(--radius-card);
+  background: var(--white);
+  box-shadow: 0 10px 28px rgb(0 0 0 / 22%);
+  text-decoration: none;
+  transform: rotate(-2deg);
+  transition: transform 200ms ease;
 }
 
-.daily-category-photos li:first-child,
-.daily-category-photos[data-count="2"] li {
-  grid-row: span 2;
+[dir="rtl"] .daily-showcase-card {
+  transform: rotate(2deg);
+}
+
+.daily-showcase-card:hover {
+  transform: rotate(0deg) translateY(-2px);
+}
+
+.daily-showcase-stage {
+  position: relative;
+  display: block;
+  aspect-ratio: 1;
+  overflow: hidden;
+  border-radius: var(--radius-tile);
+  background: var(--canvas);
+}
+
+.daily-showcase-slide {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transform: scale(0.94);
+  transition: opacity 500ms ease, transform 600ms ease;
+}
+
+.daily-showcase-slide[data-active="true"] {
+  opacity: 1;
+  transform: scale(1);
 }
 
 .daily-category-photo {
@@ -2580,9 +2653,8 @@ body:has(.storefront-font-scope) {
   width: 100%;
   height: 100%;
   overflow: hidden;
-  border-radius: var(--radius-tile);
-  background: var(--white);
   aspect-ratio: auto;
+  background: transparent;
 }
 
 .daily-category-photo > img,
@@ -2590,7 +2662,54 @@ body:has(.storefront-font-scope) {
   width: 100%;
   height: 100%;
   object-fit: contain;
-  padding: 0.25rem;
+  padding: 0.35rem;
+}
+
+.daily-showcase-name {
+  display: -webkit-box;
+  min-height: 2.4em;
+  overflow: hidden;
+  padding-inline: 0.2rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  line-height: 1.2;
+  text-align: center;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.daily-showcase-dots {
+  display: flex;
+  justify-content: center;
+}
+
+/* Each dot is a 44px target with a small visible mark. */
+.daily-showcase-dot {
+  display: grid;
+  width: 1.5rem;
+  height: 2.75rem;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+}
+
+.daily-showcase-dot span {
+  width: 0.4rem;
+  height: 0.4rem;
+  border-radius: var(--radius-pill);
+  background: rgb(255 255 255 / 45%);
+  transition: width 250ms ease, background 250ms ease;
+}
+
+.daily-showcase-dot[aria-current="true"] span {
+  width: 1.1rem;
+  background: var(--white);
+}
+
+.daily-category[data-fallback="true"] {
+  min-height: 9rem;
 }
 
 .daily-category-art {
@@ -2610,26 +2729,44 @@ body:has(.storefront-font-scope) {
 
 @media (min-width: 48rem) {
   .daily-category {
-    min-height: 12rem;
-    padding: var(--space-6);
+    gap: var(--space-8);
+    padding: var(--space-8) var(--space-8);
   }
 
-  .daily-category-photos {
-    grid-template-columns: 9rem 6rem 6rem;
-    grid-template-rows: 9rem;
+  .daily-category::before {
+    width: 22rem;
+    height: 22rem;
+    top: -6rem;
   }
 
-  .daily-category-photos li:first-child,
-  .daily-category-photos[data-count="2"] li {
-    grid-row: auto;
+  .daily-category::after {
+    width: 32rem;
+    height: 32rem;
+    top: -11rem;
+    inset-inline-end: -10rem;
   }
 
-  .daily-category-photos[data-count="1"] {
-    grid-template-columns: 9rem;
+  .daily-category-text {
+    max-width: 34rem;
+    font-size: var(--text-base);
   }
 
-  .daily-category-photos[data-count="2"] {
-    grid-template-columns: 9rem 6rem;
+  .daily-showcase-card {
+    width: 12.5rem;
+    padding: 0.55rem;
+  }
+
+  .daily-showcase-name {
+    font-size: var(--text-sm);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .daily-showcase-slide,
+  .daily-showcase-card,
+  .daily-category-cta,
+  .daily-showcase-dot span {
+    transition: none;
   }
 }
 

@@ -194,9 +194,10 @@ describe("storefront", () => {
         name: "زيادة كمية منظف عام Secret",
       }),
     );
+    // The header and the bottom bar both carry the cart count.
     expect(
-      screen.getByRole("link", { name: /^السلة، عدد المنتجات\s*2$/ }),
-    ).toBeVisible();
+      screen.getAllByRole("link", { name: /^السلة، عدد المنتجات\s*2$/ }),
+    ).toHaveLength(2);
 
     await user.click(
       within(card).getByRole("button", {
@@ -212,8 +213,8 @@ describe("storefront", () => {
       within(card).getByRole("button", { name: "أضف للسلة" }),
     ).toBeVisible();
     expect(
-      screen.getByRole("link", { name: /^السلة، عدد المنتجات\s*0$/ }),
-    ).toBeInTheDocument();
+      screen.getAllByRole("link", { name: /^السلة، عدد المنتجات\s*0$/ }),
+    ).toHaveLength(2);
   });
 
   it("prevents quantity changes and cart additions for unavailable products", () => {

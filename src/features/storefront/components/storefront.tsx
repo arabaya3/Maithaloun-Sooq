@@ -12,6 +12,7 @@ import {
   type ProductCategory,
 } from "@/features/catalog/domain/category";
 import {
+  isInCategory,
   productCategoryCodes,
   type CategoryId,
   type Product,
@@ -245,6 +246,14 @@ export function Storefront({
     const byId = new Map(products.map((product) => [product.id, product]));
     return (daily?.productIds ?? []).flatMap((id) => byId.get(id) ?? []);
   }, [daily, products]);
+  const dailyProductCount = useMemo(
+    () =>
+      daily?.code
+        ? products.filter((product) => isInCategory(product, daily.code!))
+            .length
+        : 0,
+    [daily, products],
+  );
 
   const filteredProducts = useMemo(
     () =>
@@ -308,6 +317,7 @@ export function Storefront({
             <DailyCategoryBanner
               category={dailyCategory}
               products={dailyProducts}
+              productCount={dailyProductCount}
             />
             <CategoryPicker categories={categories} covers={covers} />
           </div>
