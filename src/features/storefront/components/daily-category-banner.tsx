@@ -33,8 +33,8 @@ import { dailySceneTheme } from "@/features/storefront/domain/daily-scene-theme"
 import { useI18n } from "@/i18n/i18n-provider";
 import { Link } from "@/i18n/link";
 
-/** How long each group of products stays in the scene before the next one (two minutes). */
-export const DAILY_GROUP_INTERVAL_MS = 120_000;
+/** How long each group of products stays in the scene before the next one (eight seconds). */
+export const DAILY_GROUP_INTERVAL_MS = 8_000;
 
 /** The next group's photos start loading this long before it appears. */
 export const DAILY_GROUP_PREFETCH_MS = 5_000;
