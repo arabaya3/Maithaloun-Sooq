@@ -144,14 +144,12 @@ describe("DailyCategoryBanner", () => {
     expect(group).toHaveAttribute("aria-roledescription", "slide");
     expect(group).toHaveAttribute("aria-label", "المجموعة 1 من 3");
     expect(activeIds(container)).toEqual(["0", "1", "2"]);
-    expect(screen.getAllByRole("button", { name: /^عرض المجموعة/ })).toHaveLength(
-      3,
-    );
+    expect(screen.queryByRole("button")).toBeNull();
     // Only the first group is mounted: the others' photos are not requested yet.
     expect(container.querySelectorAll(".daily-scene-group")).toHaveLength(1);
   });
 
-  it("moves to the next group after exactly two minutes, not before", () => {
+  it("moves to the next group after exactly eight seconds, not before", () => {
     const { container } = renderBanner(6);
     expect(DAILY_GROUP_INTERVAL_MS).toBe(8_000);
     advance(DAILY_GROUP_INTERVAL_MS - 1);
@@ -174,59 +172,6 @@ describe("DailyCategoryBanner", () => {
     expect(groups[1]).toHaveAttribute("inert");
   });
 
-  it("goes forward, back and to a chosen group by hand", () => {
-    const { container } = renderBanner(9);
-    fireEvent.click(screen.getByRole("button", { name: "المجموعة التالية" }));
-    expect(activeIds(container)).toEqual(["3", "4", "5"]);
-    fireEvent.click(screen.getByRole("button", { name: "المجموعة السابقة" }));
-    fireEvent.click(screen.getByRole("button", { name: "المجموعة السابقة" }));
-    expect(activeIds(container)).toEqual(["6", "7", "8"]);
-    const dots = screen.getAllByRole("button", { name: /^عرض المجموعة/ });
-    fireEvent.click(dots[1]!);
-    expect(dots[1]).toHaveAttribute("aria-current", "true");
-    expect(activeIds(container)).toEqual(["3", "4", "5"]);
-  });
-
-  it("starts the wait again after a manual change", () => {
-    const { container } = renderBanner(9);
-    advance(DAILY_GROUP_INTERVAL_MS * 0.8);
-    fireEvent.click(screen.getByRole("button", { name: "المجموعة التالية" }));
-    advance(DAILY_GROUP_INTERVAL_MS * 0.8);
-    expect(activeIds(container)).toEqual(["3", "4", "5"]);
-    advance(DAILY_GROUP_INTERVAL_MS * 0.2);
-    expect(activeIds(container)).toEqual(["6", "7", "8"]);
-  });
-
-  it("follows the page direction for the arrow keys", () => {
-    const { container } = renderBanner(9);
-    const next = screen.getByRole("button", { name: "المجموعة التالية" });
-    fireEvent.keyDown(next, { key: "ArrowLeft" });
-    expect(activeIds(container)).toEqual(["3", "4", "5"]);
-    fireEvent.keyDown(next, { key: "ArrowRight" });
-    expect(activeIds(container)).toEqual(["0", "1", "2"]);
-  });
-
-  it("uses the right arrow key for the next group on an English page", () => {
-    const { container } = renderBanner(9, "en");
-    const next = screen.getByRole("button", { name: "Next group" });
-    fireEvent.keyDown(next, { key: "ArrowRight" });
-    expect(activeIds(container)).toEqual(["3", "4", "5"]);
-  });
-
-  it("pauses and resumes the automatic rotation", () => {
-    const { container } = renderBanner(6);
-    fireEvent.click(
-      screen.getByRole("button", { name: "إيقاف التبديل التلقائي" }),
-    );
-    advance(DAILY_GROUP_INTERVAL_MS * 3);
-    expect(activeIds(container)).toEqual(["0", "1", "2"]);
-    fireEvent.click(
-      screen.getByRole("button", { name: "تشغيل التبديل التلقائي" }),
-    );
-    advance(DAILY_GROUP_INTERVAL_MS);
-    expect(activeIds(container)).toEqual(["3", "4", "5"]);
-  });
-
   it("does not rotate while the page is hidden", () => {
     const { container } = renderBanner(6);
     advance(DAILY_GROUP_INTERVAL_MS / 2);
@@ -238,20 +183,16 @@ describe("DailyCategoryBanner", () => {
     expect(activeIds(container)).toEqual(["3", "4", "5"]);
   });
 
-  it("never rotates by itself for reduced motion, but the controls still work", () => {
+  it("never rotates by itself for reduced motion", () => {
     reducedMotion = true;
     stubMatchMedia();
     const { container } = renderBanner(6);
     advance(DAILY_GROUP_INTERVAL_MS * 3);
     expect(activeIds(container)).toEqual(["0", "1", "2"]);
-    expect(screen.queryByRole("button", { name: /التبديل التلقائي/ })).toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: "المجموعة التالية" }));
-    expect(activeIds(container)).toEqual(["3", "4", "5"]);
   });
 
-  it("has no controls and never rotates with a single group", () => {
+  it("never rotates with a single group", () => {
     const { container } = renderBanner(3);
-    expect(screen.queryByRole("button")).toBeNull();
     expect(
       container.querySelector(".daily-category"),
     ).not.toHaveAttribute("aria-roledescription");
