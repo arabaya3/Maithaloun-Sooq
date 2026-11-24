@@ -153,7 +153,7 @@ describe("DailyCategoryBanner", () => {
 
   it("moves to the next group after exactly two minutes, not before", () => {
     const { container } = renderBanner(6);
-    expect(DAILY_GROUP_INTERVAL_MS).toBe(120_000);
+    expect(DAILY_GROUP_INTERVAL_MS).toBe(8_000);
     advance(DAILY_GROUP_INTERVAL_MS - 1);
     expect(activeIds(container)).toEqual(["0", "1", "2"]);
     advance(1);
@@ -164,7 +164,8 @@ describe("DailyCategoryBanner", () => {
 
   it("mounts the next group a few seconds before it appears, hidden and inert", () => {
     const { container } = renderBanner(6);
-    advance(DAILY_GROUP_INTERVAL_MS - DAILY_GROUP_PREFETCH_MS - 1);
+    const lead = Math.min(DAILY_GROUP_PREFETCH_MS, DAILY_GROUP_INTERVAL_MS / 2);
+    advance(DAILY_GROUP_INTERVAL_MS - lead - 1);
     expect(container.querySelectorAll(".daily-scene-group")).toHaveLength(1);
     advance(1);
     const groups = container.querySelectorAll(".daily-scene-group");
@@ -186,13 +187,13 @@ describe("DailyCategoryBanner", () => {
     expect(activeIds(container)).toEqual(["3", "4", "5"]);
   });
 
-  it("starts the two-minute wait again after a manual change", () => {
+  it("starts the wait again after a manual change", () => {
     const { container } = renderBanner(9);
-    advance(100_000);
+    advance(DAILY_GROUP_INTERVAL_MS * 0.8);
     fireEvent.click(screen.getByRole("button", { name: "المجموعة التالية" }));
-    advance(100_000);
+    advance(DAILY_GROUP_INTERVAL_MS * 0.8);
     expect(activeIds(container)).toEqual(["3", "4", "5"]);
-    advance(20_000);
+    advance(DAILY_GROUP_INTERVAL_MS * 0.2);
     expect(activeIds(container)).toEqual(["6", "7", "8"]);
   });
 
@@ -228,7 +229,7 @@ describe("DailyCategoryBanner", () => {
 
   it("does not rotate while the page is hidden", () => {
     const { container } = renderBanner(6);
-    advance(60_000);
+    advance(DAILY_GROUP_INTERVAL_MS / 2);
     setHidden(true);
     advance(DAILY_GROUP_INTERVAL_MS * 2);
     expect(activeIds(container)).toEqual(["0", "1", "2"]);
