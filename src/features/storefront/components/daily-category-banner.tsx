@@ -2,11 +2,8 @@
 
 import {
   ChevronLeft,
-  ChevronRight,
   LayoutGrid,
   Leaf,
-  Pause,
-  Play,
 } from "lucide-react";
 import Image from "next/image";
 import {
@@ -15,7 +12,6 @@ import {
   useMemo,
   useState,
   type CSSProperties,
-  type KeyboardEvent,
 } from "react";
 
 import {
@@ -65,17 +61,14 @@ function usePageHidden() {
 }
 
 /**
- * Which group is in the scene. It moves on by itself every `interval` while the page is visible,
- * the visitor has not paused it and does not ask for reduced motion. Any change of group (by the
- * timer or by hand) starts a fresh wait. Groups are mounted (their photos requested) only when they
- * are about to be shown, or when the visitor points at a control that would show them.
+ * Which group is in the scene. It moves on by itself every `interval` while the page is visible
+ * and the visitor does not ask for reduced motion; there are no controls. Groups are mounted
+ * (their photos requested) only shortly before they are shown.
  */
 function useGroupRotation(count: number, interval: number) {
   const reducedMotion = useReducedMotion();
   const hidden = usePageHidden();
   const [active, setActive] = useState(0);
-  const [paused, setPaused] = useState(false);
-  const [restart, setRestart] = useState(0);
   const [mounted, setMounted] = useState<ReadonlySet<number>>(() => new Set([0]));
   const current = count ? Math.min(active, count - 1) : 0;
 
@@ -85,7 +78,7 @@ function useGroupRotation(count: number, interval: number) {
     );
   }, []);
 
-  const autoplay = count > 1 && !paused && !hidden && !reducedMotion;
+  const autoplay = count > 1 && !hidden && !reducedMotion;
 
   useEffect(() => {
     if (!autoplay) return;
@@ -100,31 +93,9 @@ function useGroupRotation(count: number, interval: number) {
       window.clearTimeout(prefetch);
       window.clearTimeout(advance);
     };
-  }, [autoplay, current, count, interval, mount, restart]);
+  }, [autoplay, current, count, interval, mount]);
 
-  const go = useCallback(
-    (index: number) => {
-      if (!count) return;
-      const target = ((index % count) + count) % count;
-      mount(target);
-      setActive(target);
-      setRestart((value) => value + 1);
-    },
-    [count, mount],
-  );
-
-  return {
-    active: current,
-    mounted,
-    paused,
-    reducedMotion,
-    autoplay,
-    go,
-    next: () => go(current + 1),
-    previous: () => go(current - 1),
-    warm: (index: number) => mount(((index % count) + count) % count),
-    togglePause: () => setPaused((value) => !value),
-  };
+  return { active: current, mounted, autoplay };
 }
 
 /**
@@ -184,7 +155,6 @@ export function DailyCategoryBanner({
   const name = localizedCategoryName(category, locale);
   const description = localizedCategoryDescription(category, locale);
   const href = `/categories/${encodeURIComponent(category.code)}`;
-  const rtl = locale === "ar";
   const multiple = groups.length > 1;
 
   const style = {
@@ -198,15 +168,6 @@ export function DailyCategoryBanner({
     "--scene-pedestal": theme.pedestal,
     "--scene-shade": theme.shade,
   } as CSSProperties;
-
-  function onControlsKeyDown(event: KeyboardEvent<HTMLDivElement>) {
-    if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
-    event.preventDefault();
-    // On an Arabic page the next group lies to the left.
-    const forward = (event.key === "ArrowLeft") === rtl;
-    if (forward) rotation.next();
-    else rotation.previous();
-  }
 
   return (
     <section
@@ -305,60 +266,6 @@ export function DailyCategoryBanner({
         </div>
       ) : null}
 
-      {multiple ? (
-        <div className="daily-scene-controls" onKeyDown={onControlsKeyDown}>
-          <button
-            type="button"
-            className="daily-scene-arrow"
-            aria-label={m.store.dailyPrevious}
-            onClick={rotation.previous}
-            onPointerEnter={() => rotation.warm(rotation.active - 1)}
-            onFocus={() => rotation.warm(rotation.active - 1)}
-          >
-            <ChevronRight className="rtl-flip" aria-hidden="true" />
-          </button>
-          <div className="daily-scene-dots">
-            {groups.map((group, index) => (
-              <button
-                key={group.map((product) => product.id).join("|")}
-                type="button"
-                className="daily-scene-dot"
-                aria-label={m.store.dailyShowGroup(index + 1)}
-                aria-current={index === rotation.active ? "true" : undefined}
-                onClick={() => rotation.go(index)}
-                onPointerEnter={() => rotation.warm(index)}
-                onFocus={() => rotation.warm(index)}
-              >
-                <span aria-hidden="true" />
-              </button>
-            ))}
-          </div>
-          <button
-            type="button"
-            className="daily-scene-arrow"
-            aria-label={m.store.dailyNext}
-            onClick={rotation.next}
-            onPointerEnter={() => rotation.warm(rotation.active + 1)}
-            onFocus={() => rotation.warm(rotation.active + 1)}
-          >
-            <ChevronLeft className="rtl-flip" aria-hidden="true" />
-          </button>
-          {rotation.reducedMotion ? null : (
-            <button
-              type="button"
-              className="daily-scene-arrow daily-scene-pause"
-              aria-label={rotation.paused ? m.store.dailyPlay : m.store.dailyPause}
-              onClick={rotation.togglePause}
-            >
-              {rotation.paused ? (
-                <Play aria-hidden="true" />
-              ) : (
-                <Pause aria-hidden="true" />
-              )}
-            </button>
-          )}
-        </div>
-      ) : null}
     </section>
   );
 }

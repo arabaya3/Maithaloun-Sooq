@@ -2610,8 +2610,8 @@ body:has(.storefront-font-scope) {
    Every size is fixed, so changing group never moves the text, the button or the page. */
 .daily-category.daily-scene {
   grid-template-columns: minmax(0, 1fr);
-  grid-template-areas: "panel" "scene" "controls";
-  grid-template-rows: auto 15rem auto;
+  grid-template-areas: "panel" "scene";
+  grid-template-rows: auto 10.5rem;
   align-items: stretch;
   gap: 0;
   padding: 0;
@@ -2622,7 +2622,7 @@ body:has(.storefront-font-scope) {
 .daily-scene-panel {
   z-index: 2;
   grid-area: panel;
-  padding: var(--space-5) var(--space-4) var(--space-4);
+  padding: var(--space-4) var(--space-4) var(--space-2);
   background: var(--scene-panel);
 }
 
@@ -2724,7 +2724,7 @@ body:has(.storefront-font-scope) {
   display: grid;
   grid-area: scene;
   grid-template-areas: "group";
-  padding-block-end: 1.6rem;
+  padding-block-end: 1rem;
   padding-inline: var(--space-3);
 }
 
@@ -2760,7 +2760,7 @@ body:has(.storefront-font-scope) {
 
 .daily-scene-product {
   --photo-width: 5.75rem;
-  --photo-height: 8rem;
+  --photo-height: 6.25rem;
   --pedestal-height: 1.2rem;
   --pedestal-top: 0.8rem;
   position: relative;
@@ -2895,12 +2895,12 @@ body:has(.storefront-font-scope) {
 
 @media (min-width: 30rem) {
   .daily-category.daily-scene {
-    grid-template-rows: auto 17rem auto;
+    grid-template-rows: auto 12rem;
   }
 
   .daily-scene-product {
-    --photo-width: 7rem;
-    --photo-height: 8.75rem;
+    --photo-width: 6rem;
+    --photo-height: 7rem;
   }
 }
 
@@ -2919,7 +2919,7 @@ body:has(.storefront-font-scope) {
   .daily-category.daily-scene {
     grid-template-columns: minmax(17rem, 40%) minmax(0, 1fr);
     grid-template-areas: "panel scene";
-    grid-template-rows: 28rem;
+    grid-template-rows: 21rem;
     padding: 0;
     gap: 0;
   }
@@ -2969,7 +2969,7 @@ body:has(.storefront-font-scope) {
   }
 
   .daily-scene-stage {
-    padding-block-end: 4.6rem;
+    padding-block-end: 2.75rem;
     padding-inline: var(--space-4) var(--space-8);
   }
 
@@ -2979,7 +2979,7 @@ body:has(.storefront-font-scope) {
 
   .daily-scene-product {
     --photo-width: 7.25rem;
-    --photo-height: 11rem;
+    --photo-height: 9.5rem;
     --pedestal-height: 2.1rem;
   }
 
@@ -3333,4 +3333,24 @@ body:has(.storefront-font-scope) {
 .storefront-main .catalog-merchandising > *,
 .categories-section {
   min-width: 0;
+}
+
+/* Phones: a compact banner. The subtitle only repeats the category name, so it gives way to the
+   scene; the name, count and button stay. */
+@media (max-width: 47.99rem) {
+  .daily-scene .daily-category-text {
+    display: none;
+  }
+
+  .daily-scene .daily-category-body {
+    gap: 0.35rem;
+  }
+
+  .daily-scene h2 {
+    font-size: clamp(1.4rem, 6vw, 1.85rem);
+  }
+
+  .daily-scene .daily-category-cta {
+    margin-top: 0.15rem;
+  }
 }
