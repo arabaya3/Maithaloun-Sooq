@@ -11,7 +11,6 @@ import {
   useEffect,
   useMemo,
   useState,
-  type CSSProperties,
 } from "react";
 
 import {
@@ -23,9 +22,7 @@ import {
   localizedProductName,
   type Product,
 } from "@/features/catalog/domain/product";
-import { DailySceneWall } from "@/features/storefront/components/daily-scene";
 import { groupDailyProducts } from "@/features/storefront/domain/daily-category";
-import { dailySceneTheme } from "@/features/storefront/domain/daily-scene-theme";
 import { useI18n } from "@/i18n/i18n-provider";
 import { Link } from "@/i18n/link";
 
@@ -34,6 +31,43 @@ export const DAILY_GROUP_INTERVAL_MS = 8_000;
 
 /** The next group's photos start loading this long before it appears. */
 export const DAILY_GROUP_PREFETCH_MS = 5_000;
+
+const LEAF = "M0 0 C10 -14 28 -17 40 -5 C28 7 11 8 0 0 Z";
+
+/** A leafy sprig, drawn in currentColor. Decoration only. */
+function Sprig({ className }: { className: string }) {
+  const leaves: [number, number, number][] = [
+    [6, 6, -20],
+    [18, 20, 35],
+    [26, 34, -35],
+    [38, 48, 30],
+    [46, 64, -30],
+  ];
+  return (
+    <svg className={className} viewBox="0 0 90 100" aria-hidden="true" focusable="false">
+      <path d="M2 2 C24 30 40 60 58 96" fill="none" stroke="currentColor" strokeWidth="2" />
+      {leaves.map(([x, y, rotate]) => (
+        <path
+          key={`${x}-${y}`}
+          d={LEAF}
+          fill="currentColor"
+          transform={`translate(${x} ${y}) rotate(${rotate})`}
+        />
+      ))}
+    </svg>
+  );
+}
+
+/** Two small four-point sparkles. Decoration only. */
+function Sparkle() {
+  const star = "M12 0 C13 8 16 11 24 12 C16 13 13 16 12 24 C11 16 8 13 0 12 C8 11 11 8 12 0 Z";
+  return (
+    <svg className="daily-scene-sparkle" viewBox="0 0 40 40" aria-hidden="true" focusable="false">
+      <path d={star} fill="currentColor" transform="translate(0 14)" />
+      <path d={star} fill="currentColor" transform="translate(22 0) scale(0.7)" />
+    </svg>
+  );
+}
 
 function useReducedMotion() {
   // Still until the browser says otherwise: the server render never starts anything moving.
@@ -128,7 +162,6 @@ export function DailyCategoryBanner({
     [products, failed],
   );
   const rotation = useGroupRotation(groups.length, interval);
-  const theme = dailySceneTheme(category?.code);
 
   if (!category) {
     return (
@@ -157,33 +190,16 @@ export function DailyCategoryBanner({
   const href = `/categories/${encodeURIComponent(category.code)}`;
   const multiple = groups.length > 1;
 
-  const style = {
-    "--scene-panel": theme.panel,
-    "--scene-wall-top": theme.wallTop,
-    "--scene-wall-bottom": theme.wallBottom,
-    "--scene-light": theme.light,
-    "--scene-counter": theme.counter,
-    "--scene-counter-edge": theme.counterEdge,
-    "--scene-speck": theme.speck,
-    "--scene-pedestal": theme.pedestal,
-    "--scene-shade": theme.shade,
-  } as CSSProperties;
-
   return (
     <section
       className="daily-category daily-scene"
       data-category-id={category.code}
-      data-motif={theme.motif}
       aria-labelledby="daily-category-title"
       aria-roledescription={multiple ? "carousel" : undefined}
-      style={style}
     >
-      <div className="daily-scene-backdrop" aria-hidden="true">
-        <DailySceneWall motif={theme.motif} />
-        <div className="daily-scene-counter" />
-      </div>
-
       <div className="daily-category-body daily-scene-panel">
+        <Sprig className="daily-scene-sprig daily-scene-sprig--top" />
+        <Sprig className="daily-scene-sprig daily-scene-sprig--bottom" />
         <p className="daily-category-eyebrow">
           <Leaf aria-hidden="true" />
           {m.store.todayCategory}
@@ -214,6 +230,9 @@ export function DailyCategoryBanner({
           role="group"
           aria-live={rotation.autoplay ? "off" : "polite"}
         >
+          <Sprig className="daily-scene-plant" />
+          <Sparkle />
+          <span className="daily-scene-pedestal" aria-hidden="true" />
           {groups.map((group, index) => {
             const active = index === rotation.active;
             if (!active && !rotation.mounted.has(index)) return null;
@@ -239,8 +258,6 @@ export function DailyCategoryBanner({
                     data-position={position}
                     aria-label={localizedProductName(product, locale)}
                   >
-                    {/* The pedestal comes first so the photo is painted onto it. */}
-                    <span className="daily-scene-pedestal" aria-hidden="true" />
                     <span className="daily-scene-photo">
                       {product.image.kind === "image" ? (
                         <Image
