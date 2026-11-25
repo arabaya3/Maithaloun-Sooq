@@ -3080,7 +3080,7 @@ body:has(.storefront-font-scope) {
   position: absolute;
   z-index: 1;
   inset-block-end: 1rem;
-  inset-inline: 8% 10%;
+  inset-inline: 14%;
   height: 1.6rem;
   border-radius: 50%;
   background: radial-gradient(ellipse at 50% 35%, #fbf3e6 0 45%, #e9d6bb 75%, #d4bd9c 100%);
@@ -3117,9 +3117,9 @@ body:has(.storefront-font-scope) {
 }
 
 /* The middle product stands in front and a little larger. */
-.daily-scene-group[data-count="3"] .daily-scene-product[data-position="1"] {
-  --photo-width: 4rem;
-  --photo-height: 7.75rem;
+.daily-scene-group[data-count="1"] .daily-scene-product {
+  --photo-width: 8rem;
+  --photo-height: 8rem;
   order: 0;
 }
 
@@ -3164,9 +3164,9 @@ body:has(.storefront-font-scope) {
     --photo-height: 7rem;
   }
 
-  .daily-scene-group[data-count="3"] .daily-scene-product[data-position="1"] {
-    --photo-width: 5.5rem;
-    --photo-height: 8.5rem;
+  .daily-scene-group[data-count="1"] .daily-scene-product {
+    --photo-width: 9.5rem;
+    --photo-height: 9.5rem;
   }
 }
 
@@ -3212,7 +3212,7 @@ body:has(.storefront-font-scope) {
 
   .daily-scene-pedestal {
     inset-block-end: 1.6rem;
-    inset-inline: 24% 20%;
+    inset-inline: 28%;
     height: 2.6rem;
   }
 
@@ -3227,9 +3227,9 @@ body:has(.storefront-font-scope) {
     margin-inline: 0;
   }
 
-  .daily-scene-group[data-count="3"] .daily-scene-product[data-position="1"] {
-    --photo-width: 11rem;
-    --photo-height: 15.5rem;
+  .daily-scene-group[data-count="1"] .daily-scene-product {
+    --photo-width: 16rem;
+    --photo-height: 14.5rem;
   }
 }
 
