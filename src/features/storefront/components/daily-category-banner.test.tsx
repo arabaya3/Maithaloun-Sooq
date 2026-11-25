@@ -136,32 +136,32 @@ describe("DailyCategoryBanner", () => {
     expect(screen.queryByText("اكتشف الغسيل")).toBeNull();
   });
 
-  it("splits the products into groups of distinct products labelled as slides", () => {
-    const { container } = renderBanner(9);
+  it("splits the products into one product at a time labelled as slides", () => {
+    const { container } = renderBanner(3);
     const region = container.querySelector(".daily-category")!;
     expect(region).toHaveAttribute("aria-roledescription", "carousel");
     const group = activeGroup(container);
     expect(group).toHaveAttribute("aria-roledescription", "slide");
     expect(group).toHaveAttribute("aria-label", "المجموعة 1 من 3");
-    expect(activeIds(container)).toEqual(["0", "1", "2"]);
+    expect(activeIds(container)).toEqual(["0"]);
     expect(screen.queryByRole("button")).toBeNull();
     // Only the first group is mounted: the others' photos are not requested yet.
     expect(container.querySelectorAll(".daily-scene-group")).toHaveLength(1);
   });
 
   it("moves to the next group after exactly eight seconds, not before", () => {
-    const { container } = renderBanner(6);
+    const { container } = renderBanner(2);
     expect(DAILY_GROUP_INTERVAL_MS).toBe(8_000);
     advance(DAILY_GROUP_INTERVAL_MS - 1);
-    expect(activeIds(container)).toEqual(["0", "1", "2"]);
+    expect(activeIds(container)).toEqual(["0"]);
     advance(1);
-    expect(activeIds(container)).toEqual(["3", "4", "5"]);
+    expect(activeIds(container)).toEqual(["1"]);
     advance(DAILY_GROUP_INTERVAL_MS);
-    expect(activeIds(container)).toEqual(["0", "1", "2"]);
+    expect(activeIds(container)).toEqual(["0"]);
   });
 
   it("mounts the next group a few seconds before it appears, hidden and inert", () => {
-    const { container } = renderBanner(6);
+    const { container } = renderBanner(2);
     const lead = Math.min(DAILY_GROUP_PREFETCH_MS, DAILY_GROUP_INTERVAL_MS / 2);
     advance(DAILY_GROUP_INTERVAL_MS - lead - 1);
     expect(container.querySelectorAll(".daily-scene-group")).toHaveLength(1);
@@ -173,49 +173,49 @@ describe("DailyCategoryBanner", () => {
   });
 
   it("does not rotate while the page is hidden", () => {
-    const { container } = renderBanner(6);
+    const { container } = renderBanner(2);
     advance(DAILY_GROUP_INTERVAL_MS / 2);
     setHidden(true);
     advance(DAILY_GROUP_INTERVAL_MS * 2);
-    expect(activeIds(container)).toEqual(["0", "1", "2"]);
+    expect(activeIds(container)).toEqual(["0"]);
     setHidden(false);
     advance(DAILY_GROUP_INTERVAL_MS);
-    expect(activeIds(container)).toEqual(["3", "4", "5"]);
+    expect(activeIds(container)).toEqual(["1"]);
   });
 
   it("never rotates by itself for reduced motion", () => {
     reducedMotion = true;
     stubMatchMedia();
-    const { container } = renderBanner(6);
+    const { container } = renderBanner(2);
     advance(DAILY_GROUP_INTERVAL_MS * 3);
-    expect(activeIds(container)).toEqual(["0", "1", "2"]);
+    expect(activeIds(container)).toEqual(["0"]);
   });
 
   it("never rotates with a single group", () => {
-    const { container } = renderBanner(3);
+    const { container } = renderBanner(1);
     expect(
       container.querySelector(".daily-category"),
     ).not.toHaveAttribute("aria-roledescription");
     advance(DAILY_GROUP_INTERVAL_MS * 2);
-    expect(activeIds(container)).toEqual(["0", "1", "2"]);
+    expect(activeIds(container)).toEqual(["0"]);
   });
 
   it("clears its timers when it goes away", () => {
-    const { unmount } = renderBanner(6);
+    const { unmount } = renderBanner(2);
     expect(vi.getTimerCount()).toBeGreaterThan(0);
     unmount();
     expect(vi.getTimerCount()).toBe(0);
   });
 
   it("drops a product whose photo fails instead of leaving a hole", () => {
-    const { container } = renderBanner(3);
+    const { container } = renderBanner(2);
     const images = activeGroup(container).querySelectorAll("img");
-    expect(images).toHaveLength(3);
-    fireEvent.error(images[1]!);
-    expect(activeIds(container)).toEqual(["0", "2"]);
+    expect(images).toHaveLength(1);
+    fireEvent.error(images[0]!);
+    expect(activeIds(container)).toEqual(["1"]);
     expect(
       within(activeGroup(container)).queryByRole("link", {
-        name: "منتج غسيل 2",
+        name: "منتج غسيل 1",
       }),
     ).toBeNull();
   });

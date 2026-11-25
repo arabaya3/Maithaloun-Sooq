@@ -158,6 +158,8 @@ export function DailyCategoryBanner({
         products.filter(
           (product) => product.image.kind === "image" && !failed.has(product.id),
         ),
+        // One product at a time in the scene.
+        1,
       ),
     [products, failed],
   );
