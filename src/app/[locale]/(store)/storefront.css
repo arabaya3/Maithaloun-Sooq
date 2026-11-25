@@ -3097,6 +3097,7 @@ body:has(.storefront-font-scope) {
   grid-area: group;
   align-items: flex-end;
   justify-content: center;
+  gap: 0.35rem;
   padding-block-end: 1.7rem;
   padding-inline: 0.25rem;
 }
@@ -3110,7 +3111,7 @@ body:has(.storefront-font-scope) {
   --photo-height: 6.25rem;
   position: relative;
   display: block;
-  margin-inline: -0.3rem;
+  margin-inline: 0;
   text-decoration: none;
   border-radius: var(--radius-md);
 }
@@ -3216,13 +3217,14 @@ body:has(.storefront-font-scope) {
   }
 
   .daily-scene-group {
+    gap: 1.25rem;
     padding-block-end: 2.8rem;
   }
 
   .daily-scene-product {
     --photo-width: 9.5rem;
     --photo-height: 13rem;
-    margin-inline: -0.75rem;
+    margin-inline: 0;
   }
 
   .daily-scene-group[data-count="3"] .daily-scene-product[data-position="1"] {
